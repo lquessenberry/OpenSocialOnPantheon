@@ -1,0 +1,5 @@
+post.admin.structure.settings:
+  title: Post settings
+  description: 'Configure Post entities'
+  route_name: post.settings
+  parent: system.admin_structure

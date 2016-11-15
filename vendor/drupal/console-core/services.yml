@@ -1,0 +1,72 @@
+services:
+  # DrupalConsoleCore Services
+  console.translator_manager:
+    class: Drupal\Console\Utils\TranslatorManager
+  console.configuration_manager:
+    class: Drupal\Console\Utils\ConfigurationManager
+  console.requirement_checker:
+    class: Drupal\Console\Utils\RequirementChecker
+  console.chain_queue:
+    class: Drupal\Console\Utils\ChainQueue
+  console.nested_array:
+    class: Drupal\Console\Utils\NestedArray
+  console.show_file:
+    class: Drupal\Console\Utils\ShowFile
+    arguments: ['@app.root', '@console.translator_manager']
+  console.renderer:
+    class: Drupal\Console\Utils\TwigRenderer
+    arguments: ['@console.translator_manager', '@console.string_converter']
+  console.file_queue:
+    class: Drupal\Console\Utils\FileQueue
+  console.shell_process:
+    class: Drupal\Console\Utils\ShellProcess
+    arguments: ['@app.root']
+  console.string_converter:
+      class: Drupal\Console\Utils\StringConverter
+  # DrupalConsoleCore Commands
+  console.about:
+    class: Drupal\Console\Command\AboutCommand
+    tags:
+      - { name: drupal.command }
+  console.list:
+    class: Drupal\Console\Command\ListCommand
+    tags:
+      - { name: drupal.command }
+  console.help:
+    class: Drupal\Console\Command\HelpCommand
+    tags:
+      - { name: drupal.command }
+  console.complete:
+    class: Drupal\Console\Command\CompleteCommand
+    tags:
+      - { name: drupal.command }
+  console.check:
+    class: Drupal\Console\Command\CheckCommand
+    arguments: ['@console.requirement_checker', '@console.chain_queue', '@console.configuration_manager']
+    tags:
+      - { name: drupal.command }
+  console.init:
+    class: Drupal\Console\Command\InitCommand
+    arguments: ['@console.show_file', '@console.configuration_manager', '@console.init_generator', '@app.root', '@?console.root']
+    tags:
+      - { name: drupal.command }
+  console.settings_debug:
+    class: Drupal\Console\Command\Settings\DebugCommand
+    arguments: ['@console.configuration_manager', '@console.nested_array']
+    tags:
+      - { name: drupal.command }
+  console.settings_set:
+    class: Drupal\Console\Command\Settings\SetCommand
+    arguments: ['@console.configuration_manager', '@console.nested_array']
+    tags:
+      - { name: drupal.command }
+  console.exec:
+    class: Drupal\Console\Command\Exec\ExecCommand
+    arguments: ['@console.shell_process']
+    tags:
+      - { name: drupal.command }
+  # DrupalConsoleCore Generators
+  console.init_generator:
+    class: Drupal\Console\Generator\InitGenerator
+    tags:
+      - { name: drupal.generator }

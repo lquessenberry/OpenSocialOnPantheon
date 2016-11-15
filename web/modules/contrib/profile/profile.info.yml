@@ -1,0 +1,17 @@
+name: Profile
+type: module
+description: 'Provides configurable user profiles.'
+# core: 8.x
+configure: entity.profile_type.collection
+dependencies:
+  - user
+  - entity
+  - field
+  - views
+  - system (>=8.1.0)
+
+# Information added by Drupal.org packaging script on 2016-08-22
+version: '8.x-1.0-alpha5'
+core: '8.x'
+project: 'profile'
+datestamp: 1471874016

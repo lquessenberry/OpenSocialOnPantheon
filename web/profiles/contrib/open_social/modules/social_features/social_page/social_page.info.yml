@@ -1,0 +1,22 @@
+name: 'Social Page'
+description: 'Provide basic pages content type for your static content, such as an About us page.'
+type: module
+core: 8.x
+dependencies:
+  - comment
+  - entity_access_by_field
+  - field
+  - field_group
+  - file
+  - image
+  - image_widget_crop
+  - menu_ui
+  - node
+  - options
+  - path
+  - social_comment
+  - social_core
+  - social_event
+  - text
+  - user
+package: Social

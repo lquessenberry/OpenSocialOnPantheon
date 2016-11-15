@@ -1,0 +1,6 @@
+langcode: en
+status: true
+dependencies: {  }
+id: default
+label: 'Default label'
+description: 'Default description.'

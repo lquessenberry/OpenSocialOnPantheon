@@ -1,0 +1,131 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the AddToAny module.
+ */
+
+use Drupal\Core\Entity\Entity\EntityViewDisplay;
+
+/**
+ * Implements hook_install().
+ */
+function addtoany_install() {
+  // Build a structured list of node bundles and view modes that have AddToAny
+  // enabled by default.
+  $node_enable_by_default = [
+    'article' => ['default', 'teaser'],
+    'page' => ['default', 'teaser'],
+  ];
+  // Get the config entity storage handler.
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  foreach ($node_enable_by_default as $bundle => $viewmodes) {
+    // Set a default weight per node type.
+    $display_weight = ($bundle == 'article') ? 5 : 101;
+
+    foreach ($viewmodes as $viewmode) {
+      // Get the config entity for this bundle and view mode.
+      $display = $storage->load('node.' . $bundle . '.' . $viewmode);
+      // Enable the AddToAny extra field and save the config.
+      if (!empty($display)) {
+        $display->setComponent('addtoany', ['weight' => $display_weight])->save();
+      }
+    }
+  }
+}
+
+/**
+ * Migrate global placement settings to settings per view mode.
+ */
+function addtoany_update_8101(&$sandbox) {
+  $config_factory = \Drupal::configFactory();
+
+  // Gather the settings we need to migrate.
+  $addtoany_settings = $config_factory->getEditable('addtoany.settings');
+  $node_types = $addtoany_settings->getOriginal('nodetypes');
+  $display_in_teasers = $addtoany_settings->getOriginal('display_in_teasers');
+  $display_in_nodecont = $addtoany_settings->getOriginal('display_in_nodecont');
+  $display_weight = $addtoany_settings->getOriginal('display_weight');
+  $new_display_weight = $display_weight;
+
+  // The entity display repository stores which view modes are enabled.
+  $entity_display_repository = \Drupal::getContainer()->get('entity_display.repository');
+
+  // Check if AddToAny is currently shown on at least one node type.
+  if (!empty($node_types) && $display_in_nodecont) {
+
+    // Loop over the AddToAny-enabled node types.
+    foreach ($node_types as $bundle) {
+      // Get enabled view modes.
+      $view_modes = $entity_display_repository->getViewModeOptionsByBundle('node', $bundle);
+
+      // If the teaser view mode is enabled but the old settings excluded it,
+      // take it out.
+      if (!empty($view_modes['teaser']) && $display_in_teasers == FALSE) {
+        unset($view_modes['teaser']);
+      }
+
+      // Check if the old default weight was set.
+      if ($display_weight == 10) {
+        // Set the new default weight per node type.
+        $new_display_weight = ($bundle == 'article') ? 5 : 101;
+      }
+
+      // Loop over the view modes and apply new settings to match the old.
+      foreach ($view_modes as $view_mode => $view_mode_info) {
+        $display = EntityViewDisplay::load('node.' . $bundle . '.' . $view_mode);
+        $display->setComponent('addtoany', ['weight' => $new_display_weight])->save();
+      }
+    }
+  }
+
+  // Convert Display Suite fields to regular "extra fields".
+  if (\Drupal::moduleHandler()->moduleExists('ds')) {
+    // The DsField implementation only supported node entities.
+    $all_node_types = \Drupal\node\Entity\NodeType::loadMultiple();
+
+    foreach ($all_node_types as $node_type) {
+      // Get enabled view modes.
+      $view_modes = $entity_display_repository->getViewModeOptionsByBundle('node', $node_type->id());
+
+      // Loop over the view modes and apply new settings to match the old.
+      foreach ($view_modes as $view_mode => $view_mode_info) {
+        // Get the entity view display config entity.
+        $display = EntityViewDisplay::load('node.' . $node_type->id() . '.' . $view_mode);
+
+        // Check if this view mode uses Display Suite fields and if the Display
+        // Suite AddToAny field ("addtoany_field") was enabled.
+        $ds_fields = $display->getThirdPartySetting('ds', 'fields');
+        if (!empty($ds_fields) && isset($ds_fields['addtoany_field'])) {
+          // Remove the DS field, add the extra field.
+          unset($ds_fields['addtoany_field']);
+          $display->setComponent('addtoany');
+          // Keep the rest of the DS fields.
+          $display->setThirdPartySetting('ds', 'fields', $ds_fields);
+
+          // Find where the DS field was placed and put the AddToAny extra field
+          // in its place.
+          $ds_regions = $display->getThirdPartySetting('ds', 'regions');
+          foreach ($ds_regions as $label => $ds_region_fields) {
+            $key = array_search('addtoany_field', $ds_region_fields);
+            if ($key !== FALSE) {
+              $ds_regions[$label][$key] = 'addtoany';
+            }
+          }
+          // Apply the altered region settings.
+          $display->setThirdPartySetting('ds', 'regions', $ds_regions);
+
+          // Save the view mode.
+          $display->save();
+        }
+      }
+    }
+  }
+
+  // Finally, clean up no longer used settings.
+  $addtoany_settings->clear('nodetypes')
+    ->clear('display_in_teasers')
+    ->clear('display_in_nodecont')
+    ->clear('display_weight')
+    ->save();
+}

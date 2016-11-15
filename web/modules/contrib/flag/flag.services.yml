@@ -1,0 +1,28 @@
+services:
+  access_check.flag.action:
+    class: Drupal\flag\Access\FlagAccessCheck
+    arguments: ['@flag']
+    tags:
+      - { name: access_check, applies_to: _flag_access }
+  access_check.unflag.action:
+    class: Drupal\flag\Access\UnFlagAccessCheck
+    arguments: ['@flag']
+    tags:
+      - { name: access_check, applies_to: _unflag_access }
+  plugin.manager.flag.flagtype:
+    class: Drupal\flag\FlagType\FlagTypePluginManager
+    arguments: ['@container.namespaces', '@cache.default', '@module_handler']
+  plugin.manager.flag.linktype:
+    class: Drupal\flag\ActionLink\ActionLinkPluginManager
+    arguments: ['@container.namespaces', '@cache.default', '@module_handler']
+  flag:
+    class: Drupal\flag\FlagService
+    arguments: ['@entity.query', '@current_user', '@entity_type.manager']
+  flag.count:
+    class: Drupal\flag\FlagCountManager
+    arguments: ['@database']
+    tags:
+      - { name: event_subscriber }
+  flag.link_builder:
+    class: Drupal\flag\FlagLinkBuilder
+    arguments: ['@entity.manager', '@flag']

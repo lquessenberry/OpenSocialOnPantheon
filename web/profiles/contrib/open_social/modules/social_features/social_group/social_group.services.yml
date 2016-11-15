@@ -1,0 +1,12 @@
+services:
+  social_group.route_subscriber:
+    class: Drupal\social_group\Routing\RouteSubscriber
+    tags:
+      - { name: event_subscriber }
+  social_group.helper_service:
+    class: Drupal\social_group\SocialGroupHelperService
+    arguments: []
+  social_group.address_format_subscriber:
+    class: Drupal\social_group\EventSubscriber\AddressFormatSubscriber
+    tags:
+      - { name: event_subscriber }

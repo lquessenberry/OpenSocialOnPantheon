@@ -1,0 +1,10 @@
+name: Flag Follower
+description: Provides an example user flag and supporting views.
+core: 8.x
+type: module
+dependencies:
+  - flag
+  - views
+  - node
+  - user
+package: Flags

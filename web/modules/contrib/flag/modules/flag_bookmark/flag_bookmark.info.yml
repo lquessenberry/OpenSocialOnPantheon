@@ -1,0 +1,9 @@
+name: Flag Bookmark
+description: Provides an example bookmark flag and supporting views.
+core: 8.x
+type: module
+dependencies:
+  - flag
+  - views
+  - node
+package: Flags

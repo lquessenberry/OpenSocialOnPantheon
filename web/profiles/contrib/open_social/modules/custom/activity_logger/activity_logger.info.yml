@@ -1,0 +1,20 @@
+name: Activity Logger
+type: module
+description: Used to log activities based on the message module
+core: 8.x
+package: Social
+dependencies:
+  - activity_creator
+  - block_content
+  - comment
+  - dynamic_entity_reference
+  - file
+  - group
+  - menu_link_content
+  - message
+  - node
+  - options
+  - profile
+  - social_post
+  - taxonomy
+  - user

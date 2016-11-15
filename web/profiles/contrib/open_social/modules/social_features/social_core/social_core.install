@@ -1,0 +1,397 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the social_comment module.
+ */
+
+use Drupal\Core\Field\FieldItemList;
+use Drupal\file\Entity\File;
+use \Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\crop\Entity\CropType;
+use Drupal\node\Entity\Node;
+use Drupal\profile\Entity\Profile;
+use Drupal\group\Entity\Group;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_core.
+ */
+function social_core_install() {
+
+  // Set some default permissions.
+  _social_core_set_permissions();
+  // Create AN Homepage block.
+  _social_core_create_an_homepage_block();
+  // Add menu items
+  _social_core_create_menu_links();
+}
+
+/**
+ * Re-set permissions.
+ */
+function social_core_update_8001(&$sandbox) {
+  // Set some default permissions.
+  _social_core_set_permissions();
+}
+
+/**
+ * Function to set permissions.
+ */
+function _social_core_set_permissions() {
+  $roles = \Drupal\user\Entity\Role::loadMultiple();
+
+  /** @var \Drupal\user\Entity\Role $role */
+  foreach ($roles as $role) {
+    if ($role->id() === 'administrator') {
+      continue;
+    }
+
+    $permissions = _social_core_get_permissions($role->id());
+    user_role_grant_permissions($role->id(), $permissions);
+  }
+}
+
+/**
+ * @param $role
+ * @return array
+ */
+function _social_core_get_permissions($role) {
+  // Anonymous.
+  $permissions['anonymous'] = array(
+    'access content',
+  );
+
+  // Authenticated.
+  $permissions['authenticated'] = array_merge($permissions['anonymous'], array(
+    'view own unpublished content',
+    'use text format basic_html',
+    'use text format simple_text',
+  ));
+
+
+  // Content manager.
+  $permissions['contentmanager'] = array_merge($permissions['authenticated'], array(
+    'access content overview',
+    'access toolbar',
+    'administer nodes',
+    'administer menu',
+    'access site reports',
+    'access administration pages',
+    'view all revisions',
+    'revert all revisions',
+    'delete all revisions',
+    'create url aliases',
+    'use text format full_html',
+    'view the administration theme',
+  ));
+
+  // Site manager.
+  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], array(
+    'administer taxonomy',
+    'delete terms in expertise',
+    'edit terms in expertise',
+    'delete terms in interests',
+    'edit terms in interests',
+    'delete terms in topic_types',
+    'edit terms in topic_types',
+    'administer site configuration',
+    'administer users',
+    'administer account settings',
+    'administer themes',
+    'administer blocks',
+  ));
+
+  return $permissions[$role];
+}
+
+/**
+ * Custom function to create the homepage block for AN users.
+ */
+function _social_core_create_an_homepage_block() {
+  // TODO: use a better image from the theme.
+  // Block image.
+  $path = drupal_get_path('module', 'social_core');
+  $image_path = $path . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'homepage-block.jpg';
+  $uri  = file_unmanaged_copy($image_path, 'public://homepage-block.jpg', FILE_EXISTS_REPLACE);
+
+  $media = File::create(array(
+    'langcode' => 'en',
+    'uid' => 1,
+    'status' => 1,
+    'uri' => $uri,
+  ));
+  $media->save();
+
+  $fid = $media->id();
+
+  // Apply image cropping.
+  $data = [
+    'x' => 0,
+    'y' => 302,
+    'width' => 1919,
+    'height' => 676,
+  ];
+  $crop_type = \Drupal::entityTypeManager()
+    ->getStorage('crop_type')
+    ->load('hero');
+  if (!empty($crop_type) && $crop_type instanceof CropType) {
+    $image_widget_crop_manager = \Drupal::service('image_widget_crop.manager');
+    $image_widget_crop_manager->applyCrop($data, [
+      'file-uri' => $uri,
+      'file-id' => $fid,
+    ], $crop_type);
+  }
+
+  // Create a block with a specific uuid so we can use it in the config
+  // to load it into the theme see block.block.anhomepageheroblock.yml.
+  $block = \Drupal::entityTypeManager()->getStorage('block_content')->create(array(
+    'type' => 'hero_call_to_action_block',
+    'info' => 'AN homepage hero block',
+    'uuid' => '8bb9d4bb-f182-4afc-b138-8a4b802824e4',
+  ));
+  $block->field_text_block = array(
+    'value' => '<h3>Become a member or log in</h3><p>powered by Open Social</p>',
+    'format' => 'full_html',
+  );
+
+  $block_image = array(
+    'target_id' => $fid,
+    'alt' => "Anonymous front page image homepage'",
+  );
+  $block->field_hero_image = $block_image;
+
+  // Set the links.
+  $action_links = array(
+    array(
+      'uri' => 'internal:/user/register',
+      'title' => 'Sign up',
+    ),
+    array(
+      'uri' => 'internal:/user/login',
+      'title' => 'Login',
+    ),
+  );
+  $itemList = new FieldItemList($block->field_call_to_action_link->getFieldDefinition());
+  $itemList->setValue($action_links);
+  $block->field_call_to_action_link = $itemList;
+  $block->save();
+}
+
+
+/**
+ * Function to create some menu items.
+ */
+function _social_core_create_menu_links() {
+  // Home.
+  MenuLinkContent::create([
+    'title' => 'Home',
+    'link' => ['uri' => 'internal:/'],
+    'menu_name' => 'main',
+    'expanded' => FALSE,
+    'weight' => 10,
+  ])->save();
+
+  // Explore.
+  MenuLinkContent::create([
+    'title' => 'Explore',
+    // This way we get an empty link.
+    'link' => ['uri' => 'internal:'],
+    'menu_name' => 'main',
+    'expanded' => TRUE,
+    'weight' => 20,
+  ])->save();
+
+}
+
+/**
+ * Enable full_html format for contentmanager and sitemanager roles.
+ */
+function social_core_update_8002() {
+  $roles = \Drupal\user\Entity\Role::loadMultiple();
+
+  $permissions = array(
+    'use text format full_html',
+  );
+
+  /** @var \Drupal\user\Entity\Role $role */
+  foreach ($roles as $role) {
+    if ($role->id() === 'contentmanager' || $role->id() === 'sitemanager') {
+      user_role_grant_permissions($role->id(), $permissions);
+    }
+  }
+}
+
+/**
+ * Install image_widget_crop module.
+ */
+function social_core_update_8003() {
+
+  $modules = array(
+    'libraries',
+    'image_widget_crop',
+  );
+  \Drupal::service('module_installer')->install($modules);
+
+}
+
+/**
+ * Add permission to view admin theme for contentmanager and sitemanager roles.
+ */
+function social_core_update_8004() {
+  $roles = \Drupal\user\Entity\Role::loadMultiple();
+
+  $permissions = array(
+    'view the administration theme',
+  );
+
+  /** @var \Drupal\user\Entity\Role $role */
+  foreach ($roles as $role) {
+    if ($role->id() === 'contentmanager' || $role->id() === 'sitemanager') {
+      user_role_grant_permissions($role->id(), $permissions);
+    }
+  }
+}
+
+/**
+ * Crop images for groups, profiles and nodes.
+ */
+function social_core_update_8005(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['items'] = [];
+    $sandbox['max'] = 0;
+
+    // First retrieve all the nodes, groups and profiles.
+    $query = \Drupal::entityQuery('node', 'OR')
+      ->condition('type', 'event')
+      ->condition('type', 'topic')
+      ->condition('type', 'page')
+      ->condition('type', 'book');
+
+    $sandbox['items']['node_ids'] = $query->execute();
+    $sandbox['max'] = count($sandbox['items']['node_ids']);
+
+    $query = \Drupal::entityQuery('group');
+    $sandbox['items']['group_ids'] = $query->execute();
+    $sandbox['max'] += count($sandbox['items']['group_ids']);
+
+    $query = \Drupal::entityQuery('profile');
+    $sandbox['items']['profile_ids'] = $query->execute();
+    $sandbox['max'] += count($sandbox['items']['profile_ids']);
+  }
+
+  $value = NULL;
+
+  // Check if this is a node, group or profile and continue by retrieving the:
+  // - Image uri value.
+  // - Crop style names we need to crop for.
+  if ($sandbox['items']['node_ids']) {
+    $nid = array_shift($sandbox['items']['node_ids']);
+    $node = Node::load($nid);
+
+    switch ($node->getType()) {
+      case 'topic':
+        $value = $node->field_topic_image->first() ? $node->field_topic_image->first()->getValue() : NULL;
+        break;
+
+      case 'event':
+        $value = $node->field_event_image->first() ? $node->field_event_image->first()->getValue() : NULL;
+        break;
+
+      case 'page':
+        $value = $node->field_page_image->first() ? $node->field_page_image->first()->getValue() : NULL;
+        break;
+
+      case 'book':
+        $value = $node->field_book_image->first() ? $node->field_book_image->first()->getValue() : NULL;
+        break;
+    }
+
+    $crop_type_names = [
+      'hero',
+      'teaser',
+    ];
+  }
+  elseif ($sandbox['items']['group_ids']) {
+    $gid = array_shift($sandbox['items']['group_ids']);
+    $group = Group::load($gid);
+    $value = $group->field_group_image->first() ? $group->field_group_image->first()->getValue() : NULL;
+    $crop_type_names = [
+      'hero',
+      'teaser',
+    ];
+  }
+  elseif ($sandbox['items']['profile_ids']) {
+    $pid = array_shift($sandbox['items']['profile_ids']);
+    $profile = Profile::load($pid);
+    $value = $profile->field_profile_image->first() ? $profile->field_profile_image->first()->getValue() : NULL;
+    $crop_type_names = [
+      'teaser',
+      'profile_medium',
+      'profile_small',
+    ];
+  }
+
+  if ($value && isset($crop_type_names)) {
+    $image_widget_crop_manager = \Drupal::service('image_widget_crop.manager');
+
+    foreach ($crop_type_names as $crop_type_name) {
+      $crop_type = \Drupal::entityTypeManager()
+        ->getStorage('crop_type')
+        ->load($crop_type_name);
+
+      if (!empty($crop_type) && $crop_type instanceof CropType) {
+
+        $file = File::load($value['target_id']);
+        $crop_element = [
+          'file-uri' => $file->getFileUri(),
+          'file-id' => $file->id(),
+        ];
+
+        $image_styles = $image_widget_crop_manager->getImageStylesByCrop($crop_type_name);
+        $crops = $image_widget_crop_manager->loadImageStyleByCrop($image_styles, $crop_type, $crop_element['file-uri']);
+
+        // Only crop if this uri is not yet cropped for this crop style already.
+        if (!$crops) {
+
+          list($ratio_width, $ratio_height) = explode(':', $crop_type->aspect_ratio);
+          $ratio = $ratio_width / $ratio_height;
+
+          if ($ratio > 1) {
+            $width = $value['width'];
+            $height = $value['height'] * (($value['width'] / $value['height']) / $ratio);
+          } elseif ($ratio === 1) {
+            $width = $height = min([$value['width'], $value['height']]);
+          } else {
+            $width = $value['width'] * (($value['width'] / $value['height']) / $ratio);
+            $height = $value['height'];
+          }
+
+          $center_x = round($value['width'] / 2);
+          $center_y = round($value['height'] / 2);
+          $crop_width_half  = round($width / 2);
+          $crop_height_half = round($height / 2);
+          $x = max(0, $center_x - $crop_width_half);
+          $y = max(0, $center_y - $crop_height_half);
+
+          $properties = [
+            'x' => $x,
+            'y' => $y,
+            'width' => $width,
+            'height' => $height,
+          ];
+          $field_value = [
+            'file-uri' => $crop_element['file-uri'],
+            'file-id' => $value['target_id'],
+          ];
+          $image_widget_crop_manager->applyCrop($properties, $field_value, $crop_type);
+          image_path_flush($file->getFileUri());
+        }
+      }
+    }
+  }
+
+  $sandbox['progress']++;
+  $sandbox['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+}

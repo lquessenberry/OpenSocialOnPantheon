@@ -1,0 +1,11 @@
+name: 'Social Sharing'
+description: 'Provides sharing of content to social media.'
+type: module
+core: 8.x
+dependencies:
+  - addtoany
+  - block
+  - node
+  - system
+  - views
+package: Social

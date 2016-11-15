@@ -1,0 +1,5 @@
+event_enrollment.admin.structure.settings:
+  title: Event enrollment settings
+  description: 'Configure Event enrollment entities'
+  route_name: event_enrollment.settings
+  parent: system.admin_structure
