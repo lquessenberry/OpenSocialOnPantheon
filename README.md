@@ -1,8 +1,14 @@
-# Example Drops 8 Composer
+# OpenSocial on Pantheon using Example Drops 8 Composer
 
-This repository can be used to set up a Composer-Managed Drupal 8 site on [Pantheon](https://pantheon.io).
+This repository can be used to set up a Composer-Managed OpenSocial Profile Drupal 8 site on [Pantheon](https://pantheon.io).
 
 [![CircleCI](https://circleci.com/gh/pantheon-systems/example-drops-8-composer.svg?style=svg)](https://circleci.com/gh/pantheon-systems/example-drops-8-composer)
+
+### Open Social Project
+
+Read more about Open Social, the team and the process in Drupal.org featured case study and visit the dedicated project website on www.GetOpenSocial.com or follow @OpenSocialHQ on Twitter.
+
+http://drupal.org/project/social
 
 ## Installation
 
