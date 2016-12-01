@@ -4,12 +4,12 @@ This repository can be used to set up a Composer-Managed OpenSocial Profile Drup
 
 [![CircleCI](https://circleci.com/gh/pantheon-systems/example-drops-8-composer.svg?style=svg)](https://circleci.com/gh/pantheon-systems/example-drops-8-composer)
 
-## ***NOTE: THIS REPO ONLY WORKS FOR ENGLISH INSTALLATIONS AT THIS TIME***
+## ***NOTE: ONLY WORKS FOR ENGLISH INSTALLATIONS AT THIS TIME***
 
 Please refer to the official threads on Drupal.org for support requests and status of installation in other languages
 
-https://www.drupal.org/node/2826080#comment-11806379
-https://www.drupal.org/node/2832103
+* https://www.drupal.org/node/2826080#comment-11806379
+* https://www.drupal.org/node/2832103
 
 ### Open Social Project
 
