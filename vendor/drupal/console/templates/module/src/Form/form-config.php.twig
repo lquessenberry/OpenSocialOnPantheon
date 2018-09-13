@@ -20,12 +20,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 {% block class_declaration %}
 /**
  * Class {{ class_name }}.
- *
- * @package Drupal\{{module_name}}\Form
  */
 class {{ class_name }} extends ConfigFormBase {% endblock %}
 {% block class_construct %}
 {% if services is not empty %}
+  /**
+   * Constructs a new {{ class_name }} object.
+   */
   public function __construct(
     ConfigFactoryInterface $config_factory,
       {{ servicesAsParameters(services)|join(',\n    ') }}
@@ -79,7 +80,7 @@ class {{ class_name }} extends ConfigFormBase {% endblock %}
 {% endif %}
       '#type' => '{{ input.type }}',
       '#title' => $this->t('{{ input.label|e }}'),
-{% if input.description is defined and input.description is not empty %}
+{% if input.description is defined and input.description|length %}
       '#description' => $this->t('{{ input.description|e }}'),
 {% endif %}
 {% if input.options is defined and input.options is not empty %}

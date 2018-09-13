@@ -8,15 +8,18 @@
 namespace Drupal\Console\Generator;
 
 use Drupal\Console\Extension\Manager;
+use Drupal\Console\Core\Generator\Generator;
 
 class ControllerGenerator extends Generator
 {
-
-    /** @var Manager  */
+    /**
+     * @var Manager
+     */
     protected $extensionManager;
 
     /**
      * AuthenticationProviderGenerator constructor.
+     *
      * @param Manager $extensionManager
      */
     public function __construct(
@@ -25,25 +28,25 @@ class ControllerGenerator extends Generator
         $this->extensionManager = $extensionManager;
     }
 
-    public function generate($module, $class, $routes, $test, $services)
+    /**
+     * {@inheritdoc}
+     */
+    public function generate(array $parameters)
     {
-        $parameters = [
-          'class_name' => $class,
-          'services' => $services,
-          'module' => $module,
-          'routes' => $routes,
-          //'learning' => $this->isLearning(),
-        ];
+        $class = $parameters['class_name'];
+        $test = $parameters['test'];
+        $module = $parameters['module'];
+        $moduleInstance = $this->extensionManager->getModule($module);
 
         $this->renderFile(
             'module/src/Controller/controller.php.twig',
-            $this->extensionManager->getModule($module)->getControllerPath().'/'.$class.'Controller.php',
+            $moduleInstance->getControllerPath() . '/' . $class . '.php',
             $parameters
         );
 
         $this->renderFile(
             'module/routing-controller.yml.twig',
-            $this->extensionManager->getModule($module)->getPath().'/'.$module.'.routing.yml',
+            $moduleInstance->getPath() . '/' . $module . '.routing.yml',
             $parameters,
             FILE_APPEND
         );
@@ -51,7 +54,7 @@ class ControllerGenerator extends Generator
         if ($test) {
             $this->renderFile(
                 'module/Tests/Controller/controller.php.twig',
-                $this->extensionManager->getModule($module)->getTestPath('Controller').'/'.$class.'Test.php',
+                $moduleInstance->getTestPath('Controller') . '/' . $class . 'Test.php',
                 $parameters
             );
         }

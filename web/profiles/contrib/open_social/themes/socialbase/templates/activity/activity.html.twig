@@ -20,15 +20,15 @@
 
   <i class="stream-icon"></i>
 
-  <div class="card stream-card">
+  <div class="card card--stream brand-border-radius">
 
-    <div class="card-body">
+    <div class="card__block">
 
       <div class="media-wrapper">
 
         <div class="media">
 
-          <div class="media-left">
+          <div class="media-left avatar">
             {% if actor %}
               {{- actor -}}
             {% endif %}
@@ -48,7 +48,7 @@
         </div>
 
         {% if content.field_activity_entity %}
-          {{- content.field_activity_entity -}}
+          {{ content.field_activity_entity }}
         {% endif %}
 
       </div>

@@ -1,0 +1,22 @@
+{#
+/**
+ * @file data-policy-data-policy.html.twig
+ *
+ * Default theme implementation to present Data policy data.
+ *
+ * This template is used when viewing Data policy page.
+ *
+ * Available variables:
+ * - content: A list of content items. Use 'content' to print all content, or
+ * - attributes: HTML attributes for the container element.
+ *
+ * @see template_preprocess_data_policy_data_policy()
+ *
+ * @ingroup themeable
+ */
+#}
+<div{{ attributes.addClass('data-policy') }}>
+  {% if content %}
+    {{- content -}}
+  {% endif %}
+</div>

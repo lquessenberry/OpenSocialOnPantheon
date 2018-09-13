@@ -23,11 +23,11 @@ class GroupAddTopicBlock extends BlockBase {
    *
    * Custom access logic to display the block.
    */
-  function blockAccess(AccountInterface $account) {
+  public function blockAccess(AccountInterface $account) {
     $group = _social_group_get_current_group();
 
-    if(is_object($group)){
-      if ($group->hasPermission('create topic node', $account)) {
+    if (is_object($group)) {
+      if ($group->hasPermission('create group_node:topic entity', $account)) {
         return AccessResult::allowed();
       }
     }
@@ -44,8 +44,8 @@ class GroupAddTopicBlock extends BlockBase {
 
     $group = _social_group_get_current_group();
 
-    if(is_object($group)){
-      $url = Url::fromUserInput("/group/{$group->id()}/node/create/topic");
+    if (is_object($group)) {
+      $url = Url::fromUserInput("/group/{$group->id()}/content/create/group_node:topic");
 
       $link_options = array(
         'attributes' => array(
@@ -53,9 +53,8 @@ class GroupAddTopicBlock extends BlockBase {
             'btn',
             'btn-primary',
             'btn-raised',
-            'btn-block',
             'waves-effect',
-            'waves-light',
+            'brand-bg-primary',
           ),
         ),
       );
@@ -63,7 +62,7 @@ class GroupAddTopicBlock extends BlockBase {
 
       $build['content'] = Link::fromTextAndUrl(t('Create Topic'), $url)->toRenderable();
 
-      // Cache
+      // Cache.
       $build['#cache']['contexts'][] = 'url.path';
       $build['#cache']['tags'][] = 'group:' . $group->id();
     }

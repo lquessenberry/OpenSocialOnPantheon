@@ -9,7 +9,6 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Access\AccessResult;
 use \Drupal\Core\Link;
 
-
 /**
  * Plugin implementation of the 'comment_group_content' formatter.
  *
@@ -29,7 +28,11 @@ class CommentGroupContentFormatter extends CommentDefaultFormatter {
   public function viewElements(FieldItemListInterface $items, $langcode) {
     $output = parent::viewElements($items, $langcode);
     $entity = $items->getEntity();
-    $group_contents = GroupContent::loadByEntity($entity);
+
+    // Exclude entities without the set id.
+    if (!empty($entity->id())) {
+      $group_contents = GroupContent::loadByEntity($entity);
+    }
 
     if (!empty($group_contents)) {
       // Add cache contexts.
@@ -45,7 +48,7 @@ class CommentGroupContentFormatter extends CommentDefaultFormatter {
         $description = $this->t('You are not allowed to comment on content in a group you are not member of. You can join the group @group_link.',
           array(
             '@group_link' => Link::fromTextAndUrl($this->t('here'), $group_url)
-              ->toString()
+              ->toString(),
           )
         );
         $output[0]['comment_form'] = array(
@@ -59,7 +62,7 @@ class CommentGroupContentFormatter extends CommentDefaultFormatter {
         $description = $this->t('You are not allowed to view comments on content in a group you are not member of. You can join the group @group_link.',
           array(
             '@group_link' => Link::fromTextAndUrl($this->t('here'), $group_url)
-              ->toString()
+              ->toString(),
           )
         );
         unset($output[0]);
@@ -72,6 +75,9 @@ class CommentGroupContentFormatter extends CommentDefaultFormatter {
     return $output;
   }
 
+  /**
+   * Checks if account was granted permission in group.
+   */
   protected function getPermissionInGroups($perm, AccountInterface $account, $group_contents, &$output) {
     $renderer = \Drupal::service('renderer');
 

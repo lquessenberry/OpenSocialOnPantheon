@@ -11,9 +11,10 @@
 
 namespace Symfony\Component\HttpFoundation\Tests;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\ParameterBag;
 
-class ParameterBagTest extends \PHPUnit_Framework_TestCase
+class ParameterBagTest extends TestCase
 {
     public function testConstructor()
     {
@@ -71,41 +72,6 @@ class ParameterBagTest extends \PHPUnit_Framework_TestCase
         $bag = new ParameterBag(array('foo' => array('bar' => 'moo')));
 
         $this->assertNull($bag->get('foo[bar]'));
-    }
-
-    /**
-     * @group legacy
-     * @dataProvider getInvalidPaths
-     * @expectedException \InvalidArgumentException
-     */
-    public function testGetDeepWithInvalidPaths($path)
-    {
-        $bag = new ParameterBag(array('foo' => array('bar' => 'moo')));
-
-        $bag->get($path, null, true);
-    }
-
-    public function getInvalidPaths()
-    {
-        return array(
-            array('foo[['),
-            array('foo[d'),
-            array('foo[bar]]'),
-            array('foo[bar]d'),
-        );
-    }
-
-    /**
-     * @group legacy
-     */
-    public function testGetDeep()
-    {
-        $bag = new ParameterBag(array('foo' => array('bar' => array('moo' => 'boo'))));
-
-        $this->assertEquals(array('moo' => 'boo'), $bag->get('foo[bar]', null, true));
-        $this->assertEquals('boo', $bag->get('foo[bar][moo]', null, true));
-        $this->assertEquals('default', $bag->get('foo[bar][foo]', 'default', true));
-        $this->assertEquals('default', $bag->get('bar[moo][foo]', 'default', true));
     }
 
     public function testSet()
@@ -205,7 +171,7 @@ class ParameterBagTest extends \PHPUnit_Framework_TestCase
             $this->assertEquals($parameters[$key], $val);
         }
 
-        $this->assertEquals(count($parameters), $i);
+        $this->assertEquals(\count($parameters), $i);
     }
 
     public function testCount()
@@ -213,7 +179,7 @@ class ParameterBagTest extends \PHPUnit_Framework_TestCase
         $parameters = array('foo' => 'bar', 'hello' => 'world');
         $bag = new ParameterBag($parameters);
 
-        $this->assertEquals(count($parameters), count($bag));
+        $this->assertCount(\count($parameters), $bag);
     }
 
     public function testGetBoolean()

@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\activity_creator\Entity\Activity.
- */
 
 namespace Drupal\activity_creator\Entity;
 
@@ -13,6 +9,7 @@ use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\activity_creator\ActivityInterface;
 use Drupal\user\UserInterface;
+use Drupal\votingapi\Entity\Vote;
 
 /**
  * Defines the Activity entity.
@@ -61,6 +58,7 @@ use Drupal\user\UserInterface;
  */
 class Activity extends ContentEntityBase implements ActivityInterface {
   use EntityChangedTrait;
+
   /**
    * {@inheritdoc}
    */
@@ -204,8 +202,21 @@ class Activity extends ContentEntityBase implements ActivityInterface {
   public function getRelatedEntityUrl() {
     $link = "";
     $related_object = $this->get('field_activity_entity')->getValue();
+
     if (!empty($related_object)) {
-      $entity = entity_load($related_object['0']['target_type'], $related_object['0']['target_id']);
+      $target_type = $related_object['0']['target_type'];
+      $target_id = $related_object['0']['target_id'];
+
+      // Make an exception for Votes.
+      if ($related_object['0']['target_type'] === 'vote') {
+        /** @var Vote $vote */
+        if ($vote = entity_load($target_type, $target_id)) {
+          $target_type = $vote->getVotedEntityType();
+          $target_id = $vote->getVotedEntityId();
+        }
+      }
+
+      $entity = entity_load($target_type, $target_id);
       if (!empty($entity)) {
         /** @var \Drupal\Core\Url $link */
         $link = $entity->urlInfo('canonical');
@@ -220,7 +231,7 @@ class Activity extends ContentEntityBase implements ActivityInterface {
   public function getDestinations() {
     $values = [];
     $field_activity_destinations = $this->field_activity_destinations;
-    if(isset($field_activity_destinations)){
+    if (isset($field_activity_destinations)) {
       $destinations = $field_activity_destinations->getValue();
       foreach ($destinations as $key => $destination) {
         $values[] = $destination['value'];
@@ -231,8 +242,10 @@ class Activity extends ContentEntityBase implements ActivityInterface {
 
   /**
    * Get recipient.
+   *
    * Assume that activity can't have recipient group and user at the same time.
-   * @TODO: Split it to two separate functions.
+   *
+   * @todo: Split it to two separate functions.
    */
   public function getRecipient() {
     $value = NULL;

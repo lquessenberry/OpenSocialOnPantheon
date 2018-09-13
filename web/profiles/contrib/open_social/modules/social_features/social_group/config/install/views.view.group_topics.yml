@@ -3,13 +3,13 @@ status: true
 dependencies:
   config:
     - core.entity_view_mode.group_content.teaser
+    - group.content_type.closed_group-group_node-topic
     - group.content_type.open_group-group_node-topic
     - taxonomy.vocabulary.topic_types
   module:
     - group
     - node
     - taxonomy
-    - user
 id: group_topics
 label: 'Group Topics'
 module: views
@@ -26,9 +26,9 @@ display:
     position: 0
     display_options:
       access:
-        type: perm
+        type: group_permission
         options:
-          perm: 'access content'
+          group_permission: 'view group_node:topic content'
       cache:
         type: tag
         options: {  }
@@ -36,7 +36,7 @@ display:
         type: views_query
         options:
           disable_sql_rewrite: false
-          distinct: false
+          distinct: true
           replica: false
           query_comment: ''
           query_tags: {  }
@@ -150,6 +150,7 @@ display:
           admin_label: ''
           operator: in
           value:
+            closed_group-group_node-topic: closed_group-group_node-topic
             open_group-group_node-topic: open_group-group_node-topic
           group: 1
           exposed: false
@@ -270,6 +271,42 @@ display:
           entity_type: node
           entity_field: status
           plugin_id: boolean
+        nid:
+          id: nid
+          table: node_access
+          field: nid
+          relationship: gc__node
+          group_type: group
+          admin_label: ''
+          operator: '='
+          value: ''
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
+          plugin_id: node_access
       sorts: {  }
       title: 'Group Topics'
       header: {  }
@@ -347,12 +384,13 @@ display:
     cache_metadata:
       max-age: -1
       contexts:
+        - group_membership.roles.permissions
         - 'languages:language_content'
         - 'languages:language_interface'
         - url
         - url.query_args
         - user
-        - user.permissions
+        - 'user.node_grants:view'
       tags: {  }
   page_group_topics:
     display_plugin: page
@@ -366,10 +404,11 @@ display:
     cache_metadata:
       max-age: -1
       contexts:
+        - group_membership.roles.permissions
         - 'languages:language_content'
         - 'languages:language_interface'
         - url
         - url.query_args
         - user
-        - user.permissions
+        - 'user.node_grants:view'
       tags: {  }

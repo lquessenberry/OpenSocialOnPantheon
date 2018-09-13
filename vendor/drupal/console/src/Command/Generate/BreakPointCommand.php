@@ -7,28 +7,27 @@
 
 namespace Drupal\Console\Command\Generate;
 
+use Drupal\Console\Command\Shared\ArrayInputTrait;
+use Drupal\Console\Command\Shared\ConfirmationTrait;
+use Drupal\Console\Command\Shared\ThemeBreakpointTrait;
+use Drupal\Console\Core\Command\Command;
+use Drupal\Console\Core\Utils\StringConverter;
+use Drupal\Console\Generator\BreakPointGenerator;
+use Drupal\Console\Utils\Validator;
+use Drupal\Core\Extension\ThemeHandler;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Core\Extension\ThemeHandler;
-use Drupal\Console\Command\Shared\ThemeRegionTrait;
-use Drupal\Console\Command\Shared\ThemeBreakpointTrait;
-use Drupal\Console\Command\Shared\ConfirmationTrait;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
-use Drupal\Console\Utils\Validator;
-use Drupal\Console\Utils\StringConverter;
-use Drupal\Console\Generator\BreakPointGenerator;
 
 /**
+ * Class BreakPointCommand
  *
+ * @package Drupal\Console\Command\Generate
  */
 class BreakPointCommand extends Command
 {
-    use CommandTrait;
+    use ArrayInputTrait;
     use ConfirmationTrait;
-    use ThemeRegionTrait;
     use ThemeBreakpointTrait;
 
     /**
@@ -51,8 +50,9 @@ class BreakPointCommand extends Command
      */
     protected $themeHandler;
 
-
-    /** @var Validator  */
+    /**
+     * @var Validator
+     */
     protected $validator;
 
     /**
@@ -62,8 +62,9 @@ class BreakPointCommand extends Command
 
     /**
      * BreakPointCommand constructor.
+     *
      * @param BreakPointGenerator $generator
-     * @param                     $appRoot
+     * @param string              $appRoot
      * @param ThemeHandler        $themeHandler
      * @param Validator           $validator
      * @param StringConverter     $stringConverter
@@ -74,7 +75,7 @@ class BreakPointCommand extends Command
         ThemeHandler $themeHandler,
         Validator $validator,
         StringConverter $stringConverter
-        ) {
+    ) {
         $this->generator = $generator;
         $this->appRoot = $appRoot;
         $this->themeHandler = $themeHandler;
@@ -94,16 +95,16 @@ class BreakPointCommand extends Command
             ->setHelp($this->trans('commands.generate.breakpoint.help'))
             ->addOption(
                 'theme',
-                '',
+                null,
                 InputOption::VALUE_REQUIRED,
                 $this->trans('commands.generate.breakpoint.options.theme')
             )
             ->addOption(
                 'breakpoints',
-                '',
-                InputOption::VALUE_OPTIONAL,
+                null,
+                InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
                 $this->trans('commands.generate.breakpoint.options.breakpoints')
-            );
+            )->setAliases(['gb']);
     }
 
     /**
@@ -111,24 +112,29 @@ class BreakPointCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
-        // @see use Drupal\Console\Command\Shared\ConfirmationTrait::confirmGeneration
-        if (!$this->confirmGeneration($io)) {
-            return;
+        // @see use Drupal\Console\Command\Shared\ConfirmationTrait::confirmOperation
+        if (!$this->confirmOperation()) {
+            return 1;
         }
 
         $validators = $this->validator;
         // we must to ensure theme exist
         $machine_name = $validators->validateMachineName($input->getOption('theme'));
-        $theme_path = $drupal_root . $input->getOption('theme');
+        $theme = $input->getOption('theme');
         $breakpoints = $input->getOption('breakpoints');
+        $noInteraction = $input->getOption('no-interaction');
+        // Parse nested data.
+        if ($noInteraction) {
+            $breakpoints = $this->explodeInlineArray($breakpoints);
+        }
 
-        $this->generator->generate(
-            $theme_path,
-            $breakpoints,
-            $machine_name
-        );
+        $this->generator->generate([
+            'theme' => $theme,
+            'breakpoints' => $breakpoints,
+            'machine_name' => $machine_name,
+        ]);
+
+        return 0;
     }
 
     /**
@@ -136,32 +142,31 @@ class BreakPointCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
+        // --theme option.
+        $theme = $input->getOption('theme');
 
-        $drupalRoot = $this->appRoot;
-
-        // --base-theme option.
-        $base_theme = $input->getOption('theme');
-
-        if (!$base_theme) {
+        if (!$theme) {
             $themeHandler = $this->themeHandler;
             $themes = $themeHandler->rebuildThemeData();
-            $themes['classy'] ='';
+            $themes['classy'] = '';
 
             uasort($themes, 'system_sort_modules_by_info_name');
 
-            $base_theme = $io->choiceNoList(
+            $theme = $this->getIo()->choiceNoList(
                 $this->trans('commands.generate.breakpoint.questions.theme'),
                 array_keys($themes)
             );
-            $input->setOption('theme', $base_theme);
+            $input->setOption('theme', $theme);
         }
 
         // --breakpoints option.
         $breakpoints = $input->getOption('breakpoints');
         if (!$breakpoints) {
-            $breakpoints = $this->breakpointQuestion($io);
+            $breakpoints = $this->breakpointQuestion();
             $input->setOption('breakpoints', $breakpoints);
+        } else {
+            $breakpoints = $this->explodeInlineArray($breakpoints);
         }
+        $input->setOption('breakpoints', $breakpoints);
     }
 }

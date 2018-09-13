@@ -1,0 +1,10 @@
+/**
+ * Styles for the login form
+ */
+.social-auth.auth-link {
+  border-bottom: none;
+}
+.social-auth.auth-icon {
+  width: 3em;
+  margin-right: 5px;
+}

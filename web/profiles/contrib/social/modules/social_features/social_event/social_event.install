@@ -1,0 +1,162 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_event module.
+ */
+
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_event.
+ */
+function social_event_install() {
+
+  // Set some default permissions.
+  _social_event_set_permissions();
+  // Add menu links.
+  _social_event_create_menu_links();
+  // Enable event enrolling of some group types for not member.
+  _social_event_enroll_group_types();
+}
+
+/**
+ * Function to set permissions.
+ */
+function _social_event_set_permissions() {
+  $roles = Role::loadMultiple();
+
+  /** @var \Drupal\user\Entity\Role $role */
+  foreach ($roles as $role) {
+    if ($role->id() === 'administrator') {
+      continue;
+    }
+
+    $permissions = _social_event_get_permissions($role->id());
+    user_role_grant_permissions($role->id(), $permissions);
+  }
+}
+
+/**
+ * Build permissions.
+ *
+ * @param string $role
+ *   The role.
+ *
+ * @return array
+ *   Returns an array containing the permissions.
+ */
+function _social_event_get_permissions($role) {
+  // Anonymous.
+  $permissions['anonymous'] = [
+    'view node.event.field_content_visibility:public content',
+  ];
+
+  // Authenticated.
+  $permissions['authenticated'] = array_merge($permissions['anonymous'], [
+    'create event content',
+    'delete own event content',
+    'edit own event content',
+    'override event published option',
+    'view node.event.field_content_visibility:community content',
+    'view events on my profile',
+    'view events on other profiles',
+  ]);
+
+  // Content manager.
+  $permissions['contentmanager'] = array_merge($permissions['authenticated'], [
+    'delete any event content',
+    'edit any event content',
+    'revert event revisions',
+    'delete event revisions',
+    'view event revisions',
+    'override event revision log entry',
+    'override event authored by option',
+    'override event authored on option',
+    'override event promote to front page option',
+    'override event revision option',
+    'override event sticky option',
+  ]);
+
+  // Site manager.
+  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], [
+    'administer visibility settings',
+    'administer social_event settings',
+  ]);
+
+  if (isset($permissions[$role])) {
+    return $permissions[$role];
+  }
+  return [];
+}
+
+/**
+ * Function to create some menu items.
+ */
+function _social_event_create_menu_links() {
+  $menu_links = MenuLinkContent::loadMultiple();
+  $parent = NULL;
+  /** @var \Drupal\menu_link_content\Entity\MenuLinkContent $menu_link */
+  foreach ($menu_links as $menu_link) {
+    if ($menu_link->label() === 'Explore' && $menu_link->isExpanded()) {
+      $parent = 'menu_link_content:' . $menu_link->uuid();
+    }
+  }
+
+  if (!is_null($parent)) {
+    MenuLinkContent::create([
+      'title' => t('All events'),
+      'link' => ['uri' => 'internal:/community-events'],
+      'menu_name' => 'main',
+      'expanded' => FALSE,
+      'weight' => 30,
+      'parent' => $parent,
+    ])->save();
+  }
+}
+
+/**
+ * Allow enrolling to an event of an open group for not a member.
+ */
+function _social_event_enroll_group_types() {
+  \Drupal::configFactory()->getEditable('social_event.settings')
+    ->set('enroll', [])
+    ->save();
+}
+
+/**
+ * Enable event enrolling of open groups for not member.
+ */
+function social_event_update_8001() {
+  _social_event_enroll_group_types();
+}
+
+/**
+ * Set permissions to administer social_event settings.
+ */
+function social_event_update_8002() {
+  // Give SM the administer social_event settings permission.
+  user_role_grant_permissions('sitemanager', ['administer social_event settings']);
+}
+
+/**
+ * Set my events permissions.
+ */
+function social_event_update_8003() {
+  // Make it so that everyone who has the 'access user profiles' permission,
+  // now also get these two new permissions.
+  $permissions = [
+    'view events on my profile',
+    'view events on other profiles',
+  ];
+
+  /** @var \Drupal\user\Entity\Role $role */
+  foreach (Role::loadMultiple() as $role) {
+    if ($role->hasPermission('access user profiles')) {
+      user_role_grant_permissions($role->id(), $permissions);
+    }
+  }
+}

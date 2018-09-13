@@ -1,0 +1,10 @@
+{
+    "name": "drupal/swiftmailer",
+    "description": "Swiftmailer",
+    "type": "drupal-module",
+    "license": "GPL-2.0+",
+    "require": {
+      "swiftmailer/swiftmailer": "~5.4.5",
+      "html2text/html2text": "~4.0.1"
+    }
+}

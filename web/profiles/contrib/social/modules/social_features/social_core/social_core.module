@@ -1,0 +1,558 @@
+<?php
+
+/**
+ * @file
+ * The Social core module.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\Node;
+use Drupal\node\Entity\NodeType;
+use Drupal\node\NodeInterface;
+use Drupal\image\Entity\ImageStyle;
+use Drupal\Core\Url;
+use Drupal\filter\Entity\FilterFormat;
+use Drupal\path\Plugin\Field\FieldWidget\PathWidget;
+use Drupal\user\Entity\User;
+use Drupal\group\Entity\Group;
+use Drupal\user\UserInterface;
+use Drupal\Core\Field\FieldItemList;
+
+/**
+ * Implements hook_theme().
+ */
+function social_core_theme() {
+  return [
+    'page_hero_data' => [
+      'variables' => [
+        'title' => NULL,
+        'hero_node' => NULL,
+        'node' => NULL,
+        'node_type' => NULL,
+        'section_class' => NULL,
+        'event_enrollment' => NULL,
+        'hero_styled_image_url' => NULL,
+      ],
+    ],
+  ];
+}
+
+/**
+ * Prepares variables for the social page hero data.
+ *
+ * Default template: page-hero-data.html.twig.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - title: Page title as a string
+ *   - author_name: Author as a string
+ *   - created_date: Timestamp
+ *   - created_date_formatted: Formatted date as a string
+ *   - topic_type: List of topic types as an array or NULL
+ *   - hero_node: Rendered hero display of the current active node or NULL.
+ */
+function template_preprocess_page_hero_data(array &$variables) {
+  // Get current user.
+  $account = \Drupal::currentUser();
+
+  // Get current node object.
+  $node = $variables['node'];
+
+  if (is_object($node)) {
+    if (empty($variables['event_enrollment'])) {
+      if ($node->getType() == 'event') {
+        $form = \Drupal::formBuilder()
+          ->getForm('Drupal\social_event\Form\EnrollActionForm');
+
+        $render_array = [
+          'enroll_action_form' => $form,
+        ];
+
+        $variables['event_enrollment'] = $render_array;
+      }
+    }
+
+    // Add node edit url for management.
+    if ($node instanceof Node) {
+      // Get the current route name to check if the user is on the
+      // edit or delete page.
+      $route = \Drupal::routeMatch()->getRouteName();
+      if (!in_array($route, ['entity.node.edit_form', 'entity.node.delete_form'])) {
+        if ($node->access('update', $account)) {
+          $variables['node_edit_url'] = $node->toUrl('edit-form')->toString();
+        }
+      }
+    }
+
+    // Add the hero styled image.
+    $image_field = "field_{$node->getType()}_image";
+    if (!empty($node->{$image_field}->entity)) {
+      $variables['hero_styled_image_url'] = ImageStyle::load('social_xx_large')
+        ->buildUrl($node->{$image_field}->entity->getFileUri());
+    }
+    else {
+      // If machine name too long or using another image field.
+      $node_fields = $node->getFields();
+      $image_fields = array_filter($node_fields, '_social_core_find_image_field');
+      // Get the first image field of all the fields.
+      $field = reset($image_fields);
+      if ($field !== NULL && $field !== FALSE) {
+        if ($field->getFieldDefinition()->get("field_type") === 'image') {
+          if (!empty(($node->get($field->getName())->entity))) {
+            $variables['hero_styled_image_url'] = ImageStyle::load('social_xx_large')
+              ->buildUrl($node->get($field->getName())->entity->getFileUri());
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Tries to determine if a field is an image field based on a field name.
+ *
+ * @param \Drupal\Core\Field\FieldItemList $field
+ *   A field object.
+ *
+ * @return \Drupal\Core\Field\FieldItemList|null
+ *   Will return the FieldItemList or null if its not an image field.
+ */
+function _social_core_find_image_field(FieldItemList $field) {
+  if (strpos($field->getName(), 'image') !== FALSE) {
+    return $field;
+  }
+  return NULL;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * For Site information Site details form.
+ */
+function social_core_form_system_site_information_settings_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // Hide site slogan field and make it disabled as well whenever the user
+  // is able to fill out the textfield.
+  if (!empty($form['site_information']['site_slogan'])) {
+    $form['site_information']['site_slogan']['#type'] = 'hidden';
+    $form['site_information']['site_slogan']['#disabled'] = TRUE;
+  }
+}
+
+/**
+ * Implements hook_node_links_alter().
+ */
+function social_core_node_links_alter(array &$links, NodeInterface $entity, array &$context) {
+  // Remove the comment links.
+  unset($links['comment__field_topic_comments']);
+  unset($links['comment__field_event_comments']);
+
+  if (isset($context['view_mode']) && in_array($context['view_mode'], ['activity', 'activity_comment'])) {
+    // Add a readmore link.
+    $node_title_stripped = strip_tags($entity->label());
+    $links['node']['#links']['node-readmore'] = [
+      'title' => t('Read more<span class="visually-hidden"> about @title</span>', [
+        '@title' => $node_title_stripped,
+      ]),
+      'url' => $entity->urlInfo(),
+      'language' => $entity->language(),
+      'attributes' => [
+        'rel' => 'tag',
+        'title' => $node_title_stripped,
+      ],
+    ];
+  }
+}
+
+/**
+ * Prepares variables for comment field templates.
+ *
+ * Default template: field--comment.html.twig.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - element: An associative array containing render arrays for the list of
+ *     comments, and the comment form. Array keys: comments, comment_form.
+ */
+function social_core_preprocess_field(array &$variables) {
+  $element = $variables['element'];
+  if ($element['#formatter'] == 'comment_node') {
+    // Create separate variables for the more_link.
+    $variables['more_link'] = $element[0]['more_link'];
+  }
+}
+
+/**
+ * Implements hook_preprocess_block().
+ */
+function social_core_preprocess_block(&$variables) {
+  /** @var \Drupal\user\Entity\User $account */
+  $account = \Drupal::routeMatch()->getParameter('user');
+  /** @var \Drupal\group\Entity\Group $group */
+  $group = \Drupal::routeMatch()->getParameter('group');
+
+  if (is_numeric($account)) {
+    $account = User::load($account);
+  }
+
+  if (is_numeric($group)) {
+    $group = Group::load($group);
+  }
+
+  if (!empty($variables['elements']['content']['#view'])) {
+    $view = $variables['elements']['content']['#view'];
+
+    if (!empty($view->getDisplay())) {
+      $link = $view->getDisplay();
+
+      if (!empty($link->useMoreText())) {
+        $more_link = $link->useMoreText();
+      }
+    }
+  }
+
+  // Add variables to sidebar blocks.
+  switch ($variables['elements']['#derivative_plugin_id']) {
+    case 'upcoming_events-block_my_upcoming_events':
+      $variables['view_all_path'] = Url::fromRoute('view.events.events_overview', [
+        'user' => \Drupal::currentUser()->id(),
+      ]);
+      $variables['button_text'] = t('All @label', [
+        '@label' => $variables['label']['#markup'],
+      ]);
+      break;
+
+    case 'upcoming_events-block_community_events':
+      $variables['subtitle'] = t('in the community');
+      $variables['view_all_path'] = Url::fromRoute('view.upcoming_events.page_community_events');
+      if (isset($variables['label']['#markup'])) {
+        $label = $variables['label']['#markup'];
+      }
+      else {
+        $label = t('events');
+      }
+      $variables['button_text'] = t('All @label', [
+        '@label' => $label,
+      ]);
+      break;
+
+    case 'latest_topics-block_latest_topics':
+      $variables['subtitle'] = t('in the community');
+      $variables['view_all_path'] = Url::fromRoute('view.latest_topics.page_latest_topics');
+      $variables['button_text'] = $more_link;
+      $link->setOption('use_more', FALSE);
+      break;
+
+    case 'newest_groups-block_newest_groups':
+      $variables['subtitle'] = t('in the community');
+      $variables['view_all_path'] = Url::fromRoute('view.newest_groups.page_all_groups');
+      $variables['button_text'] = $more_link;
+      $link->setOption('use_more', FALSE);
+      break;
+
+    case 'newest_users-block_newest_users':
+      $variables['subtitle'] = t('in the community');
+      $variables['view_all_path'] = Url::fromRoute('view.newest_users.page_newest_users');
+      $variables['button_text'] = $more_link;
+      $link->setOption('use_more', FALSE);
+      break;
+
+    case 'events-block_events_on_profile':
+      if ($account instanceof UserInterface) {
+        $variables['subtitle'] = t('for this user');
+        $variables['view_all_path'] = Url::fromRoute('view.events.events_overview', [
+          'user' => $account->id(),
+        ]);
+        $variables['button_text'] = t('All @label', [
+          '@label' => $variables['label']['#markup'],
+        ]);
+      }
+      break;
+
+    case 'topics-block_user_topics':
+      if ($account instanceof UserInterface) {
+        $variables['subtitle'] = t('for this user');
+        $variables['view_all_path'] = Url::fromRoute('view.topics.page_profile', [
+          'user' => $account->id(),
+        ]);
+        $variables['button_text'] = $more_link;
+        $link->setOption('use_more', FALSE);
+      }
+      break;
+
+    case 'groups-block_user_groups':
+      if ($account instanceof UserInterface) {
+        $variables['subtitle'] = t('for this user');
+        $variables['view_all_path'] = Url::fromRoute('view.groups.page_user_groups', [
+          'user' => $account->id(),
+        ]);
+        $variables['button_text'] = $more_link;
+        $link->setOption('use_more', FALSE);
+      }
+      break;
+
+    case 'group_members-block_newest_members':
+      $variables['subtitle'] = t('in the group');
+      $variables['view_all_path'] = Url::fromRoute('view.group_members.page_group_members', [
+        'group' => $group->id(),
+      ]);
+      $variables['button_text'] = $more_link;
+      $link->setOption('use_more', FALSE);
+      break;
+
+    case 'upcoming_events-upcoming_events_group':
+      $variables['subtitle'] = t('in the group');
+      $variables['view_all_path'] = Url::fromRoute('view.group_events.page_group_events', [
+        'group' => $group->id(),
+      ]);
+      $variables['button_text'] = t('All @label', [
+        '@label' => $variables['label']['#markup'],
+      ]);
+      break;
+
+    case 'latest_topics-group_topics_block':
+      $variables['subtitle'] = t('in the group');
+      $variables['view_all_path'] = Url::fromRoute('view.group_topics.page_group_topics', [
+        'group' => $group->id(),
+      ]);
+      $variables['button_text'] = $more_link;
+      $link->setOption('use_more', FALSE);
+      break;
+  }
+}
+
+/**
+ * Implements hook_menu_local_tasks_alter().
+ */
+function social_core_menu_local_tasks_alter(&$data, $route_name) {
+
+  if (\Drupal::currentUser()->isAnonymous()) {
+    // Anonymous user so we unset the user tabs on login register etc.
+    if (isset($data['tabs'][0]['user.register'])) {
+      unset($data['tabs'][0]['user.register']);
+    }
+    if (isset($data['tabs'][0]['user.pass'])) {
+      unset($data['tabs'][0]['user.pass']);
+    }
+    if (isset($data['tabs'][0]['user.login'])) {
+      unset($data['tabs'][0]['user.login']);
+    }
+  }
+
+  $node = \Drupal::service('current_route_match')->getParameter('node');
+
+  if (!is_null($node) && !is_object($node)) {
+    $node = Node::load($node);
+  }
+
+  // Check for all active node types.
+  if ($node instanceof Node && array_key_exists($node->getType(), NodeType::loadMultiple())) {
+    // Remove Edit tab. Edit will always go through Floating Edit Button.
+    if (isset($data['tabs'][0]['entity.node.edit_form'])) {
+      unset($data['tabs'][0]['entity.node.edit_form']);
+    }
+  }
+  // Change the default 'View' tab title.
+  if (isset($data['tabs'][0]['entity.node.canonical']['#link'])) {
+    $data['tabs'][0]['entity.node.canonical']['#link']['title'] = t('Details');
+  }
+
+  // Remove Delete tab. Delete will always go through Edit.
+  if (isset($data['tabs'][0]['entity.node.delete_form'])) {
+    unset($data['tabs'][0]['entity.node.delete_form']);
+  }
+
+}
+
+/**
+ * Implements hook_form_taxonomy_vocabulary_form_alter().
+ */
+function social_core_form_taxonomy_vocabulary_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // Fetch current user.
+  $account = \Drupal::currentUser();
+
+  // Check if the current use is the admin.
+  if (!in_array('administrator', $account->getRoles())) {
+    // Remove the option to delete.
+    unset($form['actions']['delete']);
+  }
+}
+
+/**
+ * Implements hook_form_taxonomy_vocabulary_confirm_delete_alter().
+ */
+function social_core_form_taxonomy_vocabulary_confirm_delete_alter(&$form, FormStateInterface $form_state, $form_id) {
+
+  // Fetch current user.
+  $account = \Drupal::currentUser();
+
+  // Check if the current use is the admin.
+  if (!in_array('administrator', $account->getRoles())) {
+    // Remove the option to delete.
+    unset($form['actions']['submit']);
+    $form['description']['#markup'] = t('You have insufficient permissions to delete this vocabulary');
+  }
+}
+
+/**
+ * Implements hook_preprocess().
+ */
+function social_core_preprocess_breadcrumb(&$variables) {
+  // Get the user.
+  $user = \Drupal::currentUser();
+  // Add cache tag for the user.
+  $variables['#cache']['tags'][] = 'user:breadcrumb:' . $user->id();
+}
+
+/**
+ * Implements hook_element_info_alter().
+ */
+function social_core_element_info_alter(array &$info) {
+  if (isset($info['text_format']['#process'])) {
+    $info['text_format']['#process'][] = 'social_core_filter_process_format';
+  }
+
+  if (isset($info['entity_autocomplete'])) {
+    $info['entity_autocomplete']['#value_callback'] = [
+      '\Drupal\social_core\Entity\Element\EntityAutocomplete',
+      'valueCallback',
+    ];
+  }
+}
+
+/**
+ * Remove ability of selecting format if full_html is available.
+ *
+ * @todo Instead of defining the list of fields it would be better to add a separate
+ * Setting to all text_format fields,
+ * allowing to select whether to show format selector or not.
+ */
+function social_core_filter_process_format($element) {
+
+  // Only fields listed here will have text format settings disabled.
+  $full_html_field_ids = [
+    'edit-body-0',
+    'edit-field-profile-self-introduction-0',
+    'edit-field-group-description-0',
+  ];
+
+  $full_html = FilterFormat::load('full_html');
+  $permission_name = $full_html->getPermissionName();
+  $account = \Drupal::currentUser();
+  if ($element['#type'] == 'text_format' && $element['#format'] == 'full_html' && !$account->hasPermission($permission_name)) {
+    $element['#format'] = 'basic_html';
+    $element['value']['#format'] = 'basic_html';
+    $element['format']['format']['#default_value'] = 'basic_html';
+    $element['format']['format']['#value'] = 'basic_html';
+    $element['value']['#disabled'] = FALSE;
+    $element['format']['format']['#access'] = FALSE;
+    $element['format']['#access'] = TRUE;
+    $key = array_search('filter_form_access_denied', $element['value']['#pre_render']);
+
+    if (isset($element['value']['#pre_render'][$key])) {
+      unset($element['value']['#pre_render'][$key]);
+    }
+  }
+  elseif ($element['#type'] == 'text_format' && $account->hasPermission($permission_name) && in_array($element['#id'], $full_html_field_ids)) {
+    $element['#format'] = 'full_html';
+    $element['format']['format']['#access'] = FALSE;
+    $element['format']['format']['#value'] = 'full_html';
+    $element['format']['help']['#access'] = FALSE;
+    $element['format']['format']['#options'] = ['full_html' => 'Full HTML'];
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_widget_form_alter().
+ */
+function social_core_field_widget_form_alter(&$element, FormStateInterface $form_state, $context) {
+  $field_definition = $context['items']->getFieldDefinition();
+
+  if ($field_definition->getType() == 'path') {
+    $url = Url::fromRoute('<front>', [], [
+      'absolute' => TRUE,
+    ]);
+
+    // Protocols we can strip.
+    $protocols = [
+      'https://www.',
+      'http://www.',
+      'https://',
+      'http://',
+      'www.',
+    ];
+
+    // The URL.
+    $truncate_url = $url->toString();
+    // Loop over the protocols and try to replace them in the string.
+    foreach ($protocols as $protocol) {
+      $truncate_url = str_replace($protocol, '', $truncate_url);
+    }
+    // Put the protocoless, truncated URL in the addon.
+    $element['alias']['#field_prefix'] = '<div class="input-group input-group-expanded"><span class="input-group-addon">' . $truncate_url . '</span>';
+    $element['alias']['#field_suffix'] = '</div>';
+    $element['alias']['#description'] = t('The URL alias allows you to customise the link to this page.');
+
+    // URLs are stored with a leading slash but our display includes that slash
+    // in the prefix so we remove it here.
+    if (isset($element['alias']['#default_value'])) {
+      $element['alias']['#default_value'] = ltrim($element['alias']['#default_value'], '/');
+    }
+
+    $element['#element_validate'] = ['social_core_path_validate'];
+  }
+}
+
+/**
+ * Form element validation handler for URL alias form element.
+ *
+ * Ensures that a path alias entered by a user is always a relative internal URL
+ * that starts with a leading slash. If the user did not enter a leading slash
+ * then we add it for them.
+ *
+ * @param array $element
+ *   The form element.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function social_core_path_validate(array &$element, FormStateInterface $form_state) {
+  $alias = trim($element['alias']['#value'], " \\/");
+  $parsed_url = parse_url($alias);
+
+  if (isset($parsed_url['host']) || isset($parsed_url['scheme']) || !isset($parsed_url['path'])) {
+    $form_state->setError($element, t('The URL alias must be a relative URL.'));
+  }
+  // We know that a user entered '/' is a valid alias according to Drupal so we
+  // do no further validation.
+  elseif (trim($element['alias']['#value']) !== "/") {
+    // $alias is already trimmed of leading/trailing slashes.
+    // We use rtrim here to ensure we don't set the value to an empty slash
+    // during form submission.
+    // The following line only changes the value of the rendered form element.
+    // If we have a non-empty alias PathWidget::validateFormElement will
+    // update the actual stored value to include the leading slash.
+    $element['alias']['#value'] = rtrim('/' . $alias, '/');
+    PathWidget::validateFormElement($element, $form_state);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function social_core_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+
+  if (isset($form['status']) && isset($form['advanced'])) {
+    // Add an extra vertical tab.
+    $form['status_vertical_tab'] = [
+      '#type' => 'details',
+      '#title' => t('Publish status'),
+      '#description' => '',
+      '#group' => 'advanced',
+      '#open' => TRUE,
+      '#weight' => 1000,
+    ];
+    // Add the status field to the new vertical tab.
+    $form['status']['#group'] = 'status_vertical_tab';
+  }
+}

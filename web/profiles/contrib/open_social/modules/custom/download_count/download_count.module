@@ -11,11 +11,12 @@ use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
  * Implements hook_help().
  */
-function download_count_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
+function download_count_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.download_count':
       return '<p>' . t('Counts file downloads for private core file fields and
@@ -44,9 +45,7 @@ function download_count_file_access($entity, $operation, $account) {
     // Check flood control.
     $flood_limit = $config->get('download_count_flood_limit');
     if ($flood_limit > 0) {
-      if (!$flood->isAllowed('download_count-fid_' . $entity->id(), $flood_limit
-        , $flood_window)
-      ) {
+      if (!$flood->isAllowed('download_count-fid_' . $entity->id(), $flood_limit, $flood_window)) {
         return;
       }
     }
@@ -72,20 +71,22 @@ function download_count_file_access($entity, $operation, $account) {
         }
       }
     }
-    $connection = Database::getConnection();
-    $connection->insert('download_count')
-      ->fields(array(
-        'fid' => $entity->id(),
-        'uid' => $account->id(),
-        'type' => $entity_type,
-        'id' => $entity_id,
-        'ip_address' => $ip,
-        'referrer' => $referrer,
-        'timestamp' => $time,
-      ))
-      ->execute();
+    if (!empty($entity_type) && !empty($entity_id)) {
+      $connection = Database::getConnection();
+      $connection->insert('download_count')
+        ->fields(array(
+          'fid' => $entity->id(),
+          'uid' => $account->id(),
+          'type' => $entity_type,
+          'id' => $entity_id,
+          'ip_address' => $ip,
+          'referrer' => $referrer,
+          'timestamp' => $time,
+        ))
+        ->execute();
 
-    $flood->register('download_count-fid_' . $entity->id(), $flood_window);
+      $flood->register('download_count-fid_' . $entity->id(), $flood_window);
+    }
   }
 }
 
@@ -97,10 +98,14 @@ function download_count_theme() {
     'download_count_file_field_formatter' => array(
       'variables' => array(
         'file' => NULL,
-        'url' => NULL,
+        'link' => NULL,
+        'link_url' => NULL,
+        'link_text' => NULL,
         'classes' => NULL,
         'count' => NULL,
         'file_size' => NULL,
+        'path_to_socialbase' => NULL,
+        'node_icon' => NULL,
       ),
     ),
   );

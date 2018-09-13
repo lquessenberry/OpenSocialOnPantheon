@@ -1,0 +1,85 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the image_effects module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function image_effects_requirements($phase) {
+  $requirements = [];
+
+  // Check PHP EXIF extension for the auto_rotate image effect.
+  $requirements['image_effects_exif_extension'] = [
+    'title' => t('PHP EXIF extension'),
+  ];
+  if (!extension_loaded('exif')) {
+    $requirements['image_effects_exif_extension'] += [
+      'value' => t('Not installed'),
+      'description' => t('The PHP EXIF extension is not installed. Automatic image orientation effects will not be available with the GD image toolkit.'),
+      'severity' => REQUIREMENT_WARNING,
+    ];
+  }
+  else {
+    $requirements['image_effects_exif_extension'] += [
+      'value' => t('Enabled'),
+      'severity' => REQUIREMENT_INFO,
+    ];
+
+  }
+
+  // Check PHP GD2 FreeType support.
+  if (function_exists('gd_info')) {
+    $info = gd_info();
+    if (!function_exists('imagettftext') || !isset($info["FreeType Support"])) {
+      // No FreeType support, raise warning.
+      $requirements['image_effects_gd_freetype'] = [
+        'title' => t('GD library FreeType support'),
+        'value' => t('Not installed'),
+        'severity' => REQUIREMENT_WARNING,
+        'description' => t('The GD Library for PHP is enabled, but was compiled without FreeType support. Image effects using fonts will not be available with the GD image toolkit.'),
+      ];
+    }
+  }
+
+  return $requirements;
+}
+
+/**
+ * @addtogroup updates-8.x-1.0-alpha
+ * @{
+ */
+
+/**
+ * Clear caches due to added image_effects_text_overlay_text alter hook.
+ */
+function image_effects_update_8001() {
+  // Empty update to cause a cache rebuild.
+}
+
+/**
+ * Clear caches to discover added image effects.
+ */
+function image_effects_update_8002() {
+  // Empty update to cause a cache rebuild.
+}
+
+/**
+ * Clear caches to discover newly added image effects.
+ */
+function image_effects_update_8003() {
+  // Empty update to cause a cache rebuild.
+}
+
+/**
+ * Clear caches to discover newly added image effects.
+ */
+function image_effects_update_8004() {
+  // Empty update to cause a cache rebuild.
+}
+
+/**
+ * @} End of "addtogroup updates-8.x-1.0-alpha".
+ */

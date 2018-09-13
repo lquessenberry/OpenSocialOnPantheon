@@ -1,15 +1,16 @@
 <?php
-namespace Drupal\Console\Utils;
+namespace Drupal\Console\Core\Utils;
 
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Style\DrupalStyle;
 
 /**
  * Class ShellProcess
- * @package Drupal\Console\Utils
+ *
+ * @package Drupal\Console\Core\Utils
  */
 class ShellProcess
 {
@@ -17,6 +18,12 @@ class ShellProcess
      * @var string
      */
     protected $appRoot;
+
+    /**
+     * @var TranslatorManagerInterface
+     */
+    protected $translator;
+
     /**
      * @var ShellProcess
      */
@@ -29,11 +36,14 @@ class ShellProcess
 
     /**
      * Process constructor.
-     * @param string $appRoot
+     *
+     * @param string                     $appRoot
+     * @param TranslatorManagerInterface $translator
      */
-    public function __construct($appRoot)
+    public function __construct($appRoot, $translator)
     {
         $this->appRoot = $appRoot;
+        $this->translator = $translator;
 
         $output = new ConsoleOutput();
         $input = new ArrayInput([]);
@@ -50,9 +60,24 @@ class ShellProcess
      */
     public function exec($command, $workingDirectory=null)
     {
-        if (!$workingDirectory) {
+        if (!$workingDirectory || $workingDirectory==='') {
             $workingDirectory = $this->appRoot;
         }
+
+        if (realpath($workingDirectory)) {
+            $this->io->comment(
+                $this->translator->trans('commands.exec.messages.working-directory') .': ',
+                false
+            );
+            $this->io->writeln(realpath($workingDirectory));
+        }
+
+        $this->io->comment(
+            $this->translator->trans('commands.exec.messages.executing-command') .': ',
+            false
+        );
+        $this->io->writeln($command);
+
         $this->process = new Process($command);
         $this->process->setWorkingDirectory($workingDirectory);
         $this->process->enableOutput();

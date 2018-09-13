@@ -17,7 +17,7 @@ use Consolidation\OutputFormatters\StructuredData\Xml\DomDataInterface;
  * Display a table of data with the Symfony Table class.
  *
  * This formatter takes data of either the RowsOfFields or
- * AssociativeList data type.  Tables can be rendered with the
+ * PropertyList data type.  Tables can be rendered with the
  * rows running either vertically (the normal orientation) or
  * horizontally.  By default, associative lists will be displayed
  * as two columns, with the key in the first column and the
@@ -50,6 +50,9 @@ class XmlFormatter implements FormatterInterface, ValidDataTypesInterface
         }
         if ($structuredData instanceof DomDataInterface) {
             return $structuredData->getDomData();
+        }
+        if ($structuredData instanceof \ArrayObject) {
+            return $structuredData->getArrayCopy();
         }
         if (!is_array($structuredData)) {
             throw new IncompatibleDataException(

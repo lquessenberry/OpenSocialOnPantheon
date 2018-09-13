@@ -1,0 +1,51 @@
+<?php
+/**
+ * @file
+ * Installation file for VotingAPI module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function votingapi_uninstall() {
+  db_query("DELETE FROM {config} WHERE name = 'votingapi.settings'");
+  drupal_flush_all_caches();
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function votingapi_update_8301(&$sandbox) {
+  $existDdata = [];
+  $tables = ["votingapi_result"];
+  $database = \Drupal::database();
+  // Retrieve existing field data in votingapi_result table.
+  foreach ($tables as $table) {
+    // Retrieve any available data and temporarily store in array $existDdata.
+    $existDdata[$table] = $database->select($table)
+      ->fields($table)
+      ->execute()
+      ->fetchAll(PDO::FETCH_ASSOC);
+    // Delete any table data.
+    $database->truncate($table)->execute();
+  }
+  try {
+    $entityDefUpManager = \Drupal::service('entity.definition_update_manager');
+    $entityDefUpManager->applyUpdates();
+    \Drupal::logger('votingapi: ')->notice('Successfully applied updates');
+  } catch (\Drupal\Core\Entity\EntityStorageException $e) {
+    \Drupal::logger('votingapi: ')->notice($e->getMessage());
+  }
+  // Restore the data.
+  foreach ($tables as $table) {
+    if (!empty($table) && !empty($existDdata[$table])) {
+      $insert_query = $database
+        ->insert($table)
+        ->fields(array_keys(end($existDdata[$table])));
+      foreach ($existDdata[$table] as $row) {
+        $insert_query->values(array_values($row));
+      }
+      $insert_query->execute();
+    }
+  }
+}

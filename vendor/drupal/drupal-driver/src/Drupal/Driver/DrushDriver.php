@@ -36,6 +36,8 @@ class DrushDriver extends BaseDriver {
 
   /**
    * Track bootstrapping.
+   *
+   * @var bool
    */
   private $bootstrapped = FALSE;
 
@@ -52,6 +54,13 @@ class DrushDriver extends BaseDriver {
    * @var string
    */
   private $arguments = '';
+
+  /**
+   * Tracks legacy drush.
+   *
+   * @var bool
+   */
+  protected static $isLegacyDrush;
 
   /**
    * Set drush alias or root path.
@@ -108,7 +117,32 @@ class DrushDriver extends BaseDriver {
     if (!isset($this->alias) && !isset($this->root)) {
       throw new BootstrapException('A drush alias or root path is required.');
     }
+
+    // Determine if drush version is legacy.
+    if (!isset(self::$isLegacyDrush)) {
+      self::$isLegacyDrush = $this->isLegacyDrush();
+    }
+
     $this->bootstrapped = TRUE;
+  }
+
+  /**
+   * Determine if drush is a legacy version.
+   *
+   * @return bool
+   *   Returns TRUE if drush is older than drush 9.
+   */
+  protected function isLegacyDrush() {
+    try {
+      // Try for a drush 9 version.
+      $version = trim($this->drush('version', [], ['format' => 'string']));
+      return version_compare($version, '9', '<=');
+    }
+    catch (\RuntimeException $e) {
+      // The version of drush is old enough that only `--version` was available,
+      // so this is a legacy version.
+      return TRUE;
+    }
   }
 
   /**
@@ -196,6 +230,7 @@ class DrushDriver extends BaseDriver {
    *
    * @param string $output
    *   The output from Drush.
+   *
    * @return object
    *   The decoded JSON object.
    */
@@ -247,7 +282,9 @@ class DrushDriver extends BaseDriver {
     // Drush Driver to work with certain built-in Drush capabilities (e.g.
     // creating users) even if the Behat Drush Endpoint is not available.
     try {
-      $result = $this->drush('behat', array('is-field', escapeshellarg(json_encode(array($entity_type, $field_name)))), array());
+      $value = array($entity_type, $field_name);
+      $arguments = array('is-field', escapeshellarg(json_encode($value)));
+      $result = $this->drush('behat', $arguments, array());
       return strpos($result, "true\n") !== FALSE;
     }
     catch (\Exception $e) {
@@ -301,7 +338,12 @@ class DrushDriver extends BaseDriver {
     $arguments = implode(' ', $arguments);
 
     // Disable colored output from drush.
-    $options['nocolor'] = TRUE;
+    if (isset(static::$isLegacyDrush) && static::$isLegacyDrush) {
+      $options['nocolor'] = TRUE;
+    }
+    else {
+      $options['no-ansi'] = NULL;
+    }
     $string_options = $this->parseArguments($options);
 
     $alias = isset($this->alias) ? "@{$this->alias}" : '--root=' . $this->root;

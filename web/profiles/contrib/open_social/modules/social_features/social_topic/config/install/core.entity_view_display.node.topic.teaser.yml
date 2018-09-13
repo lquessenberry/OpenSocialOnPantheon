@@ -22,10 +22,11 @@ mode: teaser
 content:
   field_content_visibility:
     type: list_default
-    weight: 3
+    weight: 4
     label: hidden
     settings: {  }
     third_party_settings: {  }
+    region: content
   field_topic_image:
     type: image
     weight: 0
@@ -34,17 +35,28 @@ content:
       image_style: social_x_large
       image_link: content
     third_party_settings: {  }
+    region: content
   field_topic_type:
     type: entity_reference_label
-    weight: 2
+    weight: 3
     label: hidden
     settings:
       link: false
     third_party_settings: {  }
-  links:
+    region: content
+  flag_follow_content:
+    weight: 10
+    region: content
+  like_and_dislike:
     weight: 1
     settings: {  }
     third_party_settings: {  }
+    region: content
+  links:
+    weight: 2
+    settings: {  }
+    third_party_settings: {  }
+    region: content
 hidden:
   body: true
   field_files: true

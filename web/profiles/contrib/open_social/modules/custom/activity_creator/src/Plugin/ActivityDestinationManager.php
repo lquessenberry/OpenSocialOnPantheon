@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\activity_creator\Plugin\ActivityDestinationManager.
- */
-
 namespace Drupal\activity_creator\Plugin;
 
 use Drupal\Component\Utility\Html;
@@ -48,6 +43,28 @@ class ActivityDestinationManager extends DefaultPluginManager {
       $options[$plugin_id] = Html::escape($plugin_definition['label']);
     }
     return $options;
+  }
+
+  /**
+   * Retrieves an list of available destinations by given properties.
+   *
+   * @param string $condition
+   *   The property to filter on.
+   * @param bool $value
+   *   Value.
+   *
+   * @return string[]
+   *   An array of the IDs of all available destination plugins.
+   */
+  public function getListByProperties($condition = NULL, $value = NULL) {
+    $options = array();
+    foreach ($this->getDefinitions() as $plugin_id => $plugin_definition) {
+      if (empty($condition) || (isset($plugin_definition[$condition]) && $plugin_definition[$condition] === $value)) {
+        $options[] = $plugin_id;
+      }
+    }
+    return $options;
+
   }
 
 }

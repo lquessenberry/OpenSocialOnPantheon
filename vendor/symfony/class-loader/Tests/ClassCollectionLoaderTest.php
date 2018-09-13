@@ -11,18 +11,21 @@
 
 namespace Symfony\Component\ClassLoader\Tests;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\ClassLoader\ClassCollectionLoader;
+use Symfony\Component\ClassLoader\Tests\Fixtures\DeclaredClass;
+use Symfony\Component\ClassLoader\Tests\Fixtures\WarmedClass;
 
 require_once __DIR__.'/Fixtures/ClassesWithParents/GInterface.php';
 require_once __DIR__.'/Fixtures/ClassesWithParents/CInterface.php';
 require_once __DIR__.'/Fixtures/ClassesWithParents/B.php';
 require_once __DIR__.'/Fixtures/ClassesWithParents/A.php';
 
-class ClassCollectionLoaderTest extends \PHPUnit_Framework_TestCase
+/**
+ * @group legacy
+ */
+class ClassCollectionLoaderTest extends TestCase
 {
-    /**
-     * @requires PHP 5.4
-     */
     public function testTraitDependencies()
     {
         require_once __DIR__.'/Fixtures/deps/traits.php';
@@ -94,7 +97,6 @@ class ClassCollectionLoaderTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @dataProvider getDifferentOrdersForTraits
-     * @requires PHP 5.4
      */
     public function testClassWithTraitsReordering(array $classes)
     {
@@ -138,9 +140,6 @@ class ClassCollectionLoaderTest extends \PHPUnit_Framework_TestCase
         );
     }
 
-    /**
-     * @requires PHP 5.4
-     */
     public function testFixClassWithTraitsOrdering()
     {
         require_once __DIR__.'/Fixtures/ClassesWithParents/CTrait.php';
@@ -232,10 +231,10 @@ class ClassCollectionLoaderTest extends \PHPUnit_Framework_TestCase
             }
         });
 
-        $strictTypes = defined('HHVM_VERSION') ? '' : "\nnamespace {require __DIR__.'/Fixtures/Namespaced/WithStrictTypes.php';}";
+        $strictTypes = \defined('HHVM_VERSION') ? '' : "\nnamespace {require __DIR__.'/Fixtures/Namespaced/WithStrictTypes.php';}";
 
         ClassCollectionLoader::load(
-            array('Namespaced\\WithComments', 'Pearlike_WithComments', $strictTypes ? 'Namespaced\\WithStrictTypes' : 'Namespaced\\WithComments'),
+            array('Namespaced\\WithComments', 'Pearlike_WithComments', 'Namespaced\\WithDirMagic', 'Namespaced\\WithFileMagic', 'Namespaced\\WithHaltCompiler', $strictTypes ? 'Namespaced\\WithStrictTypes' : 'Namespaced\\WithComments'),
             __DIR__,
             'bar',
             false
@@ -275,11 +274,46 @@ class Pearlike_WithComments
 public static $loaded = true;
 }
 }
+namespace {require __DIR__.'/Fixtures/Namespaced/WithDirMagic.php';}
+namespace {require __DIR__.'/Fixtures/Namespaced/WithFileMagic.php';}
+namespace {require __DIR__.'/Fixtures/Namespaced/WithHaltCompiler.php';}
 EOF
             .$strictTypes,
             str_replace(array("<?php \n", '\\\\'), array('', '/'), file_get_contents($file))
         );
 
         unlink($file);
+    }
+
+    public function testInline()
+    {
+        $this->assertTrue(class_exists(WarmedClass::class, true));
+
+        @unlink($cache = sys_get_temp_dir().'/inline.php');
+
+        $classes = array(WarmedClass::class);
+        $excluded = array(DeclaredClass::class);
+
+        ClassCollectionLoader::inline($classes, $cache, $excluded);
+
+        $this->assertSame(<<<'EOTXT'
+<?php 
+namespace Symfony\Component\ClassLoader\Tests\Fixtures
+{
+interface WarmedInterface
+{
+}
+}
+namespace Symfony\Component\ClassLoader\Tests\Fixtures
+{
+class WarmedClass extends DeclaredClass implements WarmedInterface
+{
+}
+}
+EOTXT
+            , file_get_contents($cache)
+        );
+
+        unlink($cache);
     }
 }

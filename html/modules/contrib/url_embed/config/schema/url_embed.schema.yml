@@ -1,0 +1,6 @@
+url_embed.settings:
+  type: config_object
+  mapping:
+    cache_expiration:
+      label: 'Cache expiration'
+      type: integer

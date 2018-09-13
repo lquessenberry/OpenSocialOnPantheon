@@ -1,0 +1,106 @@
+<?php
+
+/**
+ * @file
+ * data_policy.module
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function data_policy_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the data_policy module.
+    case 'help.page.data_policy':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('This module helps site managers inform users about data collection.') . '</p>';
+
+      return $output;
+
+    case 'entity.block.edit_form':
+      if ($route_match->getRawParameter('block') != 'data_policy') {
+        break;
+      }
+
+      $url = Link::createFromRoute(t('Data usage explanation'), 'entity.informblock.collection');
+
+      return '<p>' . t('Go to @url page for setting block title on specific pages.', [
+        '@url' => $url->toString(),
+      ]) . '</p>';
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function data_policy_theme($existing, $type, $theme, $path) {
+  return [
+    'data_policy_data_policy' => [
+      'render element' => 'element',
+      'template' => 'data-policy-data-policy',
+      'variables' => [
+        'content' => NULL,
+      ],
+    ],
+    'data_policy_data_policy_revision' => [
+      'template' => 'data-policy-data-policy-revision',
+      'variables' => [
+        'date' => NULL,
+        'username' => NULL,
+        'current' => NULL,
+        'message' => NULL,
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_views_data_alter().
+ */
+function data_policy_views_data_alter(array &$data) {
+  $plugins = [
+    'data_policy_revision_id' => 'user_consent_data_policy_revision',
+    'state' => 'user_consent_state',
+  ];
+
+  foreach ($plugins as $field => $plugin) {
+    foreach (['field', 'filter'] as $type) {
+      $data['user_consent'][$field][$type]['id'] = $plugin;
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function data_policy_form_user_register_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  /** @var \Drupal\data_policy\DataPolicyManagerInterface $data_policy_manager */
+  $data_policy_manager = \Drupal::service('data_policy.manager');
+
+  if (!$data_policy_manager->isDataPolicy()) {
+    return;
+  }
+
+  $data_policy_manager->addCheckbox($form);
+
+  $form['actions']['submit']['#submit'][] = '_data_policy_user_register_form_submit';
+
+}
+
+/**
+ * Save user consent.
+ *
+ * @param array $form
+ *   An associative array containing the structure of the form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The current state of the form.
+ */
+function _data_policy_user_register_form_submit(array &$form, FormStateInterface $form_state) {
+  $values = $form_state->getValues();
+  \Drupal::service('data_policy.manager')->saveConsent($values['uid'], !empty($values['data_policy']));
+}

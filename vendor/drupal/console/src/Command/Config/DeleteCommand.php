@@ -6,42 +6,45 @@
 
 namespace Drupal\Console\Command\Config;
 
-use Drupal\Core\Config\FileStorage;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Yaml\Exception\RuntimeException;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
+use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Config\CachedStorage;
 use Drupal\Core\Config\ConfigFactory;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
 
 class DeleteCommand extends Command
 {
-    use CommandTrait;
-
     protected $allConfig = [];
 
-    /** @var ConfigFactory  */
+    /**
+     * @var ConfigFactory
+     */
     protected $configFactory;
 
-    /** @var CachedStorage  */
+    /**
+     * @var CachedStorage
+     */
     protected $configStorage;
 
-    /** @var FileStorage  */
+    /**
+     * @var StorageInterface
+     */
     protected $configStorageSync;
 
     /**
      * DeleteCommand constructor.
-     * @param ConfigFactory $configFactory
-     * @param CachedStorage $configStorage
-     * @param FileStorage   $configStorageSync
+     *
+     * @param ConfigFactory    $configFactory
+     * @param CachedStorage    $configStorage
+     * @param StorageInterface $configStorageSync
      */
     public function __construct(
-        ConfigFactory $configFactory ,
+        ConfigFactory $configFactory,
         CachedStorage $configStorage,
-        FileStorage $configStorageSync
+        StorageInterface $configStorageSync
     ) {
         $this->configFactory = $configFactory;
         $this->configStorage = $configStorage;
@@ -66,7 +69,7 @@ class DeleteCommand extends Command
                 'name',
                 InputArgument::OPTIONAL,
                 $this->trans('commands.config.delete.arguments.name')
-            );
+            )->setAliases(['cd']);
     }
 
     /**
@@ -74,11 +77,9 @@ class DeleteCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $type = $input->getArgument('type');
         if (!$type) {
-            $type = $io->choiceNoList(
+            $type = $this->getIo()->choiceNoList(
                 $this->trans('commands.config.delete.arguments.type'),
                 ['active', 'staging'],
                 'active'
@@ -88,7 +89,7 @@ class DeleteCommand extends Command
 
         $name = $input->getArgument('name');
         if (!$name) {
-            $name = $io->choiceNoList(
+            $name = $this->getIo()->choiceNoList(
                 $this->trans('commands.config.delete.arguments.name'),
                 $this->getAllConfigNames(),
                 'all'
@@ -102,30 +103,28 @@ class DeleteCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $type = $input->getArgument('type');
         if (!$type) {
-            $io->error($this->trans('commands.config.delete.errors.type'));
+            $this->getIo()->error($this->trans('commands.config.delete.errors.type'));
             return 1;
         }
 
         $name = $input->getArgument('name');
         if (!$name) {
-            $io->error($this->trans('commands.config.delete.errors.name'));
+            $this->getIo()->error($this->trans('commands.config.delete.errors.name'));
             return 1;
         }
 
         $configStorage = ('active' === $type) ? $this->configStorage : $this->configStorageSync;
 
         if (!$configStorage) {
-            $io->error($this->trans('commands.config.delete.errors.config-storage'));
+            $this->getIo()->error($this->trans('commands.config.delete.errors.config-storage'));
             return 1;
         }
 
         if ('all' === $name) {
-            $io->commentBlock($this->trans('commands.config.delete.warnings.undo'));
-            if ($io->confirm($this->trans('commands.config.delete.questions.sure'))) {
+            $this->getIo()->commentBlock($this->trans('commands.config.delete.warnings.undo'));
+            if ($this->getIo()->confirm($this->trans('commands.config.delete.questions.sure'))) {
                 if ($configStorage instanceof FileStorage) {
                     $configStorage->deleteAll();
                 } else {
@@ -134,7 +133,7 @@ class DeleteCommand extends Command
                     }
                 }
 
-                $io->success($this->trans('commands.config.delete.messages.all'));
+                $this->getIo()->success($this->trans('commands.config.delete.messages.all'));
 
                 return 0;
             }
@@ -147,7 +146,7 @@ class DeleteCommand extends Command
                 $this->removeConfig($name);
             }
 
-            $io->success(
+            $this->getIo()->success(
                 sprintf(
                     $this->trans('commands.config.delete.messages.deleted'),
                     $name
@@ -157,7 +156,7 @@ class DeleteCommand extends Command
         }
 
         $message = sprintf($this->trans('commands.config.delete.errors.not-exists'), $name);
-        $io->error($message);
+        $this->getIo()->error($message);
 
         return 1;
     }

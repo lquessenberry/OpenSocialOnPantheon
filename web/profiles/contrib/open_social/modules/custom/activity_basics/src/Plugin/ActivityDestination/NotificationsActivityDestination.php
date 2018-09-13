@@ -1,11 +1,7 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\activity_basics\Plugin\ActivityDestination\NotificationsActivityDestination.
- */
-
 namespace Drupal\activity_basics\Plugin\ActivityDestination;
+
 use Drupal\activity_creator\Plugin\ActivityDestinationBase;
 
 /**
@@ -14,6 +10,8 @@ use Drupal\activity_creator\Plugin\ActivityDestinationBase;
  * @ActivityDestination(
  *  id = "notifications",
  *  label = @Translation("Notifications"),
+ *  is_aggregatable = FALSE,
+ *  is_common = FALSE,
  * )
  */
 class NotificationsActivityDestination extends ActivityDestinationBase {

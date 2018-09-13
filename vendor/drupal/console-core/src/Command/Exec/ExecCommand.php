@@ -2,27 +2,26 @@
 
 /**
  * @file
- * Contains \Drupal\Console\Command\Exec\ExecCommand.
+ * Contains \Drupal\Console\Core\Command\Exec\ExecCommand.
  */
 
-namespace Drupal\Console\Command\Exec;
+namespace Drupal\Console\Core\Command\Exec;
 
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Utils\ShellProcess;
-use Drupal\Console\Style\DrupalStyle;
+use Symfony\Component\Process\ExecutableFinder;
+use Drupal\Console\Core\Utils\ShellProcess;
+use Drupal\Console\Core\Command\Command;
 
 /**
  * Class ExecCommand
- * @package Drupal\Console\Command\Exec
+ *
+ * @package Drupal\Console\Core\Command\Exec
  */
 class ExecCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var ShellProcess
      */
@@ -30,6 +29,7 @@ class ExecCommand extends Command
 
     /**
      * ExecCommand constructor.
+     *
      * @param ShellProcess $shellProcess
      */
     public function __construct(ShellProcess $shellProcess)
@@ -50,6 +50,11 @@ class ExecCommand extends Command
                 'bin',
                 InputArgument::REQUIRED,
                 $this->trans('commands.exec.arguments.bin')
+            )->addOption(
+                'working-directory',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                $this->trans('commands.exec.options.working-directory')
             );
     }
 
@@ -58,30 +63,47 @@ class ExecCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $bin = $input->getArgument('bin');
+        $workingDirectory = $input->getOption('working-directory');
 
         if (!$bin) {
-            $io->error(
+            $this->getIo()->error(
                 $this->trans('commands.exec.messages.missing-bin')
             );
 
             return 1;
         }
 
-        if (!$this->shellProcess->exec($bin)) {
-            $io->error(
+        $name = $bin;
+        if ($index = stripos($name, " ")) {
+            $name = substr($name, 0, $index);
+        }
+
+        $finder = new ExecutableFinder();
+        if (!$finder->find($name)) {
+            $this->getIo()->error(
+                sprintf(
+                    $this->trans('commands.exec.messages.binary-not-found'),
+                    $name
+                )
+            );
+
+            return 1;
+        }
+
+        if (!$this->shellProcess->exec($bin, $workingDirectory)) {
+            $this->getIo()->error(
                 sprintf(
                     $this->trans('commands.exec.messages.invalid-bin')
                 )
             );
 
-            $io->writeln($this->shellProcess->getOutput());
+            $this->getIo()->writeln($this->shellProcess->getOutput());
 
             return 1;
         }
 
-        $io->success(
+        $this->getIo()->success(
             sprintf(
                 $this->trans('commands.exec.messages.success'),
                 $bin

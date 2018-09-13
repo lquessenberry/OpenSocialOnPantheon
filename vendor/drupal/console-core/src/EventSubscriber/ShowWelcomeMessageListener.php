@@ -2,35 +2,37 @@
 
 /**
  * @file
- * Contains \Drupal\Console\EventSubscriber\ShowWelcomeMessageListener.
+ * Contains \Drupal\Console\Core\EventSubscriber\ShowWelcomeMessageListener.
  */
 
-namespace Drupal\Console\EventSubscriber;
+namespace Drupal\Console\Core\EventSubscriber;
 
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Utils\TranslatorManager;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Utils\TranslatorManagerInterface;
+use Drupal\Console\Core\Style\DrupalStyle;
 
 /**
  * Class ShowWelcomeMessageListener
- * @package Drupal\Console\EventSubscriber
+ *
+ * @package Drupal\Console\Core\EventSubscriber
  */
 class ShowWelcomeMessageListener implements EventSubscriberInterface
 {
     /**
-     * @var TranslatorManager
+     * @var TranslatorManagerInterface
      */
     protected $translator;
 
     /**
      * ShowWelcomeMessageListener constructor.
-     * @param TranslatorManager $translator
+     *
+     * @param TranslatorManagerInterface $translator
      */
     public function __construct(
-        TranslatorManager $translator
+        TranslatorManagerInterface $translator
     ) {
         $this->translator = $translator;
     }

@@ -13,28 +13,30 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Drupal\Console\Generator\PostUpdateGenerator;
 use Drupal\Console\Command\Shared\ModuleTrait;
 use Drupal\Console\Command\Shared\ConfirmationTrait;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Extension\Manager;
-use Drupal\Console\Utils\ChainQueue;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Utils\ChainQueue;
 use Drupal\Console\Utils\Site;
 use Drupal\Console\Utils\Validator;
 
 /**
  * Class PostUpdateCommand
+ *
  * @package Drupal\Console\Command\Generate
  */
 class PostUpdateCommand extends Command
 {
     use ModuleTrait;
     use ConfirmationTrait;
-    use CommandTrait;
 
-    /** @var Manager  */
+    /**
+ * @var Manager
+*/
     protected $extensionManager;
 
-    /** @var PostUpdateGenerator  */
+    /**
+ * @var PostUpdateGenerator
+*/
     protected $generator;
 
     /**
@@ -42,7 +44,9 @@ class PostUpdateCommand extends Command
      */
     protected $site;
 
-    /** @var Validator  */
+    /**
+ * @var Validator
+*/
     protected $validator;
 
     /**
@@ -52,6 +56,7 @@ class PostUpdateCommand extends Command
 
     /**
      * PostUpdateCommand constructor.
+     *
      * @param Manager             $extensionManager
      * @param PostUpdateGenerator $generator
      * @param Site                $site
@@ -77,20 +82,20 @@ class PostUpdateCommand extends Command
     {
         $this
             ->setName('generate:post:update')
-            ->setDescription($this->trans('commands.generate.post:update.description'))
+            ->setDescription($this->trans('commands.generate.post.update.description'))
             ->setHelp($this->trans('commands.generate.post.update.help'))
             ->addOption(
                 'module',
-                '',
+                null,
                 InputOption::VALUE_REQUIRED,
                 $this->trans('commands.common.options.module')
             )
             ->addOption(
                 'post-update-name',
-                '',
+                null,
                 InputOption::VALUE_REQUIRED,
                 $this->trans('commands.generate.post.update.options.post-update-name')
-            );
+            )->setAliases(['gpu']);
     }
 
     /**
@@ -98,11 +103,9 @@ class PostUpdateCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
-        // @see use Drupal\Console\Command\Shared\ConfirmationTrait::confirmGeneration
-        if (!$this->confirmGeneration($io)) {
-            return;
+        // @see use Drupal\Console\Command\Shared\ConfirmationTrait::confirmOperation
+        if (!$this->confirmOperation()) {
+            return 1;
         }
 
         $module = $input->getOption('module');
@@ -110,28 +113,27 @@ class PostUpdateCommand extends Command
 
         $this->validatePostUpdateName($module, $postUpdateName);
 
-        $this->generator->generate($module, $postUpdateName);
+        $this->generator->generate([
+            'module' => $module,
+            'post_update_name' => $postUpdateName,
+        ]);
 
         $this->chainQueue->addCommand('cache:rebuild', ['cache' => 'discovery']);
+
+        return 0;
     }
 
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $this->site->loadLegacyFile('/core/includes/update.inc');
         $this->site->loadLegacyFile('/core/includes/schema.inc');
 
-        $module = $input->getOption('module');
-        if (!$module) {
-            // @see Drupal\Console\Command\Shared\ModuleTrait::moduleQuestion
-            $module = $this->moduleQuestion($io);
-            $input->setOption('module', $module);
-        }
+        // --module option
+        $this->getModuleOption();
 
         $postUpdateName = $input->getOption('post-update-name');
         if (!$postUpdateName) {
-            $postUpdateName = $io->ask(
+            $postUpdateName = $this->getIo()->ask(
                 $this->trans('commands.generate.post.update.questions.post-update-name'),
                 '',
                 function ($postUpdateName) {
@@ -141,12 +143,6 @@ class PostUpdateCommand extends Command
 
             $input->setOption('post-update-name', $postUpdateName);
         }
-    }
-
-
-    protected function createGenerator()
-    {
-        return new PostUpdateGenerator();
     }
 
     protected function getLastUpdate($module)

@@ -10,24 +10,25 @@ namespace Drupal\Console\Command\Config;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Core\Config\CachedStorage;
 use Drupal\Core\Config\ConfigFactory;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
 
 class OverrideCommand extends Command
 {
-    use CommandTrait;
-
-    /** @var CachedStorage  */
+    /**
+     * @var CachedStorage
+     */
     protected $configStorage;
 
-    /** @var ConfigFactory  */
+    /**
+     * @var ConfigFactory
+     */
     protected $configFactory;
 
     /**
      * OverrideCommand constructor.
+     *
      * @param CachedStorage $configStorage
      * @param ConfigFactory $configFactory
      */
@@ -50,8 +51,17 @@ class OverrideCommand extends Command
                 InputArgument::REQUIRED,
                 $this->trans('commands.config.override.arguments.name')
             )
-            ->addArgument('key', InputArgument::REQUIRED, $this->trans('commands.config.override.arguments.key'))
-            ->addArgument('value', InputArgument::REQUIRED, $this->trans('commands.config.override.arguments.value'));
+            ->addArgument(
+                'key',
+                InputArgument::REQUIRED,
+                $this->trans('commands.config.override.arguments.key')
+            )
+            ->addArgument(
+                'value',
+                InputArgument::REQUIRED,
+                $this->trans('commands.config.override.arguments.value')
+            )
+            ->setAliases(['co']);
     }
 
     /**
@@ -59,12 +69,11 @@ class OverrideCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $name = $input->getArgument('name');
         $names = $this->configFactory->listAll();
         if ($name) {
             if (!in_array($name, $names)) {
-                $io->warning(
+                $this->getIo()->warning(
                     sprintf(
                         $this->trans('commands.config.override.messages.invalid-name'),
                         $name
@@ -74,7 +83,7 @@ class OverrideCommand extends Command
             }
         }
         if (!$name) {
-            $name = $io->choiceNoList(
+            $name = $this->getIo()->choiceNoList(
                 $this->trans('commands.config.override.questions.name'),
                 $names
             );
@@ -85,7 +94,7 @@ class OverrideCommand extends Command
             if ($this->configStorage->exists($name)) {
                 $configuration = $this->configStorage->read($name);
             }
-            $key = $io->choiceNoList(
+            $key = $this->getIo()->choiceNoList(
                 $this->trans('commands.config.override.questions.key'),
                 array_keys($configuration)
             );
@@ -93,7 +102,7 @@ class OverrideCommand extends Command
         }
         $value = $input->getArgument('value');
         if (!$value) {
-            $value = $io->ask(
+            $value = $this->getIo()->ask(
                 $this->trans('commands.config.override.questions.value')
             );
             $input->setArgument('value', $value);
@@ -104,20 +113,22 @@ class OverrideCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $configName = $input->getArgument('name');
         $key = $input->getArgument('key');
         $value = $input->getArgument('value');
 
         $config = $this->configFactory->getEditable($configName);
 
-        $configurationOverrideResult = $this->overrideConfiguration($config, $key, $value);
+        $configurationOverrideResult = $this->overrideConfiguration(
+            $config,
+            $key,
+            $value
+        );
 
         $config->save();
 
-        $io->info($this->trans('commands.config.override.messages.configuration'), false);
-        $io->comment($configName);
+        $this->getIo()->info($this->trans('commands.config.override.messages.configuration'), false);
+        $this->getIo()->comment($configName);
 
         $tableHeader = [
             $this->trans('commands.config.override.messages.configuration-key'),
@@ -125,9 +136,7 @@ class OverrideCommand extends Command
             $this->trans('commands.config.override.messages.updated'),
         ];
         $tableRows = $configurationOverrideResult;
-        $io->table($tableHeader, $tableRows);
-
-        $config->save();
+        $this->getIo()->table($tableHeader, $tableRows);
     }
 
 

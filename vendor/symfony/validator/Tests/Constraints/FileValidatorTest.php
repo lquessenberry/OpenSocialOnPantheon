@@ -14,18 +14,13 @@ namespace Symfony\Component\Validator\Tests\Constraints;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Validator\Constraints\File;
 use Symfony\Component\Validator\Constraints\FileValidator;
-use Symfony\Component\Validator\Validation;
+use Symfony\Component\Validator\Test\ConstraintValidatorTestCase;
 
-abstract class FileValidatorTest extends AbstractConstraintValidatorTest
+abstract class FileValidatorTest extends ConstraintValidatorTestCase
 {
     protected $path;
 
     protected $file;
-
-    protected function getApiVersion()
-    {
-        return Validation::API_VERSION_2_5;
-    }
 
     protected function createValidator()
     {
@@ -36,7 +31,7 @@ abstract class FileValidatorTest extends AbstractConstraintValidatorTest
     {
         parent::setUp();
 
-        $this->path = sys_get_temp_dir().DIRECTORY_SEPARATOR.'FileValidatorTest';
+        $this->path = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'FileValidatorTest';
         $this->file = fopen($this->path, 'w');
         fwrite($this->file, ' ', 1);
     }
@@ -45,7 +40,7 @@ abstract class FileValidatorTest extends AbstractConstraintValidatorTest
     {
         parent::tearDown();
 
-        if (is_resource($this->file)) {
+        if (\is_resource($this->file)) {
             fclose($this->file);
         }
 

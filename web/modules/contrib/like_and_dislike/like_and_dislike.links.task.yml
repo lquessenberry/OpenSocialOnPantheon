@@ -1,0 +1,6 @@
+like_and_dislike.admin_settings:
+  title: Like & Dislike settings
+  description: 'Management options for the like and dislike buttons.'
+  route_name: like_and_dislike.admin_settings
+  weight: 20
+  base_route: votingapi.admin_settings

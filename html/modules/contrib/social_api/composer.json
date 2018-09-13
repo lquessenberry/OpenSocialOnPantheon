@@ -1,0 +1,18 @@
+{
+    "name": "drupal/social_api",
+    "description": "Harmonizes social networking services in Drupal",
+    "type": "drupal-module",
+    "homepage": "https://www.drupal.org/project/social_api",
+    "authors": [
+        {
+            "name": "Getulio Sánchez (gvso)",
+            "homepage": "https://www.drupal.org/u/gvso",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/social_api",
+        "source": "http://cgit.drupalcode.org/social_api"
+    },
+    "license": "GPL-2.0+"
+}

@@ -17,7 +17,7 @@ class MinkContext extends MinkExtension implements TranslatableContext {
    * @return array
    */
   public static function getTranslationResources() {
-    return glob(__DIR__ . '/../../../../i18n/*.xliff');
+    return self::getMinkTranslationResources() + glob(__DIR__ . '/../../../../i18n/*.xliff');
   }
 
   /**
@@ -82,9 +82,14 @@ class MinkContext extends MinkExtension implements TranslatableContext {
   /**
    * For javascript enabled scenarios, always wait for AJAX before clicking.
    *
-   * @BeforeStep @javascript
+   * @BeforeStep
    */
   public function beforeJavascriptStep($event) {
+    /** @var \Behat\Behat\Hook\Scope\BeforeStepScope $event */
+    $tags = $event->getFeature()->getTags();
+    if (!in_array('javascript', $tags)) {
+      return;
+    }
     $text = $event->getStep()->getText();
     if (preg_match('/(follow|press|click|submit)/i', $text)) {
       $this->iWaitForAjaxToFinish();
@@ -94,9 +99,14 @@ class MinkContext extends MinkExtension implements TranslatableContext {
   /**
    * For javascript enabled scenarios, always wait for AJAX after clicking.
    *
-   * @AfterStep @javascript
+   * @AfterStep
    */
   public function afterJavascriptStep($event) {
+    /** @var \Behat\Behat\Hook\Scope\BeforeStepScope $event */
+    $tags = $event->getFeature()->getTags();
+    if (!in_array('javascript', $tags)) {
+      return;
+    }
     $text = $event->getStep()->getText();
     if (preg_match('/(follow|press|click|submit)/i', $text)) {
       $this->iWaitForAjaxToFinish();
@@ -106,12 +116,34 @@ class MinkContext extends MinkExtension implements TranslatableContext {
   /**
    * Wait for AJAX to finish.
    *
+   * @see \Drupal\FunctionalJavascriptTests\JSWebAssert::assertWaitOnAjaxRequest()
+   *
    * @Given I wait for AJAX to finish
    */
   public function iWaitForAjaxToFinish() {
-    $this->getSession()->wait(5000, '(typeof(jQuery)=="undefined" || (0 === jQuery.active && 0 === jQuery(\':animated\').length))');
+    $condition = <<<JS
+    (function() {
+      function isAjaxing(instance) {
+        return instance && instance.ajaxing === true;
+      }
+      var d7_not_ajaxing = true;
+      if (typeof Drupal !== 'undefined' && typeof Drupal.ajax !== 'undefined' && typeof Drupal.ajax.instances === 'undefined') {
+        for(var i in Drupal.ajax) { if (isAjaxing(Drupal.ajax[i])) { d7_not_ajaxing = false; } }
+      }
+      var d8_not_ajaxing = (typeof Drupal === 'undefined' || typeof Drupal.ajax === 'undefined' || typeof Drupal.ajax.instances === 'undefined' || !Drupal.ajax.instances.some(isAjaxing))
+      return (
+        // Assert no AJAX request is running (via jQuery or Drupal) and no
+        // animation is running.
+        (typeof jQuery === 'undefined' || (jQuery.active === 0 && jQuery(':animated').length === 0)) &&
+        d7_not_ajaxing && d8_not_ajaxing
+      );
+    }());
+JS;
+    $result = $this->getSession()->wait(5000, $condition);
+    if (!$result) {
+      throw new \RuntimeException('Unable to complete AJAX request.');
+    }
   }
-
   /**
    * Presses button with specified id|name|title|alt|value.
    *
@@ -305,6 +337,18 @@ class MinkContext extends MinkExtension implements TranslatableContext {
     $buttonObj = $element->findButton($button);
     if (empty($buttonObj)) {
       throw new \Exception(sprintf("The button '%s' was not found on the page %s", $button, $this->getSession()->getCurrentUrl()));
+    }
+  }
+
+  /**
+   * @Then I should not see the button :button
+   * @Then I should not see the :button button
+   */
+  public function assertNotButton($button) {
+    $element = $this->getSession()->getPage();
+    $buttonObj = $element->findButton($button);
+    if (!empty($buttonObj)) {
+      throw new \Exception(sprintf("The button '%s' was found on the page %s", $button, $this->getSession()->getCurrentUrl()));
     }
   }
 
@@ -513,7 +557,8 @@ class MinkContext extends MinkExtension implements TranslatableContext {
       throw new \Exception(sprintf('The radio button with "%s" was not found on the page %s', $id ? $id : $label, $this->getSession()->getCurrentUrl()));
     }
     $value = $radiobutton->getAttribute('value');
-    $labelonpage = $radiobutton->getParent()->getText();
+    $radio_id = $radiobutton->getAttribute('id');
+    $labelonpage = $element->find('css', "label[for='$radio_id']")->getText();
     if ($label != $labelonpage) {
       throw new \Exception(sprintf("Button with id '%s' has label '%s' instead of '%s' on the page %s", $id, $labelonpage, $label, $this->getSession()->getCurrentUrl()));
     }

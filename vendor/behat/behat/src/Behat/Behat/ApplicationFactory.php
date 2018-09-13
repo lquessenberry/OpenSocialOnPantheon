@@ -18,6 +18,7 @@ use Behat\Behat\Hook\ServiceContainer\HookExtension;
 use Behat\Behat\Output\ServiceContainer\Formatter\JUnitFormatterFactory;
 use Behat\Behat\Output\ServiceContainer\Formatter\PrettyFormatterFactory;
 use Behat\Behat\Output\ServiceContainer\Formatter\ProgressFormatterFactory;
+use Behat\Behat\HelperContainer\ServiceContainer\HelperContainerExtension;
 use Behat\Behat\Snippet\ServiceContainer\SnippetExtension;
 use Behat\Behat\Tester\ServiceContainer\TesterExtension;
 use Behat\Behat\Transformation\ServiceContainer\TransformationExtension;
@@ -45,7 +46,7 @@ use Behat\Testwork\Translator\ServiceContainer\TranslatorExtension;
  */
 final class ApplicationFactory extends BaseFactory
 {
-    const VERSION = '3.2.2';
+    const VERSION = '3.5.0';
 
     /**
      * {@inheritdoc}
@@ -91,7 +92,8 @@ final class ApplicationFactory extends BaseFactory
             new EventDispatcherExtension($processor),
             new HookExtension(),
             new TransformationExtension($processor),
-            new OrderingExtension($processor)
+            new OrderingExtension($processor),
+            new HelperContainerExtension($processor)
         );
     }
 
@@ -108,19 +110,23 @@ final class ApplicationFactory extends BaseFactory
      */
     protected function getConfigPath()
     {
-        $cwd = rtrim(getcwd(), DIRECTORY_SEPARATOR);
-        $paths = array_filter(
-            array(
-                $cwd . DIRECTORY_SEPARATOR . 'behat.yml',
-                $cwd . DIRECTORY_SEPARATOR . 'behat.yml.dist',
-                $cwd . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'behat.yml',
-                $cwd . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'behat.yml.dist',
-            ),
-            'is_file'
+        $cwd = rtrim(getcwd(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $configDir = $cwd . 'config' . DIRECTORY_SEPARATOR;
+        $paths = array(
+            $cwd . 'behat.yaml',
+            $cwd . 'behat.yml',
+            $cwd . 'behat.yaml.dist',
+            $cwd . 'behat.yml.dist',
+            $configDir . 'behat.yaml',
+            $configDir . 'behat.yml',
+            $configDir . 'behat.yaml.dist',
+            $configDir . 'behat.yml.dist',
         );
 
-        if (count($paths)) {
-            return current($paths);
+        foreach ($paths as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
         }
 
         return null;

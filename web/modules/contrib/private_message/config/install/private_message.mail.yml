@@ -1,0 +1,3 @@
+message_notification:
+  subject: 'Private message at [site:name]'
+  body: "[user:display-name],\n\nYou have received a private message at [site:name] from [private_message:author-name]\n\nThe message is as follows:\n\n[private_message:message]\n\nYou can view the entire thread and reply to this message at:\n\n[private_message_thread:url]\n\n\nThank you,\n\n--  [site:name]"

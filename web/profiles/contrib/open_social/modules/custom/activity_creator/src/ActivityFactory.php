@@ -1,14 +1,12 @@
 <?php
-/**
- * @file
- * ActivityFactory.
- */
 
 namespace Drupal\activity_creator;
 
 use Drupal\activity_creator\Entity\Activity;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\message\Entity\Message;
+use Drupal\activity_creator\Plugin\ActivityDestinationManager;
 
 /**
  * Class ActivityFactory to create Activity items based on ActivityLogs.
@@ -16,6 +14,15 @@ use Drupal\message\Entity\Message;
  * @package Drupal\activity_creator
  */
 class ActivityFactory extends ControllerBase {
+
+  /**
+   * @var \Drupal\activity_creator\Plugin\ActivityDestinationManager
+   */
+  private $activityDestinationManager;
+
+  public function __construct(ActivityDestinationManager $activityDestinationManager) {
+    $this->activityDestinationManager = $activityDestinationManager;
+  }
 
   /**
    * Create the activities based on a data array.
@@ -121,7 +128,9 @@ class ActivityFactory extends ControllerBase {
   private function getFieldOutputText(Message $message, $arguments = []) {
     $value = NULL;
     if (isset($message)) {
-      $value = $message->getText(NULL);
+
+      $value = $this->getMessageText($message);
+
       // Text for aggregated activities.
       if (!empty($value[1]) && !empty($arguments)) {
         $text = str_replace('@count', $arguments['@count'], $value[1]);
@@ -168,13 +177,18 @@ class ActivityFactory extends ControllerBase {
    */
   private function buildAggregatedActivites($data, $activity_fields) {
     $activities = [];
+    $common_destinations = $this->activityDestinationManager->getListByProperties('is_common', TRUE);
+    $personal_destinations = $this->activityDestinationManager->getListByProperties('is_common', FALSE);
+
     // Get related activities.
     $related_activities = $this->getAggregationRelatedActivities($data);
     if (!empty($related_activities)) {
       // Update related activities.
       foreach ($related_activities as $related_activity) {
+        $destination = $related_activity->field_activity_destinations->value;
         // If user already have related activity we remove it and create new.
-        if ($related_activity->getOwnerId() == $this->getActor($data)) {
+        // And we also remove related activities from common streams.
+        if ($related_activity->getOwnerId() == $this->getActor($data) || in_array($destination, $common_destinations)) {
           // @TODO: Consider if need to delete or unpublish old activites.
           $related_activity->delete();
         }
@@ -196,12 +210,10 @@ class ActivityFactory extends ControllerBase {
         $arguments = ['@count' => $count - 1];
       }
       $activity_fields['field_activity_output_text'] = $this->getFieldOutputText($message, $arguments);
-      $allowed_destinations = ['stream_group', 'stream_home', 'stream_explore'];
-      $activity_fields['field_activity_destinations'] = $this->getFieldDestinations($data, $allowed_destinations);
+      $activity_fields['field_activity_destinations'] = $this->getFieldDestinations($data, $common_destinations);
 
       // Create separate activity for activity on user related streams.
-      $profile_allowed_destinations = ['stream_profile', 'notifications', 'email'];
-      $profile_activity_fields['field_activity_destinations'] = $this->getFieldDestinations($data, $profile_allowed_destinations);
+      $profile_activity_fields['field_activity_destinations'] = $this->getFieldDestinations($data, $personal_destinations);
       $activity = Activity::create($profile_activity_fields);
       $activity->save();
       $activities[] = $activity;
@@ -217,7 +229,7 @@ class ActivityFactory extends ControllerBase {
   /**
    * Get related activities for activity aggregation.
    */
-  public static function getAggregationRelatedActivities($data) {
+  private function getAggregationRelatedActivities($data) {
     $activities = array();
     $related_object = $data['related_object'][0];
     if (!empty($related_object['target_id']) && !empty($related_object['target_type'])) {
@@ -236,8 +248,10 @@ class ActivityFactory extends ControllerBase {
           $activity_query = \Drupal::entityQuery('activity');
           $activity_query->condition('field_activity_entity.target_id', $comment_ids, 'IN');
           $activity_query->condition('field_activity_entity.target_type', $related_object['target_type'], '=');
-          // We exclude activities with email destination from aggregation.
-          $activity_query->condition('field_activity_destinations.value', 'email', '!=');
+          // We exclude activities with email, platform_email and notifications
+          // destinations from aggregation.
+          $aggregatable_destinations = $this->activityDestinationManager->getListByProperties('is_aggregatable', TRUE);
+          $activity_query->condition('field_activity_destinations.value', $aggregatable_destinations, 'IN');
           $activity_ids = $activity_query->execute();
           if (!empty($activity_ids)) {
             $activities = Activity::loadMultiple($activity_ids);
@@ -271,13 +285,17 @@ class ActivityFactory extends ControllerBase {
     // We return commented entity as related object for all other comments.
     elseif (isset($related_object['target_type']) && $related_object['target_type'] === 'comment') {
       $comment_storage = \Drupal::entityTypeManager()->getStorage('comment');
-      // @TODO: Check if comment published?
+      // @todo: Check if comment published?
       $comment = $comment_storage->load($related_object['target_id']);
-      $commented_entity = $comment->getCommentedEntity();
-      $related_object = [
-        'target_type' => $commented_entity->getEntityTypeId(),
-        'target_id' => $commented_entity->id(),
-      ];
+      if ($comment) {
+        $commented_entity = $comment->getCommentedEntity();
+        if (!empty($commented_entity)) {
+          $related_object = [
+            'target_type' => $commented_entity->getEntityTypeId(),
+            'target_id' => $commented_entity->id(),
+          ];
+        }
+      }
     }
     return $related_object;
   }
@@ -285,7 +303,7 @@ class ActivityFactory extends ControllerBase {
   /**
    * Get unique authors number for activity aggregation.
    */
-  private function getAggregationAuthorsCount($data) {
+  private function getAggregationAuthorsCount(array $data) {
     $count = 0;
     $related_object = $data['related_object'][0];
     if (isset($related_object['target_type']) && $related_object['target_type'] === 'comment') {
@@ -340,12 +358,110 @@ class ActivityFactory extends ControllerBase {
    * @return int
    *    Value uid integer.
    */
-  private function getActor($data) {
+  private function getActor(array $data) {
     $value = 0;
     if (isset($data['actor'])) {
       $value = $data['actor'];
     }
     return $value;
+  }
+
+  /**
+   * Get message text.
+   *
+   * @return array
+   *    Message text array.
+   */
+  public function getMessageText(Message $message) {
+
+    /** @var \Drupal\message\Entity\MessageTemplate $message_template */
+    $message_template = $message->getTemplate();
+
+    $message_arguments = $message->getArguments();
+    $message_template_text = $message_template->get('text');
+
+    $output = $this->processArguments($message_arguments, $message_template_text, $message);
+
+    $token_options = $message_template->getSetting('token options', []);
+    if (!empty($token_options['token replace'])) {
+      // Token should be processed.
+      $output = $this->processTokens($output, !empty($token_options['clear']), $message);
+    }
+
+    return $output;
+  }
+
+  /**
+   * Process the message given the arguments saved with it.
+   *
+   * @param array $arguments
+   *   Array with the arguments.
+   * @param array $output
+   *   Array with the templated text saved in the message template.
+   *
+   * @return array
+   *   The templated text, with the placeholders replaced with the actual value,
+   *   if there are indeed arguments.
+   */
+  protected function processArguments(array $arguments, array $output, Message $message) {
+    // Check if we have arguments saved along with the message.
+    if (empty($arguments)) {
+      return $output;
+    }
+
+    foreach ($arguments as $key => $value) {
+      if (is_array($value) && !empty($value['callback']) && is_callable($value['callback'])) {
+
+        // A replacement via callback function.
+        $value += ['pass message' => FALSE];
+
+        if ($value['pass message']) {
+          // Pass the message object as-well.
+          $value['arguments']['message'] = $message;
+        }
+
+        $arguments[$key] = call_user_func_array($value['callback'], $value['arguments']);
+      }
+    }
+
+    foreach ($output as $key => $value) {
+      $output[$key] = new FormattableMarkup($value, $arguments);
+    }
+
+    return $output;
+  }
+
+  /**
+   * Replace placeholders with tokens.
+   *
+   * @param array $output
+   *   The templated text to be replaced.
+   * @param bool $clear
+   *   Determine if unused token should be cleared.
+   *
+   * @return array
+   *   The output with placeholders replaced with the token value,
+   *   if there are indeed tokens.
+   */
+  protected function processTokens(array $output, $clear, Message $message) {
+    $options = [
+      'clear' => $clear,
+    ];
+
+    foreach ($output as $key => $value) {
+      if (is_string($value)) {
+        $output[$key] = \Drupal::token()
+          ->replace($value, ['message' => $message], $options);
+      }
+      else {
+        if (isset($value['value'])) {
+          $output[$key] = \Drupal::token()
+            ->replace($value['value'], ['message' => $message], $options);
+        }
+      }
+    }
+
+    return $output;
   }
 
 }

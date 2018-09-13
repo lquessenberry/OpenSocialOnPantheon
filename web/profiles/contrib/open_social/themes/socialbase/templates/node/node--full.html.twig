@@ -64,12 +64,14 @@
  */
 #}
 
+{{ attach_library('socialbase/page-node')}}
+
 {%
   set classes = [
     'card',
-    node.isPromoted() ? 'promoted',
-    node.isSticky() ? 'sticky',
-    not node.isPublished() ? 'unpublished',
+    'brand-border-radius',
+    node.isPromoted() ? 'node--promoted',
+    not node.isPublished() ? 'node--unpublished',
   ]
 %}
 
@@ -81,43 +83,124 @@
 
 <article{{ attributes.addClass(classes) }}>
 
-  <div{{ content_attributes.addClass('card-body extra-padding body-text') }}>
+  <div{{ content_attributes.addClass('card__body') }}>
 
-    {% if content.flag_follow_content|render is not empty %}
-      {{ content.flag_follow_content }}
+    {% if not node.isPublished() %}
+      <div class="node--unpublished__label">{% trans %} unpublished {% endtrans %}</div>
     {% endif %}
 
-    {{ content.body }}
 
-    {% if content.field_files|render is not empty %}
-    <div class="inline-clear margin-top-xxl"></div>
-      <div class="card-nested-section">
-        <h5>
-          {% trans %}Files{% endtrans %}
-        </h5>
-          {{ content.field_files }}
-      </div>
+    {% block metainfo %}
+      <header class="metainfo">
+
+        <div class="metainfo__avatar">
+          {{ author_picture }}
+        </div>
+
+        <div class="metainfo__content">
+
+          {{ author }}
+          <span class="metainfo__published-date">&bullet; {{ created_date_formatted }} </span>
+          <div>
+            {% if event_type %}
+              {{ event_type }}
+            {% endif %}
+            {% if topic_type %}
+              {{ topic_type }}
+            {% endif %}
+            {% if group_link %}
+              {% trans %} in group {% endtrans %}
+              {{ group_link }}
+            {% endif %}
+          </div>
+
+        </div>
+
+      </header>
+    {% endblock %}
+
+    {% if event_date %}
+      {% block nodefull_specialfields %}
+        {{ content }}
+      {% endblock %}
     {% endif %}
+
+
+    {% if node.isSticky() or comment_field_status is not empty or logged_in %}
+      {% block metaengage %}
+        <div class="meta-engage">
+
+          {% if content.flag_follow_content|render is not empty and logged_in %}
+            <div class="meta-follow">
+              {{ content.flag_follow_content }}
+            </div>
+          {% endif %}
+
+          {% if node.isSticky() %}
+            <span class="badge badge-accent badge--large brand-bg-accent">{% trans %}Featured{% endtrans %}</span>
+          {% endif %}
+
+          {% if comment_field_status is not empty %}
+            <a href="#section-comments" class="badge badge-default badge--large badge--pill badge--comment-count" title="{% trans %}Total amount of comments{% endtrans %}">
+              <span class="badge__container">
+                <svg class="badge__icon">
+                  <use xlink:href="#icon-comment"></use>
+                </svg>
+                <span class="badge__label">
+                  {{ comment_count }}
+                </span>
+                <span class="badge__label badge__label--description">
+                  {% if comment_count == 1 %}
+                    {% trans %}comment{% endtrans %}
+                  {% else %}
+                    {% trans %}comments{% endtrans %}
+                  {% endif %}
+                </span>
+              </span>
+            </a>
+          {% endif %}
+
+          {% if likes_count is not empty %}
+            <div class="badge badge-default badge--large badge--pill">
+              <span class="badge__container">
+                <svg class="badge__icon">
+                  <use xlink:href="#icon-like"></use>
+                </svg>
+                <span class="badge__label">
+                  {{ likes_count }}
+                </span>
+                <span class="badge__label badge__label--description">
+                  likes
+                </span>
+              </span>
+            </div>
+          {% endif %}
+
+          {% if visibility_icon and visibility_label %}
+            <div class="badge badge-default badge--large badge--pill" title="{% trans %}The visibility of this content is set to {% endtrans %} {{ visibility_label }}">
+              <span class="badge__container">
+                <svg class="badge__icon">
+                  <use xlink:href="#icon-{{ visibility_icon }}"></use>
+                </svg>
+                <span class="badge__label">&nbsp;</span>
+                <span class="badge__label badge__label--description">{{ visibility_label }}</span>
+              </span>
+            </div>
+          {% endif %}
+
+        </div>
+        {% endblock %}
+    {% endif %}
+
+    {% block nodefull_body %}
+      {{ content|without('flag_follow_content') }}
+    {% endblock %}
+
+
   </div>
 
 </article>
 
-{% if content.book_navigation|render is not empty %}
-  {{ content.book_navigation }}
-{% endif %}
-
-{% if content.field_book_comments|render is not empty %}
-  {{ content.field_book_comments }}
-{% endif %}
-
-{% if content.field_topic_comments|render is not empty %}
-  {{ content.field_topic_comments }}
-{% endif %}
-
-{% if content.field_event_comments|render is not empty %}
-  {{ content.field_event_comments }}
-{% endif %}
-
-{% if content.field_page_comments|render is not empty %}
-  {{ content.field_page_comments }}
-{% endif %}
+{% block nodefull_below_content %}
+  {{ below_content }}
+{% endblock %}

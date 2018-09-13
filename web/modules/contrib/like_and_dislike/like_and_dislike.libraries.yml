@@ -1,0 +1,11 @@
+icons:
+  css:
+    theme:
+      css/like_and_dislike.icons.css: {}
+
+behavior:
+  js:
+    js/like_and_dislike.js: {}
+    js/like_and_dislike_service.js: {}
+  dependencies:
+    - core/jquery

@@ -34,6 +34,7 @@ class CommentPostFormatter extends CommentDefaultFormatter {
   public static function defaultSettings() {
     return array(
       'num_comments' => 2,
+      'order' => 'DESC',
     );
   }
 
@@ -80,7 +81,25 @@ class CommentPostFormatter extends CommentDefaultFormatter {
             $t_args = array(':num_comments' => $comment_count);
             $more_link = $this->t('Show all :num_comments comments', $t_args);
 
-            $more_button = Link::fromTextAndUrl($more_link, $entity->urlInfo('canonical'));
+            // Set link classes to be added to the button.
+            $more_link_options = array(
+              'attributes' => array(
+                'class' => array(
+                  'btn',
+                  'btn-flat',
+                  'brand-text-primary',
+                ),
+              ),
+            );
+
+            // Set path to post node.
+            $link_url = $entity->urlInfo('canonical');
+
+            // Attach the attributes.
+            $link_url->setOptions($more_link_options);
+
+            // Build the link.
+            $more_button = Link::fromTextAndUrl($more_link, $link_url);
             $output['more_link'] = $more_button;
           }
         }
@@ -142,6 +161,17 @@ class CommentPostFormatter extends CommentDefaultFormatter {
       '#title' => $this->t('Number of comments'),
       '#default_value' => $this->getSetting('num_comments'),
     );
+    $orders = [
+      'ASC' => $this->t('Oldest first'),
+      'DESC' => $this->t('Newest first'),
+    ];
+    $element['order'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Order'),
+      '#description' => $this->t('Select the order used to show the list of comments.'),
+      '#default_value' => $this->getSetting('order'),
+      '#options' => $orders,
+    ];
     return $element;
   }
 
@@ -172,18 +202,20 @@ class CommentPostFormatter extends CommentDefaultFormatter {
       ->addMetaData('entity', $entity)
       ->addMetaData('field_name', $field_name);
 
+    $comments_order = $this->getSetting('order');
+
     if (!$this->currentUser->hasPermission('administer comments')) {
       $query->condition('c.status', CommentInterface::PUBLISHED);
     }
     if ($mode == CommentManagerInterface::COMMENT_MODE_FLAT) {
-      $query->orderBy('c.cid', 'DESC');
+      $query->orderBy('c.cid', $comments_order);
     }
     else {
       // See comment above. Analysis reveals that this doesn't cost too
       // much. It scales much much better than having the whole comment
       // structure.
       $query->addExpression('SUBSTRING(c.thread, 1, (LENGTH(c.thread) - 1))', 'torder');
-      $query->orderBy('torder', 'DESC');
+      $query->orderBy('torder', $comments_order);
     }
 
     // Limit The number of results.

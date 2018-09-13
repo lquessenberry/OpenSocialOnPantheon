@@ -1,0 +1,13 @@
+name: Like & Dislike
+type: module
+description: 'Enable like and dislike widgets and statistics'
+package: Voting
+# core: 8.x
+configure: like_and_dislike.admin_settings
+dependencies:
+  - votingapi
+# Information added by Drupal.org packaging script on 2016-10-14
+version: '8.x-1.0-alpha2'
+core: '8.x'
+project: 'like_and_dislike'
+datestamp: 1476452345

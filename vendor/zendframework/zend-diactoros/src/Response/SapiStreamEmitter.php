@@ -1,18 +1,23 @@
 <?php
 /**
- * Zend Framework (http://framework.zend.com/)
- *
- * @see       http://github.com/zendframework/zend-diactoros for the canonical source repository
- * @copyright Copyright (c) 2015-2016 Zend Technologies USA Inc. (http://www.zend.com)
+ * @see       https://github.com/zendframework/zend-diactoros for the canonical source repository
+ * @copyright Copyright (c) 2015-2018 Zend Technologies USA Inc. (http://www.zend.com)
  * @license   https://github.com/zendframework/zend-diactoros/blob/master/LICENSE.md New BSD License
  */
 
 namespace Zend\Diactoros\Response;
 
 use Psr\Http\Message\ResponseInterface;
-use RuntimeException;
-use Zend\Diactoros\RelativeStream;
 
+use function is_array;
+use function preg_match;
+use function strlen;
+use function substr;
+
+/**
+ * @deprecated since 1.8.0. The package zendframework/zend-httphandlerrunner
+ *     now provides this functionality.
+ */
 class SapiStreamEmitter implements EmitterInterface
 {
     use SapiEmitterTrait;
@@ -28,19 +33,13 @@ class SapiStreamEmitter implements EmitterInterface
      */
     public function emit(ResponseInterface $response, $maxBufferLength = 8192)
     {
-        if (headers_sent()) {
-            throw new RuntimeException('Unable to emit response; headers already sent');
-        }
-
-        $response = $this->injectContentLength($response);
-
-        $this->emitStatusLine($response);
+        $this->assertNoPreviousOutput();
         $this->emitHeaders($response);
-        $this->flush();
+        $this->emitStatusLine($response);
 
         $range = $this->parseContentRange($response->getHeaderLine('Content-Range'));
 
-        if (is_array($range)) {
+        if (is_array($range) && $range[0] === 'bytes') {
             $this->emitBodyRange($range, $response, $maxBufferLength);
             return;
         }
@@ -58,12 +57,15 @@ class SapiStreamEmitter implements EmitterInterface
     {
         $body = $response->getBody();
 
-        if (! $body->isSeekable()) {
+        if ($body->isSeekable()) {
+            $body->rewind();
+        }
+
+        if (! $body->isReadable()) {
             echo $body;
             return;
         }
 
-        $body->rewind();
         while (! $body->eof()) {
             echo $body->read($maxBufferLength);
         }
@@ -82,24 +84,30 @@ class SapiStreamEmitter implements EmitterInterface
 
         $body = $response->getBody();
 
-        if (! $body->isSeekable()) {
-            $contents = $body->getContents();
-            echo substr($contents, $first, $last - $first + 1);
+        $length = $last - $first + 1;
+
+        if ($body->isSeekable()) {
+            $body->seek($first);
+
+            $first = 0;
+        }
+
+        if (! $body->isReadable()) {
+            echo substr($body->getContents(), $first, $length);
             return;
         }
 
-        $body = new RelativeStream($body, $first);
-        $body->rewind();
-        $pos = 0;
-        $length = $last - $first + 1;
-        while (! $body->eof() && $pos < $length) {
-            if (($pos + $maxBufferLength) > $length) {
-                echo $body->read($length - $pos);
-                break;
-            }
+        $remaining = $length;
 
-            echo $body->read($maxBufferLength);
-            $pos = $body->tell();
+        while ($remaining >= $maxBufferLength && ! $body->eof()) {
+            $contents   = $body->read($maxBufferLength);
+            $remaining -= strlen($contents);
+
+            echo $contents;
+        }
+
+        if ($remaining > 0 && ! $body->eof()) {
+            echo $body->read($remaining);
         }
     }
 

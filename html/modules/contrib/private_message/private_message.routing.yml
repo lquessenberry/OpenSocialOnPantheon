@@ -1,0 +1,107 @@
+private_message.private_message_page:
+  path: '/private_messages'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\PrivateMessageController::privateMessagePage'
+    _title: 'Private Messages'
+  requirements:
+    _permission: 'use private messaging system'
+    _user_is_logged_in: 'TRUE'
+
+entity.private_message_thread.canonical:
+  path: '/private_messages/{private_message_thread}'
+  defaults:
+    _entity_view: 'private_message_thread'
+    _title: 'Private Messages'
+  requirements:
+    _entity_access: 'private_message_thread.view'
+
+entity.private_message_thread.delete_form:
+  path: '/private_messages/{private_message_thread}/delete'
+  defaults:
+    _entity_form: private_message_thread.delete
+    _title: 'Delete Thread'
+  requirements:
+    _entity_access: 'private_message_thread.delete'
+
+private_message.private_message_create:
+  path: '/private_message/create'
+  defaults:
+  # Calls the form.add controller, defined in the contact entity.
+    _entity_form: private_message.add
+    _title: 'Create Private Message'
+  requirements:
+    _entity_create_access: 'private_message'
+
+entity.private_message.canonical:
+  path: '/private_message/{private_message}'
+  defaults:
+  # Calls the view controller, defined in the annotation of the contact entity
+    _entity_view: 'private_message'
+    _title: 'View Private Message'
+  requirements:
+  # Calls the access controller of the entity, $operation 'view'
+    _entity_access: 'private_message.view'
+
+private_message.admin_structure:
+  path: '/admin/structure/private_message'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Private Message'
+  requirements:
+    _permission: 'administer private message module'
+
+private_message.private_message_settings:
+  path: '/admin/structure/private_message/private_message'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\PrivateMessageController::pmSettingsPage'
+    _title: 'Private Message Settings'
+  requirements:
+    _permission: 'administer private message module'
+
+private_message.private_message_thread_settings:
+  path: '/admin/structure/private_message/private_message_thread'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\PrivateMessageController::pmThreadSettingsPage'
+    _title: 'Private Message Thread Settings'
+  requirements:
+    _permission: 'administer private message module'
+
+private_message.members_widget_callback:
+  path: '/private_message/autocomplete/members'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\AjaxController::privateMessageMembersAutocomplete'
+  requirements:
+    _csrf_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'
+
+private_message.admin_config:
+  path: '/admin/config/private_message'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Private Message'
+  requirements:
+    _permission: 'administer private message module'
+
+private_message.admin_config.config:
+  path: '/admin/config/private_message/config'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\PrivateMessageController::configPage'
+    _title: 'Private Message Configuration'
+  requirements:
+    _permission: 'administer private message module'
+
+private_message.admin_config.uninstall:
+  path: '/admin/config/private_message/uninstall'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\PrivateMessageController::adminUninstallPage'
+    _title: 'Private Message Uninstallation Preparation'
+  requirements:
+    _permission: 'administer private message module'
+
+private_message.ajax_callback:
+  path: '/private_message/ajax_callback/{op}'
+  defaults:
+    _controller: '\Drupal\private_message\Controller\AjaxController::ajaxCallback'
+  requirements:
+    _csrf_token: 'TRUE'
+    _user_is_logged_in: 'TRUE'

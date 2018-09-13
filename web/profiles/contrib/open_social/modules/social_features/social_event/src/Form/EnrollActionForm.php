@@ -93,7 +93,7 @@ class EnrollActionForm extends FormBase implements ContainerInjectionInterface {
       if (!empty($groups)) {
         foreach ($groups as $group) {
           if ($group->hasPermission('enroll to events in groups', $current_user) == FALSE) {
-            return '';
+            return [];
           }
         }
       }
@@ -149,9 +149,10 @@ class EnrollActionForm extends FormBase implements ContainerInjectionInterface {
       $form['enroll_for_this_event']['#attributes'] = array(
         'class' => array(
           'btn',
-          'btn-accent',
+          'btn-accent brand-bg-accent',
           'btn-lg btn-raised',
           'dropdown-toggle',
+          'waves-effect',
         ),
         'autocomplete' => 'off',
         'data-toggle' => 'dropdown',
@@ -164,7 +165,7 @@ class EnrollActionForm extends FormBase implements ContainerInjectionInterface {
 
       // Add markup for the button so it will be a dropdown.
       $form['feedback_user_has_enrolled'] = array(
-        '#markup' => '<ul class="dropdown-menu"><li><a href="#" class="enroll-form-submit"> ' . $cancel_text . ' </a></li></ul>',
+        '#markup' => '<ul class="dropdown-menu dropdown-menu-right"><li><a href="#" class="enroll-form-submit"> ' . $cancel_text . ' </a></li></ul>',
       );
 
       $form['#attached']['library'][] = 'social_event/form_submit';
@@ -173,13 +174,14 @@ class EnrollActionForm extends FormBase implements ContainerInjectionInterface {
     return $form;
   }
 
-
   /**
    * Function to determine if an event has been finished.
    *
-   * @param Node $node The event.
+   * @param Node $node
+   *    The event.
    *
-   * @return TRUE if the evens is finished / completed.
+   * @return bool
+   *    TRUE if the evens is finished / completed.
    */
   protected function eventHasBeenFinished(Node $node) {
     // Use the start date when the end date is not set to determine if the
@@ -192,8 +194,8 @@ class EnrollActionForm extends FormBase implements ContainerInjectionInterface {
     // Get Event end date to compare w/ current timestamp.
     $event_end_timestamp = strtotime($check_end_date);
 
-    // Check to see if Event end date is in the future, hence we can still "Enroll".
-
+    // Check to see if Event end date is in the future,
+    // hence we can still "Enroll".
     if (time() > $event_end_timestamp) {
       return TRUE;
     }
@@ -232,7 +234,8 @@ class EnrollActionForm extends FormBase implements ContainerInjectionInterface {
           '@log_in' => $log_in_link,
           '@create_account_link' => $create_account_link,
         ));
-      } else {
+      }
+      else {
         $log_in_url = Url::fromUserInput('/user/login');
         $log_in_link = Link::fromTextAndUrl(t('log in'), $log_in_url)->toString();
         $message = $this->t('Please @log_in so that you can enroll to the event.', array(

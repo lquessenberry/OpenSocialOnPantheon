@@ -162,6 +162,28 @@ class Data implements DataInterface
     /**
      * {@inheritdoc}
      */
+    public function has($key)
+    {
+        $currentValue = &$this->data;
+        $keyPath = explode('.', $key);
+
+        for ( $i = 0; $i < count($keyPath); $i++ ) {
+            $currentKey = $keyPath[$i];
+            if (
+                !is_array($currentValue) ||
+                !array_key_exists($currentKey, $currentValue)
+            ) {
+                return false;
+            }
+            $currentValue = &$currentValue[$currentKey];
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getData($key)
     {
         $value = $this->get($key);

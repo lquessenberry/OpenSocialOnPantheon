@@ -2,21 +2,22 @@
 
 /**
  * @file
- * Contains Drupal\Console\Command\Shared\CommandTrait.
+ * Contains Drupal\Console\Core\Command\Shared\CommandTrait.
  */
 
-namespace Drupal\Console\Command\Shared;
+namespace Drupal\Console\Core\Command\Shared;
 
-use Drupal\Console\Utils\TranslatorManager;
+use Drupal\Console\Core\Utils\TranslatorManagerInterface;
 
 /**
  * Class CommandTrait
- * @package Drupal\Console\Command
+ *
+ * @package Drupal\Console\Core\Command
  */
 trait CommandTrait
 {
     /**
-     * @var  TranslatorManager
+     * @var TranslatorManagerInterface
      */
     protected $translator;
 
@@ -57,5 +58,22 @@ trait CommandTrait
         }
 
         return parent::getDescription();
+    }
+
+    /**
+   * @inheritdoc
+   */
+    public function getHelp()
+    {
+        $help = sprintf(
+            'commands.%s.help',
+            str_replace(':', '.', $this->getName())
+        );
+
+        if (parent::getHelp()==$help) {
+            return $this->trans($help);
+        }
+
+        return parent::getHelp();
     }
 }

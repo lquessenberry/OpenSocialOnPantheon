@@ -13,17 +13,17 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Drupal\Console\Generator\EntityConfigGenerator;
 use Drupal\Console\Extension\Manager;
 use Drupal\Console\Utils\Validator;
-use Drupal\Console\Utils\StringConverter;
+use Drupal\Console\Core\Utils\StringConverter;
 
 class EntityConfigCommand extends EntityCommand
 {
     /**
- * @var Manager  
+ * @var Manager
 */
     protected $extensionManager;
 
     /**
- * @var EntityConfigGenerator  
+ * @var EntityConfigGenerator
 */
     protected $generator;
 
@@ -39,6 +39,7 @@ class EntityConfigCommand extends EntityCommand
 
     /**
      * EntityConfigCommand constructor.
+     *
      * @param Manager               $extensionManager
      * @param EntityConfigGenerator $generator
      * @param Validator             $validator
@@ -57,19 +58,21 @@ class EntityConfigCommand extends EntityCommand
         parent::__construct();
     }
 
-
+    /**
+     * {@inheritdoc}
+     */
     protected function configure()
     {
         $this->setEntityType('EntityConfig');
         $this->setCommandName('generate:entity:config');
         parent::configure();
-
         $this->addOption(
             'bundle-of',
             null,
             InputOption::VALUE_NONE,
             $this->trans('commands.generate.entity.config.options.bundle-of')
-        );
+        )
+            ->setAliases(['gec']);
     }
 
     /**
@@ -92,8 +95,13 @@ class EntityConfigCommand extends EntityCommand
         $bundle_of = $input->getOption('bundle-of');
         $base_path = $input->getOption('base-path');
 
-        $this
-            ->generator
-            ->generate($module, $entity_name, $entity_class, $label, $base_path, $bundle_of);
+        $this->generator->generate([
+            'module' => $module,
+            'entity_name' => $entity_name,
+            'entity_class' => $entity_class,
+            'label' => $label,
+            'base_path' => $base_path,
+            'bundle_of' => $bundle_of,
+        ]);
     }
 }

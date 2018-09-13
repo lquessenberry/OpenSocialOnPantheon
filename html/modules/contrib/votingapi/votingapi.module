@@ -1,0 +1,72 @@
+<?php
+
+/**
+ * @file
+ * Contains votingapi.module.
+ *
+ * A generalized voting API for Drupal.
+ *
+ * Maintains and provides an interface for a shared bin of vote and rating
+ * data. Modules can cast votes with arbitrary properties and VotingAPI will
+ * total them automatically. Support for basic anonymous voting by IP address,
+ * multi-criteria voting, arbitrary aggregation functions, etc.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function votingapi_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the votingapi module.
+    case 'help.page.votingapi':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Voting API') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function votingapi_entity_delete(Drupal\Core\Entity\EntityInterface $entity) {
+  // Only act on content entities.
+  if (!($entity instanceof \Drupal\Core\Entity\FieldableEntityInterface)) {
+    return;
+  }
+  // Delete all votes and result entries for the deleted entities
+  if (!($entity instanceof \Drupal\votingapi\VoteInterface)) {
+    $vote_storage = \Drupal::entityManager()->getStorage('vote');
+    $vote_storage->deleteVotesForDeletedEntity(
+      $entity->getEntityTypeId(), $entity->id()
+    );
+  }
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Recalculate results for any entities that have gotten votes since the last
+ * run.
+ */
+function votingapi_cron() {
+  if (Drupal::config('votingapi.settings')
+      ->get('calculation_schedule') == 'cron'
+  ) {
+    $vote_storage = \Drupal::entityManager()->getStorage('vote');
+    $results = $vote_storage->getVotesSinceMoment();
+    $manager = Drupal::service('plugin.manager.votingapi.resultfunction');
+    foreach ($results as $entity) {
+      $manager->recalculateResults(
+        $entity['entity_type'],
+        $entity['entity_id'],
+        $entity['type']
+      );
+    }
+    Drupal::state()->set('votingapi.last_cron', \Drupal::time()->getRequestTime());
+  }
+}

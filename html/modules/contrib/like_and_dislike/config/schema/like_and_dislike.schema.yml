@@ -1,0 +1,16 @@
+like_and_dislike.settings:
+  type: config_object
+  label: 'Like and dislike settings'
+  mapping:
+    allow_cancel_vote:
+      type: boolean
+      label: 'Whether votes can be canceled'
+    enabled_types:
+      type: sequence
+      label: 'Enabled entity types'
+      sequence:
+        type: sequence
+        label: 'Corresponding enabled bundle types'
+        sequence:
+          type: string
+          label: 'Bundle type'

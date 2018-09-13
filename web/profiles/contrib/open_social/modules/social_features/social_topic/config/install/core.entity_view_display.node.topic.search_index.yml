@@ -26,6 +26,7 @@ content:
     weight: 0
     settings: {  }
     third_party_settings: {  }
+    region: content
   field_topic_comments:
     weight: 1
     label: above
@@ -33,9 +34,14 @@ content:
       pager_id: 0
     third_party_settings: {  }
     type: comment_default
+    region: content
+  flag_follow_content:
+    weight: 10
+    region: content
 hidden:
   field_content_visibility: true
   field_files: true
   field_topic_image: true
   field_topic_type: true
+  like_and_dislike: true
   links: true

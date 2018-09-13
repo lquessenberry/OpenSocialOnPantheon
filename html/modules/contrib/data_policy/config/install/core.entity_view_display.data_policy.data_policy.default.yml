@@ -1,0 +1,29 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.data_policy.data_policy.field_description
+  module:
+    - data_policy
+    - user
+id: data_policy.data_policy.default
+targetEntityType: data_policy
+bundle: data_policy
+mode: default
+content:
+  field_description:
+    type: basic_string
+    weight: 0
+    region: content
+    label: above
+    settings: {  }
+    third_party_settings: {  }
+  user_id:
+    label: inline
+    type: author
+    weight: 1
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden:
+  name: true

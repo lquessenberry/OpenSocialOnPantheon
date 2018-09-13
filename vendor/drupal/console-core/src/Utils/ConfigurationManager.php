@@ -1,11 +1,13 @@
 <?php
 
-namespace Drupal\Console\Utils;
+namespace Drupal\Console\Core\Utils;
 
 use Symfony\Component\Yaml\Yaml;
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Finder\Finder;
 use Dflydev\DotAccessConfiguration\YamlFileConfigurationBuilder;
 use Dflydev\DotAccessConfiguration\ConfigurationInterface;
-use Symfony\Component\Console\Input\ArgvInput;
+use Webmozart\PathUtil\Path;
 
 /**
  * Class ConfigurationManager.
@@ -25,75 +27,63 @@ class ConfigurationManager
     /**
      * @var array
      */
-    private $missingConfigurationFiles = [];
+    private $configurationDirectories = [];
 
     /**
      * @var array
      */
-    private $configurationDirectories = [];
+    private $sites = [];
 
     /**
-     * @param $applicationDirectory
+     * @var array
+     */
+    private $configurationFiles = [];
+
+    /**
+     * @param $directory
      * @return $this
      */
-    public function loadConfiguration($applicationDirectory)
+    public function loadConfiguration($directory)
     {
-        $this->applicationDirectory = $applicationDirectory;
+        $this->locateConfigurationFiles();
+
+        $this->applicationDirectory = $directory;
+        if ($directory && is_dir($directory) && strpos($directory, 'phar:')!==0) {
+            $this->addConfigurationFilesByDirectory(
+                $directory . '/console/',
+                true
+            );
+        }
         $input = new ArgvInput();
-        $root = $input->getParameterOption(['--root'], null);
-
-        $configurationDirectories[] = $applicationDirectory;
-        $configurationDirectories[] = $applicationDirectory.DRUPAL_CONSOLE_CORE;
-        $configurationDirectories[] = $applicationDirectory.DRUPAL_CONSOLE;
-        $configurationDirectories[] = '/etc/console/';
-        $configurationDirectories[] = $this->getHomeDirectory() . '/.console/';
-        $configurationDirectories[] = $applicationDirectory .'/console/';
-        $configurationDirectories[] = getcwd().'/console/';
-        if ($root) {
-            $configurationDirectories[] = $root . '/console/';
-        }
-        $configurationDirectories = array_unique($configurationDirectories);
-
-        $configurationFiles = [];
-        foreach ($configurationDirectories as $configurationDirectory) {
-            $file =  $configurationDirectory . 'config.yml';
-
-            if (is_dir($configurationDirectory)
-                && stripos($configurationDirectory, '/vendor/') <= 0
-                && stripos($configurationDirectory, '/bin/') <= 0
-                && stripos($configurationDirectory, 'console/') > 0
-            ) {
-                $this->configurationDirectories[] = str_replace('//', '/', $configurationDirectory);
-            }
-
-            if (!file_exists($file)) {
-                $this->missingConfigurationFiles[] = $file;
-                continue;
-            }
-            if (file_get_contents($file)==='') {
-                $this->missingConfigurationFiles[] = $file;
-                continue;
-            }
-
-            $configurationFiles[] = $file;
+        $root = $input->getParameterOption(['--root']);
+        if ($root && is_dir($root)) {
+            $this->addConfigurationFilesByDirectory(
+                $root. '/console/',
+                true
+            );
         }
 
-        $builder = new YamlFileConfigurationBuilder($configurationFiles);
+        $builder = new YamlFileConfigurationBuilder(
+            $this->configurationFiles['config']
+        );
+
         $this->configuration = $builder->build();
-        $this->appendCommandAliases();
 
-        if ($configurationFiles) {
-            $this->missingConfigurationFiles = [];
+        $extras = [
+            'aliases',
+            'mappings',
+            'defaults'
+        ];
+
+        foreach ($extras as $extra) {
+            $extraKey = 'application.extras.'.$extra;
+            $extraFlag = $this->configuration->get($extraKey)?:'true';
+            if ($extraFlag === 'true') {
+                $this->appendExtraConfiguration($extra);
+            }
         }
 
         return $this;
-    }
-
-    public function loadConfigurationFromDirectory($directory)
-    {
-        $builder = new YamlFileConfigurationBuilder([$directory.'/console/config.yml']);
-
-        return $builder->build();
     }
 
     /**
@@ -104,7 +94,7 @@ class ConfigurationManager
         return $this->configuration;
     }
 
-    public function readSite($siteFile)
+    private function readSite($siteFile)
     {
         if (!file_exists($siteFile)) {
             return [];
@@ -120,54 +110,31 @@ class ConfigurationManager
      */
     public function readTarget($target)
     {
-        if (!$target || !strpos($target, '.')) {
+        $site = $target;
+        $environment = null;
+        $exploded = explode('.', $target, 2);
+
+        if (count($exploded)>1) {
+            $site = $exploded[0];
+            $environment = $exploded[1];
+        }
+
+        $sites = $this->getSites();
+        if (!array_key_exists($site, $sites)) {
             return [];
         }
 
-        $site = explode('.', $target)[0];
-        $env = explode('.', $target)[1];
+        $targetInformation = $sites[$site];
 
-        $siteFile = sprintf(
-            '%s%s%s.yml',
-            $this->getSitesDirectory(),
-            DIRECTORY_SEPARATOR,
-            $site
-        );
+        if ($environment) {
+            if (!array_key_exists($environment, $sites[$site])) {
+                return [];
+            }
 
-        if (!file_exists($siteFile)) {
-            return [];
+            $targetInformation = $sites[$site][$environment];
         }
 
-        $targetInformation = Yaml::parse(file_get_contents($siteFile));
-
-        if (!array_key_exists($env, $targetInformation)) {
-            return [];
-        }
-
-        $targetInformation = $targetInformation[$env];
-
-        if (array_key_exists('host', $targetInformation) && $targetInformation['host'] != 'local') {
-            $targetInformation['remote'] = true;
-        }
-
-        return array_merge(
-            $this->configuration->get('application.remote'),
-            $targetInformation
-        );
-    }
-
-    /**
-     * Return the user home directory.
-     *
-     * @return string
-     */
-    public function getHomeDirectory()
-    {
-        if (function_exists('posix_getuid')) {
-            return posix_getpwuid(posix_getuid())['dir'];
-        }
-
-        return realpath(rtrim(getenv('HOME') ?: getenv('USERPROFILE'), '/\\'));
+        return $targetInformation;
     }
 
     /**
@@ -179,16 +146,29 @@ class ConfigurationManager
     }
 
     /**
-     * Return the site config directory.
+     * Return the sites config directory.
      *
-     * @return string
+     * @return array
      */
-    public function getSitesDirectory()
+    private function getSitesDirectories()
     {
-        return sprintf(
-            '%s/sites',
-            $this->getConsoleDirectory()
+        $sitesDirectories = array_map(
+            function ($directory) {
+                return $directory . 'sites';
+            },
+            $this->getConfigurationDirectories()
         );
+
+        $sitesDirectories = array_filter(
+            $sitesDirectories,
+            function ($directory) {
+                return is_dir($directory);
+            }
+        );
+
+        $sitesDirectories = array_unique($sitesDirectories);
+
+        return $sitesDirectories;
     }
 
     /**
@@ -198,25 +178,27 @@ class ConfigurationManager
     public function readDrushEquivalents($commandName)
     {
         $equivalents = [];
-        $aliasInformation = Yaml::parse(
+        $drushMappings = Yaml::parse(
             file_get_contents(
-                $this->applicationDirectory.DRUPAL_CONSOLE_CORE.'config/drush.yml'
+                $this->applicationDirectory . DRUPAL_CONSOLE_CORE . 'config/drush.yml'
             )
         );
 
-        foreach ($aliasInformation['commands'] as $key => $commands) {
-            foreach ($commands as $drush => $console) {
-                $equivalents[$drush] = $console;
+        foreach ($drushMappings['commands'] as $key => $commands) {
+            foreach ($commands as $namespace => $command) {
+                if ($command) {
+                    $equivalents[$namespace] = $command;
+                }
             }
         }
 
         if (!$commandName) {
-            $aliasInformation = [];
+            $drushMappings = [];
             foreach ($equivalents as $key => $alternative) {
-                $aliasInformation[] = [$key, $alternative];
+                $drushMappings[] = [$key, $alternative];
             }
 
-            return $aliasInformation;
+            return $drushMappings;
         }
 
         if (array_key_exists($commandName, $equivalents)) {
@@ -226,53 +208,247 @@ class ConfigurationManager
         return [];
     }
 
+    public function getVendorCoreRoot()
+    {
+        $consoleCoreDirectory = dirname(dirname(dirname(__FILE__))) . '/';
+
+        if (is_dir($consoleCoreDirectory)) {
+            return $consoleCoreDirectory;
+        }
+
+        return null;
+    }
+
+    public function getVendorCoreDirectory()
+    {
+        $consoleCoreDirectory = dirname(dirname(dirname(__FILE__))) . '/config/';
+
+        if (is_dir($consoleCoreDirectory)) {
+            return $consoleCoreDirectory;
+        }
+
+        return null;
+    }
+
+    public function getSystemDirectory()
+    {
+        $systemDirectory = '/etc/console/';
+
+        if (is_dir($systemDirectory)) {
+            return $systemDirectory;
+        }
+
+        return null;
+    }
+
     /**
      * @return string
      */
     public function getConsoleDirectory()
     {
-        return sprintf('%s/.console/', $this->getHomeDirectory());
-    }
-
-    /**
-     * @return array
-     */
-    public function getMissingConfigurationFiles()
-    {
-        return $this->missingConfigurationFiles;
-    }
-
-    /**
-     * @return array
-     */
-    public function getConfigurationDirectories()
-    {
-        return $this->configurationDirectories;
-    }
-
-    /**
-     * @return string
-     */
-    public function appendCommandAliases()
-    {
-        $configurationDirectories = array_merge(
-            [$this->applicationDirectory . DRUPAL_CONSOLE_CORE . 'config/dist/'],
-            $this->configurationDirectories
+        $consoleDirectory = sprintf(
+            '%s/.console/',
+            $this->getHomeDirectory()
         );
 
-        foreach ($configurationDirectories as $directory) {
-            $aliasFile = $directory . 'aliases.yml';
-            $aliases = [];
-            if (file_exists($aliasFile)) {
-                $aliases = array_merge(
-                    Yaml::parse(file_get_contents($aliasFile)),
-                    $aliases
-                );
-                $this->configuration->set(
-                    'application.commands.aliases',
-                    $aliases['commands']['aliases']
+        if (is_dir($consoleDirectory)) {
+            return $consoleDirectory;
+        }
+
+        try {
+            mkdir($consoleDirectory, 0777, true);
+        } catch (\Exception $exception) {
+            return null;
+        }
+
+        return $consoleDirectory;
+    }
+
+    /**
+     * @param $includeVendorCore
+     *
+     * @return array
+     */
+    public function getConfigurationDirectories($includeVendorCore = false)
+    {
+        if ($this->configurationDirectories) {
+            if ($includeVendorCore) {
+                return array_merge(
+                    [$this->getVendorCoreDirectory()],
+                    $this->configurationDirectories
                 );
             }
+
+            return $this->configurationDirectories;
         }
+
+        return [];
+    }
+
+    private function addConfigurationFilesByDirectory(
+        $directory,
+        $addDirectory = false
+    ) {
+        if ($addDirectory) {
+            $this->configurationDirectories[] = $directory;
+        }
+        $configurationFiles = [
+            'config' => 'config.yml',
+            'drush' => 'drush.yml',
+            'aliases' => 'aliases.yml',
+            'mappings' => 'mappings.yml',
+            'defaults' => 'defaults.yml',
+        ];
+        foreach ($configurationFiles as $key => $file) {
+            $configFile = $directory.$file;
+            if (is_file($configFile)) {
+                $this->configurationFiles[$key][] = $configFile;
+            }
+        }
+    }
+
+    private function locateConfigurationFiles()
+    {
+        if ($this->getVendorCoreDirectory()) {
+            $this->addConfigurationFilesByDirectory(
+                $this->getVendorCoreDirectory()
+            );
+        }
+        if ($this->getSystemDirectory()) {
+            $this->addConfigurationFilesByDirectory(
+                $this->getSystemDirectory(),
+                true
+            );
+        }
+        if ($this->getConsoleDirectory()) {
+            $this->addConfigurationFilesByDirectory(
+                $this->getConsoleDirectory(),
+                true
+            );
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function appendExtraConfiguration($type)
+    {
+        if (!array_key_exists($type, $this->configurationFiles)) {
+            return;
+        }
+
+        $configData = [];
+        foreach ($this->configurationFiles[$type] as $configFile) {
+            if (file_get_contents($configFile)==='') {
+                continue;
+            }
+            $parsed = Yaml::parse(file_get_contents($configFile));
+            $configData = array_merge(
+                $configData,
+                is_array($parsed)?$parsed:[]
+            );
+        }
+
+        if ($configData && array_key_exists($type, $configData)) {
+            $this->configuration->set(
+                'application.commands.'.$type,
+                $configData[$type]
+            );
+        }
+    }
+
+    public function loadExtendConfiguration()
+    {
+        $directory = $this->getConsoleDirectory() . '/extend/';
+        if (!is_dir($directory)) {
+            return null;
+        }
+
+        $autoloadFile = $directory . 'vendor/autoload.php';
+        if (!is_file($autoloadFile)) {
+            return null;
+        }
+        include_once $autoloadFile;
+        $extendFile = $directory . 'extend.console.config.yml';
+
+        $this->importConfigurationFromFile($extendFile);
+    }
+
+    private function importConfigurationFromFile($configFile)
+    {
+        if (is_file($configFile) && file_get_contents($configFile)!='') {
+            $builder = new YamlFileConfigurationBuilder([$configFile]);
+            if ($this->configuration) {
+                $this->configuration->import($builder->build());
+            } else {
+                $this->configuration = $builder->build();
+            }
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public function getSites()
+    {
+        if ($this->sites) {
+            return $this->sites;
+        }
+
+        $sitesDirectories = $this->getSitesDirectories();
+
+        if (!$sitesDirectories) {
+            return [];
+        }
+
+        $finder = new Finder();
+        $finder->in($sitesDirectories);
+        $finder->name("*.yml");
+
+        foreach ($finder as $site) {
+            $siteName = $site->getBasename('.yml');
+            $environments = $this->readSite($site->getRealPath());
+
+            if (!$environments || !is_array($environments)) {
+                continue;
+            }
+
+            $this->sites[$siteName] = [
+                'file' => $site->getRealPath()
+            ];
+
+            foreach ($environments as $environment => $config) {
+                if (!array_key_exists('type', $config)) {
+                    throw new \UnexpectedValueException("The 'type' parameter is required in sites configuration.");
+                }
+                if ($config['type'] !== 'local') {
+                    if (array_key_exists('host', $config)) {
+                        $targetInformation['remote'] = true;
+                    }
+
+                    $config = array_merge(
+                        $this->configuration->get('application.remote')?:[],
+                        $config
+                    );
+                }
+
+                $this->sites[$siteName][$environment] = $config;
+            }
+        }
+
+        return $this->sites;
+    }
+
+    /**
+     * @return array
+     */
+    public function getConfigurationFiles()
+    {
+        return $this->configurationFiles;
+    }
+
+    public function getHomeDirectory()
+    {
+        return Path::getHomeDirectory();
     }
 }

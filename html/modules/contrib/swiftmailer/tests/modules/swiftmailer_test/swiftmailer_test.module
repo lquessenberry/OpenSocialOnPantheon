@@ -1,0 +1,15 @@
+<?php
+
+use Drupal\swiftmailer_test\SwiftMailerDrupalStateLogger;
+
+/**
+ * Alter messages before sending it with SwiftMailer.
+ *
+ * @see \Drupal\swiftmailer\Plugin\Mail\SwiftMailer::mail
+ */
+function swiftmailer_test_swiftmailer_alter(Swift_Mailer &$swiftMailer, Swift_Message &$swiftMessage, &$message) {
+  if ($message['key'] == 'test_1') {
+    $swiftMessage->setBody('Replace text in swiftmailer_test_swiftmailer_alter');
+    $swiftMailer->registerPlugin(new SwiftMailerDrupalStateLogger());
+  }
+}

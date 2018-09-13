@@ -1,0 +1,47 @@
+parameters:
+  private_message.mapper.class: 'Drupal\private_message\Mapper\PrivateMessageMapper'
+  private_message.service.class: 'Drupal\private_message\Service\PrivateMessageService'
+  private_message.event_subscriber.class: 'Drupal\private_message\Event\PrivateMessageEventSubscriber'
+  cache_context.private_message_thread.class: 'Drupal\private_message\Cache\Context\PrivateMessageThreadCacheContext'
+  private_message.mailer.class: 'Drupal\private_message\Service\PrivateMessageMailer'
+  private_message.thread_manager.class: 'Drupal\private_message\Service\PrivateMessageThreadManager'
+
+services:
+  private_message.mapper:
+    class: '%private_message.mapper.class%'
+    arguments:
+      - '@database'
+      - '@current_user'
+
+  private_message.service:
+    class: '%private_message.service.class%'
+    arguments:
+      - '@private_message.mapper'
+      - '@current_user'
+      - '@config.factory'
+      - '@user.data'
+      - '@cache_tags.invalidator'
+      - '@entity_type.manager'
+      - '@datetime.time'
+
+  cache_context.private_message_thread:
+    class: '%cache_context.private_message_thread.class%'
+    arguments:
+      - '@current_route_match'
+    tags:
+      - { name: cache.context}
+
+  private_message.mailer:
+    class: '%private_message.mailer.class%'
+    arguments:
+      - '@private_message.service'
+      - '@plugin.manager.mail'
+      - '@current_user'
+      - '@user.data'
+      - '@config.factory'
+
+  private_message.thread_manager:
+    class: '%private_message.thread_manager.class%'
+    arguments:
+      - '@private_message.service'
+      - '@private_message.mailer'

@@ -11,20 +11,17 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Config\Definition\Exception\Exception;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Query\QueryFactory;
-use Drupal\Console\Style\DrupalStyle;
 
 /**
  * Class EnableCommand
+ *
  * @package Drupal\Console\Command\Views
  */
 class EnableCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var EntityTypeManagerInterface
      */
@@ -37,8 +34,9 @@ class EnableCommand extends Command
 
     /**
      * EnableCommand constructor.
+     *
      * @param EntityTypeManagerInterface $entityTypeManager
-     * @param QueryFactory      $entityQuery
+     * @param QueryFactory               $entityQuery
      */
     public function __construct(
         EntityTypeManagerInterface $entityTypeManager,
@@ -60,8 +58,9 @@ class EnableCommand extends Command
             ->addArgument(
                 'view-id',
                 InputArgument::OPTIONAL,
-                $this->trans('commands.views.debug.arguments.view-id')
-            );
+                $this->trans('commands.debug.views.arguments.view-id')
+            )
+            ->setAliases(['ve']);
     }
 
     /**
@@ -69,15 +68,14 @@ class EnableCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $viewId = $input->getArgument('view-id');
         if (!$viewId) {
             $views = $this->entityQuery
                 ->get('view')
                 ->condition('status', 0)
                 ->execute();
-            $viewId = $io->choiceNoList(
-                $this->trans('commands.views.debug.arguments.view-id'),
+            $viewId = $this->getIo()->choiceNoList(
+                $this->trans('commands.debug.views.arguments.view-id'),
                 $views
             );
             $input->setArgument('view-id', $viewId);
@@ -89,31 +87,34 @@ class EnableCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $viewId = $input->getArgument('view-id');
 
         $view = $this->entityTypeManager->getStorage('view')->load($viewId);
 
         if (empty($view)) {
-            $io->error(
+            $this->getIo()->error(
                 sprintf(
-                    $this->trans('commands.views.debug.messages.not-found'),
+                    $this->trans('commands.debug.views.messages.not-found'),
                     $viewId
                 )
             );
-            return;
+            return 1;
         }
 
         try {
             $view->enable()->save();
-            $io->success(
+            $this->getIo()->success(
                 sprintf(
                     $this->trans('commands.views.enable.messages.enabled-successfully'),
                     $view->get('label')
                 )
             );
         } catch (Exception $e) {
-            $io->error($e->getMessage());
+            $this->getIo()->error($e->getMessage());
+
+            return 1;
         }
+
+        return 0;
     }
 }

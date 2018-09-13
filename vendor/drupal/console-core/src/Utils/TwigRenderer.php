@@ -2,19 +2,31 @@
 
 /**
  * @file
- * Contains \Drupal\Console\Utils\TwigRenderer.
+ * Contains \Drupal\Console\Core\Utils\TwigRenderer.
  */
 
-namespace Drupal\Console\Utils;
+namespace Drupal\Console\Core\Utils;
 
-use Drupal\Console\Utils\StringConverter;
-
+/**
+ * Class TwigRenderer
+ *
+ * @package Drupal\Console\Core\Utils
+ */
 class TwigRenderer
 {
+    /**
+     * @var TranslatorManagerInterface
+     */
     protected $translator;
 
+    /**
+     * @var \Twig_Environment
+     */
     protected $engine;
 
+    /**
+     * @var array
+     */
     protected $skeletonDirs;
 
     /**
@@ -24,11 +36,12 @@ class TwigRenderer
 
     /**
      * TwigRenderer constructor.
-     * @param $translator
-     * @param StringConverter $stringConverter
+     *
+     * @param TranslatorManagerInterface $translator
+     * @param StringConverter            $stringConverter
      */
     public function __construct(
-        $translator,
+        TranslatorManagerInterface $translator,
         StringConverter $stringConverter
     ) {
         $this->translator = $translator;

@@ -1,0 +1,13 @@
+name: 'Voting API test'
+type: module
+description: 'Support module for Voting API testing.'
+package: Testing
+# core: 8.x
+dependencies:
+  - node
+  - votingapi
+# Information added by Drupal.org packaging script on 2018-03-02
+version: '8.x-3.0-alpha5'
+core: '8.x'
+project: 'votingapi'
+datestamp: 1520019787

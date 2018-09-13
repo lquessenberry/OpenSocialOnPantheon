@@ -15,7 +15,7 @@ use Drupal\Core\Session\AccountInterface;
  */
 class GroupCommentAccessControlHandler extends CommentAccessControlHandler {
 
-  // @TODO implement setting to make it possible overridden on per-group basis.
+  // @todo: Implement setting to make it possible overridden on per-group basis.
 
   /**
    * {@inheritdoc}
@@ -28,21 +28,31 @@ class GroupCommentAccessControlHandler extends CommentAccessControlHandler {
     $commented_entity = $entity->getCommentedEntity();
     $group_contents = GroupContent::loadByEntity($commented_entity);
 
-    $administer_access = $this->getPermissionInGroups('administer comments', $account, $group_contents);
+    // Check for 'delete all comments' permission in case content is not from
+    // group.
+    if (empty($group_contents) && $account->hasPermission('delete all comments')) {
+      $administer_access = AccessResult::allowed();
+    }
+    else {
+      $administer_access = $this->getPermissionInGroups('administer comments', $account, $group_contents);
+    }
+
     if ($administer_access->isAllowed()) {
       $access = AccessResult::allowed()->cachePerPermissions();
       return ($operation != 'view') ? $access : $access->andIf($entity->getCommentedEntity()->access($operation, $account, TRUE));
     }
 
-    // @TODO only react on if $parent === allowed Is this good/safe enough?
+    // @todo: Only react on if $parent === allowed Is this good/safe enough?
     if ($parent_access->isAllowed()) {
       // Only react if it is actually posted inside a group.
       if (!empty($group_contents)) {
         switch ($operation) {
           case 'view':
             return $this->getPermissionInGroups('access comments', $account, $group_contents);
+
           case 'update':
             return $this->getPermissionInGroups('edit own comments', $account, $group_contents);
+
           default:
             // No opinion.
             return AccessResult::neutral()->cachePerPermissions();
@@ -53,6 +63,9 @@ class GroupCommentAccessControlHandler extends CommentAccessControlHandler {
     return $parent_access;
   }
 
+  /**
+   * Checks if account was granted permission in group.
+   */
   protected function getPermissionInGroups($perm, AccountInterface $account, $group_contents) {
 
     // Only when you have permission to view the comments.

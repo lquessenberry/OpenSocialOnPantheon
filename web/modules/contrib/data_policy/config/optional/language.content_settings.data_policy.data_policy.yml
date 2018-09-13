@@ -1,0 +1,16 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - content_translation
+    - data_policy
+third_party_settings:
+  content_translation:
+    enabled: true
+    bundle_settings:
+      untranslatable_fields_hide: '0'
+id: data_policy.data_policy
+target_entity_type_id: data_policy
+target_bundle: data_policy
+default_langcode: site_default
+language_alterable: true

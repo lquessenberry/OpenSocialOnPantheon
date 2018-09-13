@@ -2,7 +2,11 @@
 
 Apply transformations to structured data to write output in different formats.
 
-[![Travis CI](https://travis-ci.org/consolidation/output-formatters.svg?branch=master)](https://travis-ci.org/consolidation/output-formatters) [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/consolidation/output-formatters/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/consolidation/output-formatters/?branch=master) [![Coverage Status](https://coveralls.io/repos/github/consolidation/output-formatters/badge.svg?branch=master)](https://coveralls.io/github/consolidation/output-formatters?branch=master) [![License](https://poser.pugx.org/consolidation/output-formatters/license)](https://packagist.org/packages/consolidation/output-formatters)
+[![Travis CI](https://travis-ci.org/consolidation/output-formatters.svg?branch=master)](https://travis-ci.org/consolidation/output-formatters)
+[![Windows CI](https://ci.appveyor.com/api/projects/status/umyfuujca6d2g2k6?svg=true)](https://ci.appveyor.com/project/greg-1-anderson/output-formatters)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/consolidation/output-formatters/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/consolidation/output-formatters/?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/consolidation/output-formatters/badge.svg?branch=master)](https://coveralls.io/github/consolidation/output-formatters?branch=master)
+[![License](https://poser.pugx.org/consolidation/output-formatters/license)](https://packagist.org/packages/consolidation/output-formatters)
 
 ## Component Status
 
@@ -19,7 +23,7 @@ This process is managed by the [Consolidation/AnnotationCommand](https://github.
 This is a library intended to be used in some other project.  Require from your composer.json file:
 ```
     "require": {
-        "consolidation/output-formatters": "~1|~2"
+        "consolidation/output-formatters": "~3"
     },
 ```
 If you require the feature that allows a data table to be automatically reduced to a single element when the `string` format is selected, then you should require version "~2" instead. In most other respects, the 1.x and 2.x versions are compatible. See the [CHANGELOG](CHANGELOG.md) for details.
@@ -49,7 +53,9 @@ Formatters may also implement different interfaces to alter the behavior of the 
 Most formatters will operate on any array or ArrayObject data. Some formatters require that specific data types be used. The following data types, all of which are subclasses of ArrayObject, are available for use:
 
 - `RowsOfFields`: Each row contains an associative array of field:value pairs. It is also assumed that the fields of each row are the same for every row. This format is ideal for displaying in a table, with labels in the top row.
-- `AssociativeList`: Each row contains a field:value pair. Each field is unique. This format is ideal for displaying in a table, with labels in the first column and values in the second common.
+- `RowsOfFieldsWithMetadata`: Equivalent to `RowsOfFields`, but allows the data to be nested inside of an element, with other elements being used as metadata, or, alternately, allows the metadata to be nested inside of an element, with all other elements being used as data.
+- `PropertyList`: Each row contains a field:value pair. Each field is unique. This format is ideal for displaying in a table, with labels in the first column and values in the second common.
+- `ListDataFromKeys`: The result may be structured or unstructured data. When formatted with the --format=list formatter, the result will come from the array keys instead of the array values.
 - `DOMDocument`: The standard PHP DOM document class may be used by functions that need to be able to presicely specify the exact attributes and children when the XML output format is used.
 
 Commands that return table structured data with fields can be filtered and/or re-ordered by using the --fields option. These structured data types can also be formatted into a more generic type such as yaml or json, even after being filtered. This capabilities are not available if the data is returned in a bare php array.
@@ -62,15 +68,15 @@ A function may also define its own structured data type to return, usually by ex
 - `ListDataInterface`: Any structured data object that implements this interface may use the `getListData()` method to produce the data set that will be used with the list formatter.
 - `TableDataInterface`: Any structured data object that implements this interface may use the `getTableData()` method to produce the data set that will be used with the table formatter.
 - `RenderCellInterface`: Structured data can also provide fine-grain control over how each cell in a table is rendered by implementing the RenderCellInterface.  See the section below for information on how this is done.
-- `RestructureInterface`: The restructure interface can be implemented by a structured data object to restructure the data in response to options provided by the user. For example, the RowsOfFields and AssociativeList data types use this interface to select and reorder the fields that were selected to appear in the output. Custom data types usually will not need to implement this interface, as they can inherit this behavior by extending RowsOfFields or AssociativeList.
+- `RestructureInterface`: The restructure interface can be implemented by a structured data object to restructure the data in response to options provided by the user. For example, the RowsOfFields and PropertyList data types use this interface to select and reorder the fields that were selected to appear in the output. Custom data types usually will not need to implement this interface, as they can inherit this behavior by extending RowsOfFields or PropertyList.
 
 Additionally, structured data may be simplified to arrays via an array simplification object. To provide an array simplifier, implement `SimplifyToArrayInterface`, and register the simplifier via `FormatterManager::addSimplifier()`.
 
 ## Rendering Table Cells
 
-By default, both the RowsOfFields and AssociativeList data types presume that the contents of each cell is a simple string. To render more complicated cell contents, create a custom structured data class by extending either RowsOfFields or AssociativeList, as desired, and implement RenderCellInterface.  The `renderCell()` method of your class will then be called for each cell, and you may act on it as appropriate.
+By default, both the RowsOfFields and PropertyList data types presume that the contents of each cell is a simple string. To render more complicated cell contents, create a custom structured data class by extending either RowsOfFields or PropertyList, as desired, and implement RenderCellInterface.  The `renderCell()` method of your class will then be called for each cell, and you may act on it as appropriate.
 ```php
-public function renderCell($key, $cellData, FormatterOptions $options)
+public function renderCell($key, $cellData, FormatterOptions $options, $rowData)
 {
     // 'my-field' is always an array; convert it to a comma-separated list.
     if ($key == 'my-field') {
@@ -84,7 +90,27 @@ public function renderCell($key, $cellData, FormatterOptions $options)
     return $cellData;
 }
 ```
-Note that if your data structure is printed with some formatter other than the table formatter, it will still be reordered per the selected fields, but cell rendering will **not** be done.
+Note that if your data structure is printed with a formatter other than one such as the table formatter, it will still be reordered per the selected fields, but cell rendering will **not** be done.
+
+The RowsOfFields and PropertyList data types also allow objects that implement RenderCellInterface, as well as anonymous functions to be added directly to the data structure object itself. If this is done, then the renderer will be called for each cell in the table. An example of an attached renderer implemented as an anonymous function is shown below.
+```php
+    return (new RowsOfFields($data))->addRendererFunction(
+        function ($key, $cellData, FormatterOptions $options, $rowData) {
+            if ($key == 'my-field') {
+                return implode(',', $cellData);
+            }
+            return $cellData;
+        }
+    );
+```
+This project also provides a built-in cell renderer, NumericCellRenderer, that adds commas at the thousands place and right-justifies columns identified as numeric. An example of a numeric renderer attached to two columns of a data set is shown below.
+```php
+use Consolidation\OutputFormatters\StructuredData\NumericCellRenderer;
+...
+    return (new RowsOfFields($data))->addRenderer(
+         new NumericCellRenderer($data, ['population','cats-per-capita'])
+    );
+```
 
 ## API Usage
 

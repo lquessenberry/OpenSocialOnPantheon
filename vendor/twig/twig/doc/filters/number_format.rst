@@ -18,6 +18,14 @@ separator using the additional arguments:
 
     {{ 9800.333|number_format(2, '.', ',') }}
 
+To format negative numbers, wrap the number with parentheses (needed because of
+Twig's :ref:`precedence of operators <twig-expressions>`:
+
+.. code-block:: jinja
+
+    {{ -9800.333|number_format(2, '.', ',') }} {# outputs : -9 #}
+    {{ (-9800.333)|number_format(2, '.', ',') }} {# outputs : -9,800.33 #}
+
 If no formatting options are provided then Twig will use the default formatting
 options of:
 
@@ -45,4 +53,4 @@ Arguments
 * ``decimal_point``: The character(s) to use for the decimal point
 * ``thousand_sep``:   The character(s) to use for the thousands separator
 
-.. _`number_format`: http://php.net/number_format
+.. _`number_format`: https://secure.php.net/number_format

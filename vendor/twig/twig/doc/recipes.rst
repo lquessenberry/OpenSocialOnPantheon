@@ -30,7 +30,7 @@ catches deprecation notices, and return them.
 .. tip::
 
     If your templates are not stored on the filesystem, use the ``collect()``
-    method instead which takes an ``Iterator``; the iterator must return
+    method instead. ``collect()`` takes a ``Traversable`` which must return
     template names as keys and template contents as values (as done by
     ``Twig_Util_TemplateDirIterator``).
 
@@ -150,7 +150,7 @@ parent's full, unambiguous template path in the extends tag:
 .. note::
 
     This recipe was inspired by the following Django wiki page:
-    http://code.djangoproject.com/wiki/ExtendingTemplates
+    https://code.djangoproject.com/wiki/ExtendingTemplates
 
 Customizing the Syntax
 ----------------------
@@ -551,18 +551,18 @@ include in your templates:
     ``interpolateProvider`` service, for instance at the module initialization
     time:
 
-    ```js
-    angular.module('myApp', []).config(function($interpolateProvider) {
-        $interpolateProvider.startSymbol('{[').endSymbol(']}');
-    });
-    ```
+    ..  code-block:: javascript
+
+        angular.module('myApp', []).config(function($interpolateProvider) {
+            $interpolateProvider.startSymbol('{[').endSymbol(']}');
+        });
 
   * For Twig, change the delimiters via the ``tag_variable`` Lexer option:
 
-    ```php
-    $env->setLexer(new Twig_Lexer($env, array(
-        'tag_variable' => array('{[', ']}'),
-    )));
-    ```
+    ..  code-block:: php
 
-.. _callback: http://www.php.net/manual/en/function.is-callable.php
+        $env->setLexer(new Twig_Lexer($env, array(
+            'tag_variable' => array('{[', ']}'),
+        )));
+
+.. _callback: https://secure.php.net/manual/en/function.is-callable.php

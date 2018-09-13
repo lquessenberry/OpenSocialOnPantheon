@@ -13,6 +13,7 @@ lib
 # Applications & Tools
 .idea
 bower_components
+libraries
 config.codekit
 node_modules
 npm-debug.log
@@ -24,5 +25,3 @@ npm-debug.log
 *.sass-cache*
 **/sass/*.css
 *.css.map
-
-deploy_config.json

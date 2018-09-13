@@ -1,0 +1,9 @@
+{% set module = 'social-auth' %}
+
+{{ attach_library('social_auth/auth-icons') }}
+
+{% for social_network in social_networks %}
+  <a class="{{ module }} auth-link" href="{{ path(social_network.route) }}">
+    <img class="{{ module }} auth-icon" src="{{ base_path }}{{ social_network.img_path }}" alt="">
+  </a>
+{% endfor %}

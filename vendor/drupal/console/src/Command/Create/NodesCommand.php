@@ -11,21 +11,26 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Command\Command;
+use Drupal\Console\Annotations\DrupalCommand;
 use Drupal\Console\Command\Shared\CreateTrait;
 use Drupal\Console\Utils\Create\NodeData;
 use Drupal\Console\Utils\DrupalApi;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Core\Language\LanguageInterface;
 
 /**
  * Class NodesCommand
+ *
  * @package Drupal\Console\Command\Generate
+ *
+ * @DrupalCommand(
+ *     extension = "node",
+ *     extensionType = "module"
+ * )
  */
 class NodesCommand extends Command
 {
     use CreateTrait;
-    use CommandTrait;
 
     /**
      * @var DrupalApi
@@ -38,6 +43,7 @@ class NodesCommand extends Command
 
     /**
      * NodesCommand constructor.
+     *
      * @param DrupalApi $drupalApi
      * @param NodeData  $createNodeData
      */
@@ -80,7 +86,13 @@ class NodesCommand extends Command
                 null,
                 InputOption::VALUE_OPTIONAL,
                 $this->trans('commands.create.nodes.options.time-range')
-            );
+            )
+            ->addOption(
+                'language',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                $this->trans('commands.create.nodes.options.language')
+            )->setAliases(['crn']);
     }
 
     /**
@@ -88,12 +100,10 @@ class NodesCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $contentTypes = $input->getArgument('content-types');
         if (!$contentTypes) {
             $bundles = $this->drupalApi->getBundles();
-            $contentTypes = $io->choice(
+            $contentTypes = $this->getIo()->choice(
                 $this->trans('commands.create.nodes.questions.content-type'),
                 array_values($bundles),
                 null,
@@ -112,7 +122,7 @@ class NodesCommand extends Command
 
         $limit = $input->getOption('limit');
         if (!$limit) {
-            $limit = $io->ask(
+            $limit = $this->getIo()->ask(
                 $this->trans('commands.create.nodes.questions.limit'),
                 25
             );
@@ -121,7 +131,7 @@ class NodesCommand extends Command
 
         $titleWords = $input->getOption('title-words');
         if (!$titleWords) {
-            $titleWords = $io->ask(
+            $titleWords = $this->getIo()->ask(
                 $this->trans('commands.create.nodes.questions.title-words'),
                 5
             );
@@ -133,12 +143,41 @@ class NodesCommand extends Command
         if (!$timeRange) {
             $timeRanges = $this->getTimeRange();
 
-            $timeRange = $io->choice(
+            $timeRange = $this->getIo()->choice(
                 $this->trans('commands.create.nodes.questions.time-range'),
                 array_values($timeRanges)
             );
 
-            $input->setOption('time-range',  array_search($timeRange, $timeRanges));
+            $input->setOption('time-range', array_search($timeRange, $timeRanges));
+        }
+
+        // Language module is enabled or not.
+        $languageModuleEnabled = \Drupal::moduleHandler()
+            ->moduleExists('language');
+
+        // If language module is enabled.
+        if ($languageModuleEnabled) {
+            // Get available languages on site.
+            $languages = \Drupal::languageManager()->getLanguages();
+            // Holds the available languages.
+            $language_list = [];
+
+            foreach ($languages as $lang) {
+                $language_list[$lang->getId()] = $lang->getName();
+            }
+
+            $language = $input->getOption('language');
+            // If no language option or invalid language code in option.
+            if (!$language || !array_key_exists($language, $language_list)) {
+                $language = $this->getIo()->choice(
+                    $this->trans('commands.create.nodes.questions.language'),
+                    $language_list
+                );
+            }
+            $input->setOption('language', $language);
+        } else {
+            // If 'language' module is not enabled.
+            $input->setOption('language', LanguageInterface::LANGCODE_NOT_SPECIFIED);
         }
     }
 
@@ -147,13 +186,12 @@ class NodesCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $contentTypes = $input->getArgument('content-types');
         $limit = $input->getOption('limit')?:25;
         $titleWords = $input->getOption('title-words')?:5;
         $timeRange = $input->getOption('time-range')?:31536000;
         $available_types = array_keys($this->drupalApi->getBundles());
+        $language = $input->getOption('language')?:'und';
 
         foreach ($contentTypes as $type) {
             if (!in_array($type, $available_types)) {
@@ -165,28 +203,42 @@ class NodesCommand extends Command
             $contentTypes = $available_types;
         }
 
-        $nodes = $this->createNodeData->create(
+        $result = $this->createNodeData->create(
             $contentTypes,
             $limit,
             $titleWords,
-            $timeRange
+            $timeRange,
+            $language
         );
 
-        $tableHeader = [
-          $this->trans('commands.create.nodes.messages.node-id'),
-          $this->trans('commands.create.nodes.messages.content-type'),
-          $this->trans('commands.create.nodes.messages.title'),
-          $this->trans('commands.create.nodes.messages.created'),
-        ];
+        if ($result['success']) {
+            $tableHeader = [
+                $this->trans('commands.create.nodes.messages.node-id'),
+                $this->trans('commands.create.nodes.messages.content-type'),
+                $this->trans('commands.create.nodes.messages.title'),
+                $this->trans('commands.create.nodes.messages.created'),
+            ];
 
-        $io->table($tableHeader, $nodes['success']);
+            $this->getIo()->table($tableHeader, $result['success']);
 
-        $io->success(
-            sprintf(
-                $this->trans('commands.create.nodes.messages.created-nodes'),
-                $limit
-            )
-        );
+            $this->getIo()->success(
+                sprintf(
+                    $this->trans('commands.create.nodes.messages.created-nodes'),
+                    count($result['success'])
+                )
+            );
+        }
+
+        if (isset($result['error'])) {
+            foreach ($result['error'] as $error) {
+                $this->getIo()->error(
+                    sprintf(
+                        $this->trans('commands.create.nodes.messages.error'),
+                        $error
+                    )
+                );
+            }
+        }
 
         return 0;
     }

@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\activity_creator\Annotation\ActivityDestination.
- */
-
 namespace Drupal\activity_creator\Annotation;
 
 use Drupal\Component\Annotation\Plugin;
@@ -34,5 +29,19 @@ class ActivityDestination extends Plugin {
    * @ingroup plugin_translatable
    */
   public $label;
+
+  /**
+   * Whether this destination supports aggregation or not.
+   *
+   * @var bool
+   */
+  public $is_aggregatable = FALSE;
+
+  /**
+   * Whether this destination is common or not.
+   *
+   * @var bool
+   */
+  public $is_common = FALSE;
 
 }

@@ -1,0 +1,157 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_user module.
+ */
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_user.
+ */
+function social_user_install() {
+  // Set some default permissions.
+  _social_user_set_permissions();
+
+  // Set default value for displaying navigation icons.
+  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config */
+  $config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user.navigation.settings');
+  $config->set('display_social_private_message_icon', 1)->save();
+  $config->set('display_my_groups_icon', 1)->save();
+}
+
+/**
+ * Fix 2 wrongly saved view displays.
+ */
+function social_user_update_8001(&$sandbox) {
+  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $conf_default */
+  $conf_default = \Drupal::getContainer()->get('config.factory')->getEditable('core.entity_view_display.user.user.default');
+  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $conf_full */
+  $conf_full = \Drupal::getContainer()->get('config.factory')->getEditable('core.entity_view_display.user.user.full');
+
+  /*
+   * For both these displays, the content is empty.
+   * In a previous version 3 subfields were exported into the root level of
+   * 'content'.
+   * This removes those fields that have no purpose and makes sure
+   * the update hook for Drupal 8.3.1 works properly.
+   */
+  $conf_default->set('content', [])->save();
+  $conf_full->set('content', [])->save();
+}
+
+/**
+ * Set default value for displaying navigation icons.
+ */
+function social_user_update_8002() {
+  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config */
+  $config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user_navigation.settings');
+  $config->set('display_social_private_message_icon', 1)->save();
+  $config->set('display_my_groups_icon', 1)->save();
+}
+
+/**
+ * Add permissions to view and block users for site manager role.
+ */
+function social_user_update_8003() {
+  $permissions = _social_user_get_permissions('sitemanager');
+  user_role_grant_permissions('sitemanager', $permissions);
+}
+
+/**
+ * Migrate navigation settings into the correct format.
+ */
+function social_user_update_8004() {
+  $old_config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user_navigation.settings');
+  $new_config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user.navigation.settings');
+  // Store the values.
+  $new_config->setData($old_config->getRawData());
+  // Remove the old config altogether.
+  $old_config->delete();
+}
+
+/**
+ * Add permissions to administer the navigation settings.
+ */
+function social_user_update_8005() {
+  $rid = 'sitemanager';
+  // Revoke permissions for the role.
+  $role = Role::load($rid);
+  if ($role) {
+    $permissions = ['administer navigation settings'];
+    user_role_grant_permissions($rid, $permissions);
+  }
+}
+
+/**
+ * Create the default configuration for the social_user help texts.
+ */
+function social_user_update_8006() {
+  $config = [
+    "langcode" => "en",
+    "signup_help" => "A welcome message with further instructions will be sent to your email address after you successfully enter your email address and a username.",
+    "login_help" => "",
+  ];
+
+  \Drupal::configFactory()
+    ->getEditable('social_user.settings')
+    ->setData($config)
+    ->save();
+}
+
+/**
+ * Function to set permissions.
+ */
+function _social_user_set_permissions() {
+  $roles = Role::loadMultiple();
+
+  /** @var \Drupal\user\Entity\Role $role */
+  foreach ($roles as $role) {
+    if ($role->id() === 'administrator') {
+      continue;
+    }
+
+    $permissions = _social_user_get_permissions($role->id());
+    user_role_grant_permissions($role->id(), $permissions);
+  }
+}
+
+/**
+ * Return the permissions per role.
+ *
+ * @param string $role
+ *   The role to get the permissions for.
+ *
+ * @return array
+ *   A list of permissions.
+ */
+function _social_user_get_permissions($role) {
+  // Anonymous.
+  $permissions['anonymous'] = [];
+
+  // Authenticated.
+  $permissions['authenticated'] = array_merge($permissions['anonymous'], [
+    'access user profiles',
+    'cancel account',
+    'change own username',
+    'select account cancellation method',
+  ]);
+
+  // Content manager.
+  $permissions['contentmanager'] = array_merge($permissions['authenticated'], []);
+
+  // Site manager.
+  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], [
+    'view users',
+    'block users',
+    'administer navigation settings',
+  ]);
+
+  if (isset($permissions[$role])) {
+    return $permissions[$role];
+  }
+  return [];
+}

@@ -66,6 +66,7 @@
 {%
   set classes = [
     'card',
+    'brand-border-radius',
     node.isPromoted() ? 'promoted',
     node.isSticky() ? 'sticky',
     not node.isPublished() ? 'unpublished',
@@ -73,10 +74,8 @@
 %}
 <article{{ attributes.addClass(classes) }}>
 
-  <div{{ content_attributes.addClass('card-body extra-padding') }}>
-    {{ content.body }}
+  <div{{ content_attributes.addClass('card__body') }}>
+    {{ content }}
   </div>
 
 </article>
-
-{{ content|without('body') }}

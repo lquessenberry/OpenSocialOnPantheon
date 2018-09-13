@@ -10,19 +10,16 @@ namespace Drupal\Console\Command\User;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Utils\DrupalApi;
-use Drupal\Console\Style\DrupalStyle;
 
 /**
  * Class DebugCommand
+ *
  * @package Drupal\Console\Command\User
  */
 class RoleCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var DrupalApi
      */
@@ -30,9 +27,11 @@ class RoleCommand extends Command
 
     /**
      * RoleCommand constructor.
+     *
      * @param DrupalApi $drupalApi
      */
-    public function __construct(DrupalApi $drupalApi) {
+    public function __construct(DrupalApi $drupalApi)
+    {
         $this->drupalApi = $drupalApi;
         parent::__construct();
     }
@@ -48,24 +47,24 @@ class RoleCommand extends Command
             ->addArgument(
                 'operation',
                 InputOption::VALUE_REQUIRED,
-                $this->trans('commands.user.role.operation')
+                $this->trans('commands.user.role.arguments.operation')
             )
             ->addArgument(
                 'user',
                 InputOption::VALUE_REQUIRED,
-                $this->trans('commands.user.role.user')
+                $this->trans('commands.user.role.arguments.user')
             )
             ->addArgument(
                 'role',
                 InputOption::VALUE_REQUIRED,
-                $this->trans('commands.user.role.role')
-            );
+                $this->trans('commands.user.role.arguments.roles')
+            )->setAliases(['ur']);
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function interact(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output)
     {
         $operation = $input->getArgument('operation');
         $user = $input->getArgument('user');
@@ -76,17 +75,6 @@ class RoleCommand extends Command
                 $this->trans('commands.user.role.messages.bad-arguments')
             );
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
-    {
-        $io = new DrupalStyle($input, $output);
-        $operation = $input->getArgument('operation');
-        $user = $input->getArgument('user');
-        $role = $input->getArgument('role');
 
         $systemRoles = $this->drupalApi->getRoles();
 
@@ -104,19 +92,19 @@ class RoleCommand extends Command
         }
 
         if (!is_object($userObject)) {
-            $io->error(sprintf($this->trans('commands.user.role.messages.no-user-found'), $user));
+            $this->getIo()->error(sprintf($this->trans('commands.user.role.messages.no-user-found'), $user));
             return 1;
         }
 
         if (!array_key_exists($role, $systemRoles)) {
-            $io->error(sprintf($this->trans('commands.user.role.messages.no-role-found'), $role));
+            $this->getIo()->error(sprintf($this->trans('commands.user.role.messages.no-role-found'), $role));
             return 1;
         }
 
         if ("add" == $operation) {
             $userObject->addRole($role);
             $userObject->save();
-            $io->success(
+            $this->getIo()->success(
                 sprintf(
                     $this->trans('commands.user.role.messages.add-success'),
                     $userObject->name->value . " (" . $userObject->mail->value . ") ",
@@ -129,7 +117,7 @@ class RoleCommand extends Command
             $userObject->removeRole($role);
             $userObject->save();
 
-            $io->success(
+            $this->getIo()->success(
                 sprintf(
                     $this->trans('commands.user.role.messages.remove-success'),
                     $userObject->name->value . " (" . $userObject->mail->value . ") ",

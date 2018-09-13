@@ -1,4 +1,4 @@
-@api @page @stability @perfect @critical @DS-1139
+@api @page @stability @perfect @critical @DS-1139 @stability-4
 Feature: Create Page
   Benefit: In order to share useful information with users
   Role: As an administrator
@@ -17,4 +17,4 @@ Feature: Create Page
     # Authored by should not be visible
     And I should not see "By" in the "Hero block"
     # Authored date should not be visible
-    And I should not see "on" in the "Hero block"
+    And I should not see " on" in the "Hero block"

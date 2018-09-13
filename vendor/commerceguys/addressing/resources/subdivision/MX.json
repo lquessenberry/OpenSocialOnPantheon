@@ -36,6 +36,11 @@
 			"iso_code": "MX-CHH",
 			"postal_code_pattern": "3[1-3]"
 		},
+		"CDMX": {
+			"name": "Ciudad de México",
+			"iso_code": "MX-CMX",
+			"postal_code_pattern": "0|1[0-6]"
+		},
 		"COAH": {
 			"name": "Coahuila",
 			"iso_code": "MX-COA",
@@ -45,11 +50,6 @@
 			"name": "Colima",
 			"iso_code": "MX-COL",
 			"postal_code_pattern": "28"
-		},
-		"D.F.": {
-			"name": "Distrito Federal",
-			"iso_code": "MX-DIF",
-			"postal_code_pattern": "0|1[0-6]"
 		},
 		"DGO": {
 			"name": "Durango",
@@ -117,12 +117,12 @@
 			"postal_code_pattern": "77"
 		},
 		"SLP": {
-			"name": "San Luís Potosí",
+			"name": "San Luis Potosí",
 			"iso_code": "MX-SLP",
 			"postal_code_pattern": "7[89]"
 		},
 		"SIN": {
-			"name": "Sinalóa",
+			"name": "Sinaloa",
 			"iso_code": "MX-SIN",
 			"postal_code_pattern": "8[0-2]"
 		},

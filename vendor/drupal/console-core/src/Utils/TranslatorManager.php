@@ -2,10 +2,10 @@
 
 /**
  * @file
- * Contains \Drupal\Console\Utils\Translator.
+ * Contains \Drupal\Console\Core\Utils\TranslatorManager.
  */
 
-namespace Drupal\Console\Utils;
+namespace Drupal\Console\Core\Utils;
 
 use Symfony\Component\Translation\Translator;
 use Symfony\Component\Translation\Loader\YamlFileLoader;
@@ -17,34 +17,35 @@ use Symfony\Component\Yaml\Exception\ParseException;
 
 /**
  * Class TranslatorManager
- * @package Drupal\Console\Utils
+ *
+ * @package Drupal\Console\Core\Utils
  */
-class TranslatorManager
+class TranslatorManager implements TranslatorManagerInterface
 {
     /**
      * @var string
      */
-    private $language;
+    protected $language;
 
     /**
      * @var Translator
      */
-    private $translator;
+    protected $translator;
 
     /**
      * @var Parser
      */
-    private $parser;
+    protected $parser;
 
     /**
      * @var Filesystem
      */
-    private $filesystem;
+    protected $filesystem;
 
     /**
      * @var string
      */
-    private $coreLanguageRoot;
+    protected $coreLanguageRoot;
 
     /**
      * Translator constructor.
@@ -80,6 +81,12 @@ class TranslatorManager
         );
     }
 
+    /**
+     * @param $language
+     * @param $directoryRoot
+     *
+     * @return array
+     */
     private function buildCoreLanguageDirectory(
         $language,
         $directoryRoot
@@ -103,9 +110,7 @@ class TranslatorManager
     }
 
     /**
-     * @param $language
-     * @param $directoryRoot
-     * @return $this
+     * {@inheritdoc}
      */
     public function loadCoreLanguage($language, $directoryRoot)
     {
@@ -123,8 +128,7 @@ class TranslatorManager
     }
 
     /**
-     * @param $language
-     * @return $this
+     * {@inheritdoc}
      */
     public function changeCoreLanguage($language)
     {
@@ -132,15 +136,12 @@ class TranslatorManager
     }
 
     /**
-     * @param $language
-     * @param $directoryRoot
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function loadResource($language, $directoryRoot)
     {
         if (!is_dir($directoryRoot)) {
-            return false;
+            return;
         }
 
         $this->language = $language;
@@ -175,6 +176,8 @@ class TranslatorManager
                 echo $key.'.yml '.$e->getMessage();
             }
         }
+
+        return;
     }
 
     /**
@@ -183,7 +186,7 @@ class TranslatorManager
      * @param $resource
      * @param $resourceKey
      */
-    private function loadTranslationByFile($resource, $resourceKey = null)
+    protected function loadTranslationByFile($resource, $resourceKey = null)
     {
         $resourceParsed = $this->parser->parse(file_get_contents($resource));
 
@@ -219,7 +222,7 @@ class TranslatorManager
     }
 
     /**
-     * @return Translator
+     * {@inheritdoc}
      */
     public function getTranslator()
     {
@@ -227,7 +230,7 @@ class TranslatorManager
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getLanguage()
     {
@@ -235,9 +238,7 @@ class TranslatorManager
     }
 
     /**
-     * @param $key
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function trans($key)
     {

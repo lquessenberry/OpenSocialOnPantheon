@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2012-2014 Anthon Pang. All Rights Reserved.
+ * Copyright 2012-2017 Anthon Pang. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ final class ServiceFactory
      *
      * @return \WebDriver\ServiceFactory
      */
-    static public function getInstance()
+    public static function getInstance()
     {
         if (!self::$instance) {
             self::$instance = new self;
@@ -92,6 +92,17 @@ final class ServiceFactory
     }
 
     /**
+     * Set service
+     *
+     * @param string $serviceName Name of service
+     * @param object $service     Service instance
+     */
+    public function setService($serviceName, $service)
+    {
+        $this->services[$serviceName] = $service;
+    }
+
+    /**
      * Override default service class
      *
      * @param string $serviceName Name of service
@@ -104,5 +115,6 @@ final class ServiceFactory
         }
 
         $this->serviceClasses[$serviceName] = $className;
+        $this->services[$serviceName] = null;
     }
 }

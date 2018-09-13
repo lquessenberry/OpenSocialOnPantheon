@@ -1,0 +1,12 @@
+name: Flagging Admin
+description: Provides an admin view for Flaggings.
+core: 8.x
+type: module
+dependencies:
+  - flag
+  - flag_follower
+  - flag_bookmark
+  - views
+  - node
+  - user
+package: Testing

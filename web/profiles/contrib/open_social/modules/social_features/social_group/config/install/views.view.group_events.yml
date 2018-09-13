@@ -3,12 +3,13 @@ status: true
 dependencies:
   config:
     - core.entity_view_mode.group_content.teaser
+    - group.content_type.closed_group-group_node-event
     - group.content_type.open_group-group_node-event
   module:
     - datetime
     - group
     - node
-    - user
+    - social_event
 id: group_events
 label: 'Group Events'
 module: views
@@ -25,9 +26,9 @@ display:
     position: 0
     display_options:
       access:
-        type: perm
+        type: group_permission
         options:
-          perm: 'access content'
+          group_permission: 'view group_node:event content'
       cache:
         type: tag
         options: {  }
@@ -35,7 +36,7 @@ display:
         type: views_query
         options:
           disable_sql_rewrite: false
-          distinct: false
+          distinct: true
           replica: false
           query_comment: ''
           query_tags: {  }
@@ -146,6 +147,7 @@ display:
           field: type
           value:
             open_group-group_node-event: open_group-group_node-event
+            closed_group-group_node-event: closed_group-group_node-event
           entity_type: group_content
           entity_field: type
           plugin_id: bundle
@@ -205,7 +207,57 @@ display:
                   min: ''
                   max: ''
           plugin_id: datetime
-      sorts: {  }
+        nid:
+          id: nid
+          table: node_access
+          field: nid
+          relationship: gc__node
+          group_type: group
+          admin_label: ''
+          operator: '='
+          value: ''
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
+          plugin_id: node_access
+      sorts:
+        event_passed_upcoming_sort:
+          id: event_passed_upcoming_sort
+          table: node
+          field: event_passed_upcoming_sort
+          relationship: gc__node
+          group_type: group
+          admin_label: ''
+          order: ASC
+          exposed: false
+          expose:
+            label: ''
+          granularity: minute
+          entity_type: node
+          plugin_id: event_passed_upcoming_sort
       title: 'Group Events'
       header: {  }
       footer: {  }
@@ -278,11 +330,12 @@ display:
     cache_metadata:
       max-age: -1
       contexts:
+        - group_membership.roles.permissions
         - 'languages:language_content'
         - 'languages:language_interface'
         - url
         - url.query_args
-        - user.permissions
+        - 'user.node_grants:view'
       tags: {  }
   page_group_events:
     display_plugin: page
@@ -296,9 +349,10 @@ display:
     cache_metadata:
       max-age: -1
       contexts:
+        - group_membership.roles.permissions
         - 'languages:language_content'
         - 'languages:language_interface'
         - url
         - url.query_args
-        - user.permissions
+        - 'user.node_grants:view'
       tags: {  }

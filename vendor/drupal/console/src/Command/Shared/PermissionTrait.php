@@ -7,34 +7,31 @@
 
 namespace Drupal\Console\Command\Shared;
 
-use Drupal\Console\Style\DrupalStyle;
-
 trait PermissionTrait
 {
     /**
-     * @param DrupalStyle $output
      *
      * @return mixed
      */
-    public function permissionQuestion(DrupalStyle $output)
+    public function permissionQuestion()
     {
         $permissions = [];
         $boolOrNone = ['true','false','none'];
         while (true) {
-            $permission = $output->ask(
-                $this->trans('commands.generate.permission.questions.permission'),
-                'access content'
+            $permission = $this->getIo()->ask(
+                $this->trans('commands.generate.permissions.questions.permission'),
+                $this->trans('commands.generate.permissions.suggestions.access-content')
             );
-            $title = $output->ask(
-                $this->trans('commands.generate.permission.questions.title'),
-                'Access content'
+            $title = $this->getIo()->ask(
+                $this->trans('commands.generate.permissions.questions.title'),
+                $this->trans('commands.generate.permissions.suggestions.access-content')
             );
-            $description = $output->ask(
-                $this->trans('commands.generate.permission.questions.description'),
-                'Allow access to my content'
+            $description = $this->getIo()->ask(
+                $this->trans('commands.generate.permissions.questions.description'),
+                $this->trans('commands.generate.permissions.suggestions.allow-access-content')
             );
-            $restrictAccess = $output->choiceNoList(
-                $this->trans('commands.generate.permission.questions.restrict-access'),
+            $restrictAccess = $this->getIo()->choiceNoList(
+                $this->trans('commands.generate.permissions.questions.restrict-access'),
                 $boolOrNone,
                 'none'
             );
@@ -52,10 +49,11 @@ trait PermissionTrait
                 ]
             );
 
-            if (!$output->confirm(
-                $this->trans('commands.generate.permission.questions.add'),
+            if (!$this->getIo()->confirm(
+                $this->trans('commands.generate.permissions.questions.add'),
                 true
-            )) {
+            )
+            ) {
                 break;
             }
         }

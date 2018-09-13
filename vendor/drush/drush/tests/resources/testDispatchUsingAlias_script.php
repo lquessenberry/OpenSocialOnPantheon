@@ -1,6 +1,5 @@
 <?php
 
-$valuesUsingAlias = drush_invoke_process("@dev", "unit-return-argv", array(), array(), array("dispatch-using-alias" => TRUE));
-$valuesWithoutAlias = drush_invoke_process("@dev", "unit-return-argv", array(), array(), array());
-return array('with' => $valuesUsingAlias['object'], 'without' => $valuesWithoutAlias['object']);
-
+$valuesUsingAlias = drush_invoke_process("@unish.dev", "unit-return-argv", [], [], ["dispatch-using-alias" => true]);
+$valuesWithoutAlias = drush_invoke_process("@unish.dev", "unit-return-argv", [], [], []);
+return ['with' => $valuesUsingAlias['object'], 'without' => $valuesWithoutAlias['object']];

@@ -14,18 +14,19 @@ use Drupal\Core\Controller\ControllerBase;
  *
  * @package Drupal\woot\Controller
  */
-class WootController extends ControllerBase {
+class WootController extends ControllerBase
+{
   /**
    * Woot.
    *
-   * @return string
+   * @return array
    *   Return Hello string.
    */
-  public function woot() {
-    return [
+    public function woot()
+    {
+        return [
         '#type' => 'markup',
         '#markup' => $this->t('Woot!')
-    ];
-  }
-
+        ];
+    }
 }

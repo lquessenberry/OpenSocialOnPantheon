@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2004-2014 Facebook. All Rights Reserved.
+ * Copyright 2004-2017 Facebook. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,18 +122,35 @@ abstract class AbstractWebDriver
 
         list($rawResult, $info) = ServiceFactory::getInstance()->getService('service.curl')->execute($requestMethod, $url, $parameters, $extraOptions);
 
+        $httpCode = $info['http_code'];
+
+        // According to https://w3c.github.io/webdriver/webdriver-spec.html all 4xx responses are to be considered
+        // an error and return plaintext, while 5xx responses are json encoded
+        if ($httpCode >= 400 && $httpCode <= 499) {
+            throw WebDriverException::factory(
+                WebDriverException::CURL_EXEC,
+                'Webdriver http error: ' . $httpCode . ', payload :' . substr($rawResult, 0, 1000)
+            );
+        }
+
         $result = json_decode($rawResult, true);
-        $value   = null;
 
-        if (is_array($result) && array_key_exists('value', $result)) {
-            $value = $result['value'];
+        if (!empty($rawResult) && $result === null && json_last_error() != JSON_ERROR_NONE) {
+            throw WebDriverException::factory(
+                WebDriverException::CURL_EXEC,
+                'Payload received from webdriver is not valid json: ' . substr($rawResult, 0, 1000)
+            );
         }
 
-        $message = null;
-
-        if (is_array($value) && array_key_exists('message', $value)) {
-            $message = $value['message'];
+        if (is_array($result) && !array_key_exists('status', $result)) {
+            throw WebDriverException::factory(
+                WebDriverException::CURL_EXEC,
+                'Payload received from webdriver is valid but unexpected json: ' . substr($rawResult, 0, 1000)
+            );
         }
+
+        $value   = (is_array($result) && array_key_exists('value', $result)) ? $result['value'] : null;
+        $message = (is_array($value) && array_key_exists('message', $value)) ? $value['message'] : null;
 
         // if not success, throw exception
         if ((int) $result['status'] !== 0) {
@@ -141,10 +158,11 @@ abstract class AbstractWebDriver
         }
 
         $sessionId = isset($result['sessionId'])
-                   ? $result['sessionId']
-                   : (isset($value['webdriver.remote.sessionid'])
-                   ? $value['webdriver.remote.sessionid']
-                   : null);
+           ? $result['sessionId']
+           : (isset($value['webdriver.remote.sessionid'])
+               ? $value['webdriver.remote.sessionid']
+               : null
+           );
 
         return array(
             'value'      => $value,
@@ -182,6 +200,7 @@ abstract class AbstractWebDriver
         }
 
         $methods = $this->methods();
+
         if (!in_array($requestMethod, (array) $methods[$webdriverCommand])) {
             throw WebDriverException::factory(
                 WebDriverException::INVALID_REQUEST,

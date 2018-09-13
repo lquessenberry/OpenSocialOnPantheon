@@ -1,0 +1,567 @@
+<?php
+
+/**
+ * @file
+ * The Social profile module.
+ */
+
+use Drupal\user\Entity\User;
+use Drupal\Core\Url;
+use Drupal\Core\Link;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\profile\Entity\Profile;
+use Drupal\profile\Entity\ProfileType;
+use Drupal\user\UserInterface;
+use Drupal\Core\Cache\Cache;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\file\Entity\File;
+use Drupal\image\Entity\ImageStyle;
+
+define('SOCIAL_PROFILE_SUGGESTIONS_USERNAME', 'username');
+define('SOCIAL_PROFILE_SUGGESTIONS_FULL_NAME', 'full_name');
+define('SOCIAL_PROFILE_SUGGESTIONS_ALL', 'all');
+
+/**
+ * Implements hook_field_widget_form_alter().
+ *
+ * Fix theme issues in profile fields.
+ */
+function social_profile_field_widget_form_alter(&$element, FormStateInterface $form_state, $context) {
+  /** @var \Drupal\Core\Field\FieldDefinitionInterface $field_definition */
+  $field_definition = $context['items']->getFieldDefinition();
+  switch ($field_definition->getName()) {
+    case 'field_profile_phone_number':
+      // @todo: remove this when rule for .form-tel elements will be added.
+      $element['value']['#attributes']['class'][] = 'form-text';
+      break;
+
+    case 'field_profile_address':
+      // @todo: remove this when script for custom selects will be added.
+      $element['country_code']['#attributes']['class'][] = 'browser-default';
+      break;
+  }
+  // This replaces all user entity references with our EntityReferenceSelection.
+  if ($field_definition->getType() === 'entity_reference') {
+    if (isset($element['target_id']['#target_type']) && $element['target_id']['#target_type'] === 'user') {
+      $element['target_id']['#selection_handler'] = 'social';
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function social_profile_form_profile_profile_add_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
+  $user = \Drupal::currentUser();
+
+  // Check for permission on custom edit profile tags, it's only for CM+ who can
+  // actually edit a users profile and add profile tags there.
+  if (!$user->hasPermission('edit profile tags')) {
+    $form['field_profile_profile_tag']['#access'] = FALSE;
+  }
+  // We hide the label and form field when there are no options. This is the
+  // case by default. Since we provide an empty vocabulary.
+  if (empty($form['field_profile_profile_tag']['widget']['#options'])) {
+    unset($form['field_profile_profile_tag']);
+  }
+
+  // Remove the save and set default submit button on profile creation.
+  if (isset($form['actions']['set_default'])) {
+    unset($form['actions']['set_default']);
+  }
+
+  if (isset($form['field_profile_expertise']['widget']['target_id'])) {
+    $form['field_profile_expertise']['widget']['target_id']['#selection_settings']['hide_id'] = TRUE;
+  }
+
+  if (isset($form['field_profile_interests']['widget']['target_id'])) {
+    $form['field_profile_interests']['widget']['target_id']['#selection_settings']['hide_id'] = TRUE;
+  }
+
+  // Add custom submit handler just for redirect purposes. We don't want to
+  // override the form::save in profile.
+  $form['actions']['submit']['#submit'][] = '_social_profile_profile_edit_form_submit';
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function social_profile_form_profile_profile_edit_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
+  $user = \Drupal::currentUser();
+  $account = \Drupal::routeMatch()->getParameter('user');
+
+  /** @var \Drupal\profile\Entity\Profile $profile */
+  $profile = $form_state->getFormObject()->getEntity();
+
+  if (!$account instanceof User && $profile instanceof Profile) {
+    $account = $profile->getOwner();
+  }
+
+  // Check for permission on custom edit profile tags, it's only for CM+ who can
+  // actually edit a users profile and add profile tags there.
+  if (!$user->hasPermission('edit profile tags')) {
+    $form['field_profile_profile_tag']['#access'] = FALSE;
+  }
+  // We hide the label and form field when there are no options. This is the
+  // case by default. Since we provide an empty vocabulary.
+  if (empty($form['field_profile_profile_tag']['widget']['#options'])) {
+    unset($form['field_profile_profile_tag']);
+  }
+
+  // Remove the save and set default submit button on profile edit.
+  if (isset($form['actions']['set_default'])) {
+    unset($form['actions']['set_default']);
+  }
+
+  if (isset($form['field_profile_expertise']['widget']['target_id'])) {
+    $form['field_profile_expertise']['widget']['target_id']['#selection_settings']['hide_id'] = TRUE;
+  }
+
+  if (isset($form['field_profile_interests']['widget']['target_id'])) {
+    $form['field_profile_interests']['widget']['target_id']['#selection_settings']['hide_id'] = TRUE;
+  }
+
+  // Check if the Social Profile Fields module is on.
+  if (\Drupal::moduleHandler()->moduleExists('social_profile_fields')) {
+    // Load the profile fields and check if at least one of them can be changed.
+    if ($profile_fields = \Drupal::entityManager()->getStorage('field_config')->loadByProperties(['entity_type' => 'profile', 'bundle' => 'profile'])) {
+      $empty_profile = TRUE;
+
+      /** @var \Drupal\field\Entity\FieldConfig $field_config */
+      foreach ($profile_fields as $field) {
+        if (isset($form[$field->get('field_name')]) && $form[$field->get('field_name')]['#access'] === TRUE) {
+          $empty_profile = FALSE;
+        }
+      }
+
+      // There are no fields the user can edit here. Set an explanatory message
+      // and disable the Save button.
+      if ($empty_profile === TRUE) {
+        $form['empty_profile'] = [
+          '#type' => 'fieldset',
+        ];
+        $form['empty_profile']['notice'] = [
+          '#type' => 'html_tag',
+          '#tag' => 'p',
+          '#value' => t('There is no profile information you can change here. Change your @settings.', [
+            '@settings' => Link::createFromRoute(t('account settings here'), 'entity.user.edit_form', ['user' => $account->id()])->toString(),
+          ]),
+        ];
+
+        $form['actions']['submit']['#disabled'] = TRUE;
+      }
+    }
+  }
+
+  // Add custom submit handler just for redirect purposes. We don't want to
+  // override the form::save in profile.
+  $form['actions']['submit']['#submit'][] = '_social_profile_profile_edit_form_submit';
+
+  // Add cancel button, so user can easily navigate form edit form to profile.
+  $form['actions']['cancel'] = [
+    '#type' => 'link',
+    '#title' => t('Cancel'),
+    '#url' => Url::fromRoute('view.user_information.user_information', ['user' => $account->id()]),
+  ];
+}
+
+/**
+ * Form submit for profile_profile_edit_form and profile_profile_add_form.
+ *
+ * @param array $form
+ *   The profile edit form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state interface.
+ */
+function _social_profile_profile_edit_form_submit(array $form, FormStateInterface $form_state) {
+  /** @var \Drupal\profile\Entity\Profile $profile */
+  $profile = $form_state->getFormObject()->getEntity();
+
+  // Let's be on the safe side.
+  if ($profile instanceof Profile) {
+    // Get the uid of the profile.
+    $uid = $profile->getOwnerId();
+    // Invalidate cache tag.
+    Cache::invalidateTags(['user:breadcrumb:' . $uid]);
+    // Set redirect to the profile page when a user saves their profile.
+    $form_state->setRedirect(
+      'view.user_information.user_information', [
+        'user' => $uid,
+      ]
+    );
+  }
+}
+
+/**
+ * Implements hook_local_tasks_alter().
+ */
+function social_profile_local_tasks_alter(&$local_tasks) {
+  // Remove the profile main "Profile information" from the local tabs.
+  if (!empty($local_tasks['entity.profile.user_profile_form:profile.type.main'])) {
+    unset($local_tasks['entity.profile.user_profile_form:profile.type.main']);
+  }
+  if (!empty($local_tasks['entity.profile.user_profile_form:profile.type.profile'])) {
+    unset($local_tasks['entity.profile.user_profile_form:profile.type.profile']);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function social_profile_form_views_exposed_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  if ($form['#id'] == 'views-exposed-form-search-users-page') {
+    if (!empty($form['profile_tag'])) {
+      $form['profile_tag']['#type'] = 'checkboxes';
+    }
+    if (empty($form['profile_tag']['#options'])) {
+      unset($form['profile_tag']);
+    }
+  }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK_alter().
+ */
+function social_profile_theme_suggestions_profile_alter(array &$suggestions, array $variables) {
+  // @todo remove this when it lands in the profile module, make sure it will have the same hooks though.
+  $original = $variables['theme_hook_original'];
+  $entity = $variables['elements']['#profile'];
+  $sanitized_view_mode = strtr($variables['elements']['#view_mode'], '.', '_');
+
+  $suggestions = [];
+  $suggestions[] = $original;
+  $suggestions[] = $original . '__' . $sanitized_view_mode;
+  $suggestions[] = $original . '__' . $entity->bundle();
+  $suggestions[] = $original . '__' . $entity->bundle() . '__' . $sanitized_view_mode;
+  $suggestions[] = $original . '__' . $entity->id();
+  $suggestions[] = $original . '__' . $entity->id() . '__' . $sanitized_view_mode;
+
+  return $suggestions;
+}
+
+/**
+ * Prepares variables for profile templates.
+ *
+ * Default template: profile.html.twig.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - elements: An array of elements to display in view mode.
+ *   - profile: The profile object.
+ *   - view_mode: View mode; e.g., 'full', 'teaser', etc.
+ */
+function social_profile_preprocess_profile(array &$variables) {
+  /** @var \Drupal\profile\Entity\Profile $profile */
+  $profile = $variables['profile'];
+  $user = User::load($profile->getOwnerId());
+  $current_user = \Drupal::currentUser();
+
+  // See social_user_user_format_name_alter(), DisplayName is either first name
+  // + last name, or username if both first and last name aren't filled out.
+  $variables['profile_name'] = $user->getDisplayName();
+  $variables['profile_contact_url'] = _social_profile_get_contact_url($user);
+  $variables['profile_stream_url'] = Url::fromUserInput('/user/' . $profile->getOwnerId() . '/stream');
+
+  // Set a condition for the label to show in the teaser
+  // The actual label text should be changeable in the template.
+  // Disable for the LU's own profile.
+  $variables['profile_contact_label'] = 'profile_info';
+  if (\Drupal::moduleHandler()->moduleExists('social_private_message') && $current_user->id() != $profile->getOwnerId()) {
+    $variables['profile_contact_label'] = 'private_message';
+    $variables['#cache']['contexts'][] = 'user';
+  }
+
+  // Email field.
+  $global_show_email = \Drupal::config('social_profile.settings')->get('social_profile_show_email');
+  if (isset($profile->field_profile_show_email)) {
+    $profile_show_email = $profile->field_profile_show_email->value;
+  }
+  if ($global_show_email
+    || !$global_show_email && !empty($profile_show_email)
+    || $current_user->hasPermission('view profile email')
+  ) {
+    // Derived from MailToFormatter.php.
+    $variables['user_mail'] = Link::fromTextAndUrl($user->getEmail(), Url::fromUri('mailto:' . $user->getEmail()));
+  }
+
+  // Edit profile URL.
+  // Get the current route name to check if the user is on the edit or delete
+  // page.
+  $route = \Drupal::routeMatch()->getRouteName();
+  if ($route !== 'entity.profile.type.user_profile_form' && $profile->access('update', $current_user)) {
+    $variables['profile_edit_url'] = Url::fromUserInput('/user/' . $profile->getOwnerId() . '/profile');
+    $variables['#cache']['contexts'][] = 'route.name';
+  }
+
+  // Add the hero styled image if we have access to it.
+  if (!empty($profile->field_profile_banner_image->entity) && $profile->field_profile_banner_image->access('view')) {
+    $variables['profile_hero_styled_image_url'] = ImageStyle::load('social_xx_large')
+      ->buildUrl($profile->field_profile_banner_image->entity->getFileUri());
+  }
+
+  // Add the profile image.
+  if (!empty($profile->field_profile_image->entity)) {
+    $variables['profile_image_url'] = ImageStyle::load('social_medium')
+      ->buildUrl($profile->field_profile_image->entity->getFileUri());
+  }
+
+}
+
+/**
+ * Get the contact URL. This can be private message or other means of contact.
+ *
+ * @param \Drupal\user\Entity\User $account
+ *   The user object.
+ *
+ * @return \Drupal\Core\Url
+ *   The URL to contact the user.
+ */
+function _social_profile_get_contact_url(User $account) {
+  if (\Drupal::moduleHandler()->moduleExists('social_private_message')) {
+    $current_user = \Drupal::currentUser();
+    if ($current_user->hasPermission('use private messaging system') && $current_user->id() != $account->id()) {
+      $members = [$current_user, $account];
+      $thread_id = \Drupal::service('private_message.mapper')->getThreadIdForMembers($members);
+      if ($thread_id) {
+        return Url::fromRoute('entity.private_message_thread.canonical', ['private_message_thread' => $thread_id], ['attributes' => ['class' => ['private_message_link']]]);
+      }
+      else {
+        return Url::fromRoute('private_message.private_message_create', [], ['query' => ['recipient' => $account->id()]]);
+      }
+    }
+  }
+  return Url::fromUserInput('/user/' . $account->id() . '/information');
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ *
+ * In order to save a new default profile on user creation.
+ */
+function social_profile_user_insert(UserInterface $account) {
+  // If the new account has a UID, we can create a default profile.
+  // Default image is added through the field settings.
+  if (!empty($account->id())) {
+    /** @var \Drupal\profile\Entity\ProfileType $profile_type */
+    $profile_type = ProfileType::load('profile');
+    // Sometimes profile fields are already requested during registrataion.
+    // In those cases, the profile will already be created from that.
+    if ($profile_type->getRegistration() === FALSE) {
+      $default_values = [
+        'type' => $profile_type->id(),
+        'uid' => $account->id(),
+      ];
+
+      // Get all field instances for the profile entity and check if the address
+      // field exists.
+      $instances = \Drupal::service('entity_field.manager')->getFieldDefinitions('profile', $profile_type->id());
+      if (array_key_exists('field_profile_address', $instances)) {
+        // Set the users default country to the site default country.
+        $default_values['field_profile_address'][0]['country_code'] = \Drupal::config('system.date')->get('country.default');
+      }
+
+      // Create a profile.
+      $profile = Profile::create($default_values);
+      $profile->save();
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for user_form().
+ */
+function social_profile_form_user_form_alter(&$form, FormStateInterface $form_state) {
+  $profile = _social_profile_get_profile_from_route();
+
+  if ($profile instanceof Profile) {
+    if (isset($profile->field_profile_show_email)) {
+      // Check what the global value is.
+      $global_show_email = \Drupal::config('social_profile.settings')->get('social_profile_show_email');
+      // Account value.
+      $show_email = $profile->field_profile_show_email->value;
+      $form['profile_privacy'] = [
+        '#type' => 'fieldset',
+        '#title' => t('Privacy settings'),
+        '#tree' => TRUE,
+      ];
+      $form['profile_privacy']['social_profile_show_email'] = [
+        '#type' => 'checkbox',
+        '#title' => t('Show my email on my profile'),
+        '#default_value' => $show_email,
+        '#attributes' => [
+          'data-switch' => TRUE,
+        ],
+      ];
+
+      // If global setting is set, disable the setting and give a reason why.
+      if ($global_show_email == TRUE) {
+        $form['profile_privacy']['social_profile_show_email']['#disabled'] = TRUE;
+        $form['profile_privacy']['social_profile_show_email']['#value'] = TRUE;
+        $form['profile_privacy']['social_profile_show_email']['#description'] = t('This setting is currently being controlled by a platform wide setting and cannot be changed. Please contact a sitemanager if you have questions.');
+      }
+      else {
+        // Submit function only when the data is actually editable.
+        $form['actions']['submit']['#submit'][] = '_social_profile_form_user_form_submit';
+      }
+    }
+  }
+
+  $form['#pre_render'][] = '_social_profile_form_pre_render';
+}
+
+/**
+ * Form submit for user_form.
+ *
+ * @param array $form
+ *   Commnent on a post form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   Form state interface.
+ */
+function _social_profile_form_user_form_submit(array $form, FormStateInterface $form_state) {
+  $profile = _social_profile_get_profile_from_route();
+  $profile_privacy = $form_state->getValue('profile_privacy');
+
+  if ($profile instanceof Profile) {
+    if (isset($profile->field_profile_show_email)) {
+      $profile->field_profile_show_email->value = $profile_privacy['social_profile_show_email'];
+      $profile->save();
+    }
+  }
+}
+
+/**
+ * Gets the users profile by route.
+ *
+ * @return mixed
+ *   The profile or NULL if nothing could be found.
+ */
+function _social_profile_get_profile_from_route() {
+  $profile = NULL;
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  $account = \Drupal::routeMatch()->getParameter('user');
+  if (!is_object($account) && !is_null($account)) {
+    $account = $entity_type_manager
+      ->getStorage('user')
+      ->load($account);
+  }
+
+  if (!empty($account)) {
+    $storage = $entity_type_manager->getStorage('profile');
+    if (!empty($storage)) {
+      $profile = $storage->loadByUser($account, 'profile');
+    }
+  }
+
+  return $profile;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function social_profile_form_user_register_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // Set User Register form Email field as required.
+  $form['account']['mail']['#required'] = TRUE;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_view_alter().
+ */
+function social_profile_profile_view_alter(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display) {
+
+  /** @var \Drupal\Core\Session\AccountProxy $current_user */
+  $current_user = \Drupal::currentUser();
+
+  // If the current user has no access to viewing user profiles, he might not
+  // have access to the users profile.
+  if (!$current_user->hasPermission('view any profile profile') && isset($display->get('content')['field_profile_image'])) {
+    // Try to load the profile picture.
+    $fid = $entity->get('field_profile_image')->target_id;
+    // Must have a value and not be NULL.
+    if (!is_null($fid)) {
+      // Load the file.
+      $file = File::load($fid);
+      // Check if it's a real file.
+      if ($file instanceof File) {
+        // Potentially the file is in the private file system. In that case,
+        // anonymous user don't have access to it.
+        if (!$file->access('view', $current_user)) {
+          // Load default data.
+          $replacement_data = social_profile_get_default_image();
+          /** @var \Drupal\image\Plugin\Field\FieldType\ImageItem $imgitem */
+          $imgitem = $build['field_profile_image'][0]['#item'];
+          // Time to override the data that going to be rendered.
+          $imgitem->set('target_id', $replacement_data['id']);
+          $imgitem->set('width', $replacement_data['width']);
+          $imgitem->set('height', $replacement_data['height']);
+          // Put replacement data back in the object that's about to be built.
+          $build['field_profile_image'][0]['#item'] = $imgitem;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Function to fetch the default profile image.
+ */
+function social_profile_get_default_image() {
+  // Load default image.
+  $config_factory = \Drupal::configFactory();
+  $field_image_config = $config_factory->getEditable('field.field.profile.profile.field_profile_image');
+  $default_image = $field_image_config->get('settings.default_image');
+  // Load by uuid.
+  $files = \Drupal::entityTypeManager()->getStorage('file')->loadByProperties(['uuid' => $default_image['uuid']]);
+  // Pop it.
+  $file = array_pop($files);
+  // Set in an array.
+  $data = [
+    "id" => $file->id(),
+    "width" => $default_image['width'],
+    "height" => $default_image['height'],
+  ];
+  // Retun the array.
+  return $data;
+}
+
+/**
+ * Implements hook_user_format_name_alter().
+ */
+function social_profile_user_format_name_alter(&$name, $account) {
+  /** @var \Drupal\Core\Session\AccountInterface $account */
+  $accountname = '';
+  $storage = \Drupal::entityTypeManager()->getStorage('profile');
+  if (!empty($storage)) {
+    // Returns false.
+    if ($user_profile = $storage->loadByUser($account, 'profile', TRUE)) {
+      $accountname = $user_profile->get('field_profile_first_name')->value . " " . $user_profile->get('field_profile_last_name')->value;
+      $accountname = trim($accountname);
+    }
+  }
+  $name = ($accountname !== '') ? $accountname : $name;
+}
+
+/**
+ * Hide timezone fields group label.
+ */
+function _social_profile_form_pre_render($element) {
+  $element['group_locale_settings']['timezone']['#title'] = NULL;
+  return $element;
+}
+
+/**
+ * Implements hook_entity_operation_alter().
+ */
+function social_profile_entity_operation_alter(array &$operations, EntityInterface $entity) {
+  if ($entity->getEntityTypeId() === 'user') {
+    if (isset($operations['edit'])) {
+      $operations['edit']['title'] = t('Edit account');
+      $operations['edit_profile'] = [
+        'title' => t('Edit profile'),
+        'weight' => (isset($operations['edit']['weight'])) ? $operations['edit']['weight']-- : 0,
+        'url' => Url::fromUserInput('/user/' . $entity->id() . '/profile'),
+      ];
+    }
+  }
+}

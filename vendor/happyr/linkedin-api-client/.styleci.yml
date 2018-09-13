@@ -1,0 +1,12 @@
+preset: symfony
+
+finder:
+    path:
+        - "src"
+        - "tests"
+
+enabled:
+    - short_array_syntax
+
+disabled:
+    - phpdoc_annotation_without_dot

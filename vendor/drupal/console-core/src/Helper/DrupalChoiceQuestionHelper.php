@@ -1,11 +1,20 @@
 <?php
+/**
+ * @file
+ * Contains \Drupal\Console\Core\Helper\DrupalChoiceQuestionHelper.
+ */
 
-namespace Drupal\Console\Helper;
+namespace Drupal\Console\Core\Helper;
 
 use Symfony\Component\Console\Helper\SymfonyQuestionHelper;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
 
+/**
+ * Class DrupalChoiceQuestionHelper
+ *
+ * @package Drupal\Console\Core\Helper
+ */
 class DrupalChoiceQuestionHelper extends SymfonyQuestionHelper
 {
     /**

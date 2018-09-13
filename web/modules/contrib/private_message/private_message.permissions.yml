@@ -1,0 +1,11 @@
+use private messaging system:
+  title: 'Use private messaging system'
+  description: 'Allows users to send and receive private messages'
+
+administer private messages:
+  title: 'Administer private messages'
+  description: 'Allows administrators to administer private messages'
+
+administer private message module:
+  title: 'Administer private message module'
+  description: 'Allows administrators to manage all parts of the One Page Private Message module'

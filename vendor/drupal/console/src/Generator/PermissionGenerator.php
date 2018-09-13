@@ -7,17 +7,19 @@
 
 namespace Drupal\Console\Generator;
 
+use Drupal\Console\Core\Generator\Generator;
 use Drupal\Console\Extension\Manager;
 
 class PermissionGenerator extends Generator
 {
-
-    /** @var Manager  */
+    /**
+     * @var Manager
+     */
     protected $extensionManager;
-
 
     /**
      * PermissionGenerator constructor.
+     *
      * @param Manager $extensionManager
      */
     public function __construct(
@@ -27,30 +29,27 @@ class PermissionGenerator extends Generator
     }
 
     /**
-     * @param  $module
-     * @param  $permissions
+     * {@inheritdoc}
      */
-    public function generate($module, $permissions)
+    public function generate(array $parameters)
     {
-        $parameters = array(
-          'module_name' => $module,
-          'permissions' => $permissions,
-        );
+        $module = $parameters['module_name'];
+        $learning = $parameters['learning'];
 
         $this->renderFile(
             'module/permission.yml.twig',
-            $this->extensionManager->getModule($module)->getPath().'/'.$module.'.permissions.yml',
+            $this->extensionManager->getModule($module)->getPath() . '/' . $module . '.permissions.yml',
             $parameters,
             FILE_APPEND
         );
 
-        $content = $this->getRenderHelper()->render(
+        $content = $this->renderer->render(
             'module/permission-routing.yml.twig',
             $parameters
         );
 
-        if ($this->isLearning()) {
-            echo 'You can use this permission in the routing file like this:'.PHP_EOL;
+        if ($learning) {
+            echo 'You can use this permission in the routing file like this:' . PHP_EOL;
             echo $content;
         }
     }

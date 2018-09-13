@@ -38,3 +38,14 @@ if (file_exists($local_settings)) {
  * See: tests/installer-features/installer.feature
  */
 $settings['install_profile'] = 'social';
+$databases['default']['default'] = array (
+  'database' => 'opensocial',
+  'username' => 'opensocial',
+  'password' => 'qwe123qwe',
+  'prefix' => '',
+  'host' => 'localhost',
+  'port' => '3306',
+  'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
+  'driver' => 'mysql',
+);
+$settings['hash_salt'] = '3rIu5JacxFSBLaZnair0xZEbvdGIaCXUDirnyvpvn3RWngx52o-vAPMvzbgo5ighaJ32W2tOfg';

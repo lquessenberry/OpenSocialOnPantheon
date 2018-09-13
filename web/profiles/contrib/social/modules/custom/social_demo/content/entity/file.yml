@@ -1,0 +1,669 @@
+---
+92e8d560-da14-11e5-b5d2-0a1d41d68578:
+  uuid: 92e8d560-da14-11e5-b5d2-0a1d41d68578
+  langcode: en
+  path: content/files/01.jpg
+  uri: public://01.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51e54a-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51e54a-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/02.jpg
+  uri: public://02.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51ee1e-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51ee1e-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/03.jpg
+  uri: public://03.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51f058-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51f058-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/04.jpg
+  uri: public://04.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51f24c-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51f24c-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/05.jpg
+  uri: public://05.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51f422-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51f422-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/06.jpg
+  uri: public://06.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51f5d0-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51f5d0-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/07.jpg
+  uri: public://07.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51f774-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51f774-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/08.jpg
+  uri: public://08.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51f918-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51f918-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/09.jpg
+  uri: public://09.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa51fec2-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa51fec2-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/10.jpg
+  uri: public://10.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa52008e-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa52008e-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/11.jpg
+  uri: public://11.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+aa52023c-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa52023c-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/12.jpg
+  uri: public://12.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 302
+      width: 1918
+      height: 676
+    teaser:
+      x: 319
+      y: 0
+      width: 1280
+      height: 1280
+aa520476-dee0-11e5-b86d-9a79f06e9478:
+  uuid: aa520476-dee0-11e5-b86d-9a79f06e9478
+  langcode: en
+  path: content/files/13.jpg
+  uri: public://13.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 42
+      width: 961
+      height: 339
+    teaser:
+      x: 269
+      y: 0
+      width: 423
+      height: 423
+c08babbe-3adb-11e6-ac61-9e71128cae77:
+  uuid: c08babbe-3adb-11e6-ac61-9e71128cae77
+  langcode: en
+  path: content/files/14.jpg
+  uri: public://14.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 202
+      width: 1920
+      height: 677
+    teaser:
+      x: 420
+      y: 0
+      width: 1080
+      height: 1080
+c08b9e6c-3adb-11e6-ac61-9e71128cae77:
+  uuid: c08b9e6c-3adb-11e6-ac61-9e71128cae77
+  langcode: en
+  path: content/files/15.jpg
+  uri: public://15.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 100
+      width: 641
+      height: 226
+    teaser:
+      x: 107
+      y: 0
+      width: 426
+      height: 426
+c08ba2c2-3adb-11e6-ac61-9e71128cae77:
+  uuid: c08ba2c2-3adb-11e6-ac61-9e71128cae77
+  langcode: en
+  path: content/files/16.jpg
+  uri: public://16.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 250
+      width: 1999
+      height: 704
+    teaser:
+      x: 500
+      y: 0
+      width: 1334
+      height: 1334
+c08ba9ca-3adb-11e6-ac61-9e71128cae77:
+  uuid: c08ba9ca-3adb-11e6-ac61-9e71128cae77
+  langcode: en
+  path: content/files/17.jpg
+  uri: public://17.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 305
+      width: 1919
+      height: 677
+    teaser:
+      x: 317
+      y: 0
+      width: 1286
+      height: 1286
+
+7d545872-478d-11e7-a919-92ebcb67fe33:
+  uuid: 7d545872-478d-11e7-a919-92ebcb67fe33
+  langcode: en
+  path: content/files/19.jpg
+  uri: public://19.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 305
+      width: 1278
+      height: 450
+    teaser:
+      x: 427
+      y: 0
+      width: 853
+      height: 853
+7d545c0a-478d-11e7-a919-92ebcb67fe33:
+  uuid: 7d545c0a-478d-11e7-a919-92ebcb67fe33
+  langcode: en
+  path: content/files/20.jpg
+  uri: public://20.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 0
+      width: 961
+      height: 339
+    teaser:
+      x: 300
+      y: 0
+      width: 423
+      height: 423
+7d545e4e-478d-11e7-a919-92ebcb67fe33:
+  uuid: 7d545e4e-478d-11e7-a919-92ebcb67fe33
+  langcode: en
+  path: content/files/21.jpg
+  uri: public://21.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 300
+      width: 2000
+      height: 700
+    teaser:
+      x: 315
+      y: 0
+      width: 1280
+      height: 1280
+15343016-4a92-11e7-a919-92ebcb67fe33:
+  uuid: 15343016-4a92-11e7-a919-92ebcb67fe33
+  langcode: en
+  path: content/files/22.jpg
+  uri: public://22.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 300
+      width: 2000
+      height: 700
+    teaser:
+      x: 315
+      y: 0
+      width: 1280
+      height: 1280
+15343750-4a92-11e7-a919-92ebcb67fe33:
+  uuid: 15343750-4a92-11e7-a919-92ebcb67fe33
+  langcode: en
+  path: content/files/23.jpg
+  uri: public://23.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 300
+      width: 2000
+      height: 700
+    teaser:
+      x: 315
+      y: 0
+      width: 1280
+      height: 1280
+1534387c-4a92-11e7-a919-92ebcb67fe33:
+  uuid: 1534387c-4a92-11e7-a919-92ebcb67fe33
+  langcode: en
+  path: content/files/24.jpg
+  uri: public://24.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    hero:
+      x: 0
+      y: 300
+      width: 2000
+      height: 700
+    teaser:
+      x: 315
+      y: 0
+      width: 1280
+      height: 1280
+57fb5c9c-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb5c9c-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/alisonhendrix.jpg
+  uri: public://alisonhendrix.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb602a-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb602a-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/chrishall.jpg
+  uri: public://chrishall.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb62b4-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb62b4-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/michelleclark.jpg
+  uri: public://michelleclark.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb6390-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb6390-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/paulharris.jpg
+  uri: public://paulharris.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb6462-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb6462-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/petershaw.jpg
+  uri: public://petershaw.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb6692-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb6692-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/robertandrews.jpg
+  uri: public://robertandrews.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb675a-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb675a-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/susanwilliams.jpg
+  uri: public://susanwilliams.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb6930-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb6930-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/thomaswolf.jpg
+  uri: public://thomaswolf.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+57fb69f8-f04a-11e5-9ce9-5e5517507c66:
+  uuid: 57fb69f8-f04a-11e5-9ce9-5e5517507c66
+  langcode: en
+  path: content/files/frankanderson.jpg
+  uri: public://frankanderson.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+92faca21-88b4-477b-87ed-f724625102a6:
+  uuid: 92faca21-88b4-477b-87ed-f724625102a6
+  langcode: en
+  path: content/files/jannamiesner.jpg
+  uri: public://jannamiesner.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+27764577-62d9-4db8-bb29-911236af0cfe:
+  uuid: 27764577-62d9-4db8-bb29-911236af0cfe
+  langcode: en
+  path: content/files/benflorez.jpg
+  uri: public://benflorez.jpg
+  filemime: image/jpeg
+  status: 1
+  crops:
+    teaser:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_medium:
+      x: 0
+      y: 0
+      width: 500
+      height: 500
+    profile_small:
+      x: 0
+      y: 0
+      width: 500
+      height: 500

@@ -2,35 +2,37 @@
 
 /**
  * @file
- * Contains \Drupal\Console\EventSubscriber\ShowTipsListener.
+ * Contains \Drupal\Console\Core\EventSubscriber\ShowTipsListener.
  */
 
-namespace Drupal\Console\EventSubscriber;
+namespace Drupal\Console\Core\EventSubscriber;
 
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Utils\TranslatorManager;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Utils\TranslatorManagerInterface;
+use Drupal\Console\Core\Style\DrupalStyle;
 
 /**
  * Class ShowTipsListener
- * @package Drupal\Console\EventSubscriber
+ *
+ * @package Drupal\Console\Core\EventSubscriber
  */
 class ShowTipsListener implements EventSubscriberInterface
 {
     /**
-     * @var TranslatorManager
+     * @var TranslatorManagerInterface
      */
     protected $translator;
 
     /**
      * ShowGenerateChainListener constructor.
-     * @param TranslatorManager $translator
+     *
+     * @param TranslatorManagerInterface $translator
      */
     public function __construct(
-        TranslatorManager $translator
+        TranslatorManagerInterface $translator
     ) {
         $this->translator = $translator;
     }
@@ -56,6 +58,10 @@ class ShowTipsListener implements EventSubscriberInterface
         }
     }
 
+    /**
+     * @param $commandName
+     * @return bool|string
+     */
     private function getTip($commandName)
     {
         $get_tip = $this->translator

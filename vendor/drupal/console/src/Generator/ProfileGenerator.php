@@ -7,19 +7,19 @@
 
 namespace Drupal\Console\Generator;
 
+use Drupal\Console\Core\Generator\Generator;
+
 class ProfileGenerator extends Generator
 {
-    public function generate(
-        $profile,
-        $machine_name,
-        $profile_path,
-        $description,
-        $core,
-        $dependencies,
-        $distribution
-    ) {
-        $dir = $profile_path . '/' . $machine_name;
+    /**
+     * {@inheritdoc}
+     */
+    public function generate(array $parameters)
+    {
+        $dir = $parameters['dir'];
+        $machine_name = $parameters['machine_name'];
 
+        $dir = ($dir == '/' ? '' : $dir) . '/' . $machine_name;
         if (file_exists($dir)) {
             if (!is_dir($dir)) {
                 throw new \RuntimeException(
@@ -30,7 +30,7 @@ class ProfileGenerator extends Generator
                 );
             }
             $files = scandir($dir);
-            if ($files != array('.', '..')) {
+            if ($files != ['.', '..']) {
                 throw new \RuntimeException(
                     sprintf(
                         'Unable to generate the profile as the target directory "%s" is not empty.',
@@ -48,31 +48,24 @@ class ProfileGenerator extends Generator
             }
         }
 
-        $parameters = array(
-          'profile' => $profile,
-          'machine_name' => $machine_name,
-          'type' => 'profile',
-          'core' => $core,
-          'description' => $description,
-          'dependencies' => $dependencies,
-          'distribution' => $distribution,
-        );
+        $profilePath = $dir . '/' . $machine_name;
+
 
         $this->renderFile(
             'profile/info.yml.twig',
-            $dir . '/' . $machine_name . '.info.yml',
+            $profilePath . '.info.yml',
             $parameters
         );
 
         $this->renderFile(
             'profile/profile.twig',
-            $dir . '/' . $machine_name . '.profile',
+            $profilePath . '.profile',
             $parameters
         );
 
         $this->renderFile(
             'profile/install.twig',
-            $dir . '/' . $machine_name . '.install',
+            $profilePath . '.install',
             $parameters
         );
     }

@@ -13,24 +13,18 @@ namespace Symfony\Component\Validator\Tests\Constraints;
 
 use Symfony\Component\Validator\Constraints\NotIdenticalTo;
 use Symfony\Component\Validator\Constraints\NotIdenticalToValidator;
-use Symfony\Component\Validator\Validation;
 
 /**
  * @author Daniel Holmes <daniel@danielholmes.org>
  */
 class NotIdenticalToValidatorTest extends AbstractComparisonValidatorTestCase
 {
-    protected function getApiVersion()
-    {
-        return Validation::API_VERSION_2_5;
-    }
-
     protected function createValidator()
     {
         return new NotIdenticalToValidator();
     }
 
-    protected function createConstraint(array $options)
+    protected function createConstraint(array $options = null)
     {
         return new NotIdenticalTo($options);
     }
@@ -56,6 +50,16 @@ class NotIdenticalToValidatorTest extends AbstractComparisonValidatorTestCase
             array(new \DateTime('2001-01-01'), '2000-01-01'),
             array(new \DateTime('2000-01-01 UTC'), '2000-01-01 UTC'),
             array(null, 1),
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function provideValidComparisonsToPropertyPath()
+    {
+        return array(
+            array(0),
         );
     }
 
