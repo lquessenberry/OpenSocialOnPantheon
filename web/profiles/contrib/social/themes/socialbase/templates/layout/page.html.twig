@@ -74,21 +74,20 @@
         </aside>
       {% endif %}
 
-
-      {# an extra check for complementary regions to be empty #}
-      {% if page.sidebar_first %}
-        {% block sidebar_first %}
-          {{ page.sidebar_first }}
-        {% endblock %}
-      {% endif %}
-
       {% block content %}
         <a id="main-content" tabindex="-1"></a>
         {{ page.content }}
       {% endblock %}
 
       {# an extra check for complementary regions to be empty #}
-      {% if page.sidebar_second %}
+      {% if page.sidebar_first and not page.complementary_top and not page.complementary_bottom %}
+        {% block sidebar_first %}
+          {{ page.sidebar_first }}
+        {% endblock %}
+      {% endif %}
+
+      {# an extra check for complementary regions to be empty #}
+      {% if page.sidebar_second and not page.complementary_top and not page.complementary_bottom %}
         {% block sidebar_second %}
           {{ page.sidebar_second }}
         {% endblock %}

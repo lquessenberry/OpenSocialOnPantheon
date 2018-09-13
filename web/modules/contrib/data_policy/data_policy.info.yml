@@ -6,8 +6,8 @@ dependencies:
   - drupal:block
 type: module
 
-# Information added by Drupal.org packaging script on 2018-05-22
-version: '8.x-1.0-beta2'
+# Information added by Drupal.org packaging script on 2018-09-13
+version: '8.x-1.0-beta4'
 core: '8.x'
 project: 'data_policy'
-datestamp: 1527011886
+datestamp: 1536852486

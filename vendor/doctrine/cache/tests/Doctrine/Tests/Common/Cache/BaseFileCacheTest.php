@@ -5,21 +5,35 @@ namespace Doctrine\Tests\Common\Cache;
 use Doctrine\Common\Cache\FileCache;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use const DIRECTORY_SEPARATOR;
+use function bin2hex;
+use function file_exists;
+use function floor;
+use function get_class;
+use function hash;
+use function is_dir;
+use function rmdir;
+use function str_repeat;
+use function strlen;
+use function substr;
+use function sys_get_temp_dir;
+use function uniqid;
+use function unlink;
 
 abstract class BaseFileCacheTest extends CacheTest
 {
     protected $directory;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         do {
-            $this->directory = sys_get_temp_dir() . '/doctrine_cache_'. uniqid();
+            $this->directory = sys_get_temp_dir() . '/doctrine_cache_' . uniqid();
         } while (file_exists($this->directory));
     }
 
-    protected function tearDown()
+    protected function tearDown() : void
     {
-        if ( ! is_dir($this->directory)) {
+        if (! is_dir($this->directory)) {
             return;
         }
 
@@ -36,63 +50,57 @@ abstract class BaseFileCacheTest extends CacheTest
         @rmdir($this->directory);
     }
 
-    public function testFlushAllRemovesBalancingDirectories()
+    public function testFlushAllRemovesBalancingDirectories() : void
     {
         $cache = $this->_getCacheDriver();
 
-        $this->assertTrue($cache->save('key1', 1));
-        $this->assertTrue($cache->save('key2', 2));
-        $this->assertTrue($cache->flushAll());
+        self::assertTrue($cache->save('key1', 1));
+        self::assertTrue($cache->save('key2', 2));
+        self::assertTrue($cache->flushAll());
 
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->directory, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
 
-        $this->assertCount(0, $iterator);
+        self::assertCount(0, $iterator);
     }
 
-    protected function isSharedStorage()
+    protected function isSharedStorage() : bool
     {
         return false;
     }
 
-    public function getPathLengthsToTest()
+    public function getPathLengthsToTest() : array
     {
         // Windows officially supports 260 bytes including null terminator
         // 258 bytes available to use due to php bug #70943
         // Windows officially supports 260 bytes including null terminator
         // 259 characters is too large due to PHP bug (https://bugs.php.net/bug.php?id=70943)
         // 260 characters is too large - null terminator is included in allowable length
-        return array(
-            array(257, false),
-            array(258, false),
-            array(259, true),
-            array(260, true)
-        );
+        return [
+            [257, false],
+            [258, false],
+            [259, true],
+            [260, true],
+        ];
     }
 
-    private static function getBasePathForWindowsPathLengthTests($pathLength)
+    private static function getBasePathForWindowsPathLengthTests(int $pathLength) : string
     {
         return FileCacheTest::getBasePathForWindowsPathLengthTests($pathLength);
     }
 
-    /**
-     * @param int    $length
-     * @param string $basePath
-     *
-     * @return array
-     */
-    private static function getKeyAndPathFittingLength($length, $basePath)
+    private static function getKeyAndPathFittingLength(int $length, string $basePath) : array
     {
-        $baseDirLength = strlen($basePath);
-        $extensionLength = strlen('.doctrine.cache');
-        $directoryLength = strlen(DIRECTORY_SEPARATOR . 'aa' . DIRECTORY_SEPARATOR);
-        $namespaceAndBracketLength = strlen(bin2hex("[][1]"));
-        $keyLength = $length
+        $baseDirLength             = strlen($basePath);
+        $extensionLength           = strlen('.doctrine.cache');
+        $directoryLength           = strlen(DIRECTORY_SEPARATOR . 'aa' . DIRECTORY_SEPARATOR);
+        $namespaceAndBracketLength = strlen(bin2hex('[][1]'));
+        $keyLength                 = $length
             - ($baseDirLength
                 + $extensionLength
                 + $directoryLength
                 + $namespaceAndBracketLength);
 
-        $key = str_repeat('a', floor($keyLength / 2));
+        $key           = str_repeat('a', floor($keyLength / 2));
         $namespacedKey = '[' . $key . '][1]';
 
         $keyHash = hash('sha256', $namespacedKey);
@@ -111,30 +119,27 @@ abstract class BaseFileCacheTest extends CacheTest
             . '_' . $keyHash
             . '.doctrine.cache';
 
-        return array($key, $keyPath, $hashedKeyPath);
+        return [$key, $keyPath, $hashedKeyPath];
     }
 
     /**
      * @dataProvider getPathLengthsToTest
-     *
-     * @param int  $length
-     * @param bool $pathShouldBeHashed
      */
-    public function testWindowsPathLengthLimitIsCorrectlyHandled($length, $pathShouldBeHashed)
+    public function testWindowsPathLengthLimitIsCorrectlyHandled(int $length, bool $pathShouldBeHashed) : void
     {
         $this->directory = self::getBasePathForWindowsPathLengthTests($length);
 
         list($key, $keyPath, $hashedKeyPath) = self::getKeyAndPathFittingLength($length, $this->directory);
 
-        $this->assertEquals($length, strlen($keyPath), 'Unhashed path should be of correct length.');
+        self::assertEquals($length, strlen($keyPath), 'Unhashed path should be of correct length.');
 
         $cacheClass = get_class($this->_getCacheDriver());
-        /* @var $cache \Doctrine\Common\Cache\FileCache */
+        /** @var FileCache $cache */
         $cache = new $cacheClass($this->directory, '.doctrine.cache');
 
         // Trick it into thinking this is windows.
         $reflClass = new \ReflectionClass(FileCache::class);
-        $reflProp = $reflClass->getProperty('isRunningOnWindows');
+        $reflProp  = $reflClass->getProperty('isRunningOnWindows');
         $reflProp->setAccessible(true);
         $reflProp->setValue($cache, true);
         $reflProp->setAccessible(false);
@@ -142,13 +147,13 @@ abstract class BaseFileCacheTest extends CacheTest
         $value = uniqid('value', true);
 
         $cache->save($key, $value);
-        $this->assertEquals($value, $cache->fetch($key));
+        self::assertEquals($value, $cache->fetch($key));
 
         if ($pathShouldBeHashed) {
-            $this->assertFileExists($hashedKeyPath, 'Path generated for key should be hashed.');
+            self::assertFileExists($hashedKeyPath, 'Path generated for key should be hashed.');
             unlink($hashedKeyPath);
         } else {
-            $this->assertFileExists($keyPath, 'Path generated for key should not be hashed.');
+            self::assertFileExists($keyPath, 'Path generated for key should not be hashed.');
             unlink($keyPath);
         }
     }

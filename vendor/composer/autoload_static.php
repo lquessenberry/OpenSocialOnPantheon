@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitcfaab668b69401b1e2506461c9393aa8
+class ComposerStaticInite5b40dc51edbe0a2fe2194d0556b9e45
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -179,6 +179,7 @@ class ComposerStaticInitcfaab668b69401b1e2506461c9393aa8
             'DrupalComposer\\DrupalScaffold\\' => 30,
             'DrupalCodeGenerator\\' => 20,
             'Doctrine\\Instantiator\\' => 22,
+            'Doctrine\\Common\\Inflector\\' => 26,
             'Doctrine\\Common\\Cache\\' => 22,
             'Doctrine\\Common\\Annotations\\' => 28,
             'Doctrine\\Common\\' => 16,
@@ -557,6 +558,10 @@ class ComposerStaticInitcfaab668b69401b1e2506461c9393aa8
         array (
             0 => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator',
         ),
+        'Doctrine\\Common\\Inflector\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/doctrine/inflector/lib/Doctrine/Common/Inflector',
+        ),
         'Doctrine\\Common\\Cache\\' => 
         array (
             0 => __DIR__ . '/..' . '/doctrine/cache/lib/Doctrine/Common/Cache',
@@ -568,6 +573,9 @@ class ComposerStaticInitcfaab668b69401b1e2506461c9393aa8
         'Doctrine\\Common\\' => 
         array (
             0 => __DIR__ . '/..' . '/doctrine/common/lib/Doctrine/Common',
+            1 => __DIR__ . '/..' . '/doctrine/event-manager/lib/Doctrine/Common',
+            2 => __DIR__ . '/..' . '/doctrine/persistence/lib/Doctrine/Common',
+            3 => __DIR__ . '/..' . '/doctrine/reflection/lib/Doctrine/Common',
         ),
         'Consolidation\\SiteAlias\\' => 
         array (
@@ -723,10 +731,6 @@ class ComposerStaticInitcfaab668b69401b1e2506461c9393aa8
             'Doctrine\\Common\\Lexer\\' => 
             array (
                 0 => __DIR__ . '/..' . '/doctrine/lexer/lib',
-            ),
-            'Doctrine\\Common\\Inflector\\' => 
-            array (
-                0 => __DIR__ . '/..' . '/doctrine/inflector/lib',
             ),
             'Doctrine\\Common\\Collections\\' => 
             array (
@@ -1491,10 +1495,10 @@ class ComposerStaticInitcfaab668b69401b1e2506461c9393aa8
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitcfaab668b69401b1e2506461c9393aa8::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitcfaab668b69401b1e2506461c9393aa8::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitcfaab668b69401b1e2506461c9393aa8::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitcfaab668b69401b1e2506461c9393aa8::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInite5b40dc51edbe0a2fe2194d0556b9e45::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInite5b40dc51edbe0a2fe2194d0556b9e45::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInite5b40dc51edbe0a2fe2194d0556b9e45::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInite5b40dc51edbe0a2fe2194d0556b9e45::$classMap;
 
         }, null, ClassLoader::class);
     }

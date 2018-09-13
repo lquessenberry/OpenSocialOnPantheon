@@ -2,10 +2,12 @@
 
 namespace Doctrine\Tests\Common\Cache;
 
+use Doctrine\Common\Cache\CacheProvider;
+use Doctrine\Common\Cache\RiakCache;
 use Riak\Bucket;
 use Riak\Connection;
 use Riak\Exception;
-use Doctrine\Common\Cache\RiakCache;
+use function unserialize;
 
 /**
  * RiakCache test
@@ -15,17 +17,13 @@ use Doctrine\Common\Cache\RiakCache;
  */
 class RiakCacheTest extends CacheTest
 {
-    /**
-     * @var \Riak\Connection
-     */
+    /** @var Connection */
     private $connection;
 
-    /**
-     * @var \Riak\Bucket
-     */
+    /** @var Bucket */
     private $bucket;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         try {
             $this->connection = new Connection('127.0.0.1', 8087);
@@ -38,20 +36,48 @@ class RiakCacheTest extends CacheTest
     /**
      * {@inheritdoc}
      */
-    public function testGetStats()
+    public function testGetStats() : void
     {
         $cache = $this->_getCacheDriver();
         $stats = $cache->getStats();
 
-        $this->assertNull($stats);
+        self::assertNull($stats);
+    }
+
+    /**
+     * @link https://github.com/doctrine/cache/pull/215
+     */
+    public function testResolveConflict()
+    {
+        $cache = $this->_getCacheDriver();
+
+        $this->assertTrue($cache->save('1', 'value-1'));
+        $this->assertTrue($cache->save('2', 'value-2'));
+
+        $getNamespacedId = new \ReflectionMethod(RiakCache::class, 'getNamespacedId');
+        $getNamespacedId->setAccessible(true);
+
+        // faking the object list instead of modifying bucket properties to allow multi
+        $response   = $this->bucket->get($getNamespacedId->invoke($cache, '1'));
+        $vclock     = $response->getVClock();
+        $objectList = [
+            $response->getFirstObject(),
+            $this->bucket->get($getNamespacedId->invoke($cache, '2'))->getFirstObject(),
+        ];
+
+        $resolveConflict = new \ReflectionMethod(RiakCache::class, 'resolveConflict');
+        $resolveConflict->setAccessible(true);
+
+        $object = $resolveConflict->invoke($cache, '1', $vclock, $objectList);
+
+        $this->assertTrue($object !== null);
+        $this->assertEquals('value-2', unserialize($object->getContent()));
     }
 
     /**
      * Retrieve RiakCache instance.
-     *
-     * @return \Doctrine\Common\Cache\RiakCache
      */
-    protected function _getCacheDriver()
+    protected function _getCacheDriver() : CacheProvider
     {
         return new RiakCache($this->bucket);
     }

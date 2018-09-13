@@ -1,42 +1,54 @@
-language: php
-
+dist: trusty
 sudo: false
+language: php
 
 cache:
     directories:
-        - vendor
         - $HOME/.composer/cache
 
 php:
-    - 5.5
-    - 5.6
-    - 7.0
-    - hhvm
+    - 7.1
+    - 7.2
+    - nightly
 
 services:
     - riak
     - mongodb
     - memcached
     - redis-server
+    - docker
 
 before_install:
-    - if [[ $TRAVIS_PHP_VERSION != 'hhvm' ]] ; then pecl channel-update pecl.php.net; fi;
-    - if [[ $TRAVIS_PHP_VERSION != 'hhvm' && $TRAVIS_PHP_VERSION != '7.0' ]]; then pecl install riak-beta; fi;
-    - if [[ $TRAVIS_PHP_VERSION =~ 5.[56] ]] ; then echo yes | pecl install apcu-4.0.10; fi;
-    - if [[ $TRAVIS_PHP_VERSION = 7.* ]] ; then pecl config-set preferred_state beta; echo yes | pecl install apcu; fi;
-    - if [[ $TRAVIS_PHP_VERSION != 'hhvm' ]]; then phpenv config-add ./tests/travis/php.ini; fi;
+    - pecl channel-update pecl.php.net
+    - pecl config-set preferred_state beta
+    - echo yes | pecl upgrade apcu
+    - mv ~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/xdebug.ini{,.disabled} || echo "xdebug not available"
+    - ./tests/travis/Couchbase.sh
+    - phpenv config-add ./tests/travis/php.ini
 
 install:
-    - travis_retry composer install
+    - rm composer.lock
+    - travis_retry composer update --no-interaction --prefer-dist
 
-script:
-    - ./vendor/bin/phpunit -c ./tests/travis/phpunit.travis.xml -v
+script: ./vendor/bin/phpunit --exclude-group performance
 
-after_script:
-    - php vendor/bin/coveralls -v
+jobs:
+  allow_failures:
+    - php: nightly
 
-matrix:
-    fast_finish: true
-    allow_failures:
-        - php: hhvm
-        - php: 7.0
+  include:
+    - stage: Coding standard
+      install:
+          - travis_retry composer install --no-interaction --prefer-dist --ignore-platform-reqs
+      script:
+        - ./vendor/bin/phpcs
+
+    - stage: Coverage
+      before_script:
+        - mv ~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/xdebug.ini{.disabled,}
+        - if [[ ! $(php -m | grep -si xdebug) ]]; then echo "xdebug required for coverage"; exit 1; fi
+      script:
+        - ./vendor/bin/phpunit --exclude-group performance --coverage-clover clover.xml
+      after_script:
+        - wget https://scrutinizer-ci.com/ocular.phar
+        - php ocular.phar code-coverage:upload --format=php-clover clover.xml
