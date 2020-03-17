@@ -71,7 +71,7 @@
         "type:drupal-library",
         "type:bower-asset",
         "type:npm-asset"
-      ],
+      ]
     },
     "drupal-scaffold": {
       "source": "https://raw.githubusercontent.com/pantheon-systems/drops-8/{version}/{path}",
