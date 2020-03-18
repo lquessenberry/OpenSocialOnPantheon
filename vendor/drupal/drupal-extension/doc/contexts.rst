@@ -41,7 +41,7 @@ You can structure your own code with additional contexts. See Behat's `testing f
 
 .. Important::
 
-   Every context you want to use in a suite must declare it in the behat.yml
+   Every context you want to use in a suite must be declared in the behat.yml
    file.
 
 Example
@@ -69,13 +69,24 @@ You would not have access to the steps from the ``MarkupContext``,
             - FeatureContext
             - CustomContext
 
+Context communication
+---------------------
+
+Since Behat 3 can have many concurrent contexts active, communication between those  contexts can be important.
+
+The following will gather any specified contexts before a given scenario is run:
+
+  .. literalinclude:: _static/snippets/context-communication.inc
+     :language: php
+     :linenos:
+
 Drupal Extension Hooks
 ----------------------
 
 In addition to the `hooks provided by Behat
 <http://behat.readthedocs.org/en/v2.5/guides/3.hooks.html>`_, the Drupal
 Extension provides three additional ways to tag the methods in your
-``CustomContext`` class in order to have them fire befor certain events.
+``CustomContext`` class in order to have them fire before certain events.
 
   1. ``@beforeNodeCreate``
   2. ``@beforeTermCreate``

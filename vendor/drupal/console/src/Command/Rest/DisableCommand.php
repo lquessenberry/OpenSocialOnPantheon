@@ -10,10 +10,8 @@ namespace Drupal\Console\Command\Rest;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Annotations\DrupalCommand;
-use Drupal\Console\Style\DrupalStyle;
 use Drupal\Console\Command\Shared\RestTrait;
 use Drupal\Core\Config\ConfigFactory;
 use Drupal\rest\Plugin\Type\ResourcePluginManager;
@@ -26,21 +24,21 @@ use Drupal\rest\Plugin\Type\ResourcePluginManager;
  */
 class DisableCommand extends Command
 {
-    use CommandTrait;
     use RestTrait;
 
     /**
-     * @var ConfigFactory  
+     * @var ConfigFactory
      */
     protected $configFactory;
 
     /**
-     * @var ResourcePluginManager  
+     * @var ResourcePluginManager
      */
     protected $pluginManagerRest;
 
     /**
      * DisableCommand constructor.
+     *
      * @param ConfigFactory         $configFactory
      * @param ResourcePluginManager $pluginManagerRest
      */
@@ -53,13 +51,6 @@ class DisableCommand extends Command
         parent::__construct();
     }
 
-    /**
-     * @DrupalCommand(
-     *     dependencies = {
-     *         “rest"
-     *     }
-     * )
-     */
     protected function configure()
     {
         $this
@@ -69,13 +60,12 @@ class DisableCommand extends Command
                 'resource-id',
                 InputArgument::OPTIONAL,
                 $this->trans('commands.rest.debug.arguments.resource-id')
-            );
+            )
+            ->setAliases(['red']);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $resource_id = $input->getArgument('resource-id');
         $rest_resources = $this->getRestResources();
         $rest_resources_ids = array_merge(
@@ -84,7 +74,7 @@ class DisableCommand extends Command
         );
 
         if (!$resource_id) {
-            $resource_id = $io->choice(
+            $resource_id = $this->getIo()->choice(
                 $this->trans('commands.rest.disable.arguments.resource-id'),
                 $rest_resources_ids
             );
@@ -103,7 +93,7 @@ class DisableCommand extends Command
             // Rebuild routing cache.
             $routeBuilder->rebuild();
 
-            $io->success(
+            $this->getIo()->success(
                 sprintf(
                     $this->trans('commands.rest.disable.messages.success'),
                     $resource_id
@@ -112,7 +102,7 @@ class DisableCommand extends Command
             return true;
         }
         $message = sprintf($this->trans('commands.rest.disable.messages.already-disabled'), $resource_id);
-        $io->info($message);
+        $this->getIo()->info($message);
         return true;
     }
 
@@ -125,8 +115,8 @@ class DisableCommand extends Command
      * @return string
      *   The resource key in the form.
      */
-    protected function getResourceKey($resource_id) {
+    protected function getResourceKey($resource_id)
+    {
         return str_replace(':', '.', $resource_id);
     }
-
 }

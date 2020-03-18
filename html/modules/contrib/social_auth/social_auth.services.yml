@@ -1,0 +1,14 @@
+services:
+  social_auth.user_manager:
+    class: Drupal\social_auth\SocialAuthUserManager
+    arguments:
+      - '@config.factory'
+      - '@logger.factory'
+      - '@event_dispatcher'
+      - '@entity_type.manager'
+      - '@entity_field.manager'
+      - '@token'
+      - '@transliteration'
+      - '@language_manager'
+      - '@router.route_provider'
+      - '@session'

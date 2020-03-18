@@ -1,0 +1,228 @@
+@-webkit-keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+@-webkit-keyframes fadein_scale {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(-30px);
+            transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0);
+            transform: translateY(0);
+  }
+}
+
+@keyframes fadein_scale {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(-30px);
+            transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0);
+            transform: translateY(0);
+  }
+}
+
+.ui-front {
+  z-index: 100;
+}
+
+/* Overlays */
+.ui-widget-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1040;
+  background-color: #000;
+  opacity: 0.5;
+  -webkit-animation: fadein 0.3s;
+          animation: fadein 0.3s;
+}
+
+.ui-helper-hidden-accessible {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.ui-dialog {
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: absolute;
+  max-width: 100%;
+  top: 0;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  padding: .2em;
+  outline: 0;
+  z-index: 1050;
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5);
+  background-clip: padding-box;
+  -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+  -webkit-animation: fadein_scale 0.5s ease-out;
+          animation: fadein_scale 0.5s ease-out;
+}
+
+.ui-dialog-titlebar {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  -webkit-box-pack: justify;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.ui-dialog-title {
+  font-family: inherit;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-dialog-titlebar-close {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #000;
+  text-shadow: 0 1px 0 #fff;
+  opacity: .5;
+  padding: 0 0 0 1em;
+  cursor: pointer;
+  background: 0 0;
+  border: 0;
+  outline: 0;
+  -webkit-appearance: none;
+  -webkit-transition: 0.3s;
+  transition: 0.3s;
+}
+
+.ui-dialog-titlebar-close:before {
+  content: 'x';
+}
+
+.ui-dialog-titlebar-close:hover {
+  opacity: .75;
+}
+
+.ui-dialog-titlebar-close .ui-button-text {
+  position: absolute;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  word-wrap: normal;
+  margin: -1px;
+  padding: 0;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.ui-dialog-content {
+  position: relative;
+  overflow: auto;
+  box-shadow: none;
+  -webkit-box-flex: 1;
+      -ms-flex: 1 1 auto;
+          flex: 1 1 auto;
+  padding: 1rem;
+}
+
+.modal-open {
+  overflow: hidden;
+}
+
+.modal {
+  display: none;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1050;
+  -webkit-overflow-scrolling: touch;
+  outline: 0;
+}
+
+.modal.fade .modal-dialog {
+  -webkit-transform: translate(0, -25%);
+          transform: translate(0, -25%);
+  -webkit-transition: -webkit-transform 0.3s ease-out;
+  transition: -webkit-transform 0.3s ease-out;
+  transition: transform 0.3s ease-out;
+  transition: transform 0.3s ease-out, -webkit-transform 0.3s ease-out;
+}
+
+.modal.in .modal-dialog {
+  -webkit-transform: translate(0, 0);
+          transform: translate(0, 0);
+}
+
+.modal-open .modal {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.modal-dialog {
+  position: relative;
+  width: auto;
+  margin: 10px;
+}
+
+.modal-content {
+  position: relative;
+  background-color: #fff;
+  border: 1px solid #999;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5);
+  background-clip: padding-box;
+  outline: 0;
+}
+
+@media (min-width: 900px) {
+  .ui-dialog-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 599px) {
+  .ui-dialog-content {
+    max-height: 60vh !important;
+  }
+}

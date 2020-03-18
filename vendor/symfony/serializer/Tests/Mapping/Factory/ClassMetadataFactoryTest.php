@@ -12,6 +12,7 @@
 namespace Symfony\Component\Serializer\Tests\Mapping\Factory;
 
 use Doctrine\Common\Annotations\AnnotationReader;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
 use Symfony\Component\Serializer\Mapping\Loader\AnnotationLoader;
 use Symfony\Component\Serializer\Mapping\Loader\LoaderChain;
@@ -20,12 +21,12 @@ use Symfony\Component\Serializer\Tests\Mapping\TestClassMetadataFactory;
 /**
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-class ClassMetadataFactoryTest extends \PHPUnit_Framework_TestCase
+class ClassMetadataFactoryTest extends TestCase
 {
     public function testInterface()
     {
         $classMetadata = new ClassMetadataFactory(new LoaderChain(array()));
-        $this->assertInstanceOf('Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory', $classMetadata);
+        $this->assertInstanceOf('Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactoryInterface', $classMetadata);
     }
 
     public function testGetMetadataFor()
@@ -45,9 +46,12 @@ class ClassMetadataFactoryTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse($factory->hasMetadataFor('Dunglas\Entity'));
     }
 
+    /**
+     * @group legacy
+     */
     public function testCacheExists()
     {
-        $cache = $this->getMock('Doctrine\Common\Cache\Cache');
+        $cache = $this->getMockBuilder('Doctrine\Common\Cache\Cache')->getMock();
         $cache
             ->expects($this->once())
             ->method('fetch')
@@ -58,17 +62,14 @@ class ClassMetadataFactoryTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('foo', $factory->getMetadataFor('Symfony\Component\Serializer\Tests\Fixtures\GroupDummy'));
     }
 
+    /**
+     * @group legacy
+     */
     public function testCacheNotExists()
     {
-        $cache = $this->getMock('Doctrine\Common\Cache\Cache');
-        $cache
-            ->method('fetch')
-            ->will($this->returnValue(false))
-        ;
-
-        $cache
-            ->method('save')
-        ;
+        $cache = $this->getMockBuilder('Doctrine\Common\Cache\Cache')->getMock();
+        $cache->method('fetch')->will($this->returnValue(false));
+        $cache->method('save');
 
         $factory = new ClassMetadataFactory(new AnnotationLoader(new AnnotationReader()), $cache);
         $metadata = $factory->getMetadataFor('Symfony\Component\Serializer\Tests\Fixtures\GroupDummy');

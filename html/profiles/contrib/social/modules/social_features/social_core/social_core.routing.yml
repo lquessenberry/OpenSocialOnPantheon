@@ -1,0 +1,22 @@
+social_core.access_denied:
+  path: '/access-denied'
+  defaults:
+    _controller: '\Drupal\social_core\Controller\SocialCoreController::accessDenied'
+    _title: 'Access Denied'
+  requirements:
+    _permission: 'access content'
+
+social_core.homepage:
+  path: '/stream'
+  defaults:
+    _controller: '\Drupal\social_core\Controller\SocialCoreController::stream'
+    _title: ''
+  requirements:
+    _permission: 'access content'
+
+social_core.admin.config.social:
+  path: '/admin/config/opensocial'
+  defaults:
+    _title: 'Open Social'
+  requirements:
+    _permission: 'access administration pages'

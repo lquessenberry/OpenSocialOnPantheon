@@ -1,0 +1,47 @@
+.vote-like, .vote-dislike {
+  display: inline-block;
+}
+
+.vote-like a, .vote-like a:link, .vote-like a:visited, .vote-dislike a, .vote-dislike a:link, .vote-dislike a:visited {
+  background: url('../images/sprite.png') no-repeat;
+  text-indent: -9999px;
+  display: inline-block;
+  border: 0;
+  cursor: pointer;
+  width: 19px;
+  height: 19px;
+}
+
+.vote-like a {
+  background-position: 0 0;
+}
+
+.vote-like a.disable-status, .vote-like a.disable-status:hover {
+  background-position: 0 0;
+  cursor: auto;
+}
+
+.voted-like {
+  background-position: 0 -29px!important;
+}
+
+.vote-like a:hover {
+  background-position: 0 -58px;
+}
+
+.vote-dislike a {
+  background-position: -28px 0;
+}
+
+.vote-dislike a.disable-status, .vote-dislike a.disable-status:hover {
+  background-position: -28px 0;
+  cursor: auto;
+}
+
+.voted-dislike {
+  background-position: -28px -29px!important;
+}
+
+.vote-dislike a:hover {
+  background-position: -28px -58px;
+}

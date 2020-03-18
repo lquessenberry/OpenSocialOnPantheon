@@ -53,7 +53,7 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
     /**
      * @var ClassMetadata[]
      */
-    private $loadedMetadata = array();
+    private $loadedMetadata = [];
 
     /**
      * @var bool
@@ -110,7 +110,7 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
         }
 
         $driver = $this->getDriver();
-        $metadata = array();
+        $metadata = [];
         foreach ($driver->getAllClassNames() as $className) {
             $metadata[] = $this->getMetadataFor($className);
         }
@@ -208,7 +208,8 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
 
         try {
             if ($this->cacheDriver) {
-                if (($cached = $this->cacheDriver->fetch($realClassName . $this->cacheSalt)) !== false) {
+                $cached = $this->cacheDriver->fetch($realClassName . $this->cacheSalt);
+                if ($cached instanceof ClassMetadata) {
                     $this->loadedMetadata[$realClassName] = $cached;
 
                     $this->wakeupReflection($cached, $this->getReflectionService());
@@ -277,7 +278,7 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
     protected function getParentClasses($name)
     {
         // Collect parent classes, ignoring transient (not-mapped) classes.
-        $parentClasses = array();
+        $parentClasses = [];
         foreach (array_reverse($this->getReflectionService()->getParentClasses($name)) as $parentClass) {
             if ( ! $this->getDriver()->isTransient($parentClass)) {
                 $parentClasses[] = $parentClass;
@@ -290,7 +291,7 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
      * Loads the metadata of the class in question and all it's ancestors whose metadata
      * is still not loaded.
      *
-     * Important: The class $name does not necesarily exist at this point here.
+     * Important: The class $name does not necessarily exist at this point here.
      * Scenarios in a code-generation setup might have access to XML/YAML
      * Mapping files without the actual PHP code existing here. That is why the
      * {@see Doctrine\Common\Persistence\Mapping\ReflectionService} interface
@@ -306,7 +307,7 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
             $this->initialize();
         }
 
-        $loaded = array();
+        $loaded = [];
 
         $parentClasses = $this->getParentClasses($name);
         $parentClasses[] = $name;
@@ -314,7 +315,7 @@ abstract class AbstractClassMetadataFactory implements ClassMetadataFactory
         // Move down the hierarchy of parent classes, starting from the topmost class
         $parent = null;
         $rootEntityFound = false;
-        $visited = array();
+        $visited = [];
         $reflService = $this->getReflectionService();
         foreach ($parentClasses as $className) {
             if (isset($this->loadedMetadata[$className])) {

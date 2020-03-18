@@ -1,0 +1,28 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - book
+    - node
+  theme:
+    - socialbase
+id: booknavigation
+theme: socialbase
+region: complementary_top
+weight: null
+provider: null
+plugin: book_navigation
+settings:
+  id: book_navigation
+  label: 'Table of contents'
+  provider: book
+  label_display: visible
+  block_mode: 'book pages'
+visibility:
+  node_type:
+    id: node_type
+    bundles:
+      book: book
+    negate: false
+    context_mapping:
+      node: '@node.node_route_context:node'

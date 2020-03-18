@@ -45,10 +45,12 @@
  * @ingroup templates
  */
 #}
+{{ attach_library('socialbase/hero')}}
 
 {%
 set classes = [
   'cover',
+  'brand-bg-primary',
   has_image ? 'cover-img',
   ]
 %}

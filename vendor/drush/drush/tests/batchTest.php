@@ -3,31 +3,28 @@
 namespace Unish;
 
 /**
- * Tests the drush batch subsystem.
- *
- * @see includes/batch.inc
+ * Tests the Drush Batch subsystem.
  *
  * @group base
  */
-class batchCase extends CommandUnishTestCase {
+class BatchCase extends CommandUnishTestCase
+{
 
-  public function testBatch() {
-    $sites = $this->setUpDrupal(1, TRUE);
-    $options = array(
-      'root' => $this->webroot(),
-      'uri' => key($sites),
-      'yes' => NULL,
-      'include' => dirname(__FILE__),
-    );
-    $this->drush('unit-batch', array(), $options);
-    // Collect log messages that begin with "!!!" (@see: _drush_unit_batch_operation())
-    $parsed = $this->parse_backend_output($this->getOutput());
-    $special_log_msgs = '';
-    foreach ($parsed['log'] as $key => $log) {
-      if(substr($log['message'],0,3) == '!!!') {
-        $special_log_msgs .= $log['message'];
-      }
+    public function testBatch()
+    {
+        $sites = $this->setUpDrupal(1, true);
+        $options = [
+        'include' => __DIR__,
+        ];
+        $this->drush('unit-batch', [], $options);
+        // Collect log messages that begin with "!!!" (@see: _drushUnitBatchOperation())
+        $parsed = $this->parseBackendOutput($this->getOutput());
+        $special_log_msgs = '';
+        foreach ($parsed['log'] as $key => $log) {
+            if (substr($log['message'], 0, 3) == '!!!') {
+                $special_log_msgs .= $log['message'];
+            }
+        }
+        $this->assertEquals("!!! ArrayObject does its job.", $special_log_msgs, 'Batch messages were logged');
     }
-    $this->assertEquals("!!! ArrayObject does its job.", $special_log_msgs, 'Batch messages were logged');
-  }
 }

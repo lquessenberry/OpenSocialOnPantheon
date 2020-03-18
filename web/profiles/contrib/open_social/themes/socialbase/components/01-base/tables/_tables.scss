@@ -1,0 +1,129 @@
+@import "settings";
+
+// Tables
+//
+// The `<table>` element displays tabular data in rows, columns, and cells.
+//
+// markup: table.twig
+//
+// Weight: 3
+//
+// Style guide: base.tables
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  background-color: $table-bg;
+}
+
+th {
+  text-align: left;
+}
+
+
+// Baseline styles
+
+table {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: $line-height-computed;
+  font-size: 0.875rem;
+
+  th,
+  td {
+    padding: $table-cell-padding;
+    line-height: $line-height-base;
+    vertical-align: top;
+    word-break: break-word;
+  }
+
+  // Bottom align for column headings
+  thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid $table-border-color;
+  }
+
+  // Account for multiple tbody instances
+  tbody + tbody {
+    border-top: 2px solid $table-border-color;
+  }
+
+}
+
+// @todo: move these styles to another section as they are not base styles
+// Condensed table w/ half padding
+
+.table-condensed {
+  > thead,
+  > tbody,
+  > tfoot {
+    > tr {
+      > th,
+      > td {
+        padding: $table-condensed-cell-padding;
+      }
+    }
+  }
+}
+
+
+// Bordered version
+//
+// Add borders all around the table and between all the columns.
+
+.table-bordered {
+  border: 1px solid $table-border-color;
+  > thead,
+  > tbody,
+  > tfoot {
+    > tr {
+      > th,
+      > td {
+        border: 1px solid $table-border-color;
+      }
+    }
+  }
+  > thead > tr {
+    > th,
+    > td {
+      border-bottom-width: 2px;
+    }
+  }
+}
+
+
+// Zebra-striping
+//
+// Default zebra-stripe styles (alternating gray and transparent backgrounds)
+
+.table-striped {
+  > tbody > tr:nth-of-type(odd) {
+    background-color: $table-bg-accent;
+  }
+}
+
+
+// Hover effect
+//
+// Placed here since it has to come after the potential zebra striping
+
+.table-hover {
+  > tbody > tr:hover {
+    background-color: $table-bg-hover;
+  }
+}
+
+
+.tabledrag-handle {
+  color: $gray-light;
+  cursor: move;
+  position: absolute;
+  line-height: 1;
+  margin: 0 0 0 -10px;
+  padding: 10px;
+
+  ~ .form-managed-file {
+    display: block;
+    padding-left: 24px;
+  }
+}

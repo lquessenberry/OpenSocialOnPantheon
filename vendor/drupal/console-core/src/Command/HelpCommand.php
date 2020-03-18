@@ -2,20 +2,17 @@
 
 /**
  * @file
- * Contains \Drupal\Console\Command\HelpCommand.
+ * Contains \Drupal\Console\Core\Command\HelpCommand.
  */
 
-namespace Drupal\Console\Command;
+namespace Drupal\Console\Core\Command;
 
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
-use Drupal\Console\Helper\DescriptorHelper;
+use Drupal\Console\Core\Helper\DescriptorHelper;
 
 /**
  * HelpCommand displays the help for a given command.
@@ -24,8 +21,6 @@ use Drupal\Console\Helper\DescriptorHelper;
  */
 class HelpCommand extends Command
 {
-    use CommandTrait;
-
     private $command;
 
     /**
@@ -58,20 +53,18 @@ class HelpCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         if (null === $this->command) {
             $this->command = $this->getApplication()->find($input->getArgument('command_name'));
         }
 
         if ($input->getOption('xml')) {
-            $io->info($this->trans('commands.help.messages.deprecated'), E_USER_DEPRECATED);
+            $this->getIo()->info($this->trans('commands.help.messages.deprecated'), E_USER_DEPRECATED);
             $input->setOption('format', 'xml');
         }
 
         $helper = new DescriptorHelper();
         $helper->describe(
-            $io,
+            $this->getIo(),
             $this->command,
             [
                 'format' => $input->getOption('format'),
@@ -82,6 +75,7 @@ class HelpCommand extends Command
         );
 
         $this->command = null;
+        $this->getIo()->newLine();
     }
 
     /**
@@ -90,12 +84,12 @@ class HelpCommand extends Command
     private function createDefinition()
     {
         return new InputDefinition(
-            array(
-            new InputArgument('command_name', InputArgument::OPTIONAL, $this->trans('commands.help.arguments.command_name'), 'help'),
+            [
+            new InputArgument('command_name', InputArgument::OPTIONAL, $this->trans('commands.help.arguments.command-name'), 'help'),
             new InputOption('xml', null, InputOption::VALUE_NONE, $this->trans('commands.help.options.xml')),
             new InputOption('raw', null, InputOption::VALUE_NONE, $this->trans('commands.help.options.raw')),
             new InputOption('format', null, InputOption::VALUE_REQUIRED, $this->trans('commands.help.options.format'), 'txt'),
-            )
+            ]
         );
     }
 }

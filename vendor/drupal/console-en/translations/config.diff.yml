@@ -1,4 +1,4 @@
-description: 'Ouput configuration items that are different in active configuration compared with a directory.'
+description: 'Output configuration items that are different in active configuration compared with a directory.'
 arguments:
     directory: 'The directory to diff against. If omitted, choose from Drupal config directories.'
 options:
@@ -12,3 +12,7 @@ table:
       operation: 'Operation'
 messages:
     no-changes: 'There are no changes.'
+examples:
+    - description: 'Provide a config directory'
+      execution: drupal config:diff ../config/path
+

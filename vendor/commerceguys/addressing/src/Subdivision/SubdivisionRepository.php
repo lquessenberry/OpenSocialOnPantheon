@@ -4,7 +4,7 @@ namespace CommerceGuys\Addressing\Subdivision;
 
 use CommerceGuys\Addressing\AddressFormat\AddressFormatRepository;
 use CommerceGuys\Addressing\AddressFormat\AddressFormatRepositoryInterface;
-use CommerceGuys\Addressing\LocaleHelper;
+use CommerceGuys\Addressing\Locale;
 
 class SubdivisionRepository implements SubdivisionRepositoryInterface
 {
@@ -91,7 +91,7 @@ class SubdivisionRepository implements SubdivisionRepositoryInterface
         }
 
         $definitionLocale = isset($definitions['locale']) ? $definitions['locale'] : '';
-        $useLocalName = LocaleHelper::match($locale, $definitionLocale);
+        $useLocalName = Locale::matchCandidates($locale, $definitionLocale);
         $list = [];
         foreach ($definitions['subdivisions'] as $code => $definition) {
             $list[$code] = $useLocalName ? $definition['local_name'] : $definition['name'];
@@ -210,7 +210,7 @@ class SubdivisionRepository implements SubdivisionRepositoryInterface
             throw new \InvalidArgumentException('The $parents argument must not be empty.');
         }
         $countryCode = array_shift($parents);
-        $group = $countryCode;
+        $group = strtoupper($countryCode);
         if ($parents) {
             // A dash per key allows the depth to be guessed later.
             $group .= str_repeat('-', count($parents));

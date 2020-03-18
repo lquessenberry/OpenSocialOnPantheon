@@ -11,19 +11,20 @@
 
 namespace Symfony\Component\Validator\Tests\Mapping\Loader;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\Constraints\All;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\Collection;
+use Symfony\Component\Validator\Constraints\IsTrue;
 use Symfony\Component\Validator\Constraints\NotNull;
 use Symfony\Component\Validator\Constraints\Range;
-use Symfony\Component\Validator\Constraints\IsTrue;
 use Symfony\Component\Validator\Mapping\ClassMetadata;
 use Symfony\Component\Validator\Mapping\Loader\YamlFileLoader;
 use Symfony\Component\Validator\Tests\Fixtures\ConstraintA;
 use Symfony\Component\Validator\Tests\Fixtures\ConstraintB;
 
-class YamlFileLoaderTest extends \PHPUnit_Framework_TestCase
+class YamlFileLoaderTest extends TestCase
 {
     public function testLoadClassMetadataReturnsFalseIfEmpty()
     {
@@ -31,6 +32,10 @@ class YamlFileLoaderTest extends \PHPUnit_Framework_TestCase
         $metadata = new ClassMetadata('Symfony\Component\Validator\Tests\Fixtures\Entity');
 
         $this->assertFalse($loader->loadClassMetadata($metadata));
+
+        $r = new \ReflectionProperty($loader, 'classes');
+        $r->setAccessible(true);
+        $this->assertSame(array(), $r->getValue($loader));
     }
 
     /**
@@ -64,7 +69,7 @@ class YamlFileLoaderTest extends \PHPUnit_Framework_TestCase
             $loader->loadClassMetadata($metadata);
         } catch (\InvalidArgumentException $e) {
             // Call again. Again an exception should be thrown
-            $this->setExpectedException('\InvalidArgumentException');
+            $this->{method_exists($this, $_ = 'expectException') ? $_ : 'setExpectedException'}('\InvalidArgumentException');
             $loader->loadClassMetadata($metadata);
         }
     }
@@ -115,6 +120,19 @@ class YamlFileLoaderTest extends \PHPUnit_Framework_TestCase
         $expected->addGetterConstraint('lastName', new NotNull());
         $expected->addGetterConstraint('valid', new IsTrue());
         $expected->addGetterConstraint('permissions', new IsTrue());
+
+        $this->assertEquals($expected, $metadata);
+    }
+
+    public function testLoadClassMetadataWithConstants()
+    {
+        $loader = new YamlFileLoader(__DIR__.'/mapping-with-constants.yml');
+        $metadata = new ClassMetadata('Symfony\Component\Validator\Tests\Fixtures\Entity');
+
+        $loader->loadClassMetadata($metadata);
+
+        $expected = new ClassMetadata('Symfony\Component\Validator\Tests\Fixtures\Entity');
+        $expected->addPropertyConstraint('firstName', new Range(array('max' => PHP_INT_MAX)));
 
         $this->assertEquals($expected, $metadata);
     }

@@ -11,32 +11,34 @@ use Drupal\Console\Generator\PluginSkeletonGenerator;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\ContainerAwareCommand;
 use Drupal\Console\Command\Shared\ModuleTrait;
 use Drupal\Console\Command\Shared\ConfirmationTrait;
 use Drupal\Console\Command\Shared\ServicesTrait;
-use Drupal\Console\Style\DrupalStyle;
 use Drupal\Console\Extension\Manager;
-use Drupal\Console\Command\Shared\ContainerAwareCommandTrait;
-use Drupal\Console\Utils\StringConverter;
-use Drupal\Console\Utils\ChainQueue;
+use Drupal\Console\Core\Utils\StringConverter;
+use Drupal\Console\Core\Utils\ChainQueue;
 use Drupal\Console\Utils\Validator;
 
 /**
  * Class PluginSkeletonCommand
+ *
  * @package Drupal\Console\Command\Generate
  */
-class PluginSkeletonCommand extends Command
+class PluginSkeletonCommand extends ContainerAwareCommand
 {
     use ModuleTrait;
     use ConfirmationTrait;
     use ServicesTrait;
-    use ContainerAwareCommandTrait;
 
-    /** @var Manager  */
+    /**
+     * @var Manager
+     */
     protected $extensionManager;
 
-    /** @var PluginSkeletonGenerator  */
+    /**
+     * @var PluginSkeletonGenerator
+     */
     protected $generator;
 
     /**
@@ -44,7 +46,9 @@ class PluginSkeletonCommand extends Command
      */
     protected $stringConverter;
 
-    /** @var Validator  */
+    /**
+     * @var Validator
+     */
     protected $validator;
 
     /**
@@ -55,6 +59,7 @@ class PluginSkeletonCommand extends Command
 
     /**
      * PluginSkeletonCommand constructor.
+     *
      * @param Manager                 $extensionManager
      * @param PluginSkeletonGenerator $generator
      * @param StringConverter         $stringConverter
@@ -95,47 +100,45 @@ class PluginSkeletonCommand extends Command
             ->setHelp($this->trans('commands.generate.plugin.skeleton.help'))
             ->addOption(
                 'module',
-                '',
+                null,
                 InputOption::VALUE_REQUIRED,
                 $this->trans('commands.common.options.module')
             )
             ->addOption(
                 'plugin-id',
-                '',
+                null,
                 InputOption::VALUE_REQUIRED,
-                $this->trans('commands.generate.plugin.options.plugin-id')
+                $this->trans('commands.generate.plugin.skeleton.options.plugin')
             )
             ->addOption(
                 'class',
-                '',
+                null,
                 InputOption::VALUE_OPTIONAL,
-                $this->trans('commands.generate.plugin.block.options.class')
+                $this->trans('commands.generate.plugin.skeleton.options.class')
             )
             ->addOption(
                 'services',
-                '',
+                null,
                 InputOption::VALUE_OPTIONAL| InputOption::VALUE_IS_ARRAY,
                 $this->trans('commands.common.options.services')
-            );
+            )->setAliases(['gps']);
     }
-
     /**
      * {@inheritdoc}
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-        $plugins = $this->getPlugins();
-
-        // @see use Drupal\Console\Command\ConfirmationTrait::confirmGeneration
-        if (!$this->confirmGeneration($io)) {
-            return;
+        // @see use Drupal\Console\Command\ConfirmationTrait::confirmOperation
+        if (!$this->confirmOperation()) {
+            return 1;
         }
 
         $module = $input->getOption('module');
 
         $pluginId = $input->getOption('plugin-id');
         $plugin = ucfirst($this->stringConverter->underscoreToCamelCase($pluginId));
+
+        $plugins = $this->getPlugins();
 
         // Confirm that plugin.manager is available
         if (!$this->validator->validatePluginManagerServiceExist($pluginId, $plugins)) {
@@ -148,7 +151,7 @@ class PluginSkeletonCommand extends Command
         }
 
         if (array_key_exists($pluginId, $this->pluginGeneratorsImplemented)) {
-            $io->warning(
+            $this->getIo()->warning(
                 sprintf(
                     $this->trans('commands.generate.plugin.skeleton.messages.plugin-generator-implemented'),
                     $pluginId,
@@ -157,33 +160,36 @@ class PluginSkeletonCommand extends Command
             );
         }
 
-        $className = $input->getOption('class');
+        $className = $this->validator->validateClassName($input->getOption('class'));
         $services = $input->getOption('services');
 
         // @see use Drupal\Console\Command\Shared\ServicesTrait::buildServices
         $buildServices = $this->buildServices($services);
         $pluginMetaData = $this->getPluginMetadata($pluginId);
 
-        $this->generator->generate($module, $pluginId, $plugin, $className, $pluginMetaData, $buildServices);
+        $this->generator->generate([
+            'module' => $module,
+            'plugin_id' => $pluginId,
+            'plugin' => $plugin,
+            'class_name' => $className,
+            'services' => $buildServices,
+            'plugin_metadata' => $pluginMetaData,
+        ]);
 
         $this->chainQueue->addCommand('cache:rebuild', ['cache' => 'discovery']);
+
+        return 0;
     }
 
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
-        $module = $input->getOption('module');
-        if (!$module) {
-            // @see Drupal\Console\Command\ModuleTrait::moduleQuestion
-            $module = $this->moduleQuestion($io);
-            $input->setOption('module', $module);
-        }
+        // --module option
+        $this->getModuleOption();
 
         $pluginId = $input->getOption('plugin-id');
         if (!$pluginId) {
             $plugins = $this->getPlugins();
-            $pluginId = $io->choiceNoList(
+            $pluginId = $this->getIo()->choiceNoList(
                 $this->trans('commands.generate.plugin.skeleton.questions.plugin'),
                 $plugins
             );
@@ -191,7 +197,7 @@ class PluginSkeletonCommand extends Command
         }
 
         if (array_key_exists($pluginId, $this->pluginGeneratorsImplemented)) {
-            $io->warning(
+            $this->getIo()->warning(
                 sprintf(
                     $this->trans('commands.generate.plugin.skeleton.messages.plugin-dont-exist'),
                     $pluginId,
@@ -203,7 +209,7 @@ class PluginSkeletonCommand extends Command
         // --class option
         $class = $input->getOption('class');
         if (!$class) {
-            $class = $io->ask(
+            $class = $this->getIo()->ask(
                 $this->trans('commands.generate.plugin.skeleton.options.class'),
                 sprintf('%s%s', 'Default', ucfirst($this->stringConverter->underscoreToCamelCase($pluginId))),
                 function ($class) {
@@ -217,7 +223,7 @@ class PluginSkeletonCommand extends Command
         // @see Drupal\Console\Command\Shared\ServicesTrait::servicesQuestion
         $services = $input->getOption('services');
         if (!$services) {
-            $services = $this->servicesQuestion($io);
+            $services = $this->servicesQuestion();
             $input->setOption('services', $services);
         }
     }
@@ -252,7 +258,7 @@ class PluginSkeletonCommand extends Command
         }
 
         if (empty($pluginMetaData['pluginInterface'])) {
-            $pluginMetaData['pluginInterfaceMethods'] = array();
+            $pluginMetaData['pluginInterfaceMethods'] = [];
         } else {
             $pluginMetaData['pluginInterfaceMethods'] = $this->getClassMethods($pluginMetaData['pluginInterface']);
         }

@@ -1,0 +1,157 @@
+<?php
+
+/**
+ * @file
+ * This module provides 2 voting widgets: Like and Dislike.
+ */
+
+use \Drupal\Core\Entity\EntityInterface;
+use \Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Session\AccountInterface;
+
+/**
+ * Returns a flag whether given entity is enabled for likes and dislikes.
+ *
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity to check.
+ *
+ * @return bool
+ *   TRUE if it is enabled for displaying likes and dislikes. Otherwise, FALSE.
+ */
+function like_and_dislike_is_enabled(EntityInterface $entity) {
+  $enabled_entity_type = \Drupal::config('like_and_dislike.settings')->get('enabled_types.' . $entity->getEntityTypeId());
+  if (is_null($enabled_entity_type)) {
+    return FALSE;
+  }
+
+  // Do a bundle check for entities that support bundles.
+  return !$entity->getEntityType()->hasKey('bundle') || in_array($entity->bundle(), $enabled_entity_type);
+}
+
+/**
+ * Gets the likes and dislikes for the given entity.
+ *
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity to get votes for.
+ *
+ * @return array
+ *   An array containing number of likes and dislikes.
+ */
+function like_and_dislike_get_votes(EntityInterface $entity) {
+  /** @var \Drupal\votingapi\VoteResultStorageInterface $vote_result_storage */
+  $vote_result_storage = \Drupal::entityTypeManager()->getStorage('vote_result');
+
+  // Get like votes.
+  $like = $vote_result_storage->getEntityResults($entity->getEntityTypeId(), $entity->id(), 'like', 'vote_count');
+  $likes = !empty($like) ? (int) current($like)->getValue() : 0;
+
+  // Get dislike votes.
+  $dislike = $vote_result_storage->getEntityResults($entity->getEntityTypeId(), $entity->id(), 'dislike', 'vote_count');
+  $dislikes = !empty($dislike) ? (int) current($dislike)->getValue() : 0;
+
+  return [$likes, $dislikes];
+}
+
+/**
+ * Renders the like/dislike buttons if the user has permission to see it.
+ */
+function like_and_dislike_entity_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if (!$display->getComponent('like_and_dislike')) {
+    return;
+  }
+
+  if (like_and_dislike_is_enabled($entity)) {
+    $entity_type_id = $entity->getEntityTypeId();
+    $entity_id = $entity->id();
+    $build['like_and_dislike'] = [
+      '#lazy_builder' => [
+        'like_and_dislike.vote_builder:build', [$entity_type_id, $entity_id],
+      ],
+      '#create_placeholder' => TRUE,
+    ];
+  }
+}
+
+/**
+ * A helper method to check if passed user has enough permission to vote.
+ *
+ * @param \Drupal\Core\Session\AccountInterface $account
+ *   The account.
+ * @param string $vote_type_id
+ *   The vote type ID.
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity.
+ *
+ * @return bool
+ *   TRUE in case user can vote. Otherwise, FALSE.
+ */
+function like_and_dislike_can_vote(AccountInterface $account, $vote_type_id, EntityInterface $entity) {
+  return $account->hasPermission("add or remove $vote_type_id votes on {$entity->getEntityTypeId()}")
+  || $account->hasPermission("add or remove $vote_type_id votes on {$entity->bundle()} of {$entity->getEntityTypeId()}");
+}
+
+/**
+ * Insert the like/dislike value if the user has select it.
+ */
+function like_and_dislike_vote_insert(EntityInterface $vote) {
+  switch ($vote->bundle()) {
+    case 'like':
+      $vote_type_to_delete = 'dislike';
+      break;
+
+    case 'dislike':
+      $vote_type_to_delete = 'like';
+      break;
+  }
+  $vote_storage = \Drupal::entityManager()->getStorage('vote');
+  $vote_storage->deleteUserVotes(
+    $vote->getOwnerId(),
+    $vote_type_to_delete,
+    $vote->getVotedEntityType(),
+    $vote->getVotedEntityId()
+  );
+}
+
+/**
+ * Implements hook_entity_extra_field_info().
+ */
+function like_and_dislike_entity_extra_field_info() {
+  $extra = [];
+  $entity_type_manager = \Drupal::entityTypeManager();
+  foreach (\Drupal::config('like_and_dislike.settings')->get('enabled_types') as $entity_type_id => $bundles) {
+    // The entity type has no bundles. Add display component to the default one.
+    if (!$entity_type_manager->getDefinition($entity_type_id)->hasKey('bundle')) {
+      $extra[$entity_type_id][$entity_type_id]['display']['like_and_dislike'] = [
+        'label' => t('Like and dislike'),
+        'visible' => FALSE,
+      ];
+      continue;
+    }
+
+    // Add likes and dislikes for each of the enabled bundles.
+    foreach ($bundles as $bundle) {
+      $extra[$entity_type_id][$bundle]['display']['like_and_dislike'] = [
+        'label' => t('Like and dislike'),
+        'visible' => FALSE,
+      ];
+    }
+  }
+  return $extra;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function like_and_dislike_theme() {
+  $info['like_and_dislike_icons'] = [
+    'variables' => [
+      'entity_id' => NULL,
+      'entity_type' => NULL,
+      'likes' => 0,
+      'dislikes' => 0,
+      'like_attributes' => NULL,
+      'dislike_attributes' => NULL,
+    ],
+  ];
+  return $info;
+}

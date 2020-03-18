@@ -1,0 +1,35 @@
+<?php
+
+/**
+ * @file
+ * Holds install and update hooks for the Private Messsage module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function private_message_uninstall() {
+  \Drupal::configFactory()->getEditable('core.entity_view_display.user.user.private_message_author')->delete();
+  \Drupal::configFactory()->getEditable('core.entity_view_mode.user.private_message_author')->delete();
+}
+
+/**
+ * Implements hook_update_n().
+ */
+function private_message_update_8001() {
+  $config_factory = \Drupal::configFactory();
+
+  $config_factory->getEditable('private_message.settings')
+    ->set('enable_email_notifications', TRUE)
+    ->set('send_by_default', TRUE)
+    ->save(TRUE);
+
+  $message_notifcation_mail_map = [
+    'subject' => 'Private message at [site:name]',
+    'body' => "[user:display-name],\n\nYou have received a private message at [site:name] from [private_message:author_name]\n\nThe message is as follows:\n\n[private_message:message]\n\nYou can view the entire thread and reply to this message at:\n\n[private_message_thread:url]\n\n\nThank you,\n\n--  [site:name]",
+  ];
+
+  $config_factory->getEditable('private_message.mail')
+    ->set('message_notification', $message_notifcation_mail_map)
+    ->save(TRUE);
+}

@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Allows login using different social networking services.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function social_auth_theme() {
+  return array(
+    'login_with' => array(
+      'variables' => array('social_networks' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function social_auth_preprocess_login_with(&$variables) {
+  $variables['base_path'] = base_path();
+}

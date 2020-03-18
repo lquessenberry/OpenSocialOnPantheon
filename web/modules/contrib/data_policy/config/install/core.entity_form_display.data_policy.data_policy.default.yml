@@ -1,0 +1,23 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.data_policy.data_policy.field_description
+  module:
+    - data_policy
+id: data_policy.data_policy.default
+targetEntityType: data_policy
+bundle: data_policy
+mode: default
+content:
+  field_description:
+    type: string_textarea
+    weight: 0
+    region: content
+    settings:
+      rows: 20
+      placeholder: ''
+    third_party_settings: {  }
+hidden:
+  name: true
+  user_id: true

@@ -11,21 +11,18 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
-use Drupal\Console\Utils\ConfigurationManager;
+use Drupal\Console\Core\Command\Command;
+use Drupal\Console\Core\Utils\ConfigurationManager;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Yaml\Yaml;
 
 /**
  * Class ImportLocalCommand
+ *
  * @package Drupal\Console\Command\Site
  */
 class ImportLocalCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var string
      */
@@ -38,6 +35,7 @@ class ImportLocalCommand extends Command
 
     /**
      * ImportLocalCommand constructor.
+     *
      * @param $appRoot
      * @param ConfigurationManager $configurationManager
      */
@@ -74,7 +72,8 @@ class ImportLocalCommand extends Command
                 InputOption::VALUE_OPTIONAL,
                 $this->trans('commands.site.import.local.options.environment')
             )
-            ->setHelp($this->trans('commands.site.import.local.help'));
+            ->setHelp($this->trans('commands.site.import.local.help'))
+            ->setAliases(['sil']);
         ;
     }
 
@@ -83,14 +82,12 @@ class ImportLocalCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $siteName = $input->getArgument('name');
         $directory = $input->getArgument('directory');
 
         $fileSystem = new Filesystem();
         if (!$fileSystem->exists($directory)) {
-            $io->error(
+            $this->getIo()->error(
                 sprintf(
                     $this->trans('commands.site.import.local.messages.error-missing'),
                     $directory
@@ -118,7 +115,7 @@ class ImportLocalCommand extends Command
         try {
             $fileSystem->dumpFile($configFile, $dump);
         } catch (\Exception $e) {
-            $io->error(
+            $this->getIo()->error(
                 sprintf(
                     $this->trans('commands.site.import.local.messages.error-writing'),
                     $e->getMessage()
@@ -128,7 +125,7 @@ class ImportLocalCommand extends Command
             return 1;
         }
 
-        $io->success(
+        $this->getIo()->success(
             sprintf(
                 $this->trans('commands.site.import.local.messages.imported')
             )
@@ -140,11 +137,9 @@ class ImportLocalCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $directory = $input->getArgument('directory');
         if (!$directory) {
-            $directory = $io->ask(
+            $directory = $this->getIo()->ask(
                 $this->trans('commands.site.import.local.questions.directory'),
                 getcwd()
             );
@@ -153,7 +148,7 @@ class ImportLocalCommand extends Command
 
         $name = $input->getArgument('name');
         if (!$name) {
-            $name = $io->ask(
+            $name = $this->getIo()->ask(
                 $this->trans('commands.site.import.local.questions.name')
             );
             $input->setArgument('name', $name);

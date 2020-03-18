@@ -11,15 +11,12 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\ProcessBuilder;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Command\Shared\ConnectTrait;
-use Drupal\Console\Style\DrupalStyle;
 
 class ClientCommand extends Command
 {
     use ConnectTrait;
-    use CommandTrait;
 
     /**
      * {@inheritdoc}
@@ -35,7 +32,8 @@ class ClientCommand extends Command
                 $this->trans('commands.database.client.arguments.database'),
                 'default'
             )
-            ->setHelp($this->trans('commands.database.client.help'));
+            ->setHelp($this->trans('commands.database.client.help'))
+            ->setAliases(['dbc']);
     }
 
     /**
@@ -43,12 +41,10 @@ class ClientCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $database = $input->getArgument('database');
         $learning = $input->getOption('learning');
 
-        $databaseConnection = $this->resolveConnection($io, $database);
+        $databaseConnection = $this->resolveConnection($database);
 
         $connection = sprintf(
             '%s -A --database=%s --user=%s --password=%s --host=%s --port=%s',
@@ -61,7 +57,7 @@ class ClientCommand extends Command
         );
 
         if ($learning) {
-            $io->commentBlock(
+            $this->getIo()->commentBlock(
                 sprintf(
                     $this->trans('commands.database.client.messages.connection'),
                     $connection

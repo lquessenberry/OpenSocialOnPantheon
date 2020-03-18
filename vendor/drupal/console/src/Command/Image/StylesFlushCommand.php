@@ -9,15 +9,11 @@ namespace Drupal\Console\Command\Image;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
 
 class StylesFlushCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var EntityTypeManagerInterface
      */
@@ -25,6 +21,7 @@ class StylesFlushCommand extends Command
 
     /**
      * StylesDebugCommand constructor.
+     *
      * @param EntityTypeManagerInterface $entityTypeManager
      */
     public function __construct(EntityTypeManagerInterface $entityTypeManager)
@@ -42,7 +39,7 @@ class StylesFlushCommand extends Command
                 'styles',
                 InputArgument::IS_ARRAY | InputArgument::REQUIRED,
                 $this->trans('commands.image.styles.flush.options.image-style')
-            );
+            )->setAliases(['isf']);
     }
 
     /**
@@ -50,7 +47,6 @@ class StylesFlushCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $styles = $input->getArgument('styles');
         if (!$styles) {
             $imageStyle = $this->entityTypeManager->getStorage('image_style');
@@ -60,7 +56,7 @@ class StylesFlushCommand extends Command
                 $styleNames[] = $style->get('name');
             }
 
-            $styles = $io->choice(
+            $styles = $this->getIo()->choice(
                 $this->trans('commands.image.styles.flush.questions.image-style'),
                 $styleNames,
                 null,
@@ -76,7 +72,6 @@ class StylesFlushCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $styles = $input->getArgument('styles');
         $result = 0;
 
@@ -93,7 +88,7 @@ class StylesFlushCommand extends Command
 
         foreach ($styles as $style) {
             try {
-                $io->info(
+                $this->getIo()->info(
                     sprintf(
                         $this->trans('commands.image.styles.flush.messages.executing-flush'),
                         $style
@@ -102,12 +97,12 @@ class StylesFlushCommand extends Command
                 $imageStyle->load($style)->flush();
             } catch (\Exception $e) {
                 watchdog_exception('image', $e);
-                $io->error($e->getMessage());
+                $this->getIo()->error($e->getMessage());
                 $result = 1;
             }
         }
 
-        $io->success($this->trans('commands.image.styles.flush.messages.success'));
+        $this->getIo()->success($this->trans('commands.image.styles.flush.messages.success'));
 
         return $result;
     }

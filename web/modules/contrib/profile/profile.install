@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the profile module.
+ */
+
+/**
+ * Uninstalls the langcode field from the profile entity.
+ */
+function profile_update_8001() {
+  $definition = \Drupal::entityTypeManager()->getDefinition('profile');
+
+  // Allow langcode field to be null.
+  $schema = \Drupal::database()->schema();
+  if ($schema->fieldExists($definition->getBaseTable(), 'langcode')) {
+    $schema->changeField($definition->getBaseTable(), 'langcode', 'langcode', [
+      'type' => 'varchar',
+      'length' => 12,
+      'not null' => FALSE,
+    ]);
+
+    // Set langcode field to null so it can be deleted.
+    \Drupal::database()
+      ->update($definition->getBaseTable())
+      ->fields(['langcode' => NULL])
+      ->execute();
+  }
+
+  $entity_definition_update = \Drupal::entityDefinitionUpdateManager();
+  if ($storage_definition = $entity_definition_update->getFieldStorageDefinition('langcode', 'profile')) {
+    $entity_definition_update->uninstallFieldStorageDefinition($storage_definition);
+  }
+
+  return t('Language code field uninstalled from profile entity.');
+}

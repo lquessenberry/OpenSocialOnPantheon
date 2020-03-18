@@ -1,0 +1,20 @@
+uuid: 2ab09231-1e24-4f11-809a-6f4e9e8f2793
+langcode: en
+status: true
+dependencies:
+  module:
+    - image_effects
+name: test_watermark_no_scale
+label: test_watermark_no_scale
+effects:
+  253dcaa0-27f0-49ef-9d5f-4bda9bf78ff7:
+    uuid: 253dcaa0-27f0-49ef-9d5f-4bda9bf78ff7
+    id: image_effects_watermark
+    weight: 1
+    data:
+      placement: center-center
+      x_offset: 10
+      y_offset: 10
+      opacity: 100
+      watermark_image: 'public://image-test.png'
+      watermark_scale: null

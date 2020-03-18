@@ -7,31 +7,28 @@
 
 namespace Drupal\Console\Command\Module;
 
-use Drupal\Console\Command\Shared\CommandTrait;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\ProcessBuilder;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Command\Shared\ProjectDownloadTrait;
 use Drupal\Console\Command\Shared\ModuleTrait;
-use Drupal\Console\Style\DrupalStyle;
 use Drupal\Console\Utils\Site;
 use Drupal\Console\Utils\Validator;
-use Drupal\Core\ProxyClass\Extension\ModuleInstaller;
+use Drupal\Core\Extension\ModuleInstallerInterface;
 use Drupal\Console\Utils\DrupalApi;
 use Drupal\Console\Extension\Manager;
-use Drupal\Console\Utils\ChainQueue;
+use Drupal\Console\Core\Utils\ChainQueue;
 
 /**
  * Class InstallCommand
+ *
  * @package Drupal\Console\Command\Module
  */
 class InstallCommand extends Command
 {
-    use CommandTrait;
     use ProjectDownloadTrait;
     use ModuleTrait;
 
@@ -40,16 +37,24 @@ class InstallCommand extends Command
      */
     protected $site;
 
-    /** @var Validator  */
+    /**
+     * @var Validator
+     */
     protected $validator;
 
-    /** @var ModuleInstaller  */
+    /**
+     * @var ModuleInstaller
+     */
     protected $moduleInstaller;
 
-    /** @var DrupalApi  */
+    /**
+     * @var DrupalApi
+     */
     protected $drupalApi;
 
-    /** @var Manager  */
+    /**
+     * @var Manager
+     */
     protected $extensionManager;
 
     /**
@@ -64,18 +69,19 @@ class InstallCommand extends Command
 
     /**
      * InstallCommand constructor.
-     * @param Site $site
-     * @param Validator $validator
+     *
+     * @param Site            $site
+     * @param Validator       $validator
      * @param ModuleInstaller $moduleInstaller
-     * @param DrupalApi $drupalApi
-     * @param Manager           $extensionManager
+     * @param DrupalApi       $drupalApi
+     * @param Manager         $extensionManager
      * @param $appRoot
-     * @param ChainQueue $chainQueue
+     * @param ChainQueue      $chainQueue
      */
     public function __construct(
         Site $site,
         Validator $validator,
-        ModuleInstaller $moduleInstaller,
+        ModuleInstallerInterface $moduleInstaller,
         DrupalApi $drupalApi,
         Manager $extensionManager,
         $appRoot,
@@ -106,16 +112,17 @@ class InstallCommand extends Command
             )
             ->addOption(
                 'latest',
-                '',
+                null,
                 InputOption::VALUE_NONE,
                 $this->trans('commands.module.install.options.latest')
             )
             ->addOption(
                 'composer',
-                '',
+                null,
                 InputOption::VALUE_NONE,
                 $this->trans('commands.module.uninstall.options.composer')
-            );
+            )
+            ->setAliases(['moi']);
     }
 
     /**
@@ -123,11 +130,9 @@ class InstallCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $module = $input->getArgument('module');
         if (!$module) {
-            $module = $this->modulesQuestion($io);
+            $module = $this->modulesQuestion();
             $input->setArgument('module', $module);
         }
     }
@@ -137,8 +142,6 @@ class InstallCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $module = $input->getArgument('module');
         $latest = $input->getOption('latest');
         $composer = $input->getOption('composer');
@@ -157,34 +160,32 @@ class InstallCommand extends Command
 
                 $processBuilder = new ProcessBuilder([]);
                 $processBuilder->setWorkingDirectory($this->appRoot);
-								$processBuilder->setArguments(explode(" ", $command));
-								$process = $processBuilder->getProcess();
-								$process->setTty('true');
-								$process->run();
+                $processBuilder->setArguments(explode(" ", $command));
+                $process = $processBuilder->getProcess();
+                $process->setTty('true');
+                $process->run();
 
-								if ($process->isSuccessful()) {
-                    $io->info(
+                if ($process->isSuccessful()) {
+                    $this->getIo()->info(
                         sprintf(
-                            'Module %s was downloaded with Composer.',
+                            $this->trans('commands.module.install.messages.download-with-composer'),
                             $moduleItem
                         )
                     );
                 } else {
-                    $io->error(
+                    $this->getIo()->error(
                         sprintf(
-                            'Module %s seems not to be installed with Composer. Halting.',
+                            $this->trans('commands.module.install.messages.not-installed-with-composer'),
                             $moduleItem
                         )
                     );
                     throw new \RuntimeException($process->getErrorOutput());
-
-                    return 0;
                 }
             }
 
             $unInstalledModules = $module;
         } else {
-            $resultList = $this->downloadModules($io, $module, $latest);
+            $resultList = $this->downloadModules($module, $latest);
 
             $invalidModules = $resultList['invalid'];
             $unInstalledModules = $resultList['uninstalled'];
@@ -192,9 +193,9 @@ class InstallCommand extends Command
             if ($invalidModules) {
                 foreach ($invalidModules as $invalidModule) {
                     unset($module[array_search($invalidModule, $module)]);
-                    $io->error(
+                    $this->getIo()->error(
                         sprintf(
-                            'Invalid module name: %s',
+                            $this->trans('commands.module.install.messages.invalid-name'),
                             $invalidModule
                         )
                     );
@@ -202,14 +203,14 @@ class InstallCommand extends Command
             }
 
             if (!$unInstalledModules) {
-                $io->warning($this->trans('commands.module.install.messages.nothing'));
+                $this->getIo()->warning($this->trans('commands.module.install.messages.nothing'));
 
                 return 0;
             }
         }
 
         try {
-            $io->comment(
+            $this->getIo()->comment(
                 sprintf(
                     $this->trans('commands.module.install.messages.installing'),
                     implode(', ', $unInstalledModules)
@@ -219,18 +220,19 @@ class InstallCommand extends Command
             drupal_static_reset('system_rebuild_module_data');
 
             $this->moduleInstaller->install($unInstalledModules, true);
-            $io->success(
+            $this->getIo()->success(
                 sprintf(
                     $this->trans('commands.module.install.messages.success'),
                     implode(', ', $unInstalledModules)
                 )
             );
         } catch (\Exception $e) {
-            $io->error($e->getMessage());
+            $this->getIo()->error($e->getMessage());
 
             return 1;
         }
 
+        $this->site->removeCachedServicesFile();
         $this->chainQueue->addCommand('cache:rebuild', ['cache' => 'all']);
     }
 }

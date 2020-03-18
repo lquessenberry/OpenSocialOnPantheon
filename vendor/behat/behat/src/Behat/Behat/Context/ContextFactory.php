@@ -10,6 +10,7 @@
 
 namespace Behat\Behat\Context;
 
+use Behat\Testwork\Argument\Validator;
 use Behat\Behat\Context\Argument\ArgumentResolver;
 use Behat\Behat\Context\Initializer\ContextInitializer;
 use Behat\Testwork\Argument\ArgumentOrganiser;
@@ -34,6 +35,10 @@ final class ContextFactory
      * @var ContextInitializer[]
      */
     private $contextInitializers = array();
+    /**
+     * @var Validator
+     */
+    private $validator;
 
     /**
      * Initialises factory.
@@ -43,6 +48,7 @@ final class ContextFactory
     public function __construct(ArgumentOrganiser $argumentOrganiser)
     {
         $this->argumentOrganiser = $argumentOrganiser;
+        $this->validator = new Validator();
     }
 
     /**
@@ -68,16 +74,18 @@ final class ContextFactory
     /**
      * Creates and initializes context class.
      *
-     * @param string $class
-     * @param array  $arguments
+     * @param string             $class
+     * @param array              $arguments
+     * @param ArgumentResolver[] $singleUseResolvers
      *
      * @return Context
      */
-    public function createContext($class, array $arguments = array())
+    public function createContext($class, array $arguments = array(), array $singleUseResolvers = array())
     {
         $reflection = new ReflectionClass($class);
-        $arguments = $this->createArguments($reflection, $arguments);
-        $context = $this->createInstance($reflection, $arguments);
+        $resolvers = array_merge($singleUseResolvers, $this->argumentResolvers);
+        $resolvedArguments = $this->resolveArguments($reflection, $arguments, $resolvers);
+        $context = $this->createInstance($reflection, $resolvedArguments);
         $this->initializeInstance($context);
 
         return $context;
@@ -86,24 +94,29 @@ final class ContextFactory
     /**
      * Resolves arguments for a specific class using registered argument resolvers.
      *
-     * @param ReflectionClass $reflection
-     * @param array           $arguments
+     * @param ReflectionClass    $reflection
+     * @param array              $arguments
+     * @param ArgumentResolver[] $resolvers
      *
      * @return mixed[]
      */
-    private function createArguments(ReflectionClass $reflection, array $arguments)
+    private function resolveArguments(ReflectionClass $reflection, array $arguments, array $resolvers)
     {
-        foreach ($this->argumentResolvers as $resolver) {
-            $arguments = $resolver->resolveArguments($reflection, $arguments);
+        $newArguments = $arguments;
+
+        foreach ($resolvers as $resolver) {
+            $newArguments = $resolver->resolveArguments($reflection, $newArguments);
         }
 
-        if (!$reflection->hasMethod('__construct') || !count($arguments)) {
-            return $arguments;
+        if (!$reflection->hasMethod('__construct')) {
+            return $newArguments;
         }
 
         $constructor = $reflection->getConstructor();
+        $newArguments = $this->argumentOrganiser->organiseArguments($constructor, $newArguments);
+        $this->validator->validateArguments($constructor, $newArguments);
 
-        return $this->argumentOrganiser->organiseArguments($constructor, $arguments);
+        return $newArguments;
     }
 
     /**
@@ -112,7 +125,7 @@ final class ContextFactory
      * @param ReflectionClass $reflection
      * @param array           $arguments
      *
-     * @return Context
+     * @return mixed
      */
     private function createInstance(ReflectionClass $reflection, array $arguments)
     {
@@ -127,8 +140,6 @@ final class ContextFactory
      * Initializes context class and returns new context instance.
      *
      * @param Context $context
-     *
-     * @return Context
      */
     private function initializeInstance(Context $context)
     {

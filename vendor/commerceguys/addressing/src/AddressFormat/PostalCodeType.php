@@ -2,7 +2,7 @@
 
 namespace CommerceGuys\Addressing\AddressFormat;
 
-use CommerceGuys\Enum\AbstractEnum;
+use CommerceGuys\Addressing\AbstractEnum;
 
 /**
  * Enumerates available postal code types.
@@ -11,9 +11,10 @@ use CommerceGuys\Enum\AbstractEnum;
  */
 final class PostalCodeType extends AbstractEnum
 {
+    const EIR = 'eircode';
+    const PIN = 'pin';
     const POSTAL = 'postal';
     const ZIP = 'zip';
-    const PIN = 'pin';
 
     /**
      * Gets the default value.

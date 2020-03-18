@@ -7,23 +7,20 @@
 
 namespace Drupal\Console\Command\Module;
 
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Extension\Manager;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Command\Shared\ProjectDownloadTrait;
-use Drupal\Console\Style\DrupalStyle;
 use Drupal\Console\Utils\Site;
-use Drupal\Console\Utils\Validator;
-use Drupal\Core\ProxyClass\Extension\ModuleInstaller;
-use Drupal\Console\Utils\ChainQueue;
-use Drupal\Core\Config\ConfigFactory;
+use Drupal\Core\Extension\ModuleInstallerInterface;
+use Drupal\Console\Core\Utils\ChainQueue;
+use Drupal\Core\Config\ConfigFactoryInterface;
 
 class UninstallCommand extends Command
 {
-    use CommandTrait;
     use ProjectDownloadTrait;
 
     /**
@@ -31,7 +28,9 @@ class UninstallCommand extends Command
      */
     protected $site;
 
-    /** @var ModuleInstaller  */
+    /**
+     * @var ModuleInstaller
+     */
     protected $moduleInstaller;
 
     /**
@@ -39,28 +38,37 @@ class UninstallCommand extends Command
      */
     protected $chainQueue;
 
-    /** @var ConfigFactory  */
+    /**
+     * @var ConfigFactory
+     */
     protected $configFactory;
 
+    /**
+     * @var Manager
+     */
+    protected $extensionManager;
 
     /**
      * InstallCommand constructor.
-     * @param Site $site
-     * @param Validator $validator
-     * @param ChainQueue $chainQueue
-     * @param ConfigFactory $configFactory
+     *
+     * @param Site            $site
+     * @param ModuleInstaller $moduleInstaller
+     * @param ChainQueue      $chainQueue
+     * @param ConfigFactory   $configFactory
+     * @param Manager         $extensionManager
      */
     public function __construct(
         Site $site,
-        ModuleInstaller $moduleInstaller,
+        ModuleInstallerInterface $moduleInstaller,
         ChainQueue $chainQueue,
-        ConfigFactory $configFactory
-
+        ConfigFactoryInterface $configFactory,
+        Manager $extensionManager
     ) {
         $this->site = $site;
         $this->moduleInstaller = $moduleInstaller;
         $this->chainQueue = $chainQueue;
         $this->configFactory = $configFactory;
+        $this->extensionManager = $extensionManager;
         parent::__construct();
     }
 
@@ -79,27 +87,27 @@ class UninstallCommand extends Command
             )
             ->addOption(
                 'force',
-                '',
+                null,
                 InputOption::VALUE_NONE,
                 $this->trans('commands.module.uninstall.options.force')
             )
             ->addOption(
                 'composer',
-                '',
+                null,
                 InputOption::VALUE_NONE,
                 $this->trans('commands.module.uninstall.options.composer')
-            );
+            )
+            ->setAliases(['mou']);
     }
     /**
      * {@inheritdoc}
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $module = $input->getArgument('module');
 
         if (!$module) {
-            $module = $this->modulesUninstallQuestion($io);
+            $module = $this->modulesUninstallQuestion();
             $input->setArgument('module', $module);
         }
     }
@@ -108,7 +116,6 @@ class UninstallCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io =  new DrupalStyle($input, $output);
         $composer = $input->getOption('composer');
         $module = $input->getArgument('module');
 
@@ -130,7 +137,7 @@ class UninstallCommand extends Command
 
                 $shellProcess = $this->get('shell_process');
                 if ($shellProcess->exec($command)) {
-                    $io->success(
+                    $this->getIo()->success(
                         sprintf(
                             $this->trans('commands.module.uninstall.messages.composer-success'),
                             $moduleItem
@@ -141,7 +148,7 @@ class UninstallCommand extends Command
         }
 
         if ($missingModules = array_diff_key($moduleList, $moduleData)) {
-            $io->error(
+            $this->getIo()->error(
                 sprintf(
                     $this->trans('commands.module.uninstall.messages.missing'),
                     implode(', ', $module),
@@ -152,25 +159,36 @@ class UninstallCommand extends Command
             return 1;
         }
 
-        $installedModules = $coreExtension->get('module') ?: array();
+        $installedModules = $coreExtension->get('module') ?: [];
         if (!$moduleList = array_intersect_key($moduleList, $installedModules)) {
-            $io->info($this->trans('commands.module.uninstall.messages.nothing'));
+            $this->getIo()->info($this->trans('commands.module.uninstall.messages.nothing'));
 
             return 0;
         }
 
         if (!$force = $input->getOption('force')) {
+
+            // Get a list of installed profiles that will be excluded when calculating
+            // the dependency tree.
+            if (\Drupal::hasService('profile_handler')) {
+                // #1356276 adds the profile_handler service but it hasn't been committed
+                // to core yet so we need to check if it exists.
+                $profiles = \Drupal::service('profile_handler')->getProfileInheritance();
+            } else {
+                $profiles[drupal_get_profile()] = [];
+            }
+
             $dependencies = [];
             while (list($module) = each($moduleList)) {
                 foreach (array_keys($moduleData[$module]->required_by) as $dependency) {
-                    if (isset($installedModules[$dependency]) && !isset($moduleList[$dependency]) && $dependency != $profile) {
+                    if (isset($installedModules[$dependency]) && !isset($moduleList[$dependency]) && (!array_key_exists($dependency, $profiles))) {
                         $dependencies[] = $dependency;
                     }
                 }
             }
 
             if (!empty($dependencies)) {
-                $io->error(
+                $this->getIo()->error(
                     sprintf(
                         $this->trans('commands.module.uninstall.messages.dependents'),
                         implode('", "', $moduleList),
@@ -185,27 +203,27 @@ class UninstallCommand extends Command
         try {
             $this->moduleInstaller->uninstall($moduleList);
 
-            $io->info(
+            $this->getIo()->info(
                 sprintf(
                     $this->trans('commands.module.uninstall.messages.success'),
                     implode(', ', $moduleList)
                 )
             );
 
-            $io->comment(
+            $this->getIo()->comment(
                 sprintf(
                     $this->trans('commands.module.uninstall.messages.composer-success'),
                     implode(', ', $moduleList),
                     false
                 )
             );
-
         } catch (\Exception $e) {
-            $io->error($e->getMessage());
+            $this->getIo()->error($e->getMessage());
 
             return 1;
         }
 
+        $this->site->removeCachedServicesFile();
         $this->chainQueue->addCommand('cache:rebuild', ['cache' => 'all']);
     }
 }

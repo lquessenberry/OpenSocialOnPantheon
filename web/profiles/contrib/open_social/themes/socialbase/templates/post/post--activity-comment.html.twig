@@ -15,6 +15,7 @@
   * @ingroup themeable
   */
   #}
+{{ attach_library('socialbase/comment') }}
 
 {%
   set classes = [
@@ -23,10 +24,10 @@
   ]
 %}
 
-  <hr class="ruler-s">
+  <hr class="ruler-sm">
 
   <div class="media">
-    <div class="media-left">
+    <div class="media-left avatar">
       {% if author_picture %}
         {{ author_picture }}
       {% endif %}

@@ -1,0 +1,5 @@
+override_node_options.settings:
+  title: 'Override Node Options'
+  description: 'Create tasks that the system can execute.'
+  route_name: override_node_options.settings
+  parent: system.admin_config_content

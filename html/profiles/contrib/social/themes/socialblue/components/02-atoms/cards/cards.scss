@@ -1,0 +1,51 @@
+@import 'settings';
+
+.card {
+  border-top-left-radius: $card-border-radius;
+  border-bottom-left-radius: $card-border-radius;
+  border-top-right-radius: $card-border-radius;
+  border-bottom-right-radius: $card-border-radius;
+  background-color: $card-bg;
+}
+
+.card__title {
+  color: $gray-light;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.region--complementary {
+
+  .card__title,
+  .card__actionbar {
+    text-align: center;
+  }
+
+}
+
+.card__block {
+
+  &:first-child {
+    border-top-left-radius: $card-border-radius;
+    border-top-right-radius: $card-border-radius;
+  }
+
+  &:last-child {
+    border-bottom-left-radius: $card-border-radius;
+    border-bottom-right-radius: $card-border-radius;
+  }
+
+}
+
+.card__nested-section:last-child {
+  border-bottom-left-radius: $card-border-radius;
+  border-bottom-right-radius: $card-border-radius;
+}
+
+.card__link {
+  color: $brand-primary;
+
+  &:hover {
+    color: darken($brand-primary, 10%);
+  }
+}

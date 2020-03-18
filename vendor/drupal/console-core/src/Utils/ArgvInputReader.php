@@ -1,6 +1,10 @@
 <?php
+/**
+ * @file
+ * Contains \Drupal\Console\Core\Utils\ArgvInputReader.
+ */
 
-namespace Drupal\Console\Utils;
+namespace Drupal\Console\Core\Utils;
 
 use Symfony\Component\Console\Input\ArgvInput;
 
@@ -108,7 +112,7 @@ class ArgvInputReader
     }
 
     /**
-     * SetPlaceHolderAsOption.
+     * setOptionsFromPlaceHolders.
      */
     private function setOptionsFromPlaceHolders()
     {
@@ -147,6 +151,7 @@ class ArgvInputReader
         $source = $input->getParameterOption(['--source', '-s'], null);
         $target = $input->getParameterOption(['--target', '-t'], null);
         $root = $input->getParameterOption(['--root'], null);
+        $debug = $input->hasParameterOption(['--debug']);
         $uri = $input->getParameterOption(['--uri', '-l']) ?: 'default';
         if ($uri && !preg_match('/^(http|https):\/\//', $uri)) {
             $uri = sprintf('http://%s', $uri);
@@ -155,6 +160,7 @@ class ArgvInputReader
         $this->set('command', $input->getFirstArgument());
         $this->set('root', $root);
         $this->set('uri', $uri);
+        $this->set('debug', $debug);
         $this->set('source', $source);
         $this->set('target', $target);
     }
@@ -163,7 +169,7 @@ class ArgvInputReader
      * @param $option
      * @param $value
      */
-    private function set($option, $value)
+    public function set($option, $value)
     {
         if ($value) {
             $this->options[$option] = $value;
@@ -199,6 +205,9 @@ class ArgvInputReader
         return $this->options;
     }
 
+    /**
+     * setOptionsAsArgv
+     */
     public function setOptionsAsArgv()
     {
         foreach ($this->options as $optionName => $optionValue) {
@@ -219,6 +228,9 @@ class ArgvInputReader
         }
     }
 
+    /**
+     * @return array
+     */
     public function restoreOriginalArgvValues()
     {
         return $_SERVER['argv'] = $this->originalArgvValues;

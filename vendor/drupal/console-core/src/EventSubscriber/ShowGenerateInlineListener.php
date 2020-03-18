@@ -2,25 +2,33 @@
 
 /**
  * @file
- * Contains \Drupal\Console\EventSubscriber\ShowGenerateInlineListener.
+ * Contains \Drupal\Console\Core\EventSubscriber\ShowGenerateInlineListener.
  */
 
-namespace Drupal\Console\EventSubscriber;
+namespace Drupal\Console\Core\EventSubscriber;
 
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleTerminateEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Utils\TranslatorManager;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Utils\TranslatorManagerInterface;
+use Drupal\Console\Core\Style\DrupalStyle;
 
+/**
+ * Class ShowGenerateInlineListener
+ *
+ * @package Drupal\Console\Core\EventSubscriber
+ */
 class ShowGenerateInlineListener implements EventSubscriberInterface
 {
     /**
-     * @var TranslatorManager
+     * @var TranslatorManagerInterface
      */
     protected $translator;
 
+    /**
+     * @var array
+     */
     private $skipCommands = [
         'self-update',
         'list',
@@ -28,12 +36,19 @@ class ShowGenerateInlineListener implements EventSubscriberInterface
         'drush'
     ];
 
+    /**
+     * @var array
+     */
     private $skipOptions = [
         'env',
         'generate-inline',
-        'generate-chain'
+        'generate-chain',
+        'no-interaction'
     ];
 
+    /**
+     * @var array
+     */
     private $skipArguments = [
         'command',
         'command_name'
@@ -41,10 +56,11 @@ class ShowGenerateInlineListener implements EventSubscriberInterface
 
     /**
      * ShowGenerateInlineListener constructor.
-     * @param TranslatorManager $translator
+     *
+     * @param TranslatorManagerInterface $translator
      */
     public function __construct(
-        TranslatorManager $translator
+        TranslatorManagerInterface $translator
     ) {
         $this->translator = $translator;
     }
@@ -100,9 +116,9 @@ class ShowGenerateInlineListener implements EventSubscriberInterface
                     foreach ($optionValue as $optionItem) {
                         if (is_array($optionItem)) {
                             $inlineValue = implode(
-                                ' ', array_map(
+                                ', ', array_map(
                                     function ($v, $k) {
-                                        return $k . ':' . $v;
+                                        return '"'.$k . '":"' . $v . '"';
                                     },
                                     $optionItem,
                                     array_keys($optionItem)
@@ -111,7 +127,7 @@ class ShowGenerateInlineListener implements EventSubscriberInterface
                         } else {
                             $inlineValue = $optionItem;
                         }
-                        $inline .= ' --' . $optionName . '="' . $inlineValue . '"';
+                        $inline .= ' --' . $optionName . '=\'' . $inlineValue . '\'';
                     }
                 } else {
                     if (is_bool($optionValue)) {
@@ -129,7 +145,7 @@ class ShowGenerateInlineListener implements EventSubscriberInterface
 
             $io->writeln(
                 sprintf(
-                    '$ drupal %s %s',
+                    '$ drupal %s %s --no-interaction',
                     $command_name,
                     $inline
                 )

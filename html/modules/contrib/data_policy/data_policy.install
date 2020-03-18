@@ -1,0 +1,28 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the data_policy module.
+ */
+
+use Drupal\data_policy\Entity\DataPolicy;
+
+/**
+ * Implements hook_install().
+ */
+function data_policy_install() {
+  // Hide a message about a new version of data policy for the anonymous user.
+  user_role_grant_permissions('anonymous', ['without consent']);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function data_policy_uninstall() {
+  /** @var \Drupal\data_policy\Entity\DataPolicyInterface $data_policy */
+  foreach (DataPolicy::loadMultiple() as $data_policy) {
+    $data_policy->delete();
+  }
+
+  \Drupal::configFactory()->getEditable('data_policy.data_policy')->delete();
+}

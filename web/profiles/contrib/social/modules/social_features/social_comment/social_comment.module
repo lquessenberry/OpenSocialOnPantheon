@@ -1,0 +1,336 @@
+<?php
+
+/**
+ * @file
+ * The Social comment module.
+ */
+
+use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Link;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\comment\CommentInterface;
+use Drupal\Core\Url;
+use Drupal\group\Entity\GroupContent;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+
+/**
+ * @file
+ * The Social comment module.
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Enhance the comment form.
+ */
+function social_comment_form_comment_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // Change value of 'Save' button.
+  $form['actions']['submit']['#value'] = t('Comment', [], ['context' => 'Comment Button']);
+  // Hide title of 'Comment' field.
+  if (!empty($form['field_comment_body']['widget'][0]['value']['#title_display'])) {
+    $form['field_comment_body']['widget'][0]['value']['#title_display'] = 'invisible';
+  }
+
+  // Validate replies to comments deeper than 1.
+  $form['#validate'][] = 'social_comment_form_reply_validate';
+
+  $route_name = \Drupal::routeMatch()->getRouteName();
+
+  switch ($route_name) {
+    // Comment reply form.
+    case 'comment.reply':
+      // Check if we should remove the author fields and make the status field
+      // consistent.
+      social_comment_remove_author_field($form, FALSE);
+
+      $form['actions']['submit']['#attributes']['value'] = t('Reply');
+      $form['actions']['submit']['#value'] = t('Reply');
+      $form['field_comment_body']['widget'][0]['#placeholder'] = t('Add a reply');
+      break;
+
+    // Comment edit form.
+    case 'entity.comment.edit_form':
+      // Check if we should remove the author fields and make the status field
+      // consistent.
+      social_comment_remove_author_field($form);
+
+      $form['actions']['submit']['#attributes']['value'] = t('Submit');
+      $form['actions']['submit']['#value'] = t('Submit');
+      $form['actions']['submit']['#submit'][] = 'social_comment_edit_form_submit';
+      break;
+
+    default:
+      // Redirect to the current url. We should not use this change for posts.
+      // See social_post_form_comment_post_comment_form_alter for posts.
+      if ($form_id !== 'comment_post_comment_form') {
+        $form['#action'] = \Drupal::request()->getRequestUri();
+        $form['field_comment_body']['widget'][0]['#placeholder'] = t('Add a comment');
+      }
+      break;
+  }
+
+  $form['#attached']['library'][] = 'social_post/keycode-submit';
+}
+
+/**
+ * Generates a message when comment with children is getting unpublished.
+ *
+ * @param array $form
+ *   The form array.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state interface of the form.
+ */
+function social_comment_edit_form_submit(array $form, FormStateInterface $form_state) {
+  if (isset($form['author']['status']['#default_value']) && $form['author']['status']['#default_value'] === '1') {
+    if ($form_state->getValue('status') === 0) {
+      // Load the comment and verify if it has any children.
+      /** @var \Drupal\comment\CommentStorage $entity_storage */
+      $entity_storage = \Drupal::entityTypeManager()->getStorage('comment');
+      $cid = $form_state->getValue('cid');
+      $comment = $entity_storage->load($cid);
+      $children = $entity_storage->getChildCids([$cid => $comment]);
+      if (!empty($children)) {
+        $messenger = \Drupal::messenger();
+        $messenger->addMessage(t('All the replies placed on an unpublished comment will be hidden automatically.'), 'warning');
+      }
+    }
+  }
+}
+
+/**
+ * Removes the author fields and replaces the status field for comment forms.
+ *
+ * @param array $form
+ *   The form that needs to be processed.
+ * @param bool $add_status
+ *   Add the status field, by default TRUE.
+ */
+function social_comment_remove_author_field(array &$form, $add_status = TRUE) {
+  // Check if we need to hide the author fields for comments.
+  $remove_author_fields = \Drupal::config('social_comment.comment_settings')->get('remove_author_field');
+  if ($remove_author_fields) {
+    // Remove access to author fields.
+    unset($form['author']['#title']);
+    $form['author']['uid']['#access'] = FALSE;
+    $form['author']['name']['#access'] = FALSE;
+    $form['author']['mail']['#access'] = FALSE;
+    $form['author']['homepage']['#access'] = FALSE;
+    $form['author']['date']['#access'] = FALSE;
+
+    // Make the status field consistent with other status fields.
+    if ($add_status) {
+      $form['author']['status']['#type'] = 'checkbox';
+      $form['author']['status']['#title'] = t('Published');
+      $form['author']['status']['#access'] = \Drupal::currentUser()->hasPermission('administer comments');
+    }
+  }
+}
+
+/**
+ * Form validation handler for comment_form().
+ *
+ * Validate replies to comments deeper than 1.
+ */
+function social_comment_form_reply_validate($form, FormStateInterface $form_state) {
+  // Get parrent comment ID.
+  $pid = \Drupal::routeMatch()->getParameter('pid');
+  if ($pid) {
+    $comment = \Drupal::entityTypeManager()->getStorage('comment')->load($pid);
+    $bundle = $comment->bundle();
+    switch ($bundle) {
+      default:
+        if (!empty($comment->getParentComment())) {
+          $form_state->setErrorByName('', t('Replies to comments deeper than 1 is not allowed'));
+        }
+        break;
+
+      case "post_comment":
+        $form_state->setErrorByName('', t('Replies for comments on posts are not allowed'));
+        break;
+    }
+  }
+}
+
+/**
+ * Implements hook_comment_links_alter().
+ *
+ * Alter the links of a comment.
+ */
+function social_comment_comment_links_alter(array &$links, CommentInterface $entity, array &$context) {
+  $bundle = $entity->bundle();
+  $commented_entity = $entity->getCommentedEntity();
+
+  if (!$entity->isPublished()) {
+    // If the comment is not published disable the reply link.
+    $links['comment']['#links']['comment-reply']['url'] = Url::fromRoute('<nolink>');
+  }
+  elseif ($bundle === 'post_comment') {
+    // For post comments remove the reply button.
+    unset($links['comment']['#links']['comment-reply']);
+  }
+  elseif ($bundle !== 'post_comment') {
+    // If it is not a post comment do some extra checks.
+    if (!empty($entity->getParentComment()) || \Drupal::routeMatch()->getRouteName() === 'comment.reply') {
+      // If this is already on the second level, remove the reply button.
+      unset($links['comment']['#links']['comment-reply']);
+    }
+    else {
+      $group_contents = GroupContent::loadByEntity($commented_entity);
+      // Only react if it is actually posted inside a group.
+      if (!empty($group_contents)) {
+        $account = \Drupal::currentUser();
+
+        foreach ($group_contents as $group_content) {
+          $group = $group_content->getGroup();
+
+          // Remove comments from output if user don't have access.
+          if (!$group->hasPermission('post comments', $account)) {
+            unset($links['comment']['#links']['comment-reply']);
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_comment().
+ */
+function social_comment_preprocess_comment(&$variables) {
+  /* @var \Drupal\comment\Entity\Comment $comment */
+  $comment = $variables['elements']['#comment'];
+  // Display comment created date in format 'time ago'.
+  $created_time_ago = \Drupal::service('date.formatter')
+    ->formatTimeDiffSince($comment->getCreatedTime(), ['granularity' => 1, 'return_as_object' => TRUE]);
+  $date = t('%time ago', ['%time' => $created_time_ago->getString()]);
+
+  $variables['submitted'] = Link::fromTextAndUrl($date, $comment->urlInfo('canonical'));
+  $variables['#cache']['max-age'] = $created_time_ago->getMaxAge();
+
+  $account = $comment->getOwner();
+  if ($account) {
+    $storage = \Drupal::entityTypeManager()->getStorage('profile');
+    if (!empty($storage)) {
+      $user_profile = $storage->loadByUser($account, 'profile');
+      if ($user_profile) {
+        $content = \Drupal::entityTypeManager()
+          ->getViewBuilder('profile')
+          ->view($user_profile, 'compact');
+        $variables['author_picture'] = $content;
+      }
+    }
+  }
+
+  // Add node ID attribute for comment "new" indicator.
+  if (\Drupal::moduleHandler()->moduleExists('history') && $comment->getCommentedEntityTypeId() == 'node') {
+    $variables['attributes']['data-history-node-id'] = $comment->getCommentedEntityId();
+  }
+
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_access().
+ *
+ * Allow users to delete their own comments.
+ */
+function social_comment_comment_access(EntityInterface $entity, $operation, AccountInterface $account) {
+  if ($operation == 'delete') {
+    if ($account->hasPermission('administer comments', $account)) {
+      return AccessResult::allowed()->cachePerPermissions();
+    }
+    else {
+      return AccessResult::allowedIf($account->hasPermission('delete own comments', $account) && ($account->id() == $entity->getOwnerId()))
+        ->cachePerPermissions()
+        ->cachePerUser()
+        ->addCacheableDependency($entity);
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_type_alter().
+ */
+function social_comment_entity_type_alter(array &$entity_types) {
+  /* @var $entity_types \Drupal\Core\Entity\EntityTypeInterface[] */
+  $entity_types['comment']->setViewBuilderClass('Drupal\social_comment\SocialCommentViewBuilder');
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_view().
+ */
+function social_comment_comment_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if ($view_mode === 'activity') {
+    $commented_entity = $entity->getCommentedEntity();
+    if (is_object($commented_entity)) {
+      $commented_entity_type = $commented_entity->getEntityTypeId();
+      // Teaser of commented entity.
+      $build['commented_entity'] = \Drupal::entityTypeManager()
+        ->getViewBuilder($commented_entity_type)
+        ->view($commented_entity, 'activity_comment');
+
+      // Prepare the "Show all comments" link.
+      if ($commented_entity_type === 'post') {
+        $comment_field_name = 'field_post_comments';
+      }
+      elseif ($commented_entity_type === 'node') {
+        $comment_field_name = 'field_' . $commented_entity->bundle() . '_comments';
+        // Prepare the "Comments" link.
+        $link_options = [
+          'fragment' => 'comment-form',
+          'attributes' => [
+            'class' => [
+              'btn btn-block btn-link brand-text-primary',
+            ],
+          ],
+        ];
+        $commented_entity_url = $commented_entity->toUrl('canonical', $link_options);
+        $build['comment_link'] = Link::fromTextAndUrl(t('Comment'), $commented_entity_url)->toRenderable();
+      }
+
+      $comment_count = $commented_entity->{$comment_field_name}->comment_count;
+      $t_args = [':num_comments' => $comment_count];
+
+      if ($comment_count > 1) {
+        $more_link = t('Show all :num_comments comments', $t_args);
+
+        // Set link classes to be added to the button.
+        $more_link_options = [
+          'attributes' => [
+            'class' => [
+              'btn',
+              'btn-flat',
+              'brand-text-primary',
+            ],
+          ],
+        ];
+
+        // Set path to post node.
+        $link_url = $commented_entity->urlInfo('canonical');
+
+        // Attach the attributes.
+        $link_url->setOptions($more_link_options);
+
+        $more_button = Link::fromTextAndUrl($more_link, $link_url)
+          ->toRenderable();
+        $build['more_link'] = $more_button;
+      }
+    }
+    // Comment.
+    $build['comment'] = \Drupal::entityTypeManager()
+      ->getViewBuilder($entity->getEntityTypeId())
+      ->view($entity, 'activity_comment');
+  }
+}
+
+/**
+ * Implements hook_field_info_alter().
+ *
+ * Change the default list_class for fields of type 'comment'.
+ */
+function social_comment_field_info_alter(&$info) {
+  if (isset($info['comment'])) {
+    $info['comment']['list_class'] = '\Drupal\social_comment\SocialCommentFieldItemList';
+  }
+}

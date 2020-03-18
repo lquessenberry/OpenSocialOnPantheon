@@ -34,6 +34,7 @@ class RouteSubscriber extends RouteSubscriberBase {
       $route->setDefaults($defaults);
       // Override default path for Group Membership page.
       $route->setPath('/group/{group}/membership');
+      $route->setRequirements(['_group_permission' => 'administer members']);
     }
 
     // Override default title for Group Members page.
@@ -47,6 +48,13 @@ class RouteSubscriber extends RouteSubscriberBase {
     if ($route = $collection->get('entity.group_content.add_form')) {
       $defaults = $route->getDefaults();
       $defaults['_title_callback'] = '\Drupal\social_group\Controller\SocialGroupController::groupAddMemberTitle';
+      $route->setDefaults($defaults);
+    }
+
+    if ($route = $collection->get('entity.group.add_page')) {
+      $defaults = $route->getDefaults();
+      unset($defaults['_controller']);
+      $defaults['_form'] = '\Drupal\social_group\Form\SocialGroupAddForm';
       $route->setDefaults($defaults);
     }
   }

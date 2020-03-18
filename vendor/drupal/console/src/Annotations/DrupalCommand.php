@@ -12,7 +12,6 @@ use Doctrine\Common\Annotations\Annotation;
  * @Annotation
  * @Target("CLASS")
  */
-
 class DrupalCommand
 {
     /**
@@ -21,7 +20,7 @@ class DrupalCommand
     public $extension;
 
     /**
-     * @var string
+     * @Enum({"module", "theme", "profile", "library"})
      */
     public $extensionType;
 
@@ -30,4 +29,8 @@ class DrupalCommand
      */
     public $dependencies;
 
+    /**
+     * @Enum({"none", "site", "install"})
+     */
+    public $bootstrap;
 }

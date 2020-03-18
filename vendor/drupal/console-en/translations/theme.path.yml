@@ -1,7 +1,11 @@
 description: 'Returns the relative path to the theme (or absolute path)'
 arguments:
-    module: 'The Theme name (machine name)'
+  theme: 'Theme name'
 options:
-    absolute: 'Return theme absolute path'
+  absolute: 'Return theme absolute path'
 messages:
-
+  invalid-theme-name: 'Invalid theme name: "%s"'
+examples:
+  - description: 'Get the path of mytheme'
+    execution: |
+      drupal theme:path  mytheme

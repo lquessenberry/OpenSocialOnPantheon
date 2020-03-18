@@ -5,10 +5,10 @@
   font-family: "Source Sans Pro", "Lucida Grande", Verdana, sans-serif;
   /* Set base font size to 13px based on root ems. */
   font-size: 0.8125rem;
-  -moz-tap-highlight-color: rgba(0,0,0,0);
-  -o-tap-highlight-color: rgba(0,0,0,0);
-  -webkit-tap-highlight-color: rgba(0,0,0,0);
-  tap-highlight-color: rgba(0,0,0,0);
+  -moz-tap-highlight-color: rgba(0, 0, 0, 0);
+  -o-tap-highlight-color: rgba(0, 0, 0, 0);
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  tap-highlight-color: rgba(0, 0, 0, 0);
   -moz-touch-callout: none;
   -o-touch-callout: none;
   -webkit-touch-callout: none;
@@ -20,7 +20,8 @@
   line-height: 1em;
   text-decoration: none;
 }
-.toolbar .toolbar-item:hover, .toolbar .toolbar-item:focus {
+.toolbar .toolbar-item:hover,
+.toolbar .toolbar-item:focus {
   text-decoration: underline;
 }
 
@@ -30,13 +31,13 @@
 .toolbar .toolbar-bar {
   background-color: #0f0f0f;
   box-shadow: -1px 0 3px 1px rgba(0, 0, 0, 0.3333); /* LTR */
-  color: #dddddd;
+  color: #ddd;
 }
 [dir="rtl"] .toolbar .toolbar-bar {
   box-shadow: 1px 0 3px 1px rgba(0, 0, 0, 0.3333);
 }
 .toolbar .toolbar-bar .toolbar-item {
-  color: #ffffff;
+  color: #fff;
 }
 .toolbar .toolbar-bar .toolbar-tab > .toolbar-item {
   font-weight: bold;
@@ -55,30 +56,30 @@
  * Toolbar tray.
  */
 .toolbar .toolbar-tray {
-  background-color: #ffffff;
+  background-color: #fff;
 }
-.toolbar .toolbar-tray-horizontal > .toolbar-lining {
+.toolbar-horizontal .toolbar-tray > .toolbar-lining {
   padding-right: 5em; /* LTR */
 }
-[dir="rtl"] .toolbar .toolbar-tray-horizontal > .toolbar-lining {
+[dir="rtl"] .toolbar-horizontal .toolbar-tray > .toolbar-lining {
   padding-right: 0;
   padding-left: 5em;
 }
 .toolbar .toolbar-tray-vertical {
   background-color: #f5f5f5;
-  border-right: 1px solid #aaaaaa; /* LTR */
+  border-right: 1px solid #aaa; /* LTR */
   box-shadow: -1px 0 5px 2px rgba(0, 0, 0, 0.3333); /* LTR */
 }
 [dir="rtl"] .toolbar .toolbar-tray-vertical {
-  border-left: 1px solid #aaaaaa;
+  border-left: 1px solid #aaa;
   border-right: 0 none;
   box-shadow: 1px 0 5px 2px rgba(0, 0, 0, 0.3333);
 }
-.toolbar .toolbar-tray-horizontal {
-  border-bottom: 1px solid #aaaaaa;
+.toolbar-horizontal .toolbar-tray {
+  border-bottom: 1px solid #aaa;
   box-shadow: -2px 1px 3px 1px rgba(0, 0, 0, 0.3333); /* LTR */
 }
-[dir="rtl"] .toolbar .toolbar-tray-horizontal {
+[dir="rtl"] .toolbar-horizontal .toolbar-tray {
   box-shadow: 2px 1px 3px 1px rgba(0, 0, 0, 0.3333);
 }
 .toolbar .toolbar-tray-horizontal .toolbar-tray {
@@ -93,39 +94,38 @@
 .toolbar-tray a:hover,
 .toolbar-tray a:active,
 .toolbar-tray a:focus,
-.toolbar-tray a.is-active
- {
+.toolbar-tray a.is-active {
   color: #000;
   text-decoration: underline;
 }
 .toolbar .toolbar-menu {
-  background-color: #ffffff;
+  background-color: #fff;
 }
-.toolbar .toolbar-tray-horizontal .menu-item + .menu-item {
-  border-left: 1px solid #dddddd; /* LTR */
+.toolbar-horizontal .toolbar-tray .menu-item + .menu-item {
+  border-left: 1px solid #ddd; /* LTR */
 }
-[dir="rtl"] .toolbar .toolbar-tray-horizontal .menu-item + .menu-item {
-  border-left: 0 none ;
-  border-right: 1px solid #dddddd;
+[dir="rtl"] .toolbar-horizontal .toolbar-tray .menu-item + .menu-item {
+  border-left: 0 none;
+  border-right: 1px solid #ddd;
 }
-.toolbar .toolbar-tray-horizontal .menu-item:last-child {
-  border-right: 1px solid #dddddd; /* LTR */
+.toolbar-horizontal .toolbar-tray .menu-item:last-child {
+  border-right: 1px solid #ddd; /* LTR */
 }
-[dir="rtl"] .toolbar .toolbar-tray-horizontal .menu-item:last-child {
-  border-left: 1px solid #dddddd;
+[dir="rtl"] .toolbar-horizontal .toolbar-tray .menu-item:last-child {
+  border-left: 1px solid #ddd;
 }
 .toolbar .toolbar-tray-vertical .menu-item + .menu-item {
-  border-top: 1px solid #dddddd;
+  border-top: 1px solid #ddd;
 }
 .toolbar .toolbar-tray-vertical .menu-item:last-child {
-  border-bottom: 1px solid #dddddd;
+  border-bottom: 1px solid #ddd;
 }
 .toolbar .toolbar-tray-vertical .menu-item .menu-item {
   border: 0 none;
 }
 .toolbar .toolbar-tray-vertical .toolbar-menu ul ul {
-  border-bottom: 1px solid #dddddd;
-  border-top: 1px solid #dddddd;
+  border-bottom: 1px solid #ddd;
+  border-top: 1px solid #ddd;
 }
 .toolbar .toolbar-tray-vertical .menu-item:last-child > ul {
   border-bottom: 0;
@@ -149,10 +149,10 @@
   padding: 0;
   height: 100%;
 }
-.toolbar .toolbar-tray-horizontal .toolbar-toggle-orientation {
+.toolbar-horizontal .toolbar-tray .toolbar-toggle-orientation {
   border-left: 1px solid #c9c9c9; /* LTR */
 }
-[dir="rtl"] .toolbar .toolbar-tray-horizontal .toolbar-toggle-orientation {
+[dir="rtl"] .toolbar-horizontal .toolbar-tray .toolbar-toggle-orientation {
   border-left: 0 none;
   border-right: 1px solid #c9c9c9;
 }

@@ -7,35 +7,42 @@
 
 namespace Drupal\Console\Command\Shared;
 
-use Drupal\Console\Style\DrupalStyle;
-
 /**
  * Class ConfirmationTrait
+ *
  * @package Drupal\Console\Command
  */
 trait ConfirmationTrait
 {
     /**
-     * @param DrupalStyle $io
-     * @param bool        $yes
      *
      * @return bool
      */
-    public function confirmGeneration(DrupalStyle $io, $yes = false)
+    public function confirmOperation()
     {
+        $input = $this->getIo()->getInput();
+        $yes = $input->hasOption('yes') ? $input->getOption('yes') : false;
         if ($yes) {
             return $yes;
         }
 
-        $confirmation = $io->confirm(
+        $confirmation = $this->getIo()->confirm(
             $this->trans('commands.common.questions.confirm'),
             true
         );
 
         if (!$confirmation) {
-            $io->warning($this->trans('commands.common.messages.canceled'));
+            $this->getIo()->warning($this->trans('commands.common.messages.canceled'));
         }
 
         return $confirmation;
+    }
+
+    /**
+     * @deprecated
+     */
+    public function confirmGeneration()
+    {
+        return $this->confirmOperation();
     }
 }

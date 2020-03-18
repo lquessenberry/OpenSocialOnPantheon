@@ -49,6 +49,11 @@
   set classes = [
     'form-item',
     'js-form-item',
+    'form-type-' ~ type|clean_class,
+    'js-form-type-' ~ type|clean_class,
+    'form-item-' ~ name|clean_class,
+    'js-form-item-' ~ name|clean_class,
+    'brand-border-radius',
     title_display not in ['after', 'before'] ? 'form-no-label',
     disabled == 'disabled' ? 'form-disabled',
     is_form_group ? 'form-group',
@@ -57,17 +62,22 @@
     is_checkbox ? 'checkbox',
     is_autocomplete ? 'form-autocomplete',
     errors ? 'error has-error',
-    name == 'pass' and logged_in ? 'row',
-    name == 'pass[pass1]' ? 'col-xs-12 col-sm-7',
-    name == 'pass[pass2]' ? 'col-xs-12 col-sm-7',
+    name == 'pass' and logged_in ? 'section-password',
+    name == 'pass[pass1]' ? 'form-group--password',
+    name == 'pass[pass2]' ? 'form-group--password form-group--confirm-password',
   ]
 %}{%
   set description_classes = [
     'help-block',
-    name == 'pass' and logged_in ? 'col-xs-12',
+    name == 'pass' and logged_in ? 'form-group--password__help-block',
     description_display == 'invisible' ? 'visually-hidden',
   ]
 %}
+
+{# For element of type password we need to load the password library #}
+{% if name == 'pass' %}
+  {{ attach_library('socialbase/form--password') }}
+{% endif %}
 
 <div{{ attributes.addClass(classes).removeClass('form-inline') }}>
   {% if label_display in ['before', 'invisible'] %}

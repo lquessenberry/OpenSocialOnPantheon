@@ -11,7 +11,7 @@
 
 require_once dirname(__FILE__).'/FilesystemHelper.php';
 
-class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
+class Twig_Tests_EnvironmentTest extends \PHPUnit\Framework\TestCase
 {
     private $deprecations = array();
 
@@ -61,7 +61,7 @@ class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
         ));
 
         $this->assertEquals('foo&lt;br/ &gt; foo&lt;br/ &gt;', $twig->render('html', array('foo' => 'foo<br/ >')));
-        $this->assertEquals('foo\x3Cbr\x2F\x20\x3E foo\x3Cbr\x2F\x20\x3E', $twig->render('js', array('bar' => 'foo<br/ >')));
+        $this->assertEquals('foo\u003Cbr\/\u0020\u003E foo\u003Cbr\/\u0020\u003E', $twig->render('js', array('bar' => 'foo<br/ >')));
     }
 
     public function escapingStrategyCallback($name)
@@ -217,7 +217,9 @@ class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
             ->will($this->returnValue(0));
         $loader->expects($this->never())
             ->method('isFresh');
-        $cache->expects($this->never())
+        $cache->expects($this->once())
+            ->method('write');
+        $cache->expects($this->once())
             ->method('load');
 
         $twig->loadTemplate($templateName);
@@ -245,7 +247,7 @@ class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
         $loader->expects($this->once())
             ->method('isFresh')
             ->will($this->returnValue(true));
-        $cache->expects($this->once())
+        $cache->expects($this->atLeastOnce())
             ->method('load');
 
         $twig->loadTemplate($templateName);
@@ -271,7 +273,9 @@ class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
         $loader->expects($this->once())
             ->method('isFresh')
             ->will($this->returnValue(false));
-        $cache->expects($this->never())
+        $cache->expects($this->once())
+            ->method('write');
+        $cache->expects($this->once())
             ->method('load');
 
         $twig->loadTemplate($templateName);
@@ -307,6 +311,9 @@ class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
 
         $this->assertSame($ext, $twig->getExtension('Twig_Tests_EnvironmentTest_Extension'));
         $this->assertSame($ext, $twig->getExtension('\Twig_Tests_EnvironmentTest_Extension'));
+
+        $this->assertTrue($twig->hasExtension('Twig\Tests\EnvironmentTest\Extension'));
+        $this->assertSame($ext, $twig->getExtension('Twig\Tests\EnvironmentTest\Extension'));
     }
 
     public function testAddExtension()
@@ -359,13 +366,13 @@ class Twig_Tests_EnvironmentTest extends PHPUnit_Framework_TestCase
         $twig->addExtension(new Twig_Tests_EnvironmentTest_Extension_WithDeprecatedName());
         $twig->removeExtension('environment_test');
 
-        $this->assertFalse(array_key_exists('test', $twig->getTags()));
-        $this->assertFalse(array_key_exists('foo_filter', $twig->getFilters()));
-        $this->assertFalse(array_key_exists('foo_function', $twig->getFunctions()));
-        $this->assertFalse(array_key_exists('foo_test', $twig->getTests()));
-        $this->assertFalse(array_key_exists('foo_unary', $twig->getUnaryOperators()));
-        $this->assertFalse(array_key_exists('foo_binary', $twig->getBinaryOperators()));
-        $this->assertFalse(array_key_exists('foo_global', $twig->getGlobals()));
+        $this->assertArrayNotHasKey('test', $twig->getTags());
+        $this->assertArrayNotHasKey('foo_filter', $twig->getFilters());
+        $this->assertArrayNotHasKey('foo_function', $twig->getFunctions());
+        $this->assertArrayNotHasKey('foo_test', $twig->getTests());
+        $this->assertArrayNotHasKey('foo_unary', $twig->getUnaryOperators());
+        $this->assertArrayNotHasKey('foo_binary', $twig->getBinaryOperators());
+        $this->assertArrayNotHasKey('foo_global', $twig->getGlobals());
         $this->assertCount(2, $twig->getNodeVisitors());
     }
 
@@ -394,8 +401,11 @@ EOF
     {
         $twig = new Twig_Environment($this->getMockBuilder('Twig_LoaderInterface')->getMock());
         $twig->addExtension(new Twig_Tests_EnvironmentTest_ExtensionWithoutDeprecationInitRuntime());
-
         $twig->initRuntime();
+
+        // add a dummy assertion here to satisfy PHPUnit, the only thing we want to test is that the code above
+        // can be executed without throwing any deprecations
+        $this->addToAssertionCount(1);
     }
 
     /**
@@ -468,6 +478,33 @@ EOF
         $this->assertEquals('foo', $twig->render('func_string'));
         $this->assertEquals('bar', $twig->render('func_string_default'));
         $this->assertEquals('foo', $twig->render('func_string_named_args'));
+    }
+
+    /**
+     * @expectedException Twig_Error_Runtime
+     * @expectedExceptionMessage Circular reference detected for Twig template "base.html.twig", path: base.html.twig -> base.html.twig in "base.html.twig" at line 1
+     */
+    public function testFailLoadTemplateOnCircularReference()
+    {
+        $twig = new Twig_Environment(new Twig_Loader_Array(array(
+            'base.html.twig' => '{% extends "base.html.twig" %}',
+        )));
+
+        $twig->loadTemplate('base.html.twig');
+    }
+
+    /**
+     * @expectedException Twig_Error_Runtime
+     * @expectedExceptionMessage Circular reference detected for Twig template "base1.html.twig", path: base1.html.twig -> base2.html.twig -> base1.html.twig in "base1.html.twig" at line 1
+     */
+    public function testFailLoadTemplateOnComplexCircularReference()
+    {
+        $twig = new Twig_Environment(new Twig_Loader_Array(array(
+            'base1.html.twig' => '{% extends "base2.html.twig" %}',
+            'base2.html.twig' => '{% extends "base1.html.twig" %}',
+        )));
+
+        $twig->loadTemplate('base1.html.twig');
     }
 
     protected function getMockLoader($templateName, $templateContent)
@@ -550,6 +587,7 @@ class Twig_Tests_EnvironmentTest_Extension extends Twig_Extension implements Twi
         );
     }
 }
+class_alias('Twig_Tests_EnvironmentTest_Extension', 'Twig\Tests\EnvironmentTest\Extension', false);
 
 class Twig_Tests_EnvironmentTest_Extension_WithDeprecatedName extends Twig_Extension
 {
@@ -642,6 +680,7 @@ class Twig_Tests_EnvironmentTest_Runtime
     }
 }
 
+// to be removed in 2.0
 interface Twig_EnvironmentTestLoaderInterface extends Twig_LoaderInterface, Twig_SourceContextLoaderInterface
 {
 }

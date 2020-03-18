@@ -1,0 +1,69 @@
+{#
+/**
+* @file post.html.twig
+* Default theme implementation to present Post data.
+*
+* This template is used when viewing Post pages.
+*
+*
+* Available variables:
+* - content: A list of content items. Use 'content' to print all content, or
+* - attributes: HTML attributes for the container element.
+*
+* @see template_preprocess_post()
+*
+* @ingroup themeable
+*/
+#}
+
+{{ attach_library('socialbase/comment') }}
+{{ attach_library('socialbase/page-node')}}
+<div class="card">
+  <div class="card__block">
+
+    <div class="media-wrapper">
+      <div class="media">
+        <div class="media-left avatar">
+          {% if author_picture %}
+            {{ author_picture }}
+          {% endif %}
+        </div>
+        <div class="media-body">
+          <div class="media-heading text-m">
+            {% if content.user_id %}
+              {{ content.user_id }}
+            {% endif %}
+            <div class="post-date">{{ date }}</div>
+          </div>
+        </div>
+      </div>
+
+      {% if published %}
+        {{ content.links }}
+      {% endif %}
+  </div>
+    {% if not published %}
+    <div class="node--unpublished__label">{% trans %} unpublished {% endtrans %}</div>
+    {% endif %}
+
+    <div class="margin-top-s iframe-container">
+
+      {{ content|without('links', 'field_post_comments', 'like_and_dislike', 'field_post_image', 'user_id') }}
+
+      {% if content.field_post_image|render %}
+        <p>{{ content.field_post_image }}</p>
+      {% endif %}
+
+      <div class="clearfix"></div>
+      {{ content.like_and_dislike }}
+    </div>
+
+
+    {% if logged_in %}
+      <div class="card__nested-section">
+        {{ content.field_post_comments }}
+      </div>
+    {% endif %}
+
+  </div>
+</div>

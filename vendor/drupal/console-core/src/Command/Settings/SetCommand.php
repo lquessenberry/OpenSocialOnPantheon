@@ -2,30 +2,27 @@
 
 /**
  * @file
- * Contains \Drupal\Console\Command\Settings\SetCommand.
+ * Contains \Drupal\Console\Core\Command\Settings\SetCommand.
  */
 
-namespace Drupal\Console\Command\Settings;
+namespace Drupal\Console\Core\Command\Settings;
 
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Yaml\Dumper;
 use Symfony\Component\Yaml\Parser;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Utils\ConfigurationManager;
-use Drupal\Console\Utils\NestedArray;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Command\Command;
+use Drupal\Console\Core\Utils\ConfigurationManager;
+use Drupal\Console\Core\Utils\NestedArray;
 
 /**
  * Class SetCommand
- * @package Drupal\Console\Command\Settings
+ *
+ * @package Drupal\Console\Core\Command\Settings
  */
 class SetCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var ConfigurationManager
      */
@@ -36,9 +33,9 @@ class SetCommand extends Command
      */
     protected $nestedArray;
 
-
     /**
      * CheckCommand constructor.
+     *
      * @param ConfigurationManager $configurationManager
      * @param NestedArray          $nestedArray
      */
@@ -79,7 +76,6 @@ class SetCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $parser = new Parser();
         $dumper = new Dumper();
 
@@ -92,7 +88,7 @@ class SetCommand extends Command
         );
 
         if (!file_exists($userConfigFile)) {
-            $io->error(
+            $this->getIo()->error(
                 sprintf(
                     $this->trans('commands.settings.set.messages.missing-file'),
                     $userConfigFile
@@ -106,7 +102,7 @@ class SetCommand extends Command
                 file_get_contents($userConfigFile)
             );
         } catch (\Exception $e) {
-            $io->error(
+            $this->getIo()->error(
                 $this->trans(
                     'commands.settings.set.messages.error-parsing'
                 ) . ': ' . $e->getMessage()
@@ -126,7 +122,7 @@ class SetCommand extends Command
         try {
             $userConfigFileDump = $dumper->dump($userConfigFileParsed, 10);
         } catch (\Exception $e) {
-            $io->error(
+            $this->getIo()->error(
                 [
                     $this->trans('commands.settings.set.messages.error-generating'),
                     $e->getMessage()
@@ -143,7 +139,7 @@ class SetCommand extends Command
 
             $translatorLanguage = $this->getApplication()->getTranslator()->getLanguage();
             if ($translatorLanguage != $settingValue) {
-                $io->error(
+                $this->getIo()->error(
                     sprintf(
                         $this->trans('commands.settings.set.messages.missing-language'),
                         $settingValue
@@ -157,7 +153,7 @@ class SetCommand extends Command
         try {
             file_put_contents($userConfigFile, $userConfigFileDump);
         } catch (\Exception $e) {
-            $io->error(
+            $this->getIo()->error(
                 [
                     $this->trans('commands.settings.set.messages.error-writing'),
                     $e->getMessage()
@@ -167,7 +163,7 @@ class SetCommand extends Command
             return 1;
         }
 
-        $io->success(
+        $this->getIo()->success(
             sprintf(
                 $this->trans('commands.settings.set.messages.success'),
                 $settingName,

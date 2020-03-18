@@ -10,19 +10,17 @@ namespace Drupal\Console\Command\Database;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Core\Database\Connection;
-use Drupal\Console\Command\Shared\CommandTrait;
 use Drupal\Console\Command\Shared\ConnectTrait;
-use Drupal\Console\Style\DrupalStyle;
 
 /**
  * Class DropCommand
+ *
  * @package Drupal\Console\Command\Database
  */
 class DropCommand extends Command
 {
-    use CommandTrait;
     use ConnectTrait;
 
     /**
@@ -32,9 +30,11 @@ class DropCommand extends Command
 
     /**
      * DropCommand constructor.
+     *
      * @param Connection $database
      */
-    public function __construct(Connection $database) {
+    public function __construct(Connection $database)
+    {
         $this->database = $database;
         parent::__construct();
     }
@@ -53,7 +53,8 @@ class DropCommand extends Command
                 $this->trans('commands.database.drop.arguments.database'),
                 'default'
             )
-            ->setHelp($this->trans('commands.database.drop.help'));
+            ->setHelp($this->trans('commands.database.drop.help'))
+            ->setAliases(['dbd']);
     }
 
     /**
@@ -61,20 +62,20 @@ class DropCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $database = $input->getArgument('database');
         $yes = $input->getOption('yes');
 
-        $databaseConnection = $this->resolveConnection($io, $database);
+        $databaseConnection = $this->resolveConnection($database);
 
         if (!$yes) {
-            if (!$io->confirm(
+            if (!$this->getIo()->confirm(
                 sprintf(
                     $this->trans('commands.database.drop.question.drop-tables'),
                     $databaseConnection['database']
                 ),
                 true
-            )) {
+            )
+            ) {
                 return 1;
             }
         }
@@ -91,7 +92,7 @@ class DropCommand extends Command
             }
         }
 
-        $io->success(
+        $this->getIo()->success(
             sprintf(
                 $this->trans('commands.database.drop.messages.table-drop'),
                 count($tableRows['success'])

@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2012-2014 Anthon Pang. All Rights Reserved.
+ * Copyright 2012-2017 Anthon Pang. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,8 @@ class SauceRest
      *
      * @return mixed
      *
+     * @throws \WebDriver\Exception\CurlExec
+     *
      * @see http://saucelabs.com/docs/saucerest
      */
     protected function execute($requestMethod, $url, $parameters = null)
@@ -74,7 +76,8 @@ class SauceRest
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => false,
 
-            CURLOPT_HTTPHEADER => Array ('Expect:'),
+            CURLOPT_HTTPHEADER => array('Expect:'),
+            CURLOPT_FAILONERROR => true,
         );
 
         $url = 'https://saucelabs.com/rest/v1/' . $url;

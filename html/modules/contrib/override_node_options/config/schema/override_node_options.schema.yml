@@ -1,0 +1,10 @@
+override_node_options.settings:
+  type: config_object
+  label: 'Override Node Options settings'
+  mapping:
+    general_permissions:
+      type: boolean
+      label: 'Use general permissions.'
+    specific_permissions:
+      type: boolean
+      label: 'Use content type specific permissions.'

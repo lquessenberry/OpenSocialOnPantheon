@@ -1,0 +1,81 @@
+entity.informblock.collection:
+  path: '/admin/config/system/inform-consent'
+  defaults:
+    _entity_list: 'informblock'
+    _title: 'Data usage explanation'
+  requirements:
+    _permission: 'administer inform and consent settings+overview inform and consent settings'
+
+entity.informblock.add_form:
+  path: '/admin/config/system/inform-consent/add'
+  defaults:
+    _entity_form: 'informblock.add'
+    _title: 'Add page'
+  requirements:
+    _permission: 'administer inform and consent settings'
+
+entity.informblock.edit_form:
+  path: '/admin/config/system/inform-consent/{informblock}'
+  defaults:
+    _entity_form: 'informblock.edit'
+    _title: 'Edit page'
+  requirements:
+    _permission: 'administer inform and consent settings+edit inform and consent setting'
+
+entity.informblock.delete_form:
+  path: '/admin/config/system/inform-consent/{informblock}/delete'
+  defaults:
+    _entity_form: 'informblock.delete'
+    _title: 'Delete page'
+  requirements:
+    _permission: 'administer inform and consent settings'
+
+data_policy.description:
+  path: '/inform-consent/{informblock}'
+  defaults:
+    _controller: '\Drupal\data_policy\Controller\DataPolicyInformController::descriptionPage'
+    _title_callback: '\Drupal\data_policy\Controller\DataPolicyInformController::title'
+  requirements:
+    _custom_access: '\Drupal\data_policy\Controller\DataPolicyInformController::access'
+
+data_policy.data_policy:
+  path: '/data-policy'
+  defaults:
+    _controller: '\Drupal\data_policy\Controller\DataPolicy::entityOverviewPage'
+    _title: 'Data Policy'
+  requirements:
+    _custom_access: '\Drupal\data_policy\Controller\DataPolicy::entityOverviewAccess'
+
+data_policy.data_policy.agreement:
+  path: '/data-policy-agreement'
+  defaults:
+    _form: '\Drupal\data_policy\Form\DataPolicyAgreement'
+    _title: 'Data policy agreement'
+  requirements:
+    _custom_access: '\Drupal\data_policy\Controller\DataPolicy::agreementAccess'
+
+data_policy.data_policy.edit:
+  path: '/admin/config/people/data-policy/edit'
+  defaults:
+    _entity_form: 'data_policy.edit'
+    _title: 'Edit data policy'
+  requirements:
+    _permission: 'edit data policy'
+
+data_policy.data_policy.settings:
+  path: '/admin/config/people/data-policy/settings'
+  defaults:
+    _form: '\Drupal\data_policy\Form\DataPolicySettingsForm'
+    _title: 'Data policy settings'
+  requirements:
+    _permission: 'administer data policy settings'
+  options:
+    _admin_route: TRUE
+
+entity.data_policy.collection:
+  path: '/admin/config/people/data-policy/all'
+  defaults:
+    _entity_list: 'data_policy'
+    _title: 'Data policy'
+  requirements:
+    _permission: 'administer data policy entities'

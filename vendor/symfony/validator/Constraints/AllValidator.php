@@ -13,7 +13,6 @@ namespace Symfony\Component\Validator\Constraints;
 
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
-use Symfony\Component\Validator\Context\ExecutionContextInterface;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 
 /**
@@ -34,23 +33,16 @@ class AllValidator extends ConstraintValidator
             return;
         }
 
-        if (!is_array($value) && !$value instanceof \Traversable) {
+        if (!\is_array($value) && !$value instanceof \Traversable) {
             throw new UnexpectedTypeException($value, 'array or Traversable');
         }
 
         $context = $this->context;
 
-        if ($context instanceof ExecutionContextInterface) {
-            $validator = $context->getValidator()->inContext($context);
+        $validator = $context->getValidator()->inContext($context);
 
-            foreach ($value as $key => $element) {
-                $validator->atPath('['.$key.']')->validate($element, $constraint->constraints);
-            }
-        } else {
-            // 2.4 API
-            foreach ($value as $key => $element) {
-                $context->validateValue($element, $constraint->constraints, '['.$key.']');
-            }
+        foreach ($value as $key => $element) {
+            $validator->atPath('['.$key.']')->validate($element, $constraint->constraints);
         }
     }
 }

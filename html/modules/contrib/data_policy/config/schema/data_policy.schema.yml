@@ -1,0 +1,22 @@
+data_policy.informblock.*:
+  type: config_entity
+  label: 'Inform Block config'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    page:
+      type: string
+      label: 'Page'
+    status:
+      type: boolean
+      label: 'Status'
+    summary:
+      type: filter
+      label: 'Summary'
+    body:
+      type: filter
+      label: 'Body'

@@ -1,0 +1,85 @@
+field.formatter.settings.private_message_thread_member_formatter:
+  type: mapping
+  label: 'Private message thread members formatter settings'
+  mapping:
+    display_type:
+      type: string
+      label: 'Display type'
+    entity_display_mode:
+      type: string
+      label: 'Display Mode'
+
+field.formatter.settings.private_message_thread_message_formatter:
+  type: mapping
+  label: 'Private message thread message formatter settings'
+  mapping:
+    message_count:
+      type: integer
+      label: 'The number of messages to show on load'
+    ajax_previous_load_count:
+      type: integer
+      label: 'The number of messages to load when the load previous button is clicked'
+    message_order:
+      type: string
+      label: 'The order in which private messages should be shown, ascending or descending'
+    ajax_refresh_rate:
+      type: integer
+      label: 'The number of seconds between ajax checks for new messages'
+
+field.widget.settings.private_message_thread_member_widget:
+  type: mapping
+  label: 'Private message thread member widget settings'
+  mapping:
+    match_operator:
+      type: string
+      label: 'Autocomplete matching'
+    size:
+      type: integer
+      label: 'Size of textfield'
+    placeholder:
+      type: label
+      label: 'Placeholder'
+
+block.settings.private_message_inbox_block:
+  type: block_settings
+  label: 'Settings for the private message inbox block'
+  mapping:
+    thread_count:
+      type: integer
+      label: 'Block thread load count'
+    ajax_load_count:
+      type: integer
+      label: 'Ajax thread load count'
+    ajax_refresh_rate:
+      type: integer
+      label: 'Ajax refresh rate'
+
+block.settings.private_message_notification_block:
+  type: block_settings
+  label: 'Settings for the private message notifications block'
+  mapping:
+    ajax_refresh_rate:
+      type: integer
+      label: 'Ajax refresh rate'
+
+private_message.settings:
+  type: config_object
+  label: 'Global settings for the Private Message module'
+  mapping:
+    enable_email_notifications:
+      type: boolean
+      label: 'Whether the module should offer the option to send emails'
+    send_by_default:
+      type: boolean
+      label: 'Whether to send emails by default. Users will be able to alter this behavior in their profiles'
+    hide_form_filter_tips:
+      type: boolean
+      label: "Whether or not to hide the filter tips on the message form"
+
+private_message.mail:
+  type: config_object
+  label: 'Private Message Email Settings'
+  mapping:
+    message_notification:
+      type: mail
+      label: 'Message Notification'

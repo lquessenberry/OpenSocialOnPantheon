@@ -2,30 +2,39 @@
 
 /**
  * @file
- * Contains Drupal\Console\Command\ShowFileHelper.
+ * Contains Drupal\Console\Core\Command\ShowFileHelper.
  */
 
-namespace Drupal\Console\Utils;
+namespace Drupal\Console\Core\Utils;
 
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Style\DrupalStyle;
 
 /**
  * Class ShowFileHelper
- * @package Drupal\Console\Helper
+ *
+ * @package Drupal\Console\Core\Utils
  */
 class ShowFile
 {
+    /**
+     * @var string
+     */
     protected $root;
+
+    /**
+     * @var TranslatorManagerInterface
+     */
     protected $translator;
 
     /**
      * ShowFile constructor.
-     * @param $root
-     * @param $translator
+     *
+     * @param string                     $root
+     * @param TranslatorManagerInterface $translator
      */
     public function __construct(
         $root,
-        $translator
+        TranslatorManagerInterface $translator
     ) {
         $this->root = $root;
         $this->translator = $translator;
@@ -41,10 +50,10 @@ class ShowFile
         $pathKey = null;
         $path = null;
         if ($showPath) {
-            $pathKey = 'application.user.messages.path';
+            $pathKey = 'application.messages.path';
             $path = $this->root;
         }
-        $this->showFiles(
+        $this->showMMultiple(
             $io,
             $files,
             'application.messages.files.generated',
@@ -55,7 +64,7 @@ class ShowFile
 
     /**
      * @param DrupalStyle $io
-     * @param string      $files
+     * @param array       $files
      * @param boolean     $showPath
      */
     public function copiedFiles($io, $files, $showPath = true)
@@ -66,7 +75,7 @@ class ShowFile
             $pathKey = 'application.user.messages.path';
             $path = rtrim(getenv('HOME') ?: getenv('USERPROFILE'), '/\\').'/.console/';
         }
-        $this->showFiles(
+        $this->showMMultiple(
             $io,
             $files,
             'application.messages.files.copied',
@@ -82,7 +91,7 @@ class ShowFile
      * @param string      $pathKey
      * @param string      $path
      */
-    private function showFiles($io, $files, $headerKey, $pathKey, $path)
+    private function showMMultiple($io, $files, $headerKey, $pathKey, $path)
     {
         if (!$files) {
             return;
@@ -103,7 +112,7 @@ class ShowFile
 
         $index = 1;
         foreach ($files as $file) {
-            $this->showFile($io, $file, $index);
+            $this->showSingle($io, $file, $index);
             ++$index;
         }
     }
@@ -113,7 +122,7 @@ class ShowFile
      * @param string      $file
      * @param int         $index
      */
-    private function showFile(DrupalStyle $io, $file, $index)
+    private function showSingle(DrupalStyle $io, $file, $index)
     {
         $io->info(
             sprintf('%s -', $index),

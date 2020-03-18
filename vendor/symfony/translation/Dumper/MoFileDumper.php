@@ -11,8 +11,8 @@
 
 namespace Symfony\Component\Translation\Dumper;
 
-use Symfony\Component\Translation\MessageCatalogue;
 use Symfony\Component\Translation\Loader\MoFileLoader;
+use Symfony\Component\Translation\MessageCatalogue;
 
 /**
  * MoFileDumper generates a gettext formatted string representation of a message catalogue.
@@ -21,16 +21,6 @@ use Symfony\Component\Translation\Loader\MoFileLoader;
  */
 class MoFileDumper extends FileDumper
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function format(MessageCatalogue $messages, $domain = 'messages')
-    {
-        @trigger_error('The '.__METHOD__.' method is deprecated since version 2.8 and will be removed in 3.0. Use the formatCatalogue() method instead.', E_USER_DEPRECATED);
-
-        return $this->formatCatalogue($messages, $domain);
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -57,7 +47,7 @@ class MoFileDumper extends FileDumper
             'offsetHashes' => MoFileLoader::MO_HEADER_SIZE + (16 * $size),
         );
 
-        $sourcesSize = strlen($sources);
+        $sourcesSize = \strlen($sources);
         $sourcesStart = $header['offsetHashes'] + 1;
 
         foreach ($offsets as $offset) {

@@ -11,16 +11,18 @@
 
 namespace Symfony\Component\Config\Tests\Loader;
 
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Loader\FileLoader;
 use Symfony\Component\Config\Loader\LoaderResolver;
 
-class FileLoaderTest extends \PHPUnit_Framework_TestCase
+class FileLoaderTest extends TestCase
 {
     public function testImportWithFileLocatorDelegation()
     {
-        $locatorMock = $this->getMock('Symfony\Component\Config\FileLocatorInterface');
+        $locatorMock = $this->getMockBuilder('Symfony\Component\Config\FileLocatorInterface')->getMock();
 
-        $locatorMockForAdditionalLoader = $this->getMock('Symfony\Component\Config\FileLocatorInterface');
+        $locatorMockForAdditionalLoader = $this->getMockBuilder('Symfony\Component\Config\FileLocatorInterface')->getMock();
         $locatorMockForAdditionalLoader->expects($this->any())->method('locate')->will($this->onConsecutiveCalls(
                 array('path/to/file1'),                    // Default
                 array('path/to/file1', 'path/to/file2'),   // First is imported
@@ -64,6 +66,29 @@ class FileLoaderTest extends \PHPUnit_Framework_TestCase
         } catch (\Exception $e) {
             $this->assertInstanceOf('Symfony\Component\Config\Exception\FileLoaderImportCircularReferenceException', $e, '->import() throws a FileLoaderImportCircularReferenceException if the resource is already loading');
         }
+    }
+
+    public function testImportWithGlobLikeResource()
+    {
+        $locatorMock = $this->getMockBuilder('Symfony\Component\Config\FileLocatorInterface')->getMock();
+        $loader = new TestFileLoader($locatorMock);
+
+        $this->assertSame('[foo]', $loader->import('[foo]'));
+    }
+
+    public function testImportWithNoGlobMatch()
+    {
+        $locatorMock = $this->getMockBuilder('Symfony\Component\Config\FileLocatorInterface')->getMock();
+        $loader = new TestFileLoader($locatorMock);
+
+        $this->assertNull($loader->import('./*.abc'));
+    }
+
+    public function testImportWithSimpleGlob()
+    {
+        $loader = new TestFileLoader(new FileLocator(__DIR__));
+
+        $this->assertSame(__FILE__, strtr($loader->import('FileLoaderTest.*'), '/', \DIRECTORY_SEPARATOR));
     }
 }
 

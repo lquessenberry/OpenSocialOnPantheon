@@ -1,0 +1,7 @@
+override_node_options.settings:
+  path: '/admin/config/content/override-node-options'
+  defaults:
+    _form: '\Drupal\override_node_options\Form\SettingsForm'
+    _title: 'Override Node Options settings'
+  requirements:
+    _permission: 'administer site configuration'

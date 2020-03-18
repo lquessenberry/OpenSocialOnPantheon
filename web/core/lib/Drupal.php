@@ -6,8 +6,9 @@
  */
 
 use Drupal\Core\DependencyInjection\ContainerNotInitializedException;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Messenger\LegacyMessenger;
 use Drupal\Core\Url;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Static Service Container wrapper.
@@ -81,7 +82,7 @@ class Drupal {
   /**
    * The current system version.
    */
-  const VERSION = '8.2.1';
+  const VERSION = '8.5.6';
 
   /**
    * Core API compatibility.
@@ -179,6 +180,16 @@ class Drupal {
    */
   public static function root() {
     return static::getContainer()->get('app.root');
+  }
+
+  /**
+   * Gets the active install profile.
+   *
+   * @return string|null
+   *   The name of the active install profile.
+   */
+  public static function installProfile() {
+    return static::getContainer()->getParameter('install_profile');
   }
 
   /**
@@ -297,6 +308,23 @@ class Drupal {
    */
   public static function cache($bin = 'default') {
     return static::getContainer()->get('cache.' . $bin);
+  }
+
+  /**
+   * Retrieves the class resolver.
+   *
+   * This is to be used in procedural code such as module files to instantiate
+   * an object of a class that implements
+   * \Drupal\Core\DependencyInjection\ContainerInjectionInterface.
+   *
+   * One common usecase is to provide a class which contains the actual code
+   * of a hook implementation, without having to create a service.
+   *
+   * @return \Drupal\Core\DependencyInjection\ClassResolverInterface
+   *   The class resolver.
+   */
+  public static function classResolver() {
+    return static::getContainer()->get('class_resolver');
   }
 
   /**
@@ -433,7 +461,7 @@ class Drupal {
    *   The query object that can query the given entity type.
    */
   public static function entityQuery($entity_type, $conjunction = 'AND') {
-    return static::getContainer()->get('entity.query')->get($entity_type, $conjunction);
+    return static::entityTypeManager()->getStorage($entity_type)->getQuery($conjunction);
   }
 
   /**
@@ -450,7 +478,7 @@ class Drupal {
    *   The query object that can query the given entity type.
    */
   public static function entityQueryAggregate($entity_type, $conjunction = 'AND') {
-    return static::getContainer()->get('entity.query')->getAggregate($entity_type, $conjunction);
+    return static::entityTypeManager()->getStorage($entity_type)->getAggregateQuery($conjunction);
   }
 
   /**
@@ -539,7 +567,7 @@ class Drupal {
    *   Instead create a \Drupal\Core\Url object directly, for example using
    *   Url::fromRoute().
    */
-  public static function url($route_name, $route_parameters = array(), $options = array(), $collect_bubbleable_metadata = FALSE) {
+  public static function url($route_name, $route_parameters = [], $options = [], $collect_bubbleable_metadata = FALSE) {
     return static::getContainer()->get('url_generator')->generateFromRoute($route_name, $route_parameters, $options, $collect_bubbleable_metadata);
   }
 
@@ -556,8 +584,7 @@ class Drupal {
    * Renders a link with a given link text and Url object.
    *
    * This method is a convenience wrapper for the link generator service's
-   * generate() method. For detailed documentation, see
-   * \Drupal\Core\Routing\LinkGeneratorInterface::generate().
+   * generate() method.
    *
    * @param string $text
    *   The link text for the anchor tag.
@@ -719,6 +746,28 @@ class Drupal {
    */
   public static function entityDefinitionUpdateManager() {
     return static::getContainer()->get('entity.definition_update_manager');
+  }
+
+  /**
+   * Returns the time service.
+   *
+   * @return \Drupal\Component\Datetime\TimeInterface
+   *   The time service.
+   */
+  public static function time() {
+    return static::getContainer()->get('datetime.time');
+  }
+
+  /**
+   * Returns the messenger.
+   *
+   * @return \Drupal\Core\Messenger\MessengerInterface
+   *   The messenger.
+   */
+  public static function messenger() {
+    // @todo Replace with service once LegacyMessenger is removed in 9.0.0.
+    // @see https://www.drupal.org/node/2928994
+    return new LegacyMessenger();
   }
 
 }

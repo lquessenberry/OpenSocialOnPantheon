@@ -2,34 +2,31 @@
 
 /**
  * @file
- * Contains Drupal\Console\Generator\InitGenerator.
+ * Contains Drupal\Console\Core\Generator\InitGenerator.
  */
-namespace Drupal\Console\Generator;
+namespace Drupal\Console\Core\Generator;
 
 /**
  * Class InitGenerator
- * @package Drupal\Console\Generator
+ *
+ * @package Drupal\Console\Core\Generator
  */
 class InitGenerator extends Generator
 {
     /**
-     * @param string  $userHome
-     * @param string  $executableName
-     * @param boolean $override
-     * @param string  $destination
-     * @param array   $configParameters
+     * {@inheritdoc}
      */
-    public function generate(
-        $userHome,
-        $executableName,
-        $override,
-        $destination,
-        $configParameters
-    ) {
+    public function generate(array $parameters) {
+        $userHome = $parameters['user_home'];
+        $executableName = $parameters['executable_name'];
+        $override = $parameters['override'];
+        $destination = $parameters['destination'];
+        $configParameters = $parameters['config_parameters'];
+
         $configParameters = array_map(
             function ($item) {
                 if (is_bool($item)) {
-                    return $item?"true":"false";
+                    return $item ? 'true' : 'false';
                 }
                 return $item;
             },
@@ -38,7 +35,7 @@ class InitGenerator extends Generator
 
         $configFile = $userHome . 'config.yml';
         if ($destination) {
-            $configFile = $destination.'config.yml';
+            $configFile = $destination . 'config.yml';
         }
 
         if (file_exists($configFile) && $override) {

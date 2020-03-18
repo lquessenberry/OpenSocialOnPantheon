@@ -2,20 +2,16 @@
 
 /**
  * @file
- * Contains \Drupal\Console\CompleteCommand.
+ * Contains \Drupal\Console\Core\CompleteCommand.
  */
 
-namespace Drupal\Console\Command;
+namespace Drupal\Console\Core\Command;
 
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
 
 class CompleteCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * {@inheritdoc}
      */
@@ -34,5 +30,7 @@ class CompleteCommand extends Command
         $commands = array_keys($this->getApplication()->all());
         asort($commands);
         $output->writeln($commands);
+
+        return 0;
     }
 }

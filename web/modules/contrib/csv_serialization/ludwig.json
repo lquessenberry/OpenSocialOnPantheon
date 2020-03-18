@@ -1,0 +1,8 @@
+{
+  "require": {
+    "leauge/csv": {
+      "version" : "8.2.2",
+      "url": "https://api.github.com/repos/thephpleague/csv/zipball/fa8bc05f64eb6c66b96edfaf60648f022ecb5f55"
+    }
+  }
+}

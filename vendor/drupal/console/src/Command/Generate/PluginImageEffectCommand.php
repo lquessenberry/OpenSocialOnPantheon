@@ -7,39 +7,47 @@
 
 namespace Drupal\Console\Command\Generate;
 
+use Drupal\Console\Utils\Validator;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Drupal\Console\Generator\PluginImageEffectGenerator;
 use Drupal\Console\Command\Shared\ModuleTrait;
 use Drupal\Console\Command\Shared\ConfirmationTrait;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Extension\Manager;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Utils\StringConverter;
-use Drupal\Console\Utils\ChainQueue;
+use Drupal\Console\Core\Utils\StringConverter;
+use Drupal\Console\Core\Utils\ChainQueue;
 
 /**
  * Class PluginImageEffectCommand
+ *
  * @package Drupal\Console\Command\Generate
  */
 class PluginImageEffectCommand extends Command
 {
     use ModuleTrait;
     use ConfirmationTrait;
-    use CommandTrait;
 
-    /** @var Manager  */
+    /**
+ * @var Manager
+*/
     protected $extensionManager;
 
-    /** @var PluginImageEffectGenerator  */
+    /**
+ * @var PluginImageEffectGenerator
+*/
     protected $generator;
 
     /**
      * @var StringConverter
      */
     protected $stringConverter;
+
+    /**
+     * @var Validator
+     */
+    protected $validator;
 
     /**
      * @var ChainQueue
@@ -49,20 +57,24 @@ class PluginImageEffectCommand extends Command
 
     /**
      * PluginImageEffectCommand constructor.
+     *
      * @param Manager                    $extensionManager
      * @param PluginImageEffectGenerator $generator
      * @param StringConverter            $stringConverter
+     * @param Validator                  $validator
      * @param ChainQueue                 $chainQueue
      */
     public function __construct(
         Manager $extensionManager,
         PluginImageEffectGenerator $generator,
         StringConverter $stringConverter,
+        Validator $validator,
         ChainQueue $chainQueue
     ) {
         $this->extensionManager = $extensionManager;
         $this->generator = $generator;
         $this->stringConverter = $stringConverter;
+        $this->validator = $validator;
         $this->chainQueue = $chainQueue;
         parent::__construct();
     }
@@ -73,31 +85,37 @@ class PluginImageEffectCommand extends Command
             ->setName('generate:plugin:imageeffect')
             ->setDescription($this->trans('commands.generate.plugin.imageeffect.description'))
             ->setHelp($this->trans('commands.generate.plugin.imageeffect.help'))
-            ->addOption('module', '', InputOption::VALUE_REQUIRED, $this->trans('commands.common.options.module'))
+            ->addOption(
+                'module',
+                null,
+                InputOption::VALUE_REQUIRED,
+                $this->trans('commands.common.options.module')
+            )
             ->addOption(
                 'class',
-                '',
+                null,
                 InputOption::VALUE_REQUIRED,
                 $this->trans('commands.generate.plugin.imageeffect.options.class')
             )
             ->addOption(
                 'label',
-                '',
+                null,
                 InputOption::VALUE_OPTIONAL,
                 $this->trans('commands.generate.plugin.imageeffect.options.label')
             )
             ->addOption(
                 'plugin-id',
-                '',
+                null,
                 InputOption::VALUE_OPTIONAL,
                 $this->trans('commands.generate.plugin.imageeffect.options.plugin-id')
             )
             ->addOption(
                 'description',
-                '',
+                null,
                 InputOption::VALUE_OPTIONAL,
                 $this->trans('commands.generate.plugin.imageeffect.options.description')
-            );
+            )
+            ->setAliases(['gpie']);
     }
 
     /**
@@ -105,42 +123,42 @@ class PluginImageEffectCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
-        // @see use Drupal\Console\Command\Shared\ConfirmationTrait::confirmGeneration
-        if (!$this->confirmGeneration($io)) {
-            return;
+        // @see use Drupal\Console\Command\Shared\ConfirmationTrait::confirmOperation
+        if (!$this->confirmOperation()) {
+            return 1;
         }
 
         $module = $input->getOption('module');
-        $class_name = $input->getOption('class');
+        $class_name = $this->validator->validateClassName($input->getOption('class'));
         $label = $input->getOption('label');
         $plugin_id = $input->getOption('plugin-id');
         $description = $input->getOption('description');
 
-        $this->generator->generate($module, $class_name, $label, $plugin_id, $description);
+        $this->generator->generate([
+          'module' => $module,
+          'class_name' => $class_name,
+          'label' => $label,
+          'plugin_id' => $plugin_id,
+          'description' => $description,
+        ]);
 
         $this->chainQueue->addCommand('cache:rebuild', ['cache' => 'discovery']);
     }
 
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         // --module option
-        $module = $input->getOption('module');
-        if (!$module) {
-            // @see Drupal\Console\Command\Shared\ModuleTrait::moduleQuestion
-            $module = $this->moduleQuestion($io);
-            $input->setOption('module', $module);
-        }
+        $this->getModuleOption();
 
         // --class option
         $class_name = $input->getOption('class');
         if (!$class_name) {
-            $class_name = $io->ask(
+            $class_name = $this->getIo()->ask(
                 $this->trans('commands.generate.plugin.imageeffect.questions.class'),
-                'DefaultImageEffect'
+                'DefaultImageEffect',
+                function ($class_name) {
+                    return $this->validator->validateClassName($class_name);
+                }
             );
             $input->setOption('class', $class_name);
         }
@@ -148,7 +166,7 @@ class PluginImageEffectCommand extends Command
         // --label option
         $label = $input->getOption('label');
         if (!$label) {
-            $label = $io->ask(
+            $label = $this->getIo()->ask(
                 $this->trans('commands.generate.plugin.imageeffect.questions.label'),
                 $this->stringConverter->camelCaseToHuman($class_name)
             );
@@ -158,7 +176,7 @@ class PluginImageEffectCommand extends Command
         // --plugin-id option
         $plugin_id = $input->getOption('plugin-id');
         if (!$plugin_id) {
-            $plugin_id = $io->ask(
+            $plugin_id = $this->getIo()->ask(
                 $this->trans('commands.generate.plugin.imageeffect.questions.plugin-id'),
                 $this->stringConverter->camelCaseToUnderscore($class_name)
             );
@@ -168,9 +186,9 @@ class PluginImageEffectCommand extends Command
         // --description option
         $description = $input->getOption('description');
         if (!$description) {
-            $description = $io->ask(
+            $description = $this->getIo()->ask(
                 $this->trans('commands.generate.plugin.imageeffect.questions.description'),
-                'My Image Effect'
+                $this->trans('commands.generate.plugin.imageeffect.suggestions.my-image-effect')
             );
             $input->setOption('description', $description);
         }

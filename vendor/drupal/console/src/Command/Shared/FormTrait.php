@@ -7,25 +7,23 @@
 
 namespace Drupal\Console\Command\Shared;
 
-use Drupal\Console\Style\DrupalStyle;
-
 /**
  * Class FormTrait
+ *
  * @package Drupal\Console\Command
  */
 trait FormTrait
 {
     /**
-     * @param DrupalStyle $io
-     *
      * @return mixed
      */
-    public function formQuestion(DrupalStyle $io)
+    public function formQuestion()
     {
-        if ($io->confirm(
+        if ($this->getIo()->confirm(
             $this->trans('commands.common.questions.inputs.confirm'),
             true
-        )) {
+        )
+        ) {
             $input_types = [
                 'fieldset',
                 'text_format'
@@ -42,23 +40,30 @@ trait FormTrait
             }
             sort($input_types);
 
+            $this->getIo()->writeln(sprintf(
+              $this->trans('commands.common.messages.available-field-types'), implode(', ', $input_types)
+            ));
+            $this->getIo()->newLine();
+
             $inputs = [];
             $fieldSets = [];
             while (true) {
-                $input_type = $io->choiceNoList(
+                $this->getIo()->comment($this->trans('commands.common.questions.inputs.new-field'));
+                $this->getIo()->newLine();
+                $input_type = $this->getIo()->choiceNoList(
                     $this->trans('commands.common.questions.inputs.type'),
                     $input_types,
-                    null,
+                    '',
                     true
                 );
 
-                if (empty($input_type)) {
+                if (empty($input_type) || is_numeric($input_type)) {
                     break;
                 }
 
                 // Label for input
                 $inputLabelMessage = $input_type == 'fieldset'?$this->trans('commands.common.questions.inputs.title'):$this->trans('commands.common.questions.inputs.label');
-                $input_label = $io->ask(
+                $input_label = $this->getIo()->ask(
                     $inputLabelMessage,
                     null
                 );
@@ -66,8 +71,8 @@ trait FormTrait
                 // Machine name
                 $input_machine_name = $this->stringConverter->createMachineName($input_label);
 
-                $input_name = $io->ask(
-                    $this->trans('commands.common.questions.inputs.machine_name'),
+                $input_name = $this->getIo()->ask(
+                    $this->trans('commands.common.questions.inputs.machine-name'),
                     $input_machine_name
                 );
 
@@ -77,10 +82,10 @@ trait FormTrait
 
                 $inputFieldSet = '';
                 if ($input_type != 'fieldset' && !empty($fieldSets)) {
-                    $inputFieldSet = $io->choiceNoList(
+                    $inputFieldSet = $this->getIo()->choiceNoList(
                         $this->trans('commands.common.questions.inputs.fieldset'),
                         $fieldSets,
-                        null,
+                        '',
                         true
                     );
 
@@ -89,29 +94,29 @@ trait FormTrait
 
                 $maxlength = null;
                 $size = null;
-                if (in_array($input_type, array('textfield', 'password', 'password_confirm'))) {
-                    $maxlength = $io->ask(
-                        'Maximum amount of characters',
+                if (in_array($input_type, ['textfield', 'password', 'password_confirm'])) {
+                    $maxlength = $this->getIo()->ask(
+                        $this->trans('commands.generate.form.questions.max-amount-characters'),
                         '64'
                     );
 
-                    $size = $io->ask(
-                        'Width of the textfield (in characters)',
+                    $size = $this->getIo()->ask(
+                        $this->trans('commands.generate.form.questions.textfield-width-in-chars'),
                         '64'
                     );
                 }
 
                 if ($input_type == 'select') {
-                    $size = $io->ask(
-                        'Size of multiselect box (in lines)',
+                    $size = $this->getIo()->ask(
+                        $this->trans('commands.generate.form.questions.multiselect-size-in-lines'),
                         '5'
                     );
                 }
 
                 $input_options = '';
-                if (in_array($input_type, array('checkboxes', 'radios', 'select'))) {
-                    $input_options = $io->ask(
-                        'Input options separated by comma'
+                if (in_array($input_type, ['checkboxes', 'radios', 'select'])) {
+                    $input_options = $this->getIo()->ask(
+                        $this->trans('commands.generate.form.questions.input-options')
                     );
                 }
 
@@ -124,11 +129,11 @@ trait FormTrait
                         $input_options_output[$key] = "'$value' => \$this->t('".$value."')";
                     }
 
-                    $input_options = 'array('.implode(', ', $input_options_output).')';
+                    $input_options = '['.implode(', ', $input_options_output).']';
                 }
 
                 // Description for input
-                $input_description = $io->askEmpty(
+                $input_description = $this->getIo()->askEmpty(
                     $this->trans('commands.common.questions.inputs.description')
                 );
 
@@ -142,7 +147,7 @@ trait FormTrait
                     break;
                 }
                 if ($input_type != 'fieldset') {
-                    $default_value = $io->askEmpty(
+                    $default_value = $this->getIo()->askEmpty(
                         $this->trans($question)
                     );
                 }
@@ -156,7 +161,7 @@ trait FormTrait
                 }
 
                 // Weight for input
-                $weight = $io->ask(
+                $weight = $this->getIo()->ask(
                     $this->trans('commands.common.questions.inputs.weight'),
                     '0'
                 );
@@ -176,6 +181,8 @@ trait FormTrait
                         'fieldset' => $inputFieldSet,
                     ]
                 );
+
+                $this->getIo()->newLine();
             }
 
             return $inputs;

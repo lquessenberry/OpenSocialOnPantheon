@@ -1,0 +1,30 @@
+add event enrollment entities:
+  title: 'Create new Event enrollment entities'
+
+administer event enrollment entities:
+  title: 'Administer Event enrollment entities'
+  description: 'Allow to access the administration form to configure Event enrollment entities.'
+  restrict access: true
+
+delete event enrollment entities:
+  title: 'Delete Event enrollment entities'
+
+edit event enrollment entities:
+  title: 'Edit Event enrollment entities'
+
+view published event enrollment entities:
+  title: 'View published Event enrollment entities'
+
+view unpublished event enrollment entities:
+  title: 'View unpublished Event enrollment entities'
+
+administer social_event settings:
+  title: 'Administer Event Settings'
+  description: 'Allow access to the event settings form to configure general event options.'
+  restrict access: true
+
+view events on my profile:
+  title: 'View the My events overview and block on your own profile'
+
+view events on other profiles:
+  title: 'View the My events overview and block on other peoples profile'

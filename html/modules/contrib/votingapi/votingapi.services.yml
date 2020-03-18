@@ -1,0 +1,4 @@
+services:
+  plugin.manager.votingapi.resultfunction:
+    class: Drupal\votingapi\VoteResultFunctionManager
+    parent: default_plugin_manager

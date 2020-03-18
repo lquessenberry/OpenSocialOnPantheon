@@ -1,0 +1,7 @@
+social_auth.integrations:
+  path: '/admin/config/social-api/social-auth'
+  defaults:
+    _controller: '\Drupal\social_auth\Controller\SocialAuthController::integrations'
+    _title: 'User authentication'
+  requirements:
+    _permission: 'administer social api authentication'

@@ -11,11 +11,11 @@
 
 namespace Symfony\Component\DependencyInjection\Tests\Compiler;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Compiler\CheckDefinitionValidityPass;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-class CheckDefinitionValidityPassTest extends \PHPUnit_Framework_TestCase
+class CheckDefinitionValidityPassTest extends TestCase
 {
     /**
      * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
@@ -24,30 +24,6 @@ class CheckDefinitionValidityPassTest extends \PHPUnit_Framework_TestCase
     {
         $container = new ContainerBuilder();
         $container->register('a')->setSynthetic(true)->setPublic(false);
-
-        $this->process($container);
-    }
-
-    /**
-     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
-     * @group legacy
-     */
-    public function testProcessDetectsSyntheticPrototypeDefinitions()
-    {
-        $container = new ContainerBuilder();
-        $container->register('a')->setSynthetic(true)->setScope(ContainerInterface::SCOPE_PROTOTYPE);
-
-        $this->process($container);
-    }
-
-    /**
-     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
-     * @group legacy
-     */
-    public function testProcessDetectsSharedPrototypeDefinitions()
-    {
-        $container = new ContainerBuilder();
-        $container->register('a')->setShared(true)->setScope(ContainerInterface::SCOPE_PROTOTYPE);
 
         $this->process($container);
     }
@@ -63,18 +39,6 @@ class CheckDefinitionValidityPassTest extends \PHPUnit_Framework_TestCase
         $this->process($container);
     }
 
-    /**
-     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
-     * @group legacy
-     */
-    public function testLegacyProcessDetectsBothFactorySyntaxesUsed()
-    {
-        $container = new ContainerBuilder();
-        $container->register('a')->setFactory(array('a', 'b'))->setFactoryClass('a');
-
-        $this->process($container);
-    }
-
     public function testProcess()
     {
         $container = new ContainerBuilder();
@@ -84,6 +48,8 @@ class CheckDefinitionValidityPassTest extends \PHPUnit_Framework_TestCase
         $container->register('d', 'class')->setSynthetic(true);
 
         $this->process($container);
+
+        $this->addToAssertionCount(1);
     }
 
     public function testValidTags()
@@ -95,6 +61,8 @@ class CheckDefinitionValidityPassTest extends \PHPUnit_Framework_TestCase
         $container->register('d', 'class')->addTag('foo', array('bar' => 1.1));
 
         $this->process($container);
+
+        $this->addToAssertionCount(1);
     }
 
     /**
@@ -106,6 +74,42 @@ class CheckDefinitionValidityPassTest extends \PHPUnit_Framework_TestCase
         $container->register('a', 'class')->addTag('foo', array('bar' => array('baz' => 'baz')));
 
         $this->process($container);
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\EnvParameterException
+     */
+    public function testDynamicPublicServiceName()
+    {
+        $container = new ContainerBuilder();
+        $env = $container->getParameterBag()->get('env(BAR)');
+        $container->register("foo.$env", 'class')->setPublic(true);
+
+        $this->process($container);
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\EnvParameterException
+     */
+    public function testDynamicPublicAliasName()
+    {
+        $container = new ContainerBuilder();
+        $env = $container->getParameterBag()->get('env(BAR)');
+        $container->setAlias("foo.$env", 'class')->setPublic(true);
+
+        $this->process($container);
+    }
+
+    public function testDynamicPrivateName()
+    {
+        $container = new ContainerBuilder();
+        $env = $container->getParameterBag()->get('env(BAR)');
+        $container->register("foo.$env", 'class');
+        $container->setAlias("bar.$env", 'class');
+
+        $this->process($container);
+
+        $this->addToAssertionCount(1);
     }
 
     protected function process(ContainerBuilder $container)

@@ -1,6 +1,6 @@
 default:
   autoload:
-    '': /root/behat/features/bootstrap
+    '': /var/www/html/profiles/contrib/social/tests/behat/features/bootstrap
   suites:
     default:
       parameters:
@@ -10,8 +10,8 @@ default:
             password: 'admin'
             mail: 'info+admin@example.com'
       paths:
-        features: '/root/behat/features'
-        bootstrap: '/root/behat/features/bootstrap'
+        features: '/var/www/html/profiles/contrib/social/tests/behat/features'
+        bootstrap: '/var/www/html/profiles/contrib/social/tests/behat/features/bootstrap'
       contexts:
         - FeatureContext
         - SocialDrupalContext
@@ -40,9 +40,11 @@ default:
           log_in: "Log in"
           log_out: "Logout"
         region_map:
-          'Page title block': '.section-title'
-          'Hero block': '.hero-container'
-          'Hero buttons': '.hero-container .btn-group'
-          'Main content': '#content'
-          'Main content front': '.col-sm-8'
-          'Sidebar second': 'div[role=complementary]'
+          'Page title block': '.region--title'
+          'Hero block': '.region--hero'
+          'Hero buttons': '.region--hero .btn-group'
+          'Main content': '.region--content'
+          'Main content front': '.region--content'
+          'Sidebar second': 'aside[role=complementary]'
+          'Modal footer': '.modal-footer'
+          'WYSIWYG dialog': '.editor-image-dialog .form-actions'

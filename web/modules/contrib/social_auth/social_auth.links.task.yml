@@ -1,0 +1,4 @@
+social_auth.integrations.tab:
+  title: 'Integrations'
+  route_name: social_auth.integrations
+  base_route: social_auth.integrations

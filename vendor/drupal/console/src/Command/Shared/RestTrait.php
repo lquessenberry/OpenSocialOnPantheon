@@ -21,7 +21,6 @@ trait RestTrait
 
         $resources = $this->pluginManagerRest->getDefinitions();
 
-
         $enabled_resources = array_combine(array_keys($config), array_keys($config));
         $available_resources = ['enabled' => [], 'disabled' => []];
 
@@ -42,7 +41,7 @@ trait RestTrait
         }
 
         if (isset($available_resources[$rest_status])) {
-            return array($rest_status => $available_resources[$rest_status]);
+            return [$rest_status => $available_resources[$rest_status]];
         }
 
         return $available_resources;

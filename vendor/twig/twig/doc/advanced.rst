@@ -464,7 +464,7 @@ from the token stream (``$this->parser->getStream()``):
   type/value a syntax error is thrown. Otherwise, if the type and value are correct,
   the token is returned and the stream moves to the next token.
 
-* ``look()``: Looks a the next token without consuming it.
+* ``look()``: Looks at the next token without consuming it.
 
 Parsing expressions is done by calling the ``parseExpression()`` like we did for
 the ``set`` tag.
@@ -543,7 +543,7 @@ to host all the specific tags and filters you want to add to Twig.
 .. note::
 
     Before writing your own extensions, have a look at the Twig official
-    extension repository: http://github.com/twigphp/Twig-extensions.
+    extension repository: https://github.com/twigphp/Twig-extensions.
 
 An extension is a class that implements the following interface::
 
@@ -554,8 +554,6 @@ An extension is a class that implements the following interface::
          *
          * This is where you can load some file that contains filter functions for instance.
          *
-         * @param Twig_Environment $environment The current Twig_Environment instance
-         *
          * @deprecated since 1.23 (to be removed in 2.0), implement Twig_Extension_InitRuntimeInterface instead
          */
         function initRuntime(Twig_Environment $environment);
@@ -563,42 +561,42 @@ An extension is a class that implements the following interface::
         /**
          * Returns the token parser instances to add to the existing list.
          *
-         * @return array An array of Twig_TokenParserInterface or Twig_TokenParserBrokerInterface instances
+         * @return (Twig_TokenParserInterface|Twig_TokenParserBrokerInterface)[]
          */
         function getTokenParsers();
 
         /**
          * Returns the node visitor instances to add to the existing list.
          *
-         * @return array An array of Twig_NodeVisitorInterface instances
+         * @return Twig_NodeVisitorInterface[]
          */
         function getNodeVisitors();
 
         /**
          * Returns a list of filters to add to the existing list.
          *
-         * @return array An array of filters
+         * @return Twig_SimpleFilter[]
          */
         function getFilters();
 
         /**
          * Returns a list of tests to add to the existing list.
          *
-         * @return array An array of tests
+         * @return Twig_SimpleTest[]
          */
         function getTests();
 
         /**
          * Returns a list of functions to add to the existing list.
          *
-         * @return array An array of functions
+         * @return Twig_SimpleFunction[]
          */
         function getFunctions();
 
         /**
          * Returns a list of operators to add to the existing list.
          *
-         * @return array An array of operators
+         * @return array<array> First array of unary operators, second array of binary operators
          */
         function getOperators();
 
@@ -802,7 +800,7 @@ The simplest way to use methods is to define them on the extension itself::
 
         public function rot13($value)
         {
-            return $rot13Provider->rot13($value);
+            return $this->rot13Provider->rot13($value);
         }
     }
 
@@ -832,10 +830,15 @@ instance on the environment that knows how to instantiate such runtime classes
 
     $twig->addRuntimeLoader(new RuntimeLoader());
 
+.. note::
+
+    As of Twig 1.32, Twig comes with a PSR-11 compatible runtime loader
+    (``Twig_ContainerRuntimeLoader``) that works on PHP 5.3+.
+
 It is now possible to move the runtime logic to a new
 ``Project_Twig_RuntimeExtension`` class and use it directly in the extension::
 
-    class Project_Twig_RuntimeExtension extends Twig_Extension
+    class Project_Twig_RuntimeExtension
     {
         private $rot13Provider;
 
@@ -846,7 +849,7 @@ It is now possible to move the runtime logic to a new
 
         public function rot13($value)
         {
-            return $rot13Provider->rot13($value);
+            return $this->rot13Provider->rot13($value);
         }
     }
 
@@ -954,6 +957,6 @@ Testing the node visitors can be complex, so extend your test cases from
 ``Twig_Test_NodeTestCase``. Examples can be found in the Twig repository
 `tests/Twig/Node`_ directory.
 
-.. _`rot13`:                   http://www.php.net/manual/en/function.str-rot13.php
+.. _`rot13`:                   https://secure.php.net/manual/en/function.str-rot13.php
 .. _`tests/Twig/Fixtures`:     https://github.com/twigphp/Twig/tree/master/test/Twig/Tests/Fixtures
 .. _`tests/Twig/Node`:         https://github.com/twigphp/Twig/tree/master/test/Twig/Tests/Node

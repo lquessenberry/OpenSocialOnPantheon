@@ -17,7 +17,7 @@ use Symfony\Component\Validator\ConstraintValidator;
 /**
  * @author Michael Hirschler <michael.vhirsch@gmail.com>
  *
- * @link https://en.wikipedia.org/wiki/ISO_9362#Structure
+ * @see https://en.wikipedia.org/wiki/ISO_9362#Structure
  */
 class BicValidator extends ConstraintValidator
 {
@@ -33,7 +33,7 @@ class BicValidator extends ConstraintValidator
         $canonicalize = str_replace(' ', '', $value);
 
         // the bic must be either 8 or 11 characters long
-        if (!in_array(strlen($canonicalize), array(8, 11))) {
+        if (!\in_array(\strlen($canonicalize), array(8, 11))) {
             $this->context->buildViolation($constraint->message)
                 ->setParameter('{{ value }}', $this->formatValue($value))
                 ->setCode(Bic::INVALID_LENGTH_ERROR)

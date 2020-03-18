@@ -14,14 +14,23 @@
     }
   ],
   "require": {
-    "composer/installers": "^1.0",
-    "drupal-composer/drupal-scaffold": "~2.5.4",
-    "php": "^5.6 || ^7.0",
-    "doctrine/inflector": "1.1.0",
-    "drush/drush": "~9",
-    "goalgorilla/open_social": "^6.2"
+    "composer/installers": "^1.2",
+    "drupal-composer/drupal-scaffold": "^2.5",
+    "cweagans/composer-patches": "^1.6.5",
+
+    "drupal/core": "8.5.6",
+
+    "drupal/console": "^1.0.2",
+    "drush/drush": "^9.0.0",
+    "drupal/address": "~1.0",
+    "goalgorilla/open_social": "^3.0",
+    "doctrine/cache": "1.8.0",
+    "doctrine/collections": "1.5.0",
+    "doctrine/common": "2.8",
+    "doctrine/inflector": "1.3.0"
   },
   "require-dev": {
+    "webflo/drupal-core-require-dev": "8.5.6",
     "mikey179/vfsstream": "~1.2",
     "behat/behat": "3.*",
     "behat/mink": "~1.7",
@@ -31,8 +40,8 @@
     "jcalderonzumba/mink-phantomjs-driver": "~0.3.1",
     "drupal/drupal-extension": "*",
     "drush-ops/behat-drush-endpoint": "*",
-    "phpunit/phpunit": "~4.8",
-    "symfony/css-selector": "~2.8"
+    "phpunit/phpunit": "6.5",
+    "symfony/css-selector": "^3.4.0"
   },
   "conflict": {
       "drupal/drupal": "*"
@@ -57,28 +66,62 @@
     ]
   },
   "extra": {
-    "installer-types": [
-      "bower-asset",
-      "npm-asset"
-    ],
-    "installer-paths": {
-      "web/core": ["type:drupal-core"],
-      "web/modules/contrib/{$name}": ["type:drupal-module"],
-      "web/profiles/contrib/{$name}": ["type:drupal-profile"],
-      "web/themes/contrib/{$name}": ["type:drupal-theme"],
-      "drush/contrib/{$name}": ["type:drupal-drush"],
-      "web/libraries/{$name}": [
-        "type:drupal-library",
-        "type:bower-asset",
-        "type:npm-asset"
-      ]
-    },
-    "drupal-scaffold": {
-      "source": "https://raw.githubusercontent.com/pantheon-systems/drops-8/{version}/{path}",
-      "includes": [
-        "sites/default/default.services.pantheon.preproduction.yml",
-        "sites/default/settings.pantheon.php"
-      ]
+        "installer-types": [
+            "bower-asset",
+            "npm-asset"
+        ],
+        "installer-paths": {
+            "web/core": [
+                "drupal/core"
+            ],
+            "web/modules/contrib/{$name}": [
+                "type:drupal-module"
+            ],
+            "web/profiles/contrib/social": [
+                "goalgorilla/open_social"
+            ],
+            "web/profiles/contrib/{$name}": [
+                "type:drupal-profile"
+            ],
+            "web/themes/contrib/{$name}": [
+                "type:drupal-theme"
+            ],
+            "web/libraries/{$name}": [
+                "type:drupal-library",
+                "type:bower-asset",
+                "type:npm-asset"
+            ],
+            "drush/contrib/{$name}": [
+                "type:drupal-drush"
+            ]
+        },
+        "drupal-scaffold": {
+          "source": "https://raw.githubusercontent.com/pantheon-systems/drops-8/{version}/{path}",
+          "includes": [
+            "sites/default/default.services.pantheon.preproduction.yml",
+            "sites/default/settings.pantheon.php"
+          ],
+          "excludes": [
+                ".csslintrc",
+                ".editorconfig",
+                ".eslintignore",
+                ".eslintrc.json",
+                ".htaccess",
+                "web.config",
+                ".gitattributes",
+                ".ht.router.php",
+                ".htaccess",
+                "index.php",
+                "robots.txt",
+                "sites/default/default.settings.php",
+                "sites/default/default.services.yml",
+                "sites/development.services.yml",
+                "sites/example.settings.local.php",
+                "sites/example.sites.php",
+                "update.php",
+                "web.config"
+            ]
+        },
+        "enable-patching": true
     }
-  }
 }

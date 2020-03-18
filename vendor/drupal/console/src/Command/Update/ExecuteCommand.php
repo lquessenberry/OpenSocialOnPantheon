@@ -10,20 +10,16 @@ namespace Drupal\Console\Command\Update;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Core\State\StateInterface;
 use Drupal\Core\Extension\ModuleHandler;
 use Drupal\Core\Update\UpdateRegistry;
-use Drupal\Console\Command\Shared\CommandTrait;
-use Drupal\Console\Style\DrupalStyle;
 use Drupal\Console\Utils\Site;
 use Drupal\Console\Extension\Manager;
-use Drupal\Console\Utils\ChainQueue;
+use Drupal\Console\Core\Utils\ChainQueue;
 
 class ExecuteCommand extends Command
 {
-    use CommandTrait;
-
     /**
      * @var Site
      */
@@ -45,7 +41,9 @@ class ExecuteCommand extends Command
     protected $postUpdateRegistry;
 
 
-    /** @var Manager  */
+    /**
+     * @var Manager
+     */
     protected $extensionManager;
 
     /**
@@ -65,11 +63,12 @@ class ExecuteCommand extends Command
 
     /**
      * EntitiesCommand constructor.
+     *
      * @param Site           $site
-     * @param StateInterface          $state
+     * @param StateInterface $state
      * @param ModuleHandler  $moduleHandler
      * @param UpdateRegistry $postUpdateRegistry
-     * @param Manager $extensionManager
+     * @param Manager        $extensionManager
      * @param ChainQueue     $chainQueue
      */
     public function __construct(
@@ -99,14 +98,17 @@ class ExecuteCommand extends Command
             ->setDescription($this->trans('commands.update.execute.description'))
             ->addArgument(
                 'module',
-                InputArgument::REQUIRED,
-                $this->trans('commands.common.options.module')
+                InputArgument::OPTIONAL,
+                $this->trans('commands.common.options.module'),
+                'all'
             )
             ->addArgument(
                 'update-n',
                 InputArgument::OPTIONAL,
-                $this->trans('commands.update.execute.options.update-n')
-            );
+                $this->trans('commands.update.execute.options.update-n'),
+                '9000'
+            )
+            ->setAliases(['upex']);
     }
 
     /**
@@ -114,150 +116,229 @@ class ExecuteCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
         $this->module = $input->getArgument('module');
-        $this->update_n = $input->getArgument('update-n');
+        $this->update_n = (int)$input->getArgument('update-n');
 
         $this->site->loadLegacyFile('/core/includes/install.inc');
         $this->site->loadLegacyFile('/core/includes/update.inc');
 
         drupal_load_updates();
         update_fix_compatibility();
-        $updates = update_get_update_list();
-        $this->checkUpdates($io);
-        $maintenance_mode = $this->state->get('system.maintenance_mode', false);
 
-        if (!$maintenance_mode) {
-            $io->info($this->trans('commands.site.maintenance.description'));
-            $this->state->set('system.maintenance_mode', true);
+        $start = $this->getUpdates($this->module!=='all'?$this->module:null);
+        $updates = update_resolve_dependencies($start);
+        $dependencyMap = [];
+        foreach ($updates as $function => $update) {
+            $dependencyMap[$function] = !empty($update['reverse_paths']) ? array_keys($update['reverse_paths']) : [];
         }
 
-        $this->runUpdates($io, $updates);
-        $this->runPostUpdates($io);
-
-        if (!$maintenance_mode) {
-            $this->state->set('system.maintenance_mode', false);
-            $io->info($this->trans('commands.site.maintenance.messages.maintenance-off'));
-        }
-
-        $this->chainQueue
-            ->addCommand('cache:rebuild', ['cache' => 'all']);
-    }
-
-    /**
-     * @param \Drupal\Console\Style\DrupalStyle $io
-     */
-    private function checkUpdates(DrupalStyle $io)
-    {
-        if ($this->module != 'all') {
-            if (!isset($updates[$this->module])) {
-                $io->error(
+        if (!$this->checkUpdates($start, $updates)) {
+            if ($this->module === 'all') {
+                $this->getIo()->warning(
                     sprintf(
-                        $this->trans('commands.update.execute.messages.no-module-updates'),
+                        $this->trans(
+                            'commands.update.execute.messages.no-pending-updates'
+                        )
+                    )
+                );
+            } else {
+                $this->getIo()->warning(
+                    sprintf(
+                        $this->trans(
+                            'commands.update.execute.messages.no-module-updates'
+                        ),
                         $this->module
                     )
                 );
-                return;
-            } else {
-                // filter to execute only a specific module updates
-                $updates = [$this->module => $updates[$this->module]];
-
-                if ($this->update_n && !isset($updates[$this->module]['pending'][$this->update_n])) {
-                    $io->info(
-                        sprintf(
-                            $this->trans('commands.update.execute.messages.module-update-function-not-found'),
-                            $this->module,
-                            $this->update_n
-                        )
-                    );
-                }
             }
+
+            return 0;
+        }
+
+        $maintenanceMode = $this->state->get('system.maintenance_mode', false);
+
+        if (!$maintenanceMode) {
+            $this->getIo()->info($this->trans('commands.site.maintenance.description'));
+            $this->state->set('system.maintenance_mode', true);
+        }
+
+        try {
+            $this->runUpdates(
+                $updates
+            );
+
+            // Post Updates are only safe to run after all schemas have been updated.
+            if (!$this->getUpdates()) {
+                $this->runPostUpdates();
+            }
+        } catch (\Exception $e) {
+            watchdog_exception('update', $e);
+            $this->getIo()->error($e->getMessage());
+            return 1;
+        }
+
+        if (!$maintenanceMode) {
+            $this->state->set('system.maintenance_mode', false);
+            $this->getIo()->info($this->trans('commands.site.maintenance.messages.maintenance-off'));
+        }
+
+        if (!$this->getUpdates()) {
+            $this->chainQueue->addCommand('update:entities');
+        }
+
+        $this->chainQueue->addCommand('cache:rebuild', ['cache' => 'all']);
+
+        return 0;
+    }
+
+    /**
+     * @param array $start
+     * @param array $updates
+     *
+     * @return bool true if the selected module/update number exists.
+     */
+    private function checkUpdates(
+        array $start,
+        array $updates
+    ) {
+        if (!$start || !$updates) {
+            return false;
+        }
+
+        if ($this->module !== 'all') {
+            $module = $this->module;
+            $hooks = array_keys($updates);
+            $hooks = array_map(
+                function ($v) use ($module) {
+                    return (int)str_replace(
+                        $module.'_update_',
+                        '',
+                        $v
+                    );
+                },
+                $hooks
+            );
+
+            if ((int)min($hooks) > (int)$this->update_n) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array       $updates
+     */
+    private function runUpdates(
+        array $updates
+    ) {
+        $this->getIo()->info(
+            $this->trans('commands.update.execute.messages.executing-required-previous-updates')
+        );
+
+        foreach ($updates as $function => $update) {
+            if (!$update['allowed']) {
+                continue;
+            }
+
+            if ($this->module !== 'all' && $update['number'] > $this->update_n) {
+                break;
+            }
+
+            $this->getIo()->comment(
+                sprintf(
+                    $this->trans('commands.update.execute.messages.executing-update'),
+                    $update['number'],
+                    $update['module']
+                )
+            );
+
+            $this->moduleHandler->loadInclude($update['module'], 'install');
+
+            $this->executeUpdate(
+                $function,
+                $context
+            );
+
+            drupal_set_installed_schema_version(
+                $update['module'],
+                $update['number']
+            );
         }
     }
 
     /**
-     * @param \Drupal\Console\Style\DrupalStyle $io
-     * @param $updates
+     * @return bool
      */
-    private function runUpdates(DrupalStyle $io, $updates)
-    {
-        foreach ($updates as $module_name => $module_updates) {
-            $this->site
-                ->loadLegacyFile($this->extensionManager->getModule($module_name)->getPath() . '/'. $module_name . '.install', false);
-
-            foreach ($module_updates['pending'] as $update_number => $update) {
-                if ($this->module != 'all' && $this->update_n !== null && $this->update_n != $update_number) {
-                    continue;
-                }
-
-                if ($this->update_n > $module_updates['start']) {
-                    $io->info(
-                        $this->trans('commands.update.execute.messages.executing-required-previous-updates')
-                    );
-                }
-
-                for ($update_index=$module_updates['start']; $update_index<=$update_number; $update_index++) {
-                    $io->info(
-                        sprintf(
-                            $this->trans('commands.update.execute.messages.executing-update'),
-                            $update_index,
-                            $module_name
-                        )
-                    );
-
-                    try {
-                        $this->moduleHandler->invoke($module_name, 'update_'  . $update_index);
-                    } catch (\Exception $e) {
-                        watchdog_exception('update', $e);
-                        $io->error($e->getMessage());
-                    }
-
-                    drupal_set_installed_schema_version($module_name, $update_index);
-                }
-            }
-        }
-    }
-
-    /**
-     * @param \Drupal\Console\Style\DrupalStyle $io
-     */
-    private function runPostUpdates(DrupalStyle $io)
+    private function runPostUpdates()
     {
         $postUpdates = $this->postUpdateRegistry->getPendingUpdateInformation();
-        foreach ($postUpdates as $module_name => $module_updates) {
-            foreach ($module_updates['pending'] as $update_number => $update) {
-                if ($this->module != 'all' && $this->update_n !== null && $this->update_n != $update_number) {
-                    continue;
-                }
+        foreach ($postUpdates as $module => $updates) {
+            foreach ($updates['pending'] as $updateName => $update) {
+                $this->getIo()->info(
+                    sprintf(
+                        $this->trans('commands.update.execute.messages.executing-update'),
+                        $updateName,
+                        $module
+                    )
+                );
 
-                if ($this->update_n > $module_updates['start']) {
-                    $io->info(
-                        $this->trans('commands.update.execute.messages.executing-required-previous-updates')
-                    );
-                }
-                for ($update_index=$module_updates['start']; $update_index<=$update_number; $update_index++) {
-                    $io->info(
-                        sprintf(
-                            $this->trans('commands.update.execute.messages.executing-update'),
-                            $update_index,
-                            $module_name
-                        )
-                    );
-
-                    try {
-                        $function = sprintf(
-                            '%s_post_update_%s',
-                            $module_name,
-                            $update_index
-                        );
-                        drupal_flush_all_caches();
-                        update_invoke_post_update($function);
-                    } catch (\Exception $e) {
-                        watchdog_exception('update', $e);
-                        $io->error($e->getMessage());
-                    }
-                }
+                $function = sprintf(
+                    '%s_post_update_%s',
+                    $module,
+                    $updateName
+                );
+                drupal_flush_all_caches();
+                $this->executeUpdate(
+                    $function,
+                    $context
+                );
+                $this->postUpdateRegistry->registerInvokedUpdates([$function]);
             }
         }
+
+        return true;
+    }
+
+    protected function getUpdates($module = null)
+    {
+        $start = $this->getUpdateList();
+        if ($module) {
+            if (isset($start[$module])) {
+                $start = [
+                    $module => $start[$module]
+                ];
+            } else {
+                $start = [];
+            }
+        }
+
+        return $start;
+    }
+
+    // Copy of protected \Drupal\system\Controller\DbUpdateController::getModuleUpdates.
+    protected function getUpdateList()
+    {
+        $start = [];
+        $updates = update_get_update_list();
+        foreach ($updates as $module => $update) {
+            $start[$module] = $update['start'];
+        }
+
+        return $start;
+    }
+
+    private function executeUpdate($function, &$context)
+    {
+        if (!$context || !array_key_exists('sandbox', $context)) {
+            $context['sandbox'] = [];
+        }
+
+        if (function_exists($function)) {
+            $function($context['sandbox']);
+        }
+
+        return true;
     }
 }

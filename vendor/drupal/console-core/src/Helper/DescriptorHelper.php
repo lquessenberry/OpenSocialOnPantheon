@@ -2,13 +2,13 @@
 /*
  * This file is part of the Drupal Console.
  */
-namespace Drupal\Console\Helper;
+namespace Drupal\Console\Core\Helper;
 
 use Symfony\Component\Console\Helper\Helper as BaseHelper;
 use Symfony\Component\Console\Descriptor\DescriptorInterface;
 use Symfony\Component\Console\Descriptor\JsonDescriptor;
 use Symfony\Component\Console\Descriptor\MarkdownDescriptor;
-use Drupal\Console\Descriptor\TextDescriptor;
+use Drupal\Console\Core\Descriptor\TextDescriptor;
 use Symfony\Component\Console\Descriptor\XmlDescriptor;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -22,7 +22,7 @@ class DescriptorHelper extends BaseHelper
     /**
      * @var DescriptorInterface[]
      */
-    private $descriptors = array();
+    private $descriptors = [];
     /**
      * Constructor.
      */
@@ -47,13 +47,13 @@ class DescriptorHelper extends BaseHelper
      *
      * @throws \InvalidArgumentException when the given format is not supported
      */
-    public function describe(OutputInterface $output, $object, array $options = array())
+    public function describe(OutputInterface $output, $object, array $options = [])
     {
         $options = array_merge(
-            array(
+            [
             'raw_text' => false,
             'format' => 'txt',
-            ), $options
+            ], $options
         );
         if (!isset($this->descriptors[$options['format']])) {
             throw new \InvalidArgumentException(sprintf('Unsupported format "%s".', $options['format']));

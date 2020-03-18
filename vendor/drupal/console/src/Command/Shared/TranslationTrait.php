@@ -7,8 +7,6 @@
 
 namespace Drupal\Console\Command\Shared;
 
-use Drupal\Console\Style\DrupalStyle;
-
 trait TranslationTrait
 {
     /**

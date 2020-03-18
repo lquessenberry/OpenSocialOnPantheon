@@ -192,7 +192,7 @@
             </trans-unit>
             <trans-unit id="51">
                 <source>No temporary folder was configured in php.ini.</source>
-                <target>No temporary folder was configured in php.ini.</target>
+                <target>No temporary folder was configured in php.ini, or the configured folder does not exist.</target>
             </trans-unit>
             <trans-unit id="52">
                 <source>Cannot write temporary file to disk.</source>
@@ -313,6 +313,14 @@
             <trans-unit id="81">
                 <source>This is not a valid Business Identifier Code (BIC).</source>
                 <target>This is not a valid Business Identifier Code (BIC).</target>
+            </trans-unit>
+            <trans-unit id="82">
+                <source>Error</source>
+                <target>Error</target>
+            </trans-unit>
+            <trans-unit id="83">
+                <source>This is not a valid UUID.</source>
+                <target>This is not a valid UUID.</target>
             </trans-unit>
         </body>
     </file>

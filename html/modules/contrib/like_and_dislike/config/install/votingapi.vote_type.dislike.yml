@@ -1,0 +1,8 @@
+id: dislike
+label: 'Dislike vote'
+value_type: 'points'
+description: 'A dislike vote, for negative reviews.'
+dependencies:
+  enforced:
+    module:
+      - like_and_dislike

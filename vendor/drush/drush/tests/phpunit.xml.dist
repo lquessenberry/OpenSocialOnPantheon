@@ -1,8 +1,18 @@
-<!-- Copy and rename to phpunit.xml. Customize as needed. -->
+<!--
+      This is the phpunit configuration file for the functional tests.
+      For the unit tests configuration, see the phpunit.xml.dist file
+      at the root of the project.
+
+      Copy and rename this file to phpunit.xml to customize.
+
+      The variables shown below must usually be defined in order to run the
+      functional tests. They may be set by customizing this file, or they may
+      be defined as environment variables. Alternately, you may run the
+      tests without defining these variables if you use the default values.
+-->
 <phpunit backupGlobals="false"
     backupStaticAttributes="false"
     syntaxCheck="false"
-    bootstrap="bootstrap.inc"
     colors="true">
   <testsuites>
     <testsuite name="Drush Test Suite">
@@ -13,24 +23,11 @@
   <php>
     <!-- These variables may alternatively be set as environment variables. -->
 
-    <!-- Drupal major version to run tests over -->
-    <!-- <var name="UNISH_DRUPAL_MAJOR_VERSION" value="8"/> -->
-
     <!--Uncomment and edit one of the lines below depending on DB platform.-->
     <!--DB User must have create/drop permissions-->
     <!-- <var name="UNISH_DB_URL" value="mysql://root:@127.0.0.1"/> -->
     <!-- <var name="UNISH_DB_URL" value="pgsql://postgres:@localhost"/>-->
     <!-- <var name="UNISH_DB_URL" value="sqlite://none/of/this/matters"/> -->
-
-    <!--User must have write permissions to this directory.-->
-    <!--If not supplied, defaults to sys_get_temp_dir().-->
-    <!-- <var name="UNISH_TMP" value="/tmp"/> -->
-
-    <!--Uncomment the line below if your path to drush differs from `which drush`. Use absolute path.-->
-    <!--<var name="UNISH_DRUSH" value="/Users/mw/bin/drush"/>-->
-
-    <!--Uncomment to provide a group the user running the tests belong to. This is needed for some filesystem tests. -->
-    <!--<var name="UNISH_USERGROUP" value="staff"/>-->
 
     <!-- Uncomment to disable the total runtime and output timeouts for commands run through CommandUnishTestCase::execute().  -->
     <!-- <env name="UNISH_NO_TIMEOUTS" value="y"/> -->

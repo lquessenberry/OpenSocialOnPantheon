@@ -4,11 +4,8 @@
 
 Drupal Console project it's installed per each Drupal 8 website with English language by default.
 
-To installe Drupal Console package for Indonesian language run the following instructions
+To install Drupal Console package in other languages check the packages available at [https://packagist.org](https://packagist.org)
 
-```
-$ composer require drupal/console-en
-```
 
 ### Install Drupal Console
 
@@ -20,10 +17,9 @@ $ composer require drupal/console:~1.0 --prefer-dist --optimize-autoloader
 
 ### Install Drupal Console launcher
 
-In order to avoid conflicts between Drupal release and have a Drupal Console version between major and minor releases in Drupal,  a Drupal Console launcher was created. n order to facilitate to load the Drupal Console commands available to each
-Drupal 8 website,
+Drupal Console launcher was created to avoid conflicts between major and minor releases. Drupal Console binary commands are available to every Drupal 8 instance on the machine.
  
-Following the instruction below you could install the global application for Drupal Console launcher. 
+To install Drupal Console launcher globally follow the instruction below. 
 
 ```
 $ curl https://drupalconsole.com/installer -L -o drupal.phar
@@ -36,22 +32,10 @@ $ chmod +x /usr/local/bin/drupal
 
 ### Contribute
 
-If you want to contribute to this translation, you need to follow this steps
+Follow these steps to contribute to the current translation:
 
-- Fork this repository following this link [https://github.com/hechoendrupal/drupal-console-en#fork-destination-box](https://github.com/hechoendrupal/drupal-console-en#fork-destination-box)
-- Clone your repostory forked in your local machine.
-- Set up upstream
-
-In order to be updated with other contribution you must to setup a connected with main repository using the following git command
-
-```
-$ git remote add upstream git@github.com:hechoendrupal/drupal-console-en.git
-```
-
-To fetch the latest contribution before to start, you must run the next commands
-```
-$ git fetch upstream
-$ git merge upstream/master
-```
+- [Project requirements](https://docs.drupalconsole.com/en/contributing/project-requirements.html)
+- [Getting the project](https://docs.drupalconsole.com/en/contributing/getting-the-project.html)
+- [Running the project](https://docs.drupalconsole.com/en/contributing/running-the-project.html)
 
 N.B: Push your changes to your forked repository in order to create PR per day to avoid any conflicts with other contributors.

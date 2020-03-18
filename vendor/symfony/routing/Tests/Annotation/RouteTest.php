@@ -11,9 +11,10 @@
 
 namespace Symfony\Component\Routing\Tests\Annotation;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Routing\Annotation\Route;
 
-class RouteTest extends \PHPUnit_Framework_TestCase
+class RouteTest extends TestCase
 {
     /**
      * @expectedException \BadMethodCallException
@@ -45,14 +46,5 @@ class RouteTest extends \PHPUnit_Framework_TestCase
             array('host', '{locale}.example.com', 'getHost'),
             array('condition', 'context.getMethod() == "GET"', 'getCondition'),
         );
-    }
-
-    /**
-     * @group legacy
-     */
-    public function testLegacyGetPattern()
-    {
-        $route = new Route(array('value' => '/Blog'));
-        $this->assertEquals($route->getPattern(), '/Blog');
     }
 }

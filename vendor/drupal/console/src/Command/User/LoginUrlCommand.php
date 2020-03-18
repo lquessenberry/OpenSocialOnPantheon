@@ -10,32 +10,23 @@ namespace Drupal\Console\Command\User;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Console\Style\DrupalStyle;
 
 /**
  * Class UserLoginCommand.
  *
  * @package Drupal\Console
  */
-class LoginUrlCommand extends Command
+class LoginUrlCommand extends UserBase
 {
-    use CommandTrait;
-
-    /**
-     * @var EntityTypeManagerInterface
-     */
-    protected $entityTypeManager;
-
     /**
      * LoginUrlCommand constructor.
-     * @param EntityTypeManagerInterface    $entityTypeManager
+     *
+     * @param EntityTypeManagerInterface $entityTypeManager
      */
-    public function __construct(EntityTypeManagerInterface $entityTypeManager) {
-        $this->entityTypeManager = $entityTypeManager;
-        parent::__construct();
+    public function __construct(EntityTypeManagerInterface $entityTypeManager)
+    {
+        parent::__construct($entityTypeManager);
     }
 
     /**
@@ -47,41 +38,52 @@ class LoginUrlCommand extends Command
             ->setName('user:login:url')
             ->setDescription($this->trans('commands.user.login.url.description'))
             ->addArgument(
-                'user-id',
+                'user',
                 InputArgument::REQUIRED,
-                $this->trans('commands.user.login.url.options.user-id'),
+                $this->trans('commands.user.login.url.options.user'),
                 null
-            );
+            )
+            ->setAliases(['ulu']);
     }
 
     /**
-   * {@inheritdoc}
-   */
+     * {@inheritdoc}
+     */
+    protected function interact(InputInterface $input, OutputInterface $output)
+    {
+        $this->getUserArgument();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
+        $user = $input->getArgument('user');
+        $userEntity = $this->getUserEntity($user);
 
-        $uid = $input->getArgument('user-id');
-        $user = $this->entityTypeManager->getStorage('user')->load($uid);
-
-        if (!$user) {
-            $io->error(
+        if (!$userEntity) {
+            $this->getIo()->error(
                 sprintf(
                     $this->trans('commands.user.login.url.errors.invalid-user'),
-                    $uid
+                    $user
                 )
             );
 
             return 1;
         }
 
-        $url = user_pass_reset_url($user);
-        $io->success(
+        $url = user_pass_reset_url($userEntity) . '/login';
+        $this->getIo()->success(
             sprintf(
                 $this->trans('commands.user.login.url.messages.url'),
-                $user->getUsername(),
-                $url
+                $userEntity->getUsername()
             )
         );
+
+        $this->getIo()->simple($url);
+        $this->getIo()->newLine();
+
+        return 0;
     }
 }

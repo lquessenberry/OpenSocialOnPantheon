@@ -2,6 +2,82 @@
 
 All notable changes to this project will be documented in this file, in reverse chronological order by release.
 
+## 3.2.1 - 2018-08-28
+
+### Added
+
+- Nothing.
+
+### Changed
+
+- Nothing.
+
+### Deprecated
+
+- Nothing.
+
+### Removed
+
+- Nothing.
+
+### Fixed
+
+- [#92](https://github.com/zendframework/zend-stdlib/pull/92) fixes serialization of `SplPriorityQueue` by ensuring its `$serial`
+  property is also serialized.
+
+- [#91](https://github.com/zendframework/zend-stdlib/pull/91) fixes behavior in the `ArrayObject` implementation that was not
+  compatible with PHP 7.3.
+
+## 3.2.0 - 2018-04-30
+
+### Added
+
+- [#87](https://github.com/zendframework/zend-stdlib/pull/87) adds support for PHP 7.2.
+
+### Changed
+
+- Nothing.
+
+### Deprecated
+
+- Nothing.
+
+### Removed
+
+- [#87](https://github.com/zendframework/zend-stdlib/pull/87) removes support for HHVM.
+
+### Fixed
+
+- Nothing.
+
+## 3.1.1 - 2018-04-12
+
+### Added
+
+- Nothing.
+
+### Changed
+
+- [#67](https://github.com/zendframework/zend-stdlib/pull/67) changes the typehint of the `$content` property
+  of the `Message` class to indicate it is a string. All known implementations
+  already assumed this.
+
+### Deprecated
+
+- Nothing.
+
+### Removed
+
+- Nothing.
+
+### Fixed
+
+- [#60](https://github.com/zendframework/zend-stdlib/pull/60) fixes an issue whereby calling `remove()` would
+  incorrectly re-calculate the maximum priority stored in the queue.
+
+- [#60](https://github.com/zendframework/zend-stdlib/pull/60) fixes an infinite loop condition that can occur when
+  inserting an item at 0 priority.
+
 ## 3.1.0 - 2016-09-13
 
 ### Added

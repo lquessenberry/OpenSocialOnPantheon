@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2011-2012 Anthon Pang. All Rights Reserved.
+ * Copyright 2011-2017 Anthon Pang. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +27,13 @@ use WebDriver\Exception;
  * Test WebDriver\Exception class
  *
  * @package WebDriver
+ *
+ * @group Unit
  */
 class ExceptionTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * test factory()
-     *
-     * @group Unit
      */
     public function testFactory()
     {

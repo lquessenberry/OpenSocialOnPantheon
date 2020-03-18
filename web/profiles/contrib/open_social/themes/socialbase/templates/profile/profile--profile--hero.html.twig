@@ -30,28 +30,31 @@
 {% endif %}
 
 <div class="cover-wrap">
+  <header>
   <h1 class="page-title">
     {{ profile_name }}
   </h1>
-  <br />
 
-  {{ content.field_profile_image }}
+    {{ content.field_profile_image }}
+  </header>
 
   {% if (content.field_profile_function|render or content.field_profile_organization|render) %}
-    <div class="hero-footer">
-      <div class="row row-md-center">
-        <div class="col-xs-12 col-md-6 col-md-offset-3">
-          {% if content.field_profile_function|render %}
-            <strong>{{ content.field_profile_function|render }}</strong>
-          {% endif %}
-          {% if (content.field_profile_function|render and content.field_profile_organization|render) %}
-          &nbsp;-&nbsp;
-          {% endif %}
-          {% if content.field_profile_organization|render %}
-            {{ content.field_profile_organization|render }}
-          {% endif %}
-        </div>
+    <footer class="hero-footer">
+      <div class="hero-footer__text">
+        {% if content.field_profile_function|render %}
+          <strong>{{ content.field_profile_function|render }}</strong>
+        {% endif %}
+        {% if (content.field_profile_function|render and content.field_profile_organization|render) %}
+        &nbsp;-&nbsp;
+        {% endif %}
+        {% if content.field_profile_organization|render %}
+          {{ content.field_profile_organization|render }}
+        {% endif %}
       </div>
-    </div>
+
+    </footer>
   {% endif %}
+
+  {# render other fields that developers might add #}
+  {{ content|without('field_profile_first_name', 'field_profile_last_name', 'field_profile_image', 'field_profile_function', 'field_profile_organization') }}
 </div>

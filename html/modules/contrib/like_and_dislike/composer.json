@@ -1,0 +1,14 @@
+{
+  "name": "drupal/like_and_dislike",
+  "type": "drupal-module",
+  "description": "Like & Dislike",
+  "keywords": ["Drupal"],
+  "license": "GPL-2.0+",
+  "homepage": "http://drupal.org/project/like_and_dislike",
+  "minimum-stability": "dev",
+  "support": {
+    "issues": "http://drupal.org/project/issues/like_and_dislike",
+    "source": "http://cgit.drupalcode.org/like_and_dislike"
+  },
+  "require": { }
+}

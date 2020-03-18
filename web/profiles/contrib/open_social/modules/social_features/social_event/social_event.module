@@ -87,7 +87,12 @@ function social_event_block_view_alter(array &$build, BlockPluginInterface $bloc
  */
 function social_event_menu_local_tasks_alter(&$data, $route_name) {
   $can_show_enrollments_link = FALSE;
-  if ($route_name === "view.event_enrollments.view_enrollments" || $route_name === 'entity.node.canonical') {
+  $routes_to_check = [
+    'view.event_enrollments.view_enrollments',
+    'entity.node.canonical',
+    'view.managers.view_managers',
+  ];
+  if (in_array($route_name, $routes_to_check)) {
     $node = \Drupal::service('current_route_match')->getParameter('node');
     if (!is_null($node) && (!$node instanceof Node)) {
       $node = Node::load($node);
@@ -97,7 +102,8 @@ function social_event_menu_local_tasks_alter(&$data, $route_name) {
     }
 
   }
-  // PLace this here, since hiding it should happen always and not only on the mentioned routes.
+  // PLace this here, since hiding it should happen always
+  // and not only on the mentioned routes.
   if (!$can_show_enrollments_link) {
     unset($data['tabs'][0]['views_view:view.event_enrollments.view_enrollments']);
   }
@@ -118,6 +124,10 @@ function social_event_node_view_alter(array &$build, EntityInterface $entity, En
     $build['#cache']['tags'][] = $enrollmenttag;
     $build['#cache']['contexts'][] = 'user';
 
+    if (empty($nid)) {
+      return;
+    }
+
     $conditions = array(
       'field_account' => $uid,
       'field_event' => $nid,
@@ -132,7 +142,7 @@ function social_event_node_view_alter(array &$build, EntityInterface $entity, En
       if ($current_enrollment_status === '1') {
         $build['enrolled'] = array(
           '#type' => '#text_field',
-          '#markup' => 'Enrolled',
+          '#markup' => t('Enrolled'),
         );
       }
     }
@@ -148,7 +158,7 @@ function social_event_node_view_alter(array &$build, EntityInterface $entity, En
  *   - node: The node object.
  *   - view_mode: View mode; e.g., 'full', 'teaser', etc.
  */
-function social_event_preprocess_node(&$variables) {
+function social_event_preprocess_node(array &$variables) {
   $view_mode = $variables['view_mode'];
   $node = $variables['node'];
   if ($node->getType() === 'event') {
@@ -164,9 +174,17 @@ function social_event_views_data_alter(array &$data) {
     'title' => t('Event enrolled or created'),
     'filter' => array(
       'title' => t('Event enrolled or created'),
-      'help' => t('Enable events for on the user profles.'),
+      'help' => t('Enable events for on the user profiles.'),
       'field' => 'field_event',
       'id' => 'event_enrolled_or_created',
+    ),
+  );
+  $data['node']['event_passed_upcoming_sort'] = array(
+    'title' => t('Event sorting (passed and upcoming)'),
+    'help' => t('For upcoming events sort ASC by start date and for passed events change order to DESC.'),
+    'sort' => array(
+      'field' => 'field_event_date_value',
+      'id' => 'event_passed_upcoming_sort',
     ),
   );
 }
@@ -175,16 +193,35 @@ function social_event_views_data_alter(array &$data) {
  * Formats the event start end date.
  */
 function _social_event_format_date($event, $view_mode) {
+
   $event_date = '';
-  // Get start and end dates
+
+  // This will get the users timezone, which is either set by the user
+  // or defaults back to the sites timezone if the user didn't select any.
+  $timezone = drupal_get_user_timezone();
+
+  // Get start and end dates.
   if ($start_date_field = $event->field_event_date) {
     if (!empty($start_date_field->value)) {
-      $start_datetime = strtotime($start_date_field->value);
+      // Since dates are stored as UTC, we will declare our event values
+      // as UTC. So we can actually calculate them back to the users timezone.
+      // This is necessary because we do not store the event value as being UTC
+      // so declaring it with setTimezone will result in wrong values.
+      $start_datetime = new DateTime($start_date_field->value, new DateTimeZone("UTC"));
+      $start_datetime->setTimezone(new DateTimeZone($timezone));
+      $start_datetime = $start_datetime->getTimestamp();
     }
   }
   if ($end_date_field = $event->field_event_date_end) {
     if (!empty($end_date_field->value)) {
-      $end_datetime = strtotime($end_date_field->value);
+      // Since dates are stored as UTC, we will declare our event values
+      // as UTC. So we can actually calculate them back to the users timezone.
+      // This is necessary because we do not store the event value as being UTC
+      // so declaring it with setTimezone will result in wrong values.
+      $end_datetime = new DateTime($end_date_field->value, new DateTimeZone("UTC"));
+      // We now calculate it back to the users timezone.
+      $end_datetime->setTimezone(new DateTimeZone($timezone));
+      $end_datetime = $end_datetime->getTimestamp();
     }
   }
 
@@ -216,5 +253,6 @@ function _social_event_format_date($event, $view_mode) {
       $event_date = "$start_date $start_time - $end_date $end_time";
     }
   }
+
   return $event_date;
 }

@@ -11,26 +11,17 @@
 
 namespace Symfony\Component\DependencyInjection\Tests\Dumper;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Dumper\GraphvizDumper;
 
-class GraphvizDumperTest extends \PHPUnit_Framework_TestCase
+class GraphvizDumperTest extends TestCase
 {
     protected static $fixturesPath;
 
     public static function setUpBeforeClass()
     {
         self::$fixturesPath = __DIR__.'/../Fixtures/';
-    }
-
-    /**
-     * @group legacy
-     */
-    public function testLegacyDump()
-    {
-        $container = include self::$fixturesPath.'/containers/legacy-container9.php';
-        $dumper = new GraphvizDumper($container);
-        $this->assertEquals(str_replace('%path%', __DIR__, file_get_contents(self::$fixturesPath.'/graphviz/legacy-services9.dot')), $dumper->dump(), '->dump() dumps services');
     }
 
     public function testDump()
@@ -79,15 +70,5 @@ class GraphvizDumperTest extends \PHPUnit_Framework_TestCase
         $dumper = new GraphvizDumper($container);
 
         $this->assertEquals(str_replace('%path%', __DIR__, file_get_contents(self::$fixturesPath.'/graphviz/services17.dot')), $dumper->dump(), '->dump() dumps services');
-    }
-
-    /**
-     * @group legacy
-     */
-    public function testDumpWithScopes()
-    {
-        $container = include self::$fixturesPath.'/containers/legacy-container18.php';
-        $dumper = new GraphvizDumper($container);
-        $this->assertEquals(str_replace('%path%', __DIR__, file_get_contents(self::$fixturesPath.'/graphviz/services18.dot')), $dumper->dump(), '->dump() dumps services');
     }
 }

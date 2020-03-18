@@ -1,0 +1,20 @@
+uuid: d3f9440c-5ec8-4204-b958-4df8f62b7b03
+langcode: en
+status: true
+dependencies:
+  module:
+    - image_effects
+name: test_watermark_scale
+label: test_watermark_scale
+effects:
+  3d493386-5251-4d45-b395-2e036f7203c0:
+    uuid: 3d493386-5251-4d45-b395-2e036f7203c0
+    id: image_effects_watermark
+    weight: 1
+    data:
+      placement: center-center
+      x_offset: 10
+      y_offset: 10
+      opacity: 100
+      watermark_image: 'public://image-test.png'
+      watermark_scale: 20

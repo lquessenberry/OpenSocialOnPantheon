@@ -6,26 +6,33 @@ use Doctrine\Common\Annotations\AnnotationReader;
 
 /**
  * Class DrupalCommandReader
+ *
  * @package Drupal\Console\Annotations
  */
-class DrupalCommandAnnotationReader {
-
+class DrupalCommandAnnotationReader
+{
     /**
      * @param $class
      * @return array
      */
     public function readAnnotation($class)
     {
-        $annotation = [];
+        $annotation = [
+            'extension' => null,
+            'extensionType' => null,
+            'dependencies' => [],
+            'bootstrap' => 'installed'
+        ];
         $reader = new AnnotationReader();
         $drupalCommandAnnotation = $reader->getClassAnnotation(
             new \ReflectionClass($class),
             'Drupal\\Console\\Annotations\\DrupalCommand'
         );
-        if($drupalCommandAnnotation) {
-            $annotation['extension'] = $drupalCommandAnnotation->extension?:'';
-            $annotation['extensionType'] = $drupalCommandAnnotation->extensionType?:'';
+        if ($drupalCommandAnnotation) {
+            $annotation['extension'] = $drupalCommandAnnotation->extension?:null;
+            $annotation['extensionType'] = $drupalCommandAnnotation->extensionType?:null;
             $annotation['dependencies'] = $drupalCommandAnnotation->dependencies?:[];
+            $annotation['bootstrap'] = $drupalCommandAnnotation->bootstrap?:'install';
         }
 
         return $annotation;

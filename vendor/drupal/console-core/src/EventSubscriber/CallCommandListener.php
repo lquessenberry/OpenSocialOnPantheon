@@ -2,19 +2,24 @@
 
 /**
  * @file
- * Contains \Drupal\Console\EventSubscriber\CallCommandListener.
+ * Contains \Drupal\Console\Core\EventSubscriber\CallCommandListener.
  */
 
-namespace Drupal\Console\EventSubscriber;
+namespace Drupal\Console\Core\EventSubscriber;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Console\Event\ConsoleTerminateEvent;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Utils\ChainQueue;
-use Drupal\Console\Style\DrupalStyle;
+use Drupal\Console\Core\Utils\ChainQueue;
+use Drupal\Console\Core\Style\DrupalStyle;
 
+/**
+ * Class CallCommandListener
+ *
+ * @package Drupal\Console\Core\EventSubscriber
+ */
 class CallCommandListener implements EventSubscriberInterface
 {
     /**
@@ -24,6 +29,7 @@ class CallCommandListener implements EventSubscriberInterface
 
     /**
      * CallCommandListener constructor.
+     *
      * @param ChainQueue $chainQueue
      */
     public function __construct(ChainQueue $chainQueue)
@@ -42,14 +48,14 @@ class CallCommandListener implements EventSubscriberInterface
         $io = new DrupalStyle($event->getInput(), $event->getOutput());
 
         if (!$command instanceof Command) {
-            return;
+            return 0;
         }
 
         $application = $command->getApplication();
         $commands = $this->chainQueue->getCommands();
 
         if (!$commands) {
-            return;
+            return 0;
         }
 
         foreach ($commands as $chainedCommand) {
@@ -65,7 +71,15 @@ class CallCommandListener implements EventSubscriberInterface
             }
 
             $io->text($chainedCommand['name']);
-            $callCommand->run($input, $io);
+            $allowFailure = array_key_exists('allow_failure', $chainedCommand)?$chainedCommand['allow_failure']:false;
+            try {
+                $callCommand->run($input, $io);
+            } catch (\Exception $e) {
+                if (!$allowFailure) {
+                    $io->error($e->getMessage());
+                    return 1;
+                }
+            }
         }
     }
 

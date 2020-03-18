@@ -1,0 +1,13 @@
+{
+    "name": "drupal/data_policy",
+    "description": "Create data policies and track user agreements as well as informing users.",
+    "type": "drupal-module",
+    "keywords": [
+        "Drupal",
+        "GDPR",
+        "Data policy"
+    ],
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://drupal.org/project/data_policy",
+    "minimum-stability": "dev"
+}

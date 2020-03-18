@@ -11,15 +11,12 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
-use Drupal\Console\Command\Shared\CommandTrait;
+use Drupal\Console\Core\Command\Command;
 use Drupal\Console\Command\Shared\ModuleTrait;
-use Drupal\Console\Style\DrupalStyle;
 use Drupal\Console\Extension\Manager;
 
 class PathCommand extends Command
 {
-    use CommandTrait;
     use ModuleTrait;
 
     /**
@@ -29,6 +26,7 @@ class PathCommand extends Command
 
     /**
      * PathCommand constructor.
+     *
      * @param Manager $extensionManager
      */
     public function __construct(Manager $extensionManager)
@@ -49,23 +47,21 @@ class PathCommand extends Command
             )
             ->addOption(
                 'absolute',
-                '',
+                null,
                 InputOption::VALUE_NONE,
                 $this->trans('commands.module.path.options.absolute')
-            );
+            )->setAliases(['mop']);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         $module = $input->getArgument('module');
 
         $fullPath = $input->getOption('absolute');
 
         $module = $this->extensionManager->getModule($module);
 
-        $io->info(
+        $this->getIo()->info(
             $module->getPath($fullPath)
         );
     }
@@ -75,13 +71,11 @@ class PathCommand extends Command
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $io = new DrupalStyle($input, $output);
-
         // --module argument
         $module = $input->getArgument('module');
         if (!$module) {
             // @see Drupal\Console\Command\Shared\ModuleTrait::moduleQuestion
-            $module = $this->moduleQuestion($io);
+            $module = $this->moduleQuestion();
             $input->setArgument('module', $module);
         }
     }

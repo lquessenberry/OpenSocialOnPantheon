@@ -1,0 +1,4 @@
+services:
+  like_and_dislike.vote_builder:
+    class: Drupal\like_and_dislike\LikeDislikeVoteBuilder
+    arguments: ['@entity_type.manager']

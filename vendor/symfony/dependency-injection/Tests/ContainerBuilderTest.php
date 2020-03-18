@@ -14,24 +14,51 @@ namespace Symfony\Component\DependencyInjection\Tests;
 require_once __DIR__.'/Fixtures/includes/classes.php';
 require_once __DIR__.'/Fixtures/includes/ProjectExtension.php';
 
+use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface as PsrContainerInterface;
+use Symfony\Component\Config\Resource\ComposerResource;
+use Symfony\Component\Config\Resource\DirectoryResource;
+use Symfony\Component\Config\Resource\FileResource;
 use Symfony\Component\Config\Resource\ResourceInterface;
 use Symfony\Component\DependencyInjection\Alias;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
+use Symfony\Component\DependencyInjection\Argument\RewindableGenerator;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
+use Symfony\Component\DependencyInjection\ChildDefinition;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
-use Symfony\Component\DependencyInjection\Exception\InactiveScopeException;
-use Symfony\Component\DependencyInjection\Exception\ServiceCircularReferenceException;
 use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
 use Symfony\Component\DependencyInjection\Loader\ClosureLoader;
-use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\DependencyInjection\ParameterBag\EnvPlaceholderParameterBag;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
-use Symfony\Component\DependencyInjection\Scope;
-use Symfony\Component\Config\Resource\FileResource;
+use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Component\DependencyInjection\Tests\Fixtures\CaseSensitiveClass;
+use Symfony\Component\DependencyInjection\Tests\Fixtures\CustomDefinition;
+use Symfony\Component\DependencyInjection\Tests\Fixtures\SimilarArgumentsDummy;
+use Symfony\Component\DependencyInjection\TypedReference;
 use Symfony\Component\ExpressionLanguage\Expression;
 
-class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
+class ContainerBuilderTest extends TestCase
 {
+    public function testDefaultRegisteredDefinitions()
+    {
+        $builder = new ContainerBuilder();
+
+        $this->assertCount(1, $builder->getDefinitions());
+        $this->assertTrue($builder->hasDefinition('service_container'));
+
+        $definition = $builder->getDefinition('service_container');
+        $this->assertInstanceOf(Definition::class, $definition);
+        $this->assertTrue($definition->isSynthetic());
+        $this->assertSame(ContainerInterface::class, $definition->getClass());
+        $this->assertTrue($builder->hasAlias(PsrContainerInterface::class));
+        $this->assertTrue($builder->hasAlias(ContainerInterface::class));
+    }
+
     public function testDefinitions()
     {
         $builder = new ContainerBuilder();
@@ -46,7 +73,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
         $builder->setDefinition('foobar', $foo = new Definition('FooBarClass'));
         $this->assertEquals($foo, $builder->getDefinition('foobar'), '->getDefinition() returns a service definition if defined');
-        $this->assertTrue($builder->setDefinition('foobar', $foo = new Definition('FooBarClass')) === $foo, '->setDefinition() implements a fluid interface by returning the service reference');
+        $this->assertSame($builder->setDefinition('foobar', $foo = new Definition('FooBarClass')), $foo, '->setDefinition() implements a fluid interface by returning the service reference');
 
         $builder->addDefinitions($defs = array('foobar' => new Definition('FooBarClass')));
         $this->assertEquals(array_merge($definitions, $defs), $builder->getDefinitions(), '->addDefinitions() adds the service definitions');
@@ -69,7 +96,8 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $definition->setDeprecated(true);
 
         $builder = new ContainerBuilder();
-        $builder->createService($definition, 'deprecated_foo');
+        $builder->setDefinition('deprecated_foo', $definition);
+        $builder->get('deprecated_foo');
     }
 
     public function testRegister()
@@ -78,6 +106,15 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $builder->register('foo', 'Bar\FooClass');
         $this->assertTrue($builder->hasDefinition('foo'), '->register() registers a new service definition');
         $this->assertInstanceOf('Symfony\Component\DependencyInjection\Definition', $builder->getDefinition('foo'), '->register() returns the newly created Definition instance');
+    }
+
+    public function testAutowire()
+    {
+        $builder = new ContainerBuilder();
+        $builder->autowire('foo', 'Bar\FooClass');
+
+        $this->assertTrue($builder->hasDefinition('foo'), '->autowire() registers a new service definition');
+        $this->assertTrue($builder->getDefinition('foo')->isAutowired(), '->autowire() creates autowired definitions');
     }
 
     public function testHas()
@@ -90,34 +127,64 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($builder->has('bar'), '->has() returns true if a service exists');
     }
 
-    public function testGet()
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException
+     * @expectedExceptionMessage You have requested a non-existent service "foo".
+     */
+    public function testGetThrowsExceptionIfServiceDoesNotExist()
     {
         $builder = new ContainerBuilder();
-        try {
-            $builder->get('foo');
-            $this->fail('->get() throws a ServiceNotFoundException if the service does not exist');
-        } catch (ServiceNotFoundException $e) {
-            $this->assertEquals('You have requested a non-existent service "foo".', $e->getMessage(), '->get() throws a ServiceNotFoundException if the service does not exist');
-        }
+        $builder->get('foo');
+    }
+
+    public function testGetReturnsNullIfServiceDoesNotExistAndInvalidReferenceIsUsed()
+    {
+        $builder = new ContainerBuilder();
 
         $this->assertNull($builder->get('foo', ContainerInterface::NULL_ON_INVALID_REFERENCE), '->get() returns null if the service does not exist and NULL_ON_INVALID_REFERENCE is passed as a second argument');
+    }
 
-        $builder->register('foo', 'stdClass');
-        $this->assertInternalType('object', $builder->get('foo'), '->get() returns the service definition associated with the id');
-        $builder->set('bar', $bar = new \stdClass());
-        $this->assertEquals($bar, $builder->get('bar'), '->get() returns the service associated with the id');
-        $builder->register('bar', 'stdClass');
-        $this->assertEquals($bar, $builder->get('bar'), '->get() returns the service associated with the id even if a definition has been defined');
-
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\ServiceCircularReferenceException
+     */
+    public function testGetThrowsCircularReferenceExceptionIfServiceHasReferenceToItself()
+    {
+        $builder = new ContainerBuilder();
         $builder->register('baz', 'stdClass')->setArguments(array(new Reference('baz')));
-        try {
-            @$builder->get('baz');
-            $this->fail('->get() throws a ServiceCircularReferenceException if the service has a circular reference to itself');
-        } catch (ServiceCircularReferenceException $e) {
-            $this->assertEquals('Circular reference detected for service "baz", path: "baz".', $e->getMessage(), '->get() throws a LogicException if the service has a circular reference to itself');
-        }
+        $builder->get('baz');
+    }
+
+    public function testGetReturnsSameInstanceWhenServiceIsShared()
+    {
+        $builder = new ContainerBuilder();
+        $builder->register('bar', 'stdClass');
 
         $this->assertTrue($builder->get('bar') === $builder->get('bar'), '->get() always returns the same instance if the service is shared');
+    }
+
+    public function testGetCreatesServiceBasedOnDefinition()
+    {
+        $builder = new ContainerBuilder();
+        $builder->register('foo', 'stdClass');
+
+        $this->assertInternalType('object', $builder->get('foo'), '->get() returns the service definition associated with the id');
+    }
+
+    public function testGetReturnsRegisteredService()
+    {
+        $builder = new ContainerBuilder();
+        $builder->set('bar', $bar = new \stdClass());
+
+        $this->assertSame($bar, $builder->get('bar'), '->get() returns the service associated with the id');
+    }
+
+    public function testRegisterDoesNotOverrideExistingService()
+    {
+        $builder = new ContainerBuilder();
+        $builder->set('bar', $bar = new \stdClass());
+        $builder->register('bar', 'stdClass');
+
+        $this->assertSame($bar, $builder->get('bar'), '->get() returns the service associated with the id even if a definition has been defined');
     }
 
     public function testNonSharedServicesReturnsDifferentInstances()
@@ -147,34 +214,23 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $builder->get('foo');
     }
 
-    /**
-     * @group legacy
-     */
-    public function testGetReturnsNullOnInactiveScope()
-    {
-        $builder = new ContainerBuilder();
-        $builder->register('foo', 'stdClass')->setScope('request');
-
-        $this->assertNull($builder->get('foo', ContainerInterface::NULL_ON_INVALID_REFERENCE));
-    }
-
-    /**
-     * @group legacy
-     */
-    public function testGetReturnsNullOnInactiveScopeWhenServiceIsCreatedByAMethod()
-    {
-        $builder = new ProjectContainer();
-
-        $this->assertNull($builder->get('foobaz', ContainerInterface::NULL_ON_INVALID_REFERENCE));
-    }
-
     public function testGetServiceIds()
     {
         $builder = new ContainerBuilder();
         $builder->register('foo', 'stdClass');
         $builder->bar = $bar = new \stdClass();
         $builder->register('bar', 'stdClass');
-        $this->assertEquals(array('foo', 'bar', 'service_container'), $builder->getServiceIds(), '->getServiceIds() returns all defined service ids');
+        $this->assertEquals(
+            array(
+                'service_container',
+                'foo',
+                'bar',
+                'Psr\Container\ContainerInterface',
+                'Symfony\Component\DependencyInjection\ContainerInterface',
+            ),
+            $builder->getServiceIds(),
+            '->getServiceIds() returns all defined service ids'
+        );
     }
 
     public function testAliases()
@@ -186,7 +242,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse($builder->hasAlias('foobar'), '->hasAlias() returns false if the alias does not exist');
         $this->assertEquals('foo', (string) $builder->getAlias('bar'), '->getAlias() returns the aliased service');
         $this->assertTrue($builder->has('bar'), '->setAlias() defines a new service');
-        $this->assertTrue($builder->get('bar') === $builder->get('foo'), '->setAlias() creates a service that is an alias to another one');
+        $this->assertSame($builder->get('bar'), $builder->get('foo'), '->setAlias() creates a service that is an alias to another one');
 
         try {
             $builder->setAlias('foobar', 'foobar');
@@ -222,7 +278,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
         $builder->set('foobar', 'stdClass');
         $builder->set('moo', 'stdClass');
-        $this->assertCount(0, $builder->getAliases(), '->getAliases() does not return aliased services that have been overridden');
+        $this->assertCount(2, $builder->getAliases(), '->getAliases() does not return aliased services that have been overridden');
     }
 
     public function testSetAliases()
@@ -231,8 +287,8 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $builder->setAliases(array('bar' => 'foo', 'foobar' => 'foo'));
 
         $aliases = $builder->getAliases();
-        $this->assertTrue(isset($aliases['bar']));
-        $this->assertTrue(isset($aliases['foobar']));
+        $this->assertArrayHasKey('bar', $aliases);
+        $this->assertArrayHasKey('foobar', $aliases);
     }
 
     public function testAddAliases()
@@ -242,8 +298,8 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $builder->addAliases(array('foobar' => 'foo'));
 
         $aliases = $builder->getAliases();
-        $this->assertTrue(isset($aliases['bar']));
-        $this->assertTrue(isset($aliases['foobar']));
+        $this->assertArrayHasKey('bar', $aliases);
+        $this->assertArrayHasKey('foobar', $aliases);
     }
 
     public function testSetReplacesAlias()
@@ -256,23 +312,39 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($foo, $builder->get('alias'), '->set() replaces an existing alias');
     }
 
+    public function testAliasesKeepInvalidBehavior()
+    {
+        $builder = new ContainerBuilder();
+
+        $aliased = new Definition('stdClass');
+        $aliased->addMethodCall('setBar', array(new Reference('bar', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)));
+        $builder->setDefinition('aliased', $aliased);
+        $builder->setAlias('alias', 'aliased');
+
+        $this->assertEquals(new \stdClass(), $builder->get('alias'));
+    }
+
     public function testAddGetCompilerPass()
     {
         $builder = new ContainerBuilder();
         $builder->setResourceTracking(false);
-        $builderCompilerPasses = $builder->getCompiler()->getPassConfig()->getPasses();
-        $builder->addCompilerPass($this->getMock('Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface'));
+        $defaultPasses = $builder->getCompiler()->getPassConfig()->getPasses();
+        $builder->addCompilerPass($pass1 = $this->getMockBuilder('Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface')->getMock(), PassConfig::TYPE_BEFORE_OPTIMIZATION, -5);
+        $builder->addCompilerPass($pass2 = $this->getMockBuilder('Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface')->getMock(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
 
-        $this->assertCount(count($builder->getCompiler()->getPassConfig()->getPasses()) - 1, $builderCompilerPasses);
+        $passes = $builder->getCompiler()->getPassConfig()->getPasses();
+        $this->assertCount(\count($passes) - 2, $defaultPasses);
+        // Pass 1 is executed later
+        $this->assertTrue(array_search($pass1, $passes, true) > array_search($pass2, $passes, true));
     }
 
     public function testCreateService()
     {
         $builder = new ContainerBuilder();
         $builder->register('foo1', 'Bar\FooClass')->setFile(__DIR__.'/Fixtures/includes/foo.php');
-        $this->assertInstanceOf('\Bar\FooClass', $builder->get('foo1'), '->createService() requires the file defined by the service definition');
         $builder->register('foo2', 'Bar\FooClass')->setFile(__DIR__.'/Fixtures/includes/%file%.php');
         $builder->setParameter('file', 'foo');
+        $this->assertInstanceOf('\Bar\FooClass', $builder->get('foo1'), '->createService() requires the file defined by the service definition');
         $this->assertInstanceOf('\Bar\FooClass', $builder->get('foo2'), '->createService() replaces parameters in the file provided by the service definition');
     }
 
@@ -286,7 +358,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $foo1 = $builder->get('foo1');
 
         $this->assertSame($foo1, $builder->get('foo1'), 'The same proxy is retrieved on multiple subsequent calls');
-        $this->assertSame('Bar\FooClass', get_class($foo1));
+        $this->assertSame('Bar\FooClass', \get_class($foo1));
     }
 
     public function testCreateServiceClass()
@@ -320,35 +392,6 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($builder->get('baz')->called, '->createService() uses another service as factory');
     }
 
-    public function testLegacyCreateServiceFactory()
-    {
-        $builder = new ContainerBuilder();
-        $builder->register('bar', 'Bar\FooClass');
-        $builder
-            ->register('foo1', 'Bar\FooClass')
-            ->setFactoryClass('%foo_class%')
-            ->setFactoryMethod('getInstance')
-            ->addArgument(array('foo' => '%value%', '%value%' => 'foo', new Reference('bar')))
-        ;
-        $builder->setParameter('value', 'bar');
-        $builder->setParameter('foo_class', 'Bar\FooClass');
-        $this->assertTrue($builder->get('foo1')->called, '->createService() calls the factory method to create the service instance');
-        $this->assertEquals(array('foo' => 'bar', 'bar' => 'foo', $builder->get('bar')), $builder->get('foo1')->arguments, '->createService() passes the arguments to the factory method');
-    }
-
-    public function testLegacyCreateServiceFactoryService()
-    {
-        $builder = new ContainerBuilder();
-        $builder->register('foo_service', 'Bar\FooClass');
-        $builder
-            ->register('foo', 'Bar\FooClass')
-            ->setFactoryService('%foo_service%')
-            ->setFactoryMethod('getInstance')
-        ;
-        $builder->setParameter('foo_service', 'foo_service');
-        $this->assertTrue($builder->get('foo')->called, '->createService() calls the factory method to create the service instance');
-    }
-
     public function testCreateServiceMethodCalls()
     {
         $builder = new ContainerBuilder();
@@ -380,26 +423,60 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
     {
         $builder = new ContainerBuilder();
         $builder->register('foo1', 'Bar\FooClass')->setConfigurator('sc_configure');
-        $this->assertTrue($builder->get('foo1')->configured, '->createService() calls the configurator');
-
         $builder->register('foo2', 'Bar\FooClass')->setConfigurator(array('%class%', 'configureStatic'));
         $builder->setParameter('class', 'BazClass');
-        $this->assertTrue($builder->get('foo2')->configured, '->createService() calls the configurator');
-
         $builder->register('baz', 'BazClass');
         $builder->register('foo3', 'Bar\FooClass')->setConfigurator(array(new Reference('baz'), 'configure'));
-        $this->assertTrue($builder->get('foo3')->configured, '->createService() calls the configurator');
-
         $builder->register('foo4', 'Bar\FooClass')->setConfigurator(array($builder->getDefinition('baz'), 'configure'));
+        $builder->register('foo5', 'Bar\FooClass')->setConfigurator('foo');
+
+        $this->assertTrue($builder->get('foo1')->configured, '->createService() calls the configurator');
+        $this->assertTrue($builder->get('foo2')->configured, '->createService() calls the configurator');
+        $this->assertTrue($builder->get('foo3')->configured, '->createService() calls the configurator');
         $this->assertTrue($builder->get('foo4')->configured, '->createService() calls the configurator');
 
-        $builder->register('foo5', 'Bar\FooClass')->setConfigurator('foo');
         try {
             $builder->get('foo5');
             $this->fail('->createService() throws an InvalidArgumentException if the configure callable is not a valid callable');
         } catch (\InvalidArgumentException $e) {
             $this->assertEquals('The configure callable for class "Bar\FooClass" is not a callable.', $e->getMessage(), '->createService() throws an InvalidArgumentException if the configure callable is not a valid callable');
         }
+    }
+
+    public function testCreateServiceWithIteratorArgument()
+    {
+        $builder = new ContainerBuilder();
+        $builder->register('bar', 'stdClass');
+        $builder
+            ->register('lazy_context', 'LazyContext')
+            ->setArguments(array(
+                new IteratorArgument(array('k1' => new Reference('bar'), new Reference('invalid', ContainerInterface::IGNORE_ON_INVALID_REFERENCE))),
+                new IteratorArgument(array()),
+            ))
+        ;
+
+        $lazyContext = $builder->get('lazy_context');
+        $this->assertInstanceOf(RewindableGenerator::class, $lazyContext->lazyValues);
+        $this->assertInstanceOf(RewindableGenerator::class, $lazyContext->lazyEmptyValues);
+        $this->assertCount(1, $lazyContext->lazyValues);
+        $this->assertCount(0, $lazyContext->lazyEmptyValues);
+
+        $i = 0;
+        foreach ($lazyContext->lazyValues as $k => $v) {
+            ++$i;
+            $this->assertEquals('k1', $k);
+            $this->assertInstanceOf('\stdClass', $v);
+        }
+
+        // The second argument should have been ignored.
+        $this->assertEquals(1, $i);
+
+        $i = 0;
+        foreach ($lazyContext->lazyEmptyValues as $k => $v) {
+            ++$i;
+        }
+
+        $this->assertEquals(0, $i);
     }
 
     /**
@@ -428,6 +505,28 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($builder->get('foo'), $builder->resolveServices(new Reference('foo')), '->resolveServices() resolves service references to service instances');
         $this->assertEquals(array('foo' => array('foo', $builder->get('foo'))), $builder->resolveServices(array('foo' => array('foo', new Reference('foo')))), '->resolveServices() resolves service references to service instances in nested arrays');
         $this->assertEquals($builder->get('foo'), $builder->resolveServices(new Expression('service("foo")')), '->resolveServices() resolves expressions');
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage Constructing service "foo" from a parent definition is not supported at build time.
+     */
+    public function testResolveServicesWithDecoratedDefinition()
+    {
+        $builder = new ContainerBuilder();
+        $builder->setDefinition('grandpa', new Definition('stdClass'));
+        $builder->setDefinition('parent', new ChildDefinition('grandpa'));
+        $builder->setDefinition('foo', new ChildDefinition('parent'));
+
+        $builder->get('foo');
+    }
+
+    public function testResolveServicesWithCustomDefinitionClass()
+    {
+        $builder = new ContainerBuilder();
+        $builder->setDefinition('foo', new CustomDefinition('stdClass'));
+
+        $this->assertInstanceOf('stdClass', $builder->get('foo'));
     }
 
     public function testMerge()
@@ -460,10 +559,10 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $config->setDefinition('baz', new Definition('BazClass'));
         $config->setAlias('alias_for_foo', 'foo');
         $container->merge($config);
-        $this->assertEquals(array('foo', 'bar', 'baz'), array_keys($container->getDefinitions()), '->merge() merges definitions already defined ones');
+        $this->assertEquals(array('service_container', 'foo', 'bar', 'baz'), array_keys($container->getDefinitions()), '->merge() merges definitions already defined ones');
 
         $aliases = $container->getAliases();
-        $this->assertTrue(isset($aliases['alias_for_foo']));
+        $this->assertArrayHasKey('alias_for_foo', $aliases);
         $this->assertEquals('foo', (string) $aliases['alias_for_foo']);
 
         $container = new ContainerBuilder();
@@ -472,6 +571,246 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $config->setDefinition('foo', new Definition('BazClass'));
         $container->merge($config);
         $this->assertEquals('BazClass', $container->getDefinition('foo')->getClass(), '->merge() overrides already defined services');
+
+        $container = new ContainerBuilder();
+        $bag = new EnvPlaceholderParameterBag();
+        $bag->get('env(Foo)');
+        $config = new ContainerBuilder($bag);
+        $this->assertSame(array('%env(Bar)%'), $config->resolveEnvPlaceholders(array($bag->get('env(Bar)'))));
+        $container->merge($config);
+        $this->assertEquals(array('Foo' => 0, 'Bar' => 1), $container->getEnvCounters());
+
+        $container = new ContainerBuilder();
+        $config = new ContainerBuilder();
+        $childDefA = $container->registerForAutoconfiguration('AInterface');
+        $childDefB = $config->registerForAutoconfiguration('BInterface');
+        $container->merge($config);
+        $this->assertSame(array('AInterface' => $childDefA, 'BInterface' => $childDefB), $container->getAutoconfiguredInstanceof());
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\InvalidArgumentException
+     * @expectedExceptionMessage "AInterface" has already been autoconfigured and merge() does not support merging autoconfiguration for the same class/interface.
+     */
+    public function testMergeThrowsExceptionForDuplicateAutomaticInstanceofDefinitions()
+    {
+        $container = new ContainerBuilder();
+        $config = new ContainerBuilder();
+        $container->registerForAutoconfiguration('AInterface');
+        $config->registerForAutoconfiguration('AInterface');
+        $container->merge($config);
+    }
+
+    public function testResolveEnvValues()
+    {
+        $_ENV['DUMMY_ENV_VAR'] = 'du%%y';
+        $_SERVER['DUMMY_SERVER_VAR'] = 'ABC';
+        $_SERVER['HTTP_DUMMY_VAR'] = 'DEF';
+
+        $container = new ContainerBuilder();
+        $container->setParameter('bar', '%% %env(DUMMY_ENV_VAR)% %env(DUMMY_SERVER_VAR)% %env(HTTP_DUMMY_VAR)%');
+        $container->setParameter('env(HTTP_DUMMY_VAR)', '123');
+
+        $this->assertSame('%% du%%%%y ABC 123', $container->resolveEnvPlaceholders('%bar%', true));
+
+        unset($_ENV['DUMMY_ENV_VAR'], $_SERVER['DUMMY_SERVER_VAR'], $_SERVER['HTTP_DUMMY_VAR']);
+    }
+
+    public function testResolveEnvValuesWithArray()
+    {
+        $_ENV['ANOTHER_DUMMY_ENV_VAR'] = 'dummy';
+
+        $dummyArray = array('1' => 'one', '2' => 'two');
+
+        $container = new ContainerBuilder();
+        $container->setParameter('dummy', '%env(ANOTHER_DUMMY_ENV_VAR)%');
+        $container->setParameter('dummy2', $dummyArray);
+
+        $container->resolveEnvPlaceholders('%dummy%', true);
+        $container->resolveEnvPlaceholders('%dummy2%', true);
+
+        $this->assertInternalType('array', $container->resolveEnvPlaceholders('%dummy2%', true));
+
+        foreach ($dummyArray as $key => $value) {
+            $this->assertArrayHasKey($key, $container->resolveEnvPlaceholders('%dummy2%', true));
+        }
+
+        unset($_ENV['ANOTHER_DUMMY_ENV_VAR']);
+    }
+
+    public function testCompileWithResolveEnv()
+    {
+        putenv('DUMMY_ENV_VAR=du%%y');
+        $_SERVER['DUMMY_SERVER_VAR'] = 'ABC';
+        $_SERVER['HTTP_DUMMY_VAR'] = 'DEF';
+
+        $container = new ContainerBuilder();
+        $container->setParameter('env(FOO)', 'Foo');
+        $container->setParameter('env(DUMMY_ENV_VAR)', 'GHI');
+        $container->setParameter('bar', '%% %env(DUMMY_ENV_VAR)% %env(DUMMY_SERVER_VAR)% %env(HTTP_DUMMY_VAR)%');
+        $container->setParameter('foo', '%env(FOO)%');
+        $container->setParameter('baz', '%foo%');
+        $container->setParameter('env(HTTP_DUMMY_VAR)', '123');
+        $container->register('teatime', 'stdClass')
+            ->setProperty('foo', '%env(DUMMY_ENV_VAR)%')
+            ->setPublic(true)
+        ;
+        $container->compile(true);
+
+        $this->assertSame('% du%%y ABC 123', $container->getParameter('bar'));
+        $this->assertSame('Foo', $container->getParameter('baz'));
+        $this->assertSame('du%%y', $container->get('teatime')->foo);
+
+        unset($_SERVER['DUMMY_SERVER_VAR'], $_SERVER['HTTP_DUMMY_VAR']);
+        putenv('DUMMY_ENV_VAR');
+    }
+
+    public function testCompileWithArrayResolveEnv()
+    {
+        putenv('ARRAY={"foo":"bar"}');
+
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', '%env(json:ARRAY)%');
+        $container->compile(true);
+
+        $this->assertSame(array('foo' => 'bar'), $container->getParameter('foo'));
+
+        putenv('ARRAY');
+    }
+
+    public function testCompileWithArrayAndAnotherResolveEnv()
+    {
+        putenv('DUMMY_ENV_VAR=abc');
+        putenv('ARRAY={"foo":"bar"}');
+
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', '%env(json:ARRAY)%');
+        $container->setParameter('bar', '%env(DUMMY_ENV_VAR)%');
+        $container->compile(true);
+
+        $this->assertSame(array('foo' => 'bar'), $container->getParameter('foo'));
+        $this->assertSame('abc', $container->getParameter('bar'));
+
+        putenv('DUMMY_ENV_VAR');
+        putenv('ARRAY');
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage A string value must be composed of strings and/or numbers, but found parameter "env(json:ARRAY)" of type array inside string value "ABC %env(json:ARRAY)%".
+     */
+    public function testCompileWithArrayInStringResolveEnv()
+    {
+        putenv('ARRAY={"foo":"bar"}');
+
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', 'ABC %env(json:ARRAY)%');
+        $container->compile(true);
+
+        putenv('ARRAY');
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\EnvNotFoundException
+     * @expectedExceptionMessage Environment variable not found: "FOO".
+     */
+    public function testCompileWithResolveMissingEnv()
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', '%env(FOO)%');
+        $container->compile(true);
+    }
+
+    public function testDynamicEnv()
+    {
+        putenv('DUMMY_FOO=some%foo%');
+        putenv('DUMMY_BAR=%bar%');
+
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', 'Foo%env(resolve:DUMMY_BAR)%');
+        $container->setParameter('bar', 'Bar');
+        $container->setParameter('baz', '%env(resolve:DUMMY_FOO)%');
+
+        $container->compile(true);
+        putenv('DUMMY_FOO');
+        putenv('DUMMY_BAR');
+
+        $this->assertSame('someFooBar', $container->getParameter('baz'));
+    }
+
+    public function testCastEnv()
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('env(FAKE)', '123');
+
+        $container->register('foo', 'stdClass')
+            ->setPublic(true)
+            ->setProperties(array(
+                'fake' => '%env(int:FAKE)%',
+            ));
+
+        $container->compile(true);
+
+        $this->assertSame(123, $container->get('foo')->fake);
+    }
+
+    public function testEnvAreNullable()
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('env(FAKE)', null);
+
+        $container->register('foo', 'stdClass')
+            ->setPublic(true)
+            ->setProperties(array(
+            'fake' => '%env(int:FAKE)%',
+        ));
+
+        $container->compile(true);
+
+        $this->assertNull($container->get('foo')->fake);
+    }
+
+    public function testEnvInId()
+    {
+        $container = include __DIR__.'/Fixtures/containers/container_env_in_id.php';
+        $container->compile(true);
+
+        $expected = array(
+            'service_container',
+            'foo',
+            'bar',
+            'bar_%env(BAR)%',
+        );
+        $this->assertSame($expected, array_keys($container->getDefinitions()));
+
+        $expected = array(
+            PsrContainerInterface::class => true,
+            ContainerInterface::class => true,
+            'baz_%env(BAR)%' => true,
+            'bar_%env(BAR)%' => true,
+        );
+        $this->assertSame($expected, $container->getRemovedIds());
+
+        $this->assertSame(array('baz_bar'), array_keys($container->getDefinition('foo')->getArgument(1)));
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\ParameterCircularReferenceException
+     * @expectedExceptionMessage Circular reference detected for parameter "env(resolve:DUMMY_ENV_VAR)" ("env(resolve:DUMMY_ENV_VAR)" > "env(resolve:DUMMY_ENV_VAR)").
+     */
+    public function testCircularDynamicEnv()
+    {
+        putenv('DUMMY_ENV_VAR=some%foo%');
+
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', '%bar%');
+        $container->setParameter('bar', '%env(resolve:DUMMY_ENV_VAR)%');
+
+        try {
+            $container->compile(true);
+        } finally {
+            putenv('DUMMY_ENV_VAR');
+        }
     }
 
     /**
@@ -538,7 +877,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
         $resources = $container->getResources();
 
-        $this->assertCount(1, $resources, '1 resource was registered');
+        $this->assertCount(2, $resources, '2 resources were registered');
 
         /* @var $resource \Symfony\Component\Config\Resource\FileResource */
         $resource = end($resources);
@@ -547,6 +886,9 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertSame(realpath(__DIR__.'/Fixtures/includes/classes.php'), realpath($resource->getResource()));
     }
 
+    /**
+     * @group legacy
+     */
     public function testAddClassResource()
     {
         $container = new ContainerBuilder();
@@ -561,7 +903,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
         $resources = $container->getResources();
 
-        $this->assertCount(1, $resources, '1 resource was registered');
+        $this->assertCount(2, $resources, '2 resources were registered');
 
         /* @var $resource \Symfony\Component\Config\Resource\FileResource */
         $resource = end($resources);
@@ -570,22 +912,64 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertSame(realpath(__DIR__.'/Fixtures/includes/classes.php'), realpath($resource->getResource()));
     }
 
+    public function testGetReflectionClass()
+    {
+        $container = new ContainerBuilder();
+
+        $container->setResourceTracking(false);
+        $r1 = $container->getReflectionClass('BarClass');
+
+        $this->assertEmpty($container->getResources(), 'No resources get registered without resource tracking');
+
+        $container->setResourceTracking(true);
+        $r2 = $container->getReflectionClass('BarClass');
+        $r3 = $container->getReflectionClass('BarClass');
+
+        $this->assertNull($container->getReflectionClass('BarMissingClass'));
+
+        $this->assertEquals($r1, $r2);
+        $this->assertSame($r2, $r3);
+
+        $resources = $container->getResources();
+
+        $this->assertCount(3, $resources, '3 resources were registered');
+
+        $this->assertSame('reflection.BarClass', (string) $resources[1]);
+        $this->assertSame('BarMissingClass', (string) end($resources));
+    }
+
+    public function testGetReflectionClassOnInternalTypes()
+    {
+        $container = new ContainerBuilder();
+
+        $this->assertNull($container->getReflectionClass('int'));
+        $this->assertNull($container->getReflectionClass('float'));
+        $this->assertNull($container->getReflectionClass('string'));
+        $this->assertNull($container->getReflectionClass('bool'));
+        $this->assertNull($container->getReflectionClass('resource'));
+        $this->assertNull($container->getReflectionClass('object'));
+        $this->assertNull($container->getReflectionClass('array'));
+        $this->assertNull($container->getReflectionClass('null'));
+        $this->assertNull($container->getReflectionClass('callable'));
+        $this->assertNull($container->getReflectionClass('iterable'));
+        $this->assertNull($container->getReflectionClass('mixed'));
+    }
+
     public function testCompilesClassDefinitionsOfLazyServices()
     {
         $container = new ContainerBuilder();
 
         $this->assertEmpty($container->getResources(), 'No resources get registered without resource tracking');
 
-        $container->register('foo', 'BarClass');
+        $container->register('foo', 'BarClass')->setPublic(true);
         $container->getDefinition('foo')->setLazy(true);
 
         $container->compile();
 
-        $classesPath = realpath(__DIR__.'/Fixtures/includes/classes.php');
         $matchingResources = array_filter(
             $container->getResources(),
-            function (ResourceInterface $resource) use ($classesPath) {
-                return $resource instanceof FileResource && $classesPath === realpath($resource->getResource());
+            function (ResourceInterface $resource) {
+                return 'reflection.BarClass' === (string) $resource;
             }
         );
 
@@ -608,21 +992,41 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(array(), $container->getResources());
     }
 
+    public function testFileExists()
+    {
+        $container = new ContainerBuilder();
+        $A = new ComposerResource();
+        $a = new FileResource(__DIR__.'/Fixtures/xml/services1.xml');
+        $b = new FileResource(__DIR__.'/Fixtures/xml/services2.xml');
+        $c = new DirectoryResource($dir = \dirname($b));
+
+        $this->assertTrue($container->fileExists((string) $a) && $container->fileExists((string) $b) && $container->fileExists($dir));
+
+        $resources = array();
+        foreach ($container->getResources() as $resource) {
+            if (false === strpos($resource, '.php')) {
+                $resources[] = $resource;
+            }
+        }
+
+        $this->assertEquals(array($A, $a, $b, $c), $resources, '->getResources() returns an array of resources read for the current configuration');
+    }
+
     public function testExtension()
     {
         $container = new ContainerBuilder();
         $container->setResourceTracking(false);
 
         $container->registerExtension($extension = new \ProjectExtension());
-        $this->assertTrue($container->getExtension('project') === $extension, '->registerExtension() registers an extension');
+        $this->assertSame($container->getExtension('project'), $extension, '->registerExtension() registers an extension');
 
-        $this->setExpectedException('LogicException');
+        $this->{method_exists($this, $_ = 'expectException') ? $_ : 'setExpectedException'}('LogicException');
         $container->getExtension('no_registered');
     }
 
     public function testRegisteredButNotLoadedExtension()
     {
-        $extension = $this->getMock('Symfony\\Component\\DependencyInjection\\Extension\\ExtensionInterface');
+        $extension = $this->getMockBuilder('Symfony\\Component\\DependencyInjection\\Extension\\ExtensionInterface')->getMock();
         $extension->expects($this->once())->method('getAlias')->will($this->returnValue('project'));
         $extension->expects($this->never())->method('load');
 
@@ -634,7 +1038,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
     public function testRegisteredAndLoadedExtension()
     {
-        $extension = $this->getMock('Symfony\\Component\\DependencyInjection\\Extension\\ExtensionInterface');
+        $extension = $this->getMockBuilder('Symfony\\Component\\DependencyInjection\\Extension\\ExtensionInterface')->getMock();
         $extension->expects($this->exactly(2))->method('getAlias')->will($this->returnValue('project'));
         $extension->expects($this->once())->method('load')->with(array(array('foo' => 'bar')));
 
@@ -656,7 +1060,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
         $container->addDefinitions(array(
             'bar' => $fooDefinition,
-            'bar_user' => $fooUserDefinition,
+            'bar_user' => $fooUserDefinition->setPublic(true),
         ));
 
         $container->compile();
@@ -666,16 +1070,16 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
     /**
      * @expectedException \BadMethodCallException
      */
-    public function testThrowsExceptionWhenSetServiceOnAFrozenContainer()
+    public function testThrowsExceptionWhenSetServiceOnACompiledContainer()
     {
         $container = new ContainerBuilder();
         $container->setResourceTracking(false);
-        $container->setDefinition('a', new Definition('stdClass'));
+        $container->register('a', 'stdClass')->setPublic(true);
         $container->compile();
         $container->set('a', new \stdClass());
     }
 
-    public function testThrowsExceptionWhenAddServiceOnAFrozenContainer()
+    public function testThrowsExceptionWhenAddServiceOnACompiledContainer()
     {
         $container = new ContainerBuilder();
         $container->compile();
@@ -683,11 +1087,11 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($foo, $container->get('a'));
     }
 
-    public function testNoExceptionWhenSetSyntheticServiceOnAFrozenContainer()
+    public function testNoExceptionWhenSetSyntheticServiceOnACompiledContainer()
     {
         $container = new ContainerBuilder();
         $def = new Definition('stdClass');
-        $def->setSynthetic(true);
+        $def->setSynthetic(true)->setPublic(true);
         $container->setDefinition('a', $def);
         $container->compile();
         $container->set('a', $a = new \stdClass());
@@ -695,61 +1099,9 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @group legacy
-     */
-    public function testLegacySetOnSynchronizedService()
-    {
-        $container = new ContainerBuilder();
-        $container->register('baz', 'BazClass')
-            ->setSynchronized(true)
-        ;
-        $container->register('bar', 'BarClass')
-            ->addMethodCall('setBaz', array(new Reference('baz')))
-        ;
-
-        $container->set('baz', $baz = new \BazClass());
-        $this->assertSame($baz, $container->get('bar')->getBaz());
-
-        $container->set('baz', $baz = new \BazClass());
-        $this->assertSame($baz, $container->get('bar')->getBaz());
-    }
-
-    /**
-     * @group legacy
-     */
-    public function testLegacySynchronizedServiceWithScopes()
-    {
-        $container = new ContainerBuilder();
-        $container->addScope(new Scope('foo'));
-        $container->register('baz', 'BazClass')
-            ->setSynthetic(true)
-            ->setSynchronized(true)
-            ->setScope('foo')
-        ;
-        $container->register('bar', 'BarClass')
-            ->addMethodCall('setBaz', array(new Reference('baz', ContainerInterface::NULL_ON_INVALID_REFERENCE, false)))
-        ;
-        $container->compile();
-
-        $container->enterScope('foo');
-        $container->set('baz', $outerBaz = new \BazClass(), 'foo');
-        $this->assertSame($outerBaz, $container->get('bar')->getBaz());
-
-        $container->enterScope('foo');
-        $container->set('baz', $innerBaz = new \BazClass(), 'foo');
-        $this->assertSame($innerBaz, $container->get('bar')->getBaz());
-        $container->leaveScope('foo');
-
-        $this->assertNotSame($innerBaz, $container->get('bar')->getBaz());
-        $this->assertSame($outerBaz, $container->get('bar')->getBaz());
-
-        $container->leaveScope('foo');
-    }
-
-    /**
      * @expectedException \BadMethodCallException
      */
-    public function testThrowsExceptionWhenSetDefinitionOnAFrozenContainer()
+    public function testThrowsExceptionWhenSetDefinitionOnACompiledContainer()
     {
         $container = new ContainerBuilder();
         $container->setResourceTracking(false);
@@ -780,10 +1132,10 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $container = new ContainerBuilder();
 
         $abstract = new Definition('AbstractClass');
-        $abstract->setAbstract(true);
+        $abstract->setAbstract(true)->setPublic(true);
 
         $container->setDefinition('abstract_service', $abstract);
-        $container->setAlias('abstract_alias', 'abstract_service');
+        $container->setAlias('abstract_alias', 'abstract_service')->setPublic(true);
 
         $container->compile();
 
@@ -794,19 +1146,16 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
     {
         $loader = new ClosureLoader($container = new ContainerBuilder());
         $loader->load(function (ContainerBuilder $container) {
-                $container->set('a', new \BazClass());
-                $definition = new Definition('BazClass');
-                $definition->setLazy(true);
-                $container->setDefinition('a', $definition);
-            }
-        );
+            $container->set('a', new \BazClass());
+            $definition = new Definition('BazClass');
+            $definition->setLazy(true);
+            $definition->setPublic(true);
+            $container->setDefinition('a', $definition);
+        });
 
         $container->setResourceTracking(true);
 
         $container->compile();
-
-        $class = new \BazClass();
-        $reflectionClass = new \ReflectionClass($class);
 
         $r = new \ReflectionProperty($container, 'resources');
         $r->setAccessible(true);
@@ -814,7 +1163,7 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
 
         $classInList = false;
         foreach ($resources as $resource) {
-            if ($resource->getResource() === $reflectionClass->getFileName()) {
+            if ('reflection.BazClass' === (string) $resource) {
                 $classInList = true;
                 break;
             }
@@ -823,30 +1172,317 @@ class ContainerBuilderTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($classInList);
     }
 
+    public function testInlinedDefinitions()
+    {
+        $container = new ContainerBuilder();
+
+        $definition = new Definition('BarClass');
+
+        $container->register('bar_user', 'BarUserClass')
+            ->addArgument($definition)
+            ->setProperty('foo', $definition);
+
+        $container->register('bar', 'BarClass')
+            ->setProperty('foo', $definition)
+            ->addMethodCall('setBaz', array($definition));
+
+        $barUser = $container->get('bar_user');
+        $bar = $container->get('bar');
+
+        $this->assertSame($barUser->foo, $barUser->bar);
+        $this->assertSame($bar->foo, $bar->getBaz());
+        $this->assertNotSame($bar->foo, $barUser->foo);
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\ServiceCircularReferenceException
+     * @expectedExceptionMessage Circular reference detected for service "app.test_class", path: "app.test_class -> App\TestClass -> app.test_class".
+     */
+    public function testThrowsCircularExceptionForCircularAliases()
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->setAliases(array(
+            'foo' => new Alias('app.test_class'),
+            'app.test_class' => new Alias('App\\TestClass'),
+            'App\\TestClass' => new Alias('app.test_class'),
+        ));
+
+        $builder->findDefinition('foo');
+    }
+
+    public function testInitializePropertiesBeforeMethodCalls()
+    {
+        $container = new ContainerBuilder();
+        $container->register('foo', 'stdClass');
+        $container->register('bar', 'MethodCallClass')
+            ->setPublic(true)
+            ->setProperty('simple', 'bar')
+            ->setProperty('complex', new Reference('foo'))
+            ->addMethodCall('callMe');
+
+        $container->compile();
+
+        $this->assertTrue($container->get('bar')->callPassed(), '->compile() initializes properties before method calls');
+    }
+
     public function testAutowiring()
     {
         $container = new ContainerBuilder();
 
-        $container->register('a', __NAMESPACE__.'\A');
+        $container->register(A::class)->setPublic(true);
         $bDefinition = $container->register('b', __NAMESPACE__.'\B');
         $bDefinition->setAutowired(true);
+        $bDefinition->setPublic(true);
 
         $container->compile();
 
-        $this->assertEquals('a', (string) $container->getDefinition('b')->getArgument(0));
+        $this->assertEquals(A::class, (string) $container->getDefinition('b')->getArgument(0));
+    }
+
+    public function testClassFromId()
+    {
+        $container = new ContainerBuilder();
+
+        $unknown = $container->register('Acme\UnknownClass');
+        $autoloadClass = $container->register(CaseSensitiveClass::class);
+        $container->compile();
+
+        $this->assertSame('Acme\UnknownClass', $unknown->getClass());
+        $this->assertEquals(CaseSensitiveClass::class, $autoloadClass->getClass());
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage The definition for "DateTime" has no class attribute, and appears to reference a class or interface in the global namespace.
+     */
+    public function testNoClassFromGlobalNamespaceClassId()
+    {
+        $container = new ContainerBuilder();
+
+        $definition = $container->register(\DateTime::class);
+        $container->compile();
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage The definition for "\DateTime" has no class attribute, and appears to reference a class or interface in the global namespace.
+     */
+    public function testNoClassFromGlobalNamespaceClassIdWithLeadingSlash()
+    {
+        $container = new ContainerBuilder();
+
+        $container->register('\\'.\DateTime::class);
+        $container->compile();
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage The definition for "\Symfony\Component\DependencyInjection\Tests\FooClass" has no class attribute, and appears to reference a class or interface. Please specify the class attribute explicitly or remove the leading backslash by renaming the service to "Symfony\Component\DependencyInjection\Tests\FooClass" to get rid of this error.
+     */
+    public function testNoClassFromNamespaceClassIdWithLeadingSlash()
+    {
+        $container = new ContainerBuilder();
+
+        $container->register('\\'.FooClass::class);
+        $container->compile();
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage The definition for "123_abc" has no class.
+     */
+    public function testNoClassFromNonClassId()
+    {
+        $container = new ContainerBuilder();
+
+        $definition = $container->register('123_abc');
+        $container->compile();
+    }
+
+    /**
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\RuntimeException
+     * @expectedExceptionMessage The definition for "\foo" has no class.
+     */
+    public function testNoClassFromNsSeparatorId()
+    {
+        $container = new ContainerBuilder();
+
+        $definition = $container->register('\\foo');
+        $container->compile();
+    }
+
+    public function testServiceLocator()
+    {
+        $container = new ContainerBuilder();
+        $container->register('foo_service', ServiceLocator::class)
+            ->setPublic(true)
+            ->addArgument(array(
+                'bar' => new ServiceClosureArgument(new Reference('bar_service')),
+                'baz' => new ServiceClosureArgument(new TypedReference('baz_service', 'stdClass')),
+            ))
+        ;
+        $container->register('bar_service', 'stdClass')->setArguments(array(new Reference('baz_service')))->setPublic(true);
+        $container->register('baz_service', 'stdClass')->setPublic(false);
+        $container->compile();
+
+        $this->assertInstanceOf(ServiceLocator::class, $foo = $container->get('foo_service'));
+        $this->assertSame($container->get('bar_service'), $foo->get('bar'));
+    }
+
+    public function testUninitializedReference()
+    {
+        $container = include __DIR__.'/Fixtures/containers/container_uninitialized_ref.php';
+        $container->compile();
+
+        $bar = $container->get('bar');
+
+        $this->assertNull($bar->foo1);
+        $this->assertNull($bar->foo2);
+        $this->assertNull($bar->foo3);
+        $this->assertNull($bar->closures[0]());
+        $this->assertNull($bar->closures[1]());
+        $this->assertNull($bar->closures[2]());
+        $this->assertSame(array(), iterator_to_array($bar->iter));
+
+        $container = include __DIR__.'/Fixtures/containers/container_uninitialized_ref.php';
+        $container->compile();
+
+        $container->get('foo1');
+        $container->get('baz');
+
+        $bar = $container->get('bar');
+
+        $this->assertEquals(new \stdClass(), $bar->foo1);
+        $this->assertNull($bar->foo2);
+        $this->assertEquals(new \stdClass(), $bar->foo3);
+        $this->assertEquals(new \stdClass(), $bar->closures[0]());
+        $this->assertNull($bar->closures[1]());
+        $this->assertEquals(new \stdClass(), $bar->closures[2]());
+        $this->assertEquals(array('foo1' => new \stdClass(), 'foo3' => new \stdClass()), iterator_to_array($bar->iter));
+    }
+
+    /**
+     * @dataProvider provideAlmostCircular
+     */
+    public function testAlmostCircular($visibility)
+    {
+        $container = include __DIR__.'/Fixtures/containers/container_almost_circular.php';
+
+        $foo = $container->get('foo');
+        $this->assertSame($foo, $foo->bar->foobar->foo);
+
+        $foo2 = $container->get('foo2');
+        $this->assertSame($foo2, $foo2->bar->foobar->foo);
+
+        $this->assertSame(array(), (array) $container->get('foobar4'));
+
+        $foo5 = $container->get('foo5');
+        $this->assertSame($foo5, $foo5->bar->foo);
+
+        $manager = $container->get('manager');
+        $this->assertEquals(new \stdClass(), $manager);
+
+        $manager = $container->get('manager2');
+        $this->assertEquals(new \stdClass(), $manager);
+    }
+
+    public function provideAlmostCircular()
+    {
+        yield array('public');
+        yield array('private');
+    }
+
+    public function testRegisterForAutoconfiguration()
+    {
+        $container = new ContainerBuilder();
+        $childDefA = $container->registerForAutoconfiguration('AInterface');
+        $childDefB = $container->registerForAutoconfiguration('BInterface');
+        $this->assertSame(array('AInterface' => $childDefA, 'BInterface' => $childDefB), $container->getAutoconfiguredInstanceof());
+
+        // when called multiple times, the same instance is returned
+        $this->assertSame($childDefA, $container->registerForAutoconfiguration('AInterface'));
+    }
+
+    /**
+     * This test checks the trigger of a deprecation note and should not be removed in major releases.
+     *
+     * @group legacy
+     * @expectedDeprecation The "foo" service is deprecated. You should stop using it, as it will soon be removed.
+     */
+    public function testPrivateServiceTriggersDeprecation()
+    {
+        $container = new ContainerBuilder();
+        $container->register('foo', 'stdClass')
+            ->setPublic(false)
+            ->setDeprecated(true);
+        $container->register('bar', 'stdClass')
+            ->setPublic(true)
+            ->setProperty('foo', new Reference('foo'));
+
+        $container->compile();
+
+        $container->get('bar');
+    }
+
+    /**
+     * @group legacy
+     * @expectedDeprecation Parameter names will be made case sensitive in Symfony 4.0. Using "FOO" instead of "foo" is deprecated since Symfony 3.4.
+     */
+    public function testParameterWithMixedCase()
+    {
+        $container = new ContainerBuilder(new ParameterBag(array('foo' => 'bar')));
+        $container->register('foo', 'stdClass')
+            ->setPublic(true)
+            ->setProperty('foo', '%FOO%');
+
+        $container->compile();
+
+        $this->assertSame('bar', $container->get('foo')->foo);
+    }
+
+    public function testArgumentsHaveHigherPriorityThanBindings()
+    {
+        $container = new ContainerBuilder();
+        $container->register('class.via.bindings', CaseSensitiveClass::class)->setArguments(array(
+            'via-bindings',
+        ));
+        $container->register('class.via.argument', CaseSensitiveClass::class)->setArguments(array(
+            'via-argument',
+        ));
+        $container->register('foo', SimilarArgumentsDummy::class)->setPublic(true)->setBindings(array(
+            CaseSensitiveClass::class => new Reference('class.via.bindings'),
+            '$token' => '1234',
+        ))->setArguments(array(
+            '$class1' => new Reference('class.via.argument'),
+        ));
+
+        $this->assertSame(array('service_container', 'class.via.bindings', 'class.via.argument', 'foo', 'Psr\Container\ContainerInterface', 'Symfony\Component\DependencyInjection\ContainerInterface'), $container->getServiceIds());
+
+        $container->compile();
+
+        $this->assertSame('via-argument', $container->get('foo')->class1->identifier);
+        $this->assertSame('via-bindings', $container->get('foo')->class2->identifier);
+    }
+
+    public function testUninitializedSyntheticReference()
+    {
+        $container = new ContainerBuilder();
+        $container->register('foo', 'stdClass')->setPublic(true)->setSynthetic(true);
+        $container->register('bar', 'stdClass')->setPublic(true)->setShared(false)
+            ->setProperty('foo', new Reference('foo', ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE));
+
+        $container->compile();
+
+        $this->assertEquals((object) array('foo' => null), $container->get('bar'));
+
+        $container->set('foo', (object) array(123));
+        $this->assertEquals((object) array('foo' => (object) array(123)), $container->get('bar'));
     }
 }
 
 class FooClass
 {
-}
-
-class ProjectContainer extends ContainerBuilder
-{
-    public function getFoobazService()
-    {
-        throw new InactiveScopeException('foo', 'request');
-    }
 }
 
 class A

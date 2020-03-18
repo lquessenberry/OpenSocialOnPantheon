@@ -1,0 +1,41 @@
+administer inform and consent settings:
+  title: 'Administer inform and consent settings'
+  description: 'Allows the user to configure the texts that are displayed to the user.'
+
+overview inform and consent settings:
+  title: 'Overview inform and consent settings'
+  description: 'Access to inform and consent settings page.'
+
+edit inform and consent setting:
+  title: 'Edit inform and consent setting'
+
+change inform and consent setting status:
+  title: 'Change inform and consent setting status'
+
+overview user consents:
+  title: 'Overview user consents'
+
+administer data policy settings:
+  title: 'Administer Data policy settings'
+
+administer data policy entities:
+  title: 'Administer Data policy entities'
+  description: 'Allow to access the administration form to configure Data policy entities.'
+  restrict access: true
+
+edit data policy:
+  title: 'Edit Data policy'
+
+view all data policy revisions:
+  title: 'View all Data policy revisions'
+
+revert all data policy revisions:
+  title: 'Revert all Data policy revisions'
+  description: 'Role requires permission <em>view Data policy revisions</em> and <em>edit rights</em> for data policy entities in question or <em>administer data policy entities</em>.'
+
+delete all data policy revisions:
+  title: 'Delete all Data policy revisions'
+
+without consent:
+  title: 'Do not need consent'
+  description: 'Allow a user continue using a website without giving consent on a current version of data policy.'

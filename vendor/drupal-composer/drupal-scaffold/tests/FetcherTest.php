@@ -1,20 +1,14 @@
 <?php
 
-/**
- * @file
- * Contains \DrupalComposer\DrupalScaffold\Tests\FetcherTest.
- */
-
 namespace DrupalComposer\DrupalScaffold\Tests;
 
-use Composer\Downloader\TransportException;
 use Composer\IO\NullIO;
 use Composer\Util\Filesystem;
 use Composer\Util\RemoteFilesystem;
 use DrupalComposer\DrupalScaffold\FileFetcher;
-use DrupalComposer\DrupalScaffold\InitialFileFetcher;
+use PHPUnit\Framework\TestCase;
 
-class FetcherTest extends \PHPUnit_Framework_TestCase {
+class FetcherTest extends TestCase {
 
   /**
    * @var \Composer\Util\Filesystem
@@ -37,7 +31,7 @@ class FetcherTest extends \PHPUnit_Framework_TestCase {
   protected $tmpReleaseTag;
 
   /**
-   * SetUp test
+   * SetUp test.
    */
   public function setUp() {
     $this->rootDir = realpath(realpath(__DIR__ . '/..'));
@@ -59,41 +53,27 @@ class FetcherTest extends \PHPUnit_Framework_TestCase {
     if (is_dir($directory)) {
       $this->fs->removeDirectory($directory);
     }
-    mkdir($directory, 0777, true);
+    mkdir($directory, 0777, TRUE);
   }
 
   public function testFetch() {
-    $fetcher = new FileFetcher(new RemoteFilesystem(new NullIO()), 'http://cgit.drupalcode.org/drupal/plain/{path}?h={version}', ['.htaccess', 'sites/default/default.settings.php']);
-    $fetcher->fetch('8.1.1', $this->tmpDir);
+    $fetcher = new FileFetcher(new RemoteFilesystem(new NullIO()), 'https://cgit.drupalcode.org/drupal/plain/{path}?h={version}', new NullIO());
+    $fetcher->setFilenames([
+      '.htaccess' => '.htaccess',
+      'sites/default/default.settings.php' => 'sites/default/default.settings.php',
+    ]);
+    $fetcher->fetch('8.1.1', $this->tmpDir, TRUE);
     $this->assertFileExists($this->tmpDir . '/.htaccess');
     $this->assertFileExists($this->tmpDir . '/sites/default/default.settings.php');
   }
 
-  /**
-   * Tests version specific files.
-   */
-  public function testFetchVersionSpecific() {
-    $fetcher = new FileFetcher(new RemoteFilesystem(new NullIO()), 'http://cgit.drupalcode.org/drupal/plain/{path}?h={version}', ['.eslintrc', '.eslintrc.json']);
-
-    $this->setExpectedException(TransportException::class);
-    $fetcher->fetch('8.2.x', $this->tmpDir);
-
-    $this->assertFileExists($this->tmpDir . '/.eslintrc');
-    $this->assertFileNotExists($this->tmpDir . '/.eslintrc.json');
-
-    // Remove downloaded files to retest with 8.3.x.
-    @unlink($this->tmpDir . '/.eslintrc');
-
-    $this->setExpectedException(TransportException::class);
-    $fetcher->fetch('8.3.x', $this->tmpDir);
-
-    $this->assertFileExists($this->tmpDir . '/.eslintrc.json');
-    $this->assertFileNotExists($this->tmpDir . '/.eslintrc');
-  }
-
   public function testInitialFetch() {
-    $fetcher = new InitialFileFetcher(new RemoteFilesystem(new NullIO()), 'http://cgit.drupalcode.org/drupal/plain/{path}?h={version}', ['sites/default/default.settings.php' => 'sites/default/settings.php']);
-    $fetcher->fetch('8.1.1', $this->tmpDir);
+    $fetcher = new FileFetcher(new RemoteFilesystem(new NullIO()), 'https://cgit.drupalcode.org/drupal/plain/{path}?h={version}', new NullIO());
+    $fetcher->setFilenames([
+      'sites/default/default.settings.php' => 'sites/default/settings.php',
+    ]);
+    $fetcher->fetch('8.1.1', $this->tmpDir, FALSE);
     $this->assertFileExists($this->tmpDir . '/sites/default/settings.php');
   }
+
 }

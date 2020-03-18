@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * The Flagging Admin module.
+ *
+ * This module creates a default view for testing flagging views.
+ */
