@@ -2,3 +2,4 @@
 vendor
 build
 dependencies/*/vendor
+.phpunit.result.cache

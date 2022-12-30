@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\user\Functional\Views;
 
-use Drupal\Component\Utility\SafeMarkup;
 use Drupal\user\Entity\User;
 
 /**
@@ -19,7 +18,12 @@ class BulkFormAccessTest extends UserTestBase {
    *
    * @var array
    */
-  public static $modules = ['user_access_test'];
+  protected static $modules = ['user_access_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -44,21 +48,18 @@ class BulkFormAccessTest extends UserTestBase {
     // Ensure that the account "no_edit" can not be edited.
     $this->drupalGet('user/' . $no_edit_user->id() . '/edit');
     $this->assertFalse($no_edit_user->access('update', $admin_user));
-    $this->assertResponse(403, 'The user may not be edited.');
+    $this->assertSession()->statusCodeEquals(403);
 
     // Test blocking the account "no_edit".
     $edit = [
       'user_bulk_form[' . ($no_edit_user->id() - 1) . ']' => TRUE,
       'action' => 'user_block_user_action',
     ];
-    $this->drupalPostForm('test-user-bulk-form', $edit, t('Apply to selected items'));
-    $this->assertResponse(200);
+    $this->drupalGet('test-user-bulk-form');
+    $this->submitForm($edit, 'Apply to selected items');
+    $this->assertSession()->statusCodeEquals(200);
 
-    $this->assertRaw(SafeMarkup::format('No access to execute %action on the @entity_type_label %entity_label.', [
-      '%action' => 'Block the selected user(s)',
-      '@entity_type_label' => 'User',
-      '%entity_label' => $no_edit_user->label(),
-    ]));
+    $this->assertSession()->pageTextContains("No access to execute Block the selected user(s) on the User {$no_edit_user->label()}.");
 
     // Re-load the account "no_edit" and ensure it is not blocked.
     $no_edit_user = User::load($no_edit_user->id());
@@ -72,7 +73,8 @@ class BulkFormAccessTest extends UserTestBase {
       'user_bulk_form[' . ($normal_user->id() - 1) . ']' => TRUE,
       'action' => 'user_block_user_action',
     ];
-    $this->drupalPostForm('test-user-bulk-form', $edit, t('Apply to selected items'));
+    $this->drupalGet('test-user-bulk-form');
+    $this->submitForm($edit, 'Apply to selected items');
 
     $normal_user = User::load($normal_user->id());
     $this->assertTrue($normal_user->isBlocked(), 'The user is blocked.');
@@ -84,7 +86,8 @@ class BulkFormAccessTest extends UserTestBase {
       'user_bulk_form[' . ($normal_user->id() - 1) . ']' => TRUE,
       'action' => 'user_unblock_user_action',
     ];
-    $this->drupalPostForm('test-user-bulk-form', $edit, t('Apply to selected items'));
+    $this->drupalGet('test-user-bulk-form');
+    $this->submitForm($edit, 'Apply to selected items');
 
     // Re-load the normal user and ensure it is still blocked.
     $normal_user = User::load($normal_user->id());
@@ -104,10 +107,10 @@ class BulkFormAccessTest extends UserTestBase {
 
     // Ensure that the account "no_delete" can not be deleted.
     $this->drupalGet('user/' . $account->id() . '/cancel');
-    $this->assertResponse(403, 'The user "no_delete" may not be deleted.');
+    $this->assertSession()->statusCodeEquals(403);
     // Ensure that the account "may_delete" *can* be deleted.
     $this->drupalGet('user/' . $account2->id() . '/cancel');
-    $this->assertResponse(200, 'The user "may_delete" may be deleted.');
+    $this->assertSession()->statusCodeEquals(200);
 
     // Test deleting the accounts "no_delete" and "may_delete".
     $edit = [
@@ -115,11 +118,12 @@ class BulkFormAccessTest extends UserTestBase {
       'user_bulk_form[' . ($account2->id() - 1) . ']' => TRUE,
       'action' => 'user_cancel_user_action',
     ];
-    $this->drupalPostForm('test-user-bulk-form', $edit, t('Apply to selected items'));
+    $this->drupalGet('test-user-bulk-form');
+    $this->submitForm($edit, 'Apply to selected items');
     $edit = [
       'user_cancel_method' => 'user_cancel_delete',
     ];
-    $this->drupalPostForm(NULL, $edit, t('Cancel accounts'));
+    $this->submitForm($edit, 'Confirm');
 
     // Ensure the account "no_delete" still exists.
     $account = User::load($account->id());

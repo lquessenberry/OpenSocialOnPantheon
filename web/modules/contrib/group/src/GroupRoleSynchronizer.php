@@ -54,11 +54,20 @@ class GroupRoleSynchronizer implements GroupRoleSynchronizerInterface {
    * {@inheritdoc}
    */
   public function getGroupRoleIdsByGroupType($group_type_id) {
+    return $this->getGroupRoleIdsByGroupTypes([$group_type_id]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getGroupRoleIdsByGroupTypes($group_type_ids) {
     $group_role_ids = [];
 
     $role_ids = $this->entityTypeManager->getStorage('user_role')->getQuery()->execute();
     foreach ($role_ids as $role_id) {
-      $group_role_ids[] = $this->getGroupRoleId($group_type_id, $role_id);
+      foreach ($group_type_ids as $group_type_id) {
+        $group_role_ids[] = $this->getGroupRoleId($group_type_id, $role_id);
+      }
     }
 
     return $group_role_ids;
@@ -68,90 +77,23 @@ class GroupRoleSynchronizer implements GroupRoleSynchronizerInterface {
    * {@inheritdoc}
    */
   public function getGroupRoleIdsByUserRole($role_id) {
+    return $this->getGroupRoleIdsByUserRoles([$role_id]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getGroupRoleIdsByUserRoles($role_ids) {
     $group_role_ids = [];
 
     $group_type_ids = $this->entityTypeManager->getStorage('group_type')->getQuery()->execute();
     foreach ($group_type_ids as $group_type_id) {
-      $group_role_ids[] = $this->getGroupRoleId($group_type_id, $role_id);
+      foreach ($role_ids as $role_id) {
+        $group_role_ids[] = $this->getGroupRoleId($group_type_id, $role_id);
+      }
     }
 
     return $group_role_ids;
-  }
-
-    /**
-   * {@inheritdoc}
-   */
-  public function createGroupRoles($group_type_ids = NULL, $role_ids = NULL) {
-    // Load all possible group type IDs if none were provided.
-    if (empty($group_type_ids)) {
-      $group_type_ids = $this->entityTypeManager->getStorage('group_type')->getQuery()->execute();
-    }
-
-    // Return early if there are no group types to create roles for.
-    if (empty($group_type_ids)) {
-      return;
-    }
-
-    /** @var \Drupal\User\RoleInterface[] $user_roles */
-    $user_roles = $this->entityTypeManager->getStorage('user_role')->loadMultiple($role_ids);
-
-    $definitions = [];
-    foreach (array_keys($user_roles) as $role_id) {
-      // We do not synchronize the 'anonymous' or 'authenticated' user roles as
-      // they are already taken care of by the 'anonymous' and 'outsider'
-      // internal group roles.
-      if ($role_id == 'anonymous' || $role_id == 'authenticated') {
-        continue;
-      }
-
-      // Build a list of group role definitions but do not save them yet so we
-      // can check whether they already exist in bulk instead of trying to find
-      // out on an individual basis here.
-      foreach ($group_type_ids as $group_type_id) {
-        $group_role_id = $this->getGroupRoleId($group_type_id, $role_id);
-        $definitions[$group_role_id] = [
-          'id' => $group_role_id,
-          'label' => $user_roles[$role_id]->label(),
-          'weight' => $user_roles[$role_id]->getWeight(),
-          'internal' => TRUE,
-          'audience' => 'outsider',
-          'group_type' => $group_type_id,
-          'permissions_ui' => FALSE,
-          // Adding the user role as an enforced dependency will automatically
-          // delete any synchronized group role when its corresponding user role
-          // is deleted.
-          'dependencies' => [
-            'enforced' => [
-              'config' => [$user_roles[$role_id]->getConfigDependencyName()],
-            ],
-          ],
-        ];
-      }
-    }
-
-    // See if the roles we just defined already exist.
-    $storage = $this->entityTypeManager->getStorage('group_role');
-    $query = $storage->getQuery();
-    $query->condition('id', array_keys($definitions));
-
-    // Create the group roles that do not exist yet.
-    foreach (array_diff_key($definitions, $query->execute()) as $definition) {
-      $storage->create($definition)->save();
-    }
-  }
-
-  /**
-   * Updates the label of all group roles for a user role.
-   *
-   * @param \Drupal\User\RoleInterface $role
-   *   The user role to update the group role labels for.
-   */
-  public function updateGroupRoleLabels(RoleInterface $role) {
-    $group_roles = $this->entityTypeManager->getStorage('group_role')
-      ->loadMultiple($this->getGroupRoleIdsByUserRole($role->id()));
-    foreach ($group_roles as $group_role) {
-      $group_role->set('label', $role->label())->save();
-    }
   }
 
 }

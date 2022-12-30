@@ -3,6 +3,7 @@
 namespace Drush\Commands\core;
 
 use Consolidation\OutputFormatters\StructuredData\PropertyList;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\PrivateStream;
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drush\Boot\BootstrapManager;
@@ -14,6 +15,8 @@ use Consolidation\SiteAlias\SiteAliasManagerAwareInterface;
 use Consolidation\SiteAlias\SiteAliasManagerAwareTrait;
 use Consolidation\OutputFormatters\Options\FormatterOptions;
 use Consolidation\AnnotatedCommand\CommandData;
+use Drush\Utils\StringUtils;
+use Symfony\Component\Filesystem\Path;
 
 class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInterface
 {
@@ -48,10 +51,10 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
      *   php-bin: PHP binary
      *   php-conf: PHP config
      *   php-os: PHP OS
+     *   php-version: PHP version
      *   drush-script: Drush script
      *   drush-version: Drush version
      *   drush-temp: Drush temp
-     *   drush-cache-directory: Drush cache folder
      *   drush-conf: Drush configs
      *   drush-alias-files: Drush aliases
      *   alias-searchpaths: Alias search paths
@@ -69,15 +72,13 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
      *   files-path: Files, Public
      *   temp-path: Files, Temp
      *   %paths: Other paths
-     * @default-fields drupal-version,uri,db-driver,db-hostname,db-port,db-username,db-name,db-status,bootstrap,theme,admin-theme,php-bin,php-conf,php-os,drush-script,drush-version,drush-temp,drush-conf,install-profile,root,site,files,private,temp
+     * @default-fields drupal-version,uri,db-driver,db-hostname,db-port,db-username,db-name,db-status,bootstrap,theme,admin-theme,php-bin,php-conf,php-os,php-version,drush-script,drush-version,drush-temp,drush-conf,install-profile,root,site,files,private,temp
      * @pipe-format json
      * @hidden-options project
      * @bootstrap max
      * @topics docs:readme
-     *
-     * @return \Consolidation\OutputFormatters\StructuredData\PropertyList
      */
-    public function status($filter = '', $options = ['project' => self::REQ, 'format' => 'table'])
+    public function status($filter = '', $options = ['project' => self::REQ, 'format' => 'table']): PropertyList
     {
         $data = $this->getPropertyList($options);
 
@@ -87,30 +88,31 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
         return $result;
     }
 
-    public function getPropertyList($options)
+    public function getPropertyList($options): array
     {
         $boot_manager = Drush::bootstrapManager();
         $boot_object = Drush::bootstrap();
         if (($drupal_root = $boot_manager->getRoot()) && ($boot_object instanceof DrupalBoot)) {
             $status_table['drupal-version'] = $boot_object->getVersion($drupal_root);
             $conf_dir = $boot_object->confPath();
-            $settings_file = "$conf_dir/settings.php";
+            $settings_file = Path::join($conf_dir, 'settings.php');
             $status_table['drupal-settings-file'] = file_exists($settings_file) ? $settings_file : '';
             if ($boot_manager->hasBootstrapped(DRUSH_BOOTSTRAP_DRUPAL_SITE)) {
                 $status_table['uri'] = $boot_manager->getUri();
                 try {
-                    $sql = SqlBase::create($options);
-                    $db_spec = $sql->getDbSpec();
-                    $status_table['db-driver'] = $db_spec['driver'];
-                    if (!empty($db_spec['unix_socket'])) {
-                        $status_table['db-socket'] = $db_spec['unix_socket'];
-                    } elseif (isset($db_spec['host'])) {
-                        $status_table['db-hostname'] = $db_spec['host'];
+                    if ($sql = SqlBase::create($options)) {
+                        $db_spec = $sql->getDbSpec();
+                        $status_table['db-driver'] = $db_spec['driver'];
+                        if (!empty($db_spec['unix_socket'])) {
+                            $status_table['db-socket'] = $db_spec['unix_socket'];
+                        } elseif (isset($db_spec['host'])) {
+                            $status_table['db-hostname'] = $db_spec['host'];
+                        }
+                        $status_table['db-username'] = isset($db_spec['username']) ? $db_spec['username'] : null;
+                        $status_table['db-password'] = isset($db_spec['password']) ? $db_spec['password'] : null;
+                        $status_table['db-name'] = isset($db_spec['database']) ? $db_spec['database'] : null;
+                        $status_table['db-port'] = isset($db_spec['port']) ? $db_spec['port'] : null;
                     }
-                    $status_table['db-username'] = isset($db_spec['username']) ? $db_spec['username'] : null;
-                    $status_table['db-password'] = isset($db_spec['password']) ? $db_spec['password'] : null;
-                    $status_table['db-name'] = isset($db_spec['database']) ? $db_spec['database'] : null;
-                    $status_table['db-port'] = isset($db_spec['port']) ? $db_spec['port'] : null;
                     if ($boot_manager->hasBootstrapped(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION)) {
                         if (method_exists('Drupal', 'installProfile')) {
                             $status_table['install-profile'] = \Drupal::installProfile();
@@ -131,22 +133,22 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
                 $status_table['admin-theme'] = $theme = \Drupal::config('system.theme')->get('admin') ?: 'seven';
             }
         }
-        $status_table['php-bin'] = PHP_BINARY;
+        $status_table['php-bin'] = Path::canonicalize(PHP_BINARY);
         $status_table['php-os'] = PHP_OS;
+        $status_table['php-version'] = PHP_VERSION;
         if ($phpIniFiles = EditCommands::phpIniFiles()) {
-            $status_table['php-conf'] = $phpIniFiles;
+            $status_table['php-conf'] = array_map([Path::class, 'canonicalize'], $phpIniFiles);
         }
-        $status_table['drush-script'] = DRUSH_COMMAND;
+        $status_table['drush-script'] = Path::canonicalize($this->getConfig()->get('runtime.drush-script'));
         $status_table['drush-version'] = Drush::getVersion();
-        $status_table['drush-temp'] = $this->getConfig()->tmp();
-        $status_table['drush-cache-directory'] = $this->getConfig()->cache();
-        $status_table['drush-conf'] = Drush::config()->get('runtime.config.paths');
+        $status_table['drush-temp'] = Path::canonicalize($this->getConfig()->tmp());
+        $status_table['drush-conf'] = array_map([Path::class, 'canonicalize'], $this->getConfig()->configPaths());
         // List available alias files
         $alias_files = $this->siteAliasManager()->listAllFilePaths();
         sort($alias_files);
         $status_table['drush-alias-files'] = $alias_files;
         $alias_searchpaths = $this->siteAliasManager()->searchLocations();
-        $status_table['alias-searchpaths'] = $alias_searchpaths;
+        $status_table['alias-searchpaths'] = array_map([Path::class, 'canonicalize'], $alias_searchpaths);
 
         $paths = self::pathAliases($options, $boot_manager, $boot_object);
         if (!empty($paths)) {
@@ -160,9 +162,9 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
         }
 
         // Store the paths into the '%paths' index; this will be
-        // used by other code, but will not be included in the output
+        // used by other code, but will not be included in the default output
         // of the drush status command.
-        $status_table['%paths'] = $paths;
+        $status_table['%paths'] = array_map([Path::class, 'canonicalize'], array_filter($paths));
 
         return $status_table;
     }
@@ -178,7 +180,7 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
     /**
      * @hook pre-command core-status
      */
-    public function adjustStatusOptions(CommandData $commandData)
+    public function adjustStatusOptions(CommandData $commandData): void
     {
         $input = $commandData->input();
         $args = $input->getArguments();
@@ -190,9 +192,8 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
     /**
      * @param array $options
      * @param BootstrapManager $boot_manager
-     * @return array
      */
-    public static function pathAliases(array $options, BootstrapManager $boot_manager, $boot)
+    public static function pathAliases(array $options, BootstrapManager $boot_manager, $boot): array
     {
         $paths = [];
         $site_wide = 'sites/all';
@@ -212,11 +213,7 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
                 }
                 if ($boot_manager->hasBootstrapped(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION)) {
                     try {
-                        if (isset($GLOBALS['config_directories'])) {
-                            foreach ($GLOBALS['config_directories'] as $label => $unused) {
-                                $paths["%config-$label"] = config_get_config_directory($label);
-                            }
-                        }
+                        $paths["%config-sync"] = Settings::get('config_sync_directory');
                     } catch (\Exception $e) {
                         // Nothing to do.
                     }
@@ -224,7 +221,7 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
 
                 if ($boot_manager->hasBootstrapped(DRUSH_BOOTSTRAP_DRUPAL_FULL)) {
                     $paths['%files'] = PublicStream::basePath();
-                    $paths['%temp'] = file_directory_temp();
+                    $paths['%temp'] = \Drupal::service('file_system')->getTempDirectory();
                     if ($private_path = PrivateStream::basePath()) {
                         $paths['%private'] = $private_path;
                     }
@@ -232,7 +229,7 @@ class StatusCommands extends DrushCommands implements SiteAliasManagerAwareInter
                     $modules = \Drupal::moduleHandler()->getModuleList();
                     $themes = \Drupal::service('theme_handler')->listInfo();
                     $projects = array_merge($modules, $themes);
-                    foreach (explode(',', $options['project']) as $target) {
+                    foreach (StringUtils::csvToArray($options['project']) as $target) {
                         if (array_key_exists($target, $projects)) {
                             $paths['%' . $target] = $drupal_root . '/' . $projects[$target]->getPath();
                         }

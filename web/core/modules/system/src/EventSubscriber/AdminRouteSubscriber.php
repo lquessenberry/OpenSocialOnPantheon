@@ -17,7 +17,8 @@ class AdminRouteSubscriber extends RouteSubscriberBase {
    */
   protected function alterRoutes(RouteCollection $collection) {
     foreach ($collection->all() as $route) {
-      if (strpos($route->getPath(), '/admin') === 0 && !$route->hasOption('_admin_route') && static::isHtmlRoute($route)) {
+      $path = $route->getPath();
+      if (($path == '/admin' || strpos($path, '/admin/') === 0) && !$route->hasOption('_admin_route') && static::isHtmlRoute($route)) {
         $route->setOption('_admin_route', TRUE);
       }
     }
@@ -38,7 +39,7 @@ class AdminRouteSubscriber extends RouteSubscriberBase {
   }
 
   /**
-   * Determines whether the given route is a HTML route.
+   * Determines whether the given route is an HTML route.
    *
    * @param \Symfony\Component\Routing\Route $route
    *   The route to analyze.

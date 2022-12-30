@@ -2,23 +2,18 @@
 
 /**
  * @file
- * Contains \Drupal\Tests\migrate\Unit\Plugin\migrate\destination\EntityContentBaseTest
+ * Contains \Drupal\Tests\migrate\Unit\Plugin\migrate\destination\EntityContentBaseTest.
  */
 
 namespace Drupal\Tests\migrate\Unit\Plugin\migrate\destination;
 
 use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
-use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Field\FieldTypePluginManagerInterface;
+use Drupal\Core\Session\AccountSwitcherInterface;
 use Drupal\migrate\MigrateException;
-use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\Plugin\migrate\destination\EntityContentBase;
 use Drupal\migrate\Plugin\MigrateIdMapInterface;
 use Drupal\migrate\Row;
-use Drupal\Tests\UnitTestCase;
 
 /**
  * Tests base entity migration destination functionality.
@@ -26,47 +21,10 @@ use Drupal\Tests\UnitTestCase;
  * @coversDefaultClass \Drupal\migrate\Plugin\migrate\destination\EntityContentBase
  * @group migrate
  */
-class EntityContentBaseTest extends UnitTestCase {
+class EntityContentBaseTest extends EntityTestBase {
 
   /**
-   * @var \Drupal\migrate\Plugin\MigrationInterface
-   */
-  protected $migration;
-
-  /**
-   * @var \Drupal\Core\Entity\EntityStorageInterface
-   */
-  protected $storage;
-
-  /**
-   * @var \Drupal\Core\Entity\EntityTypeInterface
-   */
-  protected $entityType;
-
-  /**
-   * @var \Drupal\Core\Entity\EntityManagerInterface
-   */
-  protected $entityManager;
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp() {
-    parent::setUp();
-
-    $this->migration = $this->prophesize(MigrationInterface::class);
-    $this->storage = $this->prophesize(EntityStorageInterface::class);
-
-    $this->entityType = $this->prophesize(EntityTypeInterface::class);
-    $this->entityType->getPluralLabel()->willReturn('wonkiness');
-    $this->storage->getEntityType()->willReturn($this->entityType->reveal());
-    $this->storage->getEntityTypeId()->willReturn('foo');
-
-    $this->entityManager = $this->prophesize(EntityManagerInterface::class);
-  }
-
-  /**
-   * Test basic entity save.
+   * Tests basic entity save.
    *
    * @covers ::import
    */
@@ -76,9 +34,13 @@ class EntityContentBaseTest extends UnitTestCase {
       $this->migration->reveal(),
       $this->storage->reveal(),
       $bundles,
-      $this->entityManager->reveal(),
-      $this->prophesize(FieldTypePluginManagerInterface::class)->reveal());
+      $this->entityFieldManager->reveal(),
+      $this->prophesize(FieldTypePluginManagerInterface::class)->reveal(),
+      $this->prophesize(AccountSwitcherInterface::class)->reveal()
+    );
     $entity = $this->prophesize(ContentEntityInterface::class);
+    $entity->isValidationRequired()
+      ->shouldBeCalledTimes(1);
     // Assert that save is called.
     $entity->save()
       ->shouldBeCalledTimes(1);
@@ -93,7 +55,7 @@ class EntityContentBaseTest extends UnitTestCase {
   }
 
   /**
-   * Test row skipping when we can't get an entity to save.
+   * Tests row skipping when we can't get an entity to save.
    *
    * @covers ::import
    */
@@ -103,21 +65,24 @@ class EntityContentBaseTest extends UnitTestCase {
       $this->migration->reveal(),
       $this->storage->reveal(),
       $bundles,
-      $this->entityManager->reveal(),
-      $this->prophesize(FieldTypePluginManagerInterface::class)->reveal());
+      $this->entityFieldManager->reveal(),
+      $this->prophesize(FieldTypePluginManagerInterface::class)->reveal(),
+      $this->prophesize(AccountSwitcherInterface::class)->reveal()
+    );
     $destination->setEntity(FALSE);
-    $this->setExpectedException(MigrateException::class, 'Unable to get entity');
+    $this->expectException(MigrateException::class);
+    $this->expectExceptionMessage('Unable to get entity');
     $destination->import(new Row());
   }
 
   /**
-   * Test that translation destination fails for untranslatable entities.
+   * Tests that translation destination fails for untranslatable entities.
    */
   public function testUntranslatable() {
     // An entity type without a language.
     $this->entityType->getKey('langcode')->willReturn('');
     $this->entityType->getKey('id')->willReturn('id');
-    $this->entityManager->getBaseFieldDefinitions('foo')
+    $this->entityFieldManager->getBaseFieldDefinitions('foo')
       ->willReturn(['id' => BaseFieldDefinitionTest::create('integer')]);
 
     $destination = new EntityTestDestination(
@@ -127,10 +92,12 @@ class EntityContentBaseTest extends UnitTestCase {
       $this->migration->reveal(),
       $this->storage->reveal(),
       [],
-      $this->entityManager->reveal(),
-      $this->prophesize(FieldTypePluginManagerInterface::class)->reveal()
+      $this->entityFieldManager->reveal(),
+      $this->prophesize(FieldTypePluginManagerInterface::class)->reveal(),
+      $this->prophesize(AccountSwitcherInterface::class)->reveal()
     );
-    $this->setExpectedException(MigrateException::class, 'The "foo" entity type does not support translations.');
+    $this->expectException(MigrateException::class);
+    $this->expectExceptionMessage('The "foo" entity type does not support translations.');
     $destination->getIds();
   }
 
@@ -155,25 +122,6 @@ class EntityTestDestination extends EntityContentBase {
 
   public static function getEntityTypeId($plugin_id) {
     return 'foo';
-  }
-
-}
-
-/**
- * Stub class for BaseFieldDefinition.
- */
-class BaseFieldDefinitionTest extends BaseFieldDefinition {
-
-  public static function create($type) {
-    return new static([]);
-  }
-
-  public function getSettings() {
-    return [];
-  }
-
-  public function getType() {
-    return 'integer';
   }
 
 }

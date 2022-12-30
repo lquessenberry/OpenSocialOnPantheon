@@ -2,10 +2,144 @@
 
 All Notable changes to `League\Container` will be documented in this file
 
-## 2.3.0
+## 4.2.0
 
 ### Added
-- Now implementation of the PSR-11.
+- Support for psr/container 1.1.0.
+
+## 4.1.2
+
+### Fixed
+- Fix bug that was causing an error on inflection due to introduced type hint.
+
+## 4.1.1
+
+### Changed
+- Move files autoload directive to dev (@ADmad)
+
+## 4.1.0
+
+### Added
+- Way to handle non-public controllers safely (@beryllium)
+
+## 4.0.0
+
+### Added
+- New definition interface that extends psr/container
+- Literal and resolvable argument wrappers for better explicitness in definitions
+
+### Changed
+- PHP requirement now `>=7.2`
+- Updated `psr/container` to ^2.0.0
+- `Container::shared` convenience method is now explicit `Container::addShared` method
+- Removed third argument `$shared` from `Container::add`, use `Container::addShared`
+- `ServiceProviderInterface` now defines return types
+- Service providers now require implementation of a `provides` method rather than relying on a class property.
+
+## 3.4.1
+
+### Added
+- Way to handle non-public controllers safely (@beryllium)
+- PHPUnit ^7.0 for PHP versions that support it (@beryllium)
+
+## 3.4.0
+
+### Removed
+- Support for `psr/container` ^2.0.0 as the interface cannot be reconciled between versions
+
+## 3.3.5
+
+### Added
+- Support for `psr/container` ^2.0.0
+
+## 3.3.4
+
+### Fixed
+- Fixed an issue that caused a recursive `register` call. @pcoutinho
+- Fixed a return type declaration. @orbex
+
+## 3.3.3
+
+### Fixed
+- Fixed bug relating to `ReflectionContainer::call` on arrow functions.
+
+## 3.3.2
+
+### Added
+- Experimental support for PHP 8.
+
+### Fixed
+- Fix issue when preventing reflection from using default value for arguments.
+
+## 3.3.1
+
+### Fixed
+- Respect `$new` argument when getting tagged definitions.
+
+## 3.3.0
+
+### Added
+- Support for PHP 7.3
+- `{set,get}LeagueContainer` methods added to ContainerAwareTrait as a temporary measure until next major release when this can be properly addressed, less hinting of `Psr\Container\ContainerInterface`
+
+### Changed
+- Various internal code improvements
+
+### Fixed
+- Fix for `setConcrete` not re-resolving class on when overriding (@jleeothon)
+- Fix stack overflow error incase a service provider lies about providing a specific service (@azjezz)
+- Fix issue where providers may be aggregated multiple times (@bwg)
+- Various documentation fixes
+
+## 3.2.2
+
+### Fixed
+- Fixed issue that prevented service providers from registering if a previous one in the aggregate was already registered.
+
+## 3.2.1
+
+### Fixed
+- Fixed issue where all service providers were registered regardless of whether they need to be.
+
+## 3.2.0
+
+### Added
+- Added ability to add definition as not shared when container is set to default to shared.
+- Added `{set|get}Concrete` to definitions to allow for better use of `extend`.
+
+## 3.1.0
+
+### Added
+- Re-added the `share` proxy method that was mistakenly removed in previous major release.
+- Added ability to set Conatiner to "share" by default using `defaultToShared` method.
+- Added ability for `ReflectionContainer` to cache resolutions and pull from cache for following calls.
+
+## 3.0.1
+
+### Added
+- Allow definition aggregates to be built outside of container.
+
+## 3.0.0
+
+### Added
+- Service providers can now be pulled from the container if they are registered.
+- Definition logic now handled by aggregate for better separation.
+- Now able to add tags to a definition to return an array of items containing that tag.
+
+### Changed
+- Updated minimum PHP requirements to 7.0.
+- Now depend directly on PSR-11 interfaces, including providing PSR-11 exceptions.
+- Refactored inflector logic to accept type on construction and use generator to iterate.
+- Refactored service provider logic with better separation and performance.
+- Merged service provider signature logic in to one interface and abstract.
+- Heavily simplified definition logic providing more control to user.
+
+## 2.4.1
+
+### Fixed
+- Ensures `ReflectionContainer` converts class name in array callable to object.
+
+## 2.4.0
 
 ### Changed
 - Can now wrap shared objects as `RawArgument`.
@@ -16,6 +150,11 @@ All Notable changes to `League\Container` will be documented in this file
 - Various docblock fixes.
 - Unused imports removed.
 - Unreachable arguments no longer passed.
+
+## 2.3.0
+
+### Added
+- Now implementation of the PSR-11.
 
 ## 2.2.0
 

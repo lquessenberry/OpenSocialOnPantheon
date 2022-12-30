@@ -1,0 +1,25 @@
+field.widget.settings.select2:
+  type: field.widget.settings.options_select
+  label: 'Select2 simple widget'
+  mapping:
+    width:
+      type: string
+      label: 'Field width'
+
+field.widget.settings.select2_entity_reference:
+  type: field.widget.settings.select2
+  label: 'Select2 entity reference widget'
+  mapping:
+    autocomplete:
+      type: boolean
+      label: 'Autocomplete'
+    match_operator:
+      type: string
+      label: 'Autocomplete matching'
+    match_limit:
+      type: integer
+      label: 'Maximum number of autocomplete suggestions.'
+
+better_exposed_filters.filter.bef_select2:
+  label: 'Select2'
+  type: better_exposed_filters_filter_widget

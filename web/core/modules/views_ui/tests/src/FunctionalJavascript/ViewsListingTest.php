@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\views_ui\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Tests the JavaScript filtering on the Views listing page.
@@ -10,17 +10,22 @@ use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
  * @see core/modules/views_ui/js/views_ui.listing.js
  * @group views_ui
  */
-class ViewsListingTest extends JavascriptTestBase {
+class ViewsListingTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_ui'];
+  protected static $modules = ['node', 'views', 'views_ui'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     $admin_user = $this->drupalCreateUser([
@@ -92,9 +97,10 @@ class ViewsListingTest extends JavascriptTestBase {
 
     // Disable a View and see if it moves to the disabled listing.
     $enabled_view = $page->find('css', 'tr.views-ui-list-enabled');
+    $view_description = $enabled_view->find('css', '.views-ui-view-name strong')->getText();
     // Open the dropdown with additional actions.
     $enabled_view->find('css', 'li.dropbutton-toggle button')->click();
-    $disable_button = $enabled_view->find('css', 'li.disable.dropbutton-action a');
+    $disable_button = $enabled_view->findLink('Disable');
     // Check that the disable button is visible now.
     $this->assertTrue($disable_button->isVisible());
     $disable_button->click();
@@ -109,12 +115,26 @@ class ViewsListingTest extends JavascriptTestBase {
     // Test that one enabled View has been moved to the disabled list.
     $this->assertCount($enabled_views_count - 1, $enabled_rows);
     $this->assertCount($disabled_views_count + 1, $disabled_rows);
+
+    // Test that the keyboard focus is on the dropdown button of the View we
+    // just disabled.
+    $this->assertTrue($this->getSession()->evaluateScript("jQuery(document.activeElement).text() === 'Enable'"));
+    $this->assertEquals($view_description, $this->getSession()->evaluateScript("jQuery(document.activeElement).parents('tr').find('.views-ui-view-name strong').text()"));
+
+    // Enable the view again and ensure we have the focus on the edit button.
+    $this->getSession()->evaluateScript('jQuery(document.activeElement).click()');
+    $session->assertWaitOnAjaxRequest();
+
+    $this->assertTrue($this->getSession()->evaluateScript("jQuery(document.activeElement).text() === 'Edit'"));
+    $this->assertEquals($view_description, $this->getSession()->evaluateScript("jQuery(document.activeElement).parents('tr').find('.views-ui-view-name strong').text()"));
   }
 
   /**
    * Removes any non-visible elements from the passed array.
    *
    * @param array $elements
+   *   The elements.
+   *
    * @return array
    */
   protected function filterVisibleElements($elements) {

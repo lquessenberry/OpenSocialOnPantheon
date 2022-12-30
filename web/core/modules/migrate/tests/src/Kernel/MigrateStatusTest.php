@@ -17,7 +17,7 @@ class MigrateStatusTest extends MigrateTestBase {
   public function testStatus() {
     // Create a minimally valid migration.
     $definition = [
-      'id' => 'migration_status_test',
+      'id' => 'migrate_status_test',
       'migration_tags' => ['Testing'],
       'source' => ['plugin' => 'empty'],
       'destination' => [
@@ -30,7 +30,7 @@ class MigrateStatusTest extends MigrateTestBase {
 
     // Default status is idle.
     $status = $migration->getStatus();
-    $this->assertIdentical($status, MigrationInterface::STATUS_IDLE);
+    $this->assertSame(MigrationInterface::STATUS_IDLE, $status);
 
     // Test setting and retrieving all known status values.
     $status_list = [
@@ -42,7 +42,7 @@ class MigrateStatusTest extends MigrateTestBase {
     ];
     foreach ($status_list as $status) {
       $migration->setStatus($status);
-      $this->assertIdentical($migration->getStatus(), $status);
+      $this->assertSame($status, $migration->getStatus());
     }
   }
 

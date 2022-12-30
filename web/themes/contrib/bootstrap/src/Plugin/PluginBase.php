@@ -23,10 +23,7 @@ class PluginBase extends CorePluginBase {
    * {@inheritdoc}
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition) {
-    if (!isset($configuration['theme'])) {
-      $configuration['theme'] = Bootstrap::getTheme();
-    }
-    $this->theme = $configuration['theme'];
+    $this->theme = Bootstrap::getTheme(isset($configuration['theme']) ? $configuration['theme'] : NULL);
     parent::__construct($configuration, $plugin_id, $plugin_definition);
   }
 

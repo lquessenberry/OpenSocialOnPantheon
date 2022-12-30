@@ -1,0 +1,158 @@
+.project-update {
+  &__version-links {
+    padding-right: 0;
+  }
+
+  &__status {
+    &-icon {
+      width: 24px;
+      height: 24px;
+      display: inline-block;
+      vertical-align: bottom;
+
+      img {
+        display: none;
+      }
+    }
+
+    // Error
+    & &-icon {
+      padding-left: 0;
+      background-color: var(--colorGinDanger);
+      mask-image: icon('error');
+      mask-position: center right;
+      mask-repeat: no-repeat;
+      mask-size: 20px 20px;
+    }
+
+    &--security-error {
+      color: var(--colorGinDanger);
+
+      span {
+        position: relative;
+        top: 2px;
+      }
+    }
+
+    // Outdated
+    &--not-current &-icon {
+      background-color: var(--colorGinWarning);
+      mask-image: icon('warning');
+      mask-position: center right;
+      mask-repeat: no-repeat;
+      mask-size: 20px 20px;
+    }
+
+    // Current
+    &--current &-icon {
+      background-color: var(--colorGinGreen);
+      mask-image: icon('status');
+      mask-position: center right;
+      mask-repeat: no-repeat;
+      mask-size: 20px 20px;
+    }
+  }
+}
+
+.color-success,
+tr.color-success,
+.color-checked,
+.drupal-upgrade-status-summary-form tr.no-known-error
+{
+  border-left: 8px solid var(--colorGinGreen);
+  background-color: transparent;
+
+  &:hover, &:active, &:focus {
+    background-color: var(--colorGinGreenLightBackground);
+  }
+}
+
+.color-warning,
+tr.color-warning,
+.upgrade-status-next-step-remove tr,
+.drupal-upgrade-status-summary-form tr.known-warnings {
+  border-left: 8px solid var(--colorGinWarning);
+  background-color: transparent;
+
+  &:hover, &:active, &:focus {
+    background-color: var(--colorGinWarningLightBackground);
+
+    .gin--dark-mode & {
+      color: var(--colorGinWarning);
+    }
+  }
+}
+
+.color-error,
+tr.color-error,
+.drupal-upgrade-status-summary-form tr.known-errors {
+  border-left: 8px solid var(--colorGinDanger);
+  background-color: transparent;
+
+  &:hover, &:active, &:focus {
+    background-color: var(--colorGinDangerLightBackground);
+
+    .gin--dark-mode & {
+      color: var(--colorGinDanger);
+    }
+  }
+}
+
+.color-success,
+.color-warning,
+.color-error,
+.color-checked {
+  color: var(--colorGinText);
+  box-sizing: border-box;
+}
+
+.update {
+  margin: 0;
+  border: 0 none;
+
+  tbody {
+    tr:last-child {
+      border-bottom: 0 none;
+    }
+  }
+}
+
+.layer-wrapper {
+  .responsive-enabled {
+    margin-top: 0;
+  }
+}
+
+.block-system > form .layer-wrapper,
+.panel .admin-list,
+.block-system > form .dataset-table-wrapper {
+  padding: 0;
+  border: 0 none;
+  box-shadow: none;
+}
+
+.compact-link {
+  font-size: 0.875rem;
+  text-align: right;
+}
+
+// Install & Uninstall search.
+.system-modules,
+.system-modules-uninstall {
+  .table-filter {
+    .form-type--search {
+      margin-top: 0;
+    }
+  }
+
+  .table-filter-text {
+    width: 100%;
+    padding: 1rem;
+  }
+}
+
+#update-status {
+  > p {
+    margin-bottom: 2rem;
+  }
+}

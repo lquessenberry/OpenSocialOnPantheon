@@ -7,7 +7,7 @@ services:
     class: Drupal\Core\Cache\CacheBackendInterface
     tags:
       - { name: cache.bin }
-    factory: cache_factory:get
+    factory: ['@cache_factory', 'get']
     arguments: [migrate]
   plugin.manager.migrate.source:
     class: Drupal\migrate\Plugin\MigrateSourcePluginManager
@@ -17,7 +17,7 @@ services:
     arguments: [process, '@container.namespaces', '@cache.discovery', '@module_handler', 'Drupal\migrate\Annotation\MigrateProcessPlugin']
   plugin.manager.migrate.destination:
     class: Drupal\migrate\Plugin\MigrateDestinationPluginManager
-    arguments: [destination, '@container.namespaces', '@cache.discovery', '@module_handler', '@entity.manager']
+    arguments: [destination, '@container.namespaces', '@cache.discovery', '@module_handler', '@entity_type.manager']
   plugin.manager.migrate.id_map:
     class: Drupal\migrate\Plugin\MigratePluginManager
     arguments: [id_map, '@container.namespaces', '@cache.discovery', '@module_handler']
@@ -25,8 +25,14 @@ services:
     class: Drupal\Core\Cache\CacheBackendInterface
     tags:
       - { name: cache.bin }
-    factory: cache_factory:get
+    factory: ['@cache_factory', 'get']
     arguments: [discovery_migration]
   plugin.manager.migration:
     class: Drupal\migrate\Plugin\MigrationPluginManager
     arguments: ['@module_handler', '@cache.discovery_migration', '@language_manager']
+  migrate.lookup:
+    class: Drupal\migrate\MigrateLookup
+    arguments: ['@plugin.manager.migration']
+  migrate.stub:
+    class: Drupal\migrate\MigrateStub
+    arguments: ['@plugin.manager.migration']

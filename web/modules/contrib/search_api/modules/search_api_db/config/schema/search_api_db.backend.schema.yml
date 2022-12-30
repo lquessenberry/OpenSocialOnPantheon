@@ -8,9 +8,9 @@ plugin.plugin_configuration.search_api_backend.search_api_db:
     min_chars:
       type: 'integer'
       label: 'Minimum length of indexed words'
-    partial_matches:
-      type: 'boolean'
-      label: 'Whether to also search on parts of a word'
+    matching:
+      type: 'string'
+      label: 'The matching mode – "words", "prefix" or "partial"'
     autocomplete:
       type: mapping
       label: Autcomplete configuration

@@ -3,9 +3,7 @@
 namespace Drupal\group\Entity\Form;
 
 use Drupal\Core\Entity\ContentEntityForm;
-use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\user\PrivateTempStoreFactory;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -18,31 +16,18 @@ class GroupForm extends ContentEntityForm {
   /**
    * The private store factory.
    *
-   * @var \Drupal\user\PrivateTempStoreFactory
+   * @var \Drupal\Core\TempStore\PrivateTempStoreFactory
    */
   protected $privateTempStoreFactory;
-
-  /**
-   * Constructs a GroupForm object.
-   *
-   * @param \Drupal\user\PrivateTempStoreFactory $temp_store_factory
-   *   The private store factory.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
-   */
-  public function __construct(PrivateTempStoreFactory $temp_store_factory, EntityManagerInterface $entity_manager) {
-    $this->privateTempStoreFactory = $temp_store_factory;
-    parent::__construct($entity_manager);
-  }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('user.private_tempstore'),
-      $container->get('entity.manager')
-    );
+    /** @var static $form */
+    $form = parent::create($container);
+    $form->privateTempStoreFactory = $container->get('tempstore.private');
+    return $form;
   }
 
   /**
@@ -104,7 +89,7 @@ class GroupForm extends ContentEntityForm {
       '%title' => $this->entity->label(),
     ];
 
-    drupal_set_message($this->operation == 'edit'
+    $this->messenger()->addStatus($this->operation == 'edit'
       ? $this->t('@type %title has been updated.', $t_args)
       : $this->t('@type %title has been created.', $t_args)
     );

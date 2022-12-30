@@ -28,7 +28,7 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
 {% if data.canvas_size == 'exact' %}
   - {{ 'Exact size'|t }}:
   {% if data.exact.width %}{{ data.exact.width|e }}{% else %}{{ '100%'|t }}{% endif %}x{% if data.exact.height %}{{ data.exact.height|e }}{% else %}{{ '100%'|t }}{% endif %}
@@ -43,4 +43,4 @@
   {% if data.relative.bottom %} {{ 'bottom'|t }}: {{ data.relative.bottom|e }}px{% endif %}
 {% endif %}
  - {{ 'Color'|t }}: {{ data.color_info }}
-{% endspaceless %}
+{% endapply %}

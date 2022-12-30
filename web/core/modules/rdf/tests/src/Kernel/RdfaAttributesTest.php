@@ -16,10 +16,10 @@ class RdfaAttributesTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['rdf'];
+  protected static $modules = ['rdf'];
 
   /**
-   * Test attribute creation for mappings which use 'property'.
+   * Tests attribute creation for mappings which use 'property'.
    */
   public function testProperty() {
     $properties = ['dc:title'];
@@ -31,7 +31,7 @@ class RdfaAttributesTest extends KernelTestBase {
   }
 
   /**
-   * Test attribute creation for mappings which use 'datatype'.
+   * Tests attribute creation for mappings which use 'datatype'.
    */
   public function testDatatype() {
     $properties = ['foo:bar1'];
@@ -50,19 +50,19 @@ class RdfaAttributesTest extends KernelTestBase {
   }
 
   /**
-   * Test attribute creation for mappings which override human-readable content.
+   * Tests attribute creation for mappings that override human-readable content.
    */
   public function testDatatypeCallback() {
     $properties = ['dc:created'];
     $datatype = 'xsd:dateTime';
 
     $date = 1252750327;
-    $iso_date = date('c', $date);
+    $iso_date = $this->container->get('date.formatter')->format($date, 'custom', 'c', 'UTC');
 
     $mapping = [
       'datatype' => $datatype,
       'properties' => $properties,
-      'datatype_callback' => ['callable' => 'date_iso8601'],
+      'datatype_callback' => ['callable' => 'Drupal\rdf\CommonDataConverter::dateIso8601Value'],
     ];
     $expected_attributes = [
       'datatype' => $datatype,
@@ -70,12 +70,11 @@ class RdfaAttributesTest extends KernelTestBase {
       'content' => $iso_date,
     ];
 
-    $this->_testAttributes($expected_attributes, $mapping, $date);
+    $this->_testAttributes($expected_attributes, $mapping, ['value' => $date]);
   }
 
-
   /**
-   * Test attribute creation for mappings which use data converters.
+   * Tests attribute creation for mappings which use data converters.
    */
   public function testDatatypeCallbackWithConverter() {
     $properties = ['schema:interactionCount'];
@@ -99,7 +98,7 @@ class RdfaAttributesTest extends KernelTestBase {
   }
 
   /**
-   * Test attribute creation for mappings which use 'rel'.
+   * Tests attribute creation for mappings which use 'rel'.
    */
   public function testRel() {
     $properties = ['sioc:has_creator', 'dc:creator'];
@@ -130,7 +129,7 @@ class RdfaAttributesTest extends KernelTestBase {
     $attributes = rdf_rdfa_attributes($mapping, $data);
     ksort($expected_attributes);
     ksort($attributes);
-    $this->assertEqual($expected_attributes, $attributes);
+    $this->assertEquals($expected_attributes, $attributes);
   }
 
 }

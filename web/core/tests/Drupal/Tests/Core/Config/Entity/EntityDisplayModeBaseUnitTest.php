@@ -3,7 +3,6 @@
 namespace Drupal\Tests\Core\Config\Entity;
 
 use Drupal\Core\DependencyInjection\ContainerBuilder;
-use Drupal\Core\Entity\EntityManager;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Tests\UnitTestCase;
 
@@ -16,28 +15,21 @@ class EntityDisplayModeBaseUnitTest extends UnitTestCase {
   /**
    * The entity under test.
    *
-   * @var \Drupal\Core\Entity\EntityDisplayModeBase|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityDisplayModeBase|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entity;
 
   /**
    * The entity type used for testing.
    *
-   * @var \Drupal\Core\Entity\EntityTypeInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityTypeInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entityInfo;
 
   /**
-   * The entity manager used for testing.
-   *
-   * @var \Drupal\Core\Entity\EntityManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-   */
-  protected $entityManager;
-
-  /**
    * The entity type manager used for testing.
    *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entityTypeManager;
 
@@ -51,35 +43,28 @@ class EntityDisplayModeBaseUnitTest extends UnitTestCase {
   /**
    * The UUID generator used for testing.
    *
-   * @var \Drupal\Component\Uuid\UuidInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Component\Uuid\UuidInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $uuid;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->entityType = $this->randomMachineName();
 
-    $this->entityInfo = $this->getMock('\Drupal\Core\Entity\EntityTypeInterface');
+    $this->entityInfo = $this->createMock('\Drupal\Core\Entity\EntityTypeInterface');
     $this->entityInfo->expects($this->any())
       ->method('getProvider')
       ->will($this->returnValue('entity'));
 
-    $this->entityTypeManager = $this->getMock(EntityTypeManagerInterface::class);
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
 
-    $this->entityManager = new EntityManager();
-
-    $this->uuid = $this->getMock('\Drupal\Component\Uuid\UuidInterface');
+    $this->uuid = $this->createMock('\Drupal\Component\Uuid\UuidInterface');
 
     $container = new ContainerBuilder();
-    $container->set('entity.manager', $this->entityManager);
     $container->set('entity_type.manager', $this->entityTypeManager);
     $container->set('uuid', $this->uuid);
-
-    // Inject the container into entity.manager so it can defer to
-    // entity_type.manager.
-    $this->entityManager->setContainer($container);
 
     \Drupal::setContainer($container);
   }
@@ -90,24 +75,22 @@ class EntityDisplayModeBaseUnitTest extends UnitTestCase {
   public function testCalculateDependencies() {
     $target_entity_type_id = $this->randomMachineName(16);
 
-    $target_entity_type = $this->getMock('\Drupal\Core\Entity\EntityTypeInterface');
+    $target_entity_type = $this->createMock('\Drupal\Core\Entity\EntityTypeInterface');
     $target_entity_type->expects($this->any())
       ->method('getProvider')
       ->will($this->returnValue('test_module'));
     $values = ['targetEntityType' => $target_entity_type_id];
 
-    $this->entityTypeManager->expects($this->at(0))
+    $this->entityTypeManager->expects($this->exactly(2))
       ->method('getDefinition')
-      ->with($target_entity_type_id)
-      ->will($this->returnValue($target_entity_type));
-    $this->entityTypeManager->expects($this->at(1))
-      ->method('getDefinition')
-      ->with($this->entityType)
-      ->will($this->returnValue($this->entityInfo));
+      ->willReturnMap([
+        [$target_entity_type_id, TRUE, $target_entity_type],
+        [$this->entityType, TRUE, $this->entityInfo],
+      ]);
 
     $this->entity = $this->getMockBuilder('\Drupal\Core\Entity\EntityDisplayModeBase')
       ->setConstructorArgs([$values, $this->entityType])
-      ->setMethods(['getFilterFormat'])
+      ->addMethods(['getFilterFormat'])
       ->getMock();
 
     $dependencies = $this->entity->calculateDependencies()->getDependencies();
@@ -119,11 +102,10 @@ class EntityDisplayModeBaseUnitTest extends UnitTestCase {
    */
   public function testSetTargetType() {
     // Generate mock.
-    $mock = $this->getMock(
-      'Drupal\Core\Entity\EntityDisplayModeBase',
-      NULL,
-      [['something' => 'nothing'], 'test_type']
-    );
+    $mock = $this->getMockBuilder('Drupal\Core\Entity\EntityDisplayModeBase')
+      ->onlyMethods([])
+      ->setConstructorArgs([['something' => 'nothing'], 'test_type'])
+      ->getMock();
 
     // Some test values.
     $bad_target = 'uninitialized';
@@ -148,11 +130,10 @@ class EntityDisplayModeBaseUnitTest extends UnitTestCase {
    */
   public function testGetTargetType() {
     // Generate mock.
-    $mock = $this->getMock(
-      'Drupal\Core\Entity\EntityDisplayModeBase',
-      NULL,
-      [['something' => 'nothing'], 'test_type']
-    );
+    $mock = $this->getMockBuilder('Drupal\Core\Entity\EntityDisplayModeBase')
+      ->onlyMethods([])
+      ->setConstructorArgs([['something' => 'nothing'], 'test_type'])
+      ->getMock();
 
     // A test value.
     $target = 'test_target_type';

@@ -5,12 +5,12 @@ namespace Drupal\Tests\Core\Routing;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\PathProcessor\OutboundPathProcessorInterface;
-use Drupal\Core\PathProcessor\PathProcessorAlias;
 use Drupal\Core\PathProcessor\PathProcessorManager;
 use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\Routing\RequestContext;
 use Drupal\Core\Routing\RouteProviderInterface;
 use Drupal\Core\Routing\UrlGenerator;
+use Drupal\path_alias\PathProcessor\AliasPathProcessor;
 use Drupal\Tests\UnitTestCase;
 use Prophecy\Argument;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,14 +43,14 @@ class UrlGeneratorTest extends UnitTestCase {
   /**
    * The alias manager.
    *
-   * @var \Drupal\Core\Path\AliasManager|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\path_alias\AliasManager|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $aliasManager;
 
   /**
    * The mock route processor manager.
    *
-   * @var \Drupal\Core\RouteProcessor\RouteProcessorManager|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\RouteProcessor\RouteProcessorManager|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $routeProcessorManager;
 
@@ -78,7 +78,7 @@ class UrlGeneratorTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $cache_contexts_manager = $this->getMockBuilder('Drupal\Core\Cache\Context\CacheContextsManager')
       ->disableOriginalConstructor()
       ->getMock();
@@ -137,19 +137,19 @@ class UrlGeneratorTest extends UnitTestCase {
     $this->provider = $provider;
     $this->provider->expects($this->any())
       ->method('getRouteByName')
-      ->will($this->returnValueMap($route_name_return_map));
+      ->willReturnMap($route_name_return_map);
     $provider->expects($this->any())
       ->method('getRoutesByNames')
-      ->will($this->returnValueMap($routes_names_return_map));
+      ->willReturnMap($routes_names_return_map);
 
     // Create an alias manager stub.
-    $alias_manager = $this->getMockBuilder('Drupal\Core\Path\AliasManager')
+    $alias_manager = $this->getMockBuilder('Drupal\path_alias\AliasManager')
       ->disableOriginalConstructor()
       ->getMock();
 
     $alias_manager->expects($this->any())
       ->method('getAliasByPath')
-      ->will($this->returnCallback([$this, 'aliasManagerCallback']));
+      ->willReturnCallback([$this, 'aliasManagerCallback']);
 
     $this->aliasManager = $alias_manager;
 
@@ -160,7 +160,7 @@ class UrlGeneratorTest extends UnitTestCase {
     $this->context = new RequestContext();
     $this->context->fromRequestStack($this->requestStack);
 
-    $processor = new PathProcessorAlias($this->aliasManager);
+    $processor = new AliasPathProcessor($this->aliasManager);
     $processor_manager = new PathProcessorManager();
     $processor_manager->addOutbound($processor, 1000);
     $this->processorManager = $processor_manager;
@@ -189,10 +189,13 @@ class UrlGeneratorTest extends UnitTestCase {
     switch ($args[0]) {
       case '/test/one':
         return '/hello/world';
+
       case '/test/two/5':
         return '/goodbye/cruel/world';
+
       case '/<front>':
         return '/';
+
       default:
         return $args[0];
     }
@@ -387,7 +390,7 @@ class UrlGeneratorTest extends UnitTestCase {
       ->method('processOutbound');
 
     $path = $this->generator->getPathFromRoute('test_3');
-    $this->assertEquals($path, 'test/two');
+    $this->assertEquals('test/two', $path);
   }
 
   /**
@@ -427,7 +430,7 @@ class UrlGeneratorTest extends UnitTestCase {
   }
 
   /**
-   * Confirms that explicitly setting the base_url works with generated routes
+   * Confirms that explicitly setting the base_url works with generated routes.
    */
   public function testBaseURLGeneration() {
     $options = ['base_url' => 'http://www.example.com:8888'];
@@ -449,7 +452,8 @@ class UrlGeneratorTest extends UnitTestCase {
   }
 
   /**
-   * Test that the 'scheme' route requirement is respected during url generation.
+   * Tests that the 'scheme' route requirement is respected during url
+   * generation.
    */
   public function testUrlGenerationWithHttpsRequirement() {
     $url = $this->generator->generate('test_4', [], TRUE);
@@ -509,7 +513,7 @@ class UrlGeneratorTest extends UnitTestCase {
    * \Drupal\Tests\Core\Render\MetadataBubblingUrlGeneratorTest work.
    */
   public function testGenerateWithPathProcessorChangingQueryParameter() {
-    $path_processor = $this->getMock(OutboundPathProcessorInterface::CLASS);
+    $path_processor = $this->createMock(OutboundPathProcessorInterface::CLASS);
     $path_processor->expects($this->atLeastOnce())
       ->method('processOutbound')
       ->willReturnCallback(function ($path, &$options = [], Request $request = NULL, BubbleableMetadata $bubbleable_metadata = NULL) {
@@ -525,18 +529,20 @@ class UrlGeneratorTest extends UnitTestCase {
   /**
    * Asserts \Drupal\Core\Routing\UrlGenerator::generateFromRoute()'s output.
    *
-   * @param $route_name
+   * @param string $route_name
    *   The route name to test.
    * @param array $route_parameters
    *   The route parameters to test.
    * @param array $options
    *   The options to test.
-   * @param $expected_url
+   * @param string $expected_url
    *   The expected generated URL string.
    * @param \Drupal\Core\Render\BubbleableMetadata $expected_bubbleable_metadata
    *   The expected generated bubbleable metadata.
+   *
+   * @internal
    */
-  protected function assertGenerateFromRoute($route_name, array $route_parameters, array $options, $expected_url, BubbleableMetadata $expected_bubbleable_metadata) {
+  protected function assertGenerateFromRoute(string $route_name, array $route_parameters, array $options, string $expected_url, BubbleableMetadata $expected_bubbleable_metadata): void {
     // First, test with $collect_cacheability_metadata set to the default value.
     $url = $this->generator->generateFromRoute($route_name, $route_parameters, $options);
     $this->assertSame($expected_url, $url);

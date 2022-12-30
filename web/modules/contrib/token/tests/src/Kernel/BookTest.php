@@ -13,23 +13,29 @@ use Drupal\Core\Url;
 class BookTest extends KernelTestBase {
 
   /**
-   * Modules to enable.
-   *
-   * @var array
+   * {@inheritdoc}
    */
-  public static $modules = ['user', 'field', 'filter', 'text', 'node', 'book'];
+  protected static $modules = [
+    'user',
+    'field',
+    'filter',
+    'text',
+    'node',
+    'book',
+  ];
+
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('user');
     $this->installEntitySchema('node');
-    $this->installSchema('book', array('book'));
-    $this->installSchema('node', array('node_access'));
-    $this->installConfig(array('node', 'book', 'field'));
+    $this->installSchema('book', ['book']);
+    $this->installSchema('node', ['node_access']);
+    $this->installConfig(['node', 'book', 'field']);
   }
 
   function testBookTokens() {
@@ -63,12 +69,12 @@ class BookTest extends KernelTestBase {
       'book:root' => $book_title,
       'book:root:nid' => $book->id(),
       'book:root:title' => $book_title,
-      'book:root:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], array('absolute' => TRUE))->toString(),
+      'book:root:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], ['absolute' => TRUE])->toString(),
       'book:root:content-type' => 'Book page',
       'book:parent' => null,
       'book:parents' => null,
     ];
-    $this->assertTokens('node', array('node' => $book), $tokens);
+    $this->assertTokens('node', ['node' => $book], $tokens);
 
     $tokens = [
       'nid' => $page1->id(),
@@ -77,15 +83,15 @@ class BookTest extends KernelTestBase {
       'book:root' => $book_title,
       'book:root:nid' => $book->id(),
       'book:root:title' => $book_title,
-      'book:root:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], array('absolute' => TRUE))->toString(),
+      'book:root:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], ['absolute' => TRUE])->toString(),
       'book:root:content-type' => 'Book page',
       'book:parent:nid' => $book->id(),
       'book:parent:title' => $book_title,
-      'book:parent:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], array('absolute' => TRUE))->toString(),
+      'book:parent:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], ['absolute' => TRUE])->toString(),
       'book:parents:count' => 1,
       'book:parents:join:/' => $book_title,
     ];
-    $this->assertTokens('node', array('node' => $page1), $tokens);
+    $this->assertTokens('node', ['node' => $page1], $tokens);
 
     $tokens = [
       'nid' => $page2->id(),
@@ -94,14 +100,15 @@ class BookTest extends KernelTestBase {
       'book:root' => $book_title,
       'book:root:nid' => $book->id(),
       'book:root:title' => $book_title,
-      'book:root:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], array('absolute' => TRUE))->toString(),
+      'book:root:url' => Url::fromRoute('entity.node.canonical', ['node' => $book->id()], ['absolute' => TRUE])->toString(),
       'book:root:content-type' => 'Book page',
       'book:parent:nid' => $page1->id(),
       'book:parent:title' => $page1->getTitle(),
-      'book:parent:url' => Url::fromRoute('entity.node.canonical', ['node' => $page1->id()], array('absolute' => TRUE))->toString(),
+      'book:parent:url' => Url::fromRoute('entity.node.canonical', ['node' => $page1->id()], ['absolute' => TRUE])->toString(),
       'book:parents:count' => 2,
       'book:parents:join:/' => $book_title . '/' . $page1->getTitle(),
     ];
-    $this->assertTokens('node', array('node' => $page2), $tokens);
+    $this->assertTokens('node', ['node' => $page2], $tokens);
   }
+
 }

@@ -20,12 +20,12 @@ class DownloadTest extends FileTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system'];
+  protected static $modules = ['system'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->container->get('stream_wrapper_manager')->registerWrapper('temporary', 'Drupal\Core\StreamWrapper\TemporaryStream', StreamWrapperInterface::LOCAL_NORMAL);
   }
@@ -34,33 +34,33 @@ class DownloadTest extends FileTestBase {
    * Tests a download that overwrites an existing local file.
    */
   public function testOverwritingDownload() {
-    // Create a pre-existing file at the destination, to test overwrite behavior.
+    // Create a pre-existing file at the destination.
     $destination_uri = $this->createUri('existing_file.txt');
 
     // Test destructive download.
     $actual_destination = $this->doTransform($destination_uri);
     $this->assertSame($destination_uri, $actual_destination, 'Import returned a destination that was not renamed');
-    $this->assertFileNotExists('public://existing_file_0.txt', 'Import did not rename the file');
+    $this->assertFileDoesNotExist('public://existing_file_0.txt');
   }
 
   /**
    * Tests a download that renames the downloaded file if there's a collision.
    */
   public function testNonDestructiveDownload() {
-    // Create a pre-existing file at the destination, to test overwrite behavior.
+    // Create a pre-existing file at the destination.
     $destination_uri = $this->createUri('another_existing_file.txt');
 
     // Test non-destructive download.
-    $actual_destination = $this->doTransform($destination_uri, ['rename' => TRUE]);
+    $actual_destination = $this->doTransform($destination_uri, ['file_exists' => 'rename']);
     $this->assertSame('public://another_existing_file_0.txt', $actual_destination, 'Import returned a renamed destination');
-    $this->assertFileExists($actual_destination, 'Downloaded file was created');
+    $this->assertFileExists($actual_destination);
   }
 
   /**
    * Tests that an exception is thrown if the destination URI is not writable.
    */
   public function testWriteProtectedDestination() {
-    // Create a pre-existing file at the destination, to test overwrite behavior.
+    // Create a pre-existing file at the destination.
     $destination_uri = $this->createUri('not-writable.txt');
 
     // Make the destination non-writable.
@@ -100,14 +100,14 @@ class DownloadTest extends FileTestBase {
    */
   protected function doTransform($destination_uri, $configuration = []) {
     // Prepare a mock HTTP client.
-    $this->container->set('http_client', $this->getMock(Client::class));
+    $this->container->set('http_client', $this->createMock(Client::class));
 
     // Instantiate the plugin statically so it can pull dependencies out of
     // the container.
     $plugin = Download::create($this->container, $configuration, 'download', []);
 
     // Execute the transformation.
-    $executable = $this->getMock(MigrateExecutableInterface::class);
+    $executable = $this->createMock(MigrateExecutableInterface::class);
     $row = new Row([], []);
 
     // Return the downloaded file's local URI.
@@ -115,7 +115,13 @@ class DownloadTest extends FileTestBase {
       'http://drupal.org/favicon.ico',
       $destination_uri,
     ];
-    return $plugin->transform($value, $executable, $row, 'foobaz');
+
+    // Assert that number of stream resources in use is the same before and
+    // after the download.
+    $initial_count = count(get_resources('stream'));
+    $return = $plugin->transform($value, $executable, $row, 'foo');
+    $this->assertCount($initial_count, get_resources('stream'));
+    return $return;
   }
 
 }

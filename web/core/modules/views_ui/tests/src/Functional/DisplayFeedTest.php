@@ -15,20 +15,25 @@ class DisplayFeedTest extends UITestBase {
    *
    * @var array
    */
-  public static $testViews = ['test_display_feed', 'test_style_opml'];
+  public static $testViews = ['test_display_feed'];
 
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['views_ui', 'aggregator'];
+  protected static $modules = ['views_ui'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests feed display admin UI.
    */
   public function testFeedUI() {
-    // Test both RSS and OPML feeds.
+    // Test the RSS feed.
     foreach (self::$testViews as $view_name) {
       $this->checkFeedViewUi($view_name);
     }
@@ -46,12 +51,12 @@ class DisplayFeedTest extends UITestBase {
     // Regression test: ViewListBuilder::getDisplayPaths() did not properly
     // check whether a DisplayPluginCollection was returned in iterating over
     // all displays.
-    $this->assertText($view_name);
+    $this->assertSession()->pageTextContains($view_name);
 
     // Check the attach TO interface.
     $this->drupalGet('admin/structure/views/nojs/display/' . $view_name . '/feed_1/displays');
     // Display labels should be escaped.
-    $this->assertEscaped('<em>Page</em>');
+    $this->assertSession()->assertEscaped('<em>Page</em>');
 
     // Load all the options of the checkbox.
     $result = $this->xpath('//div[@id="edit-displays"]/div');
@@ -63,21 +68,23 @@ class DisplayFeedTest extends UITestBase {
       }
     }
 
-    $this->assertEqual($options, ['default', 'page'], 'Make sure all displays appears as expected.');
+    $this->assertEquals(['default', 'page'], $options, 'Make sure all displays appears as expected.');
 
     // Post and save this and check the output.
-    $this->drupalPostForm('admin/structure/views/nojs/display/' . $view_name . '/feed_1/displays', ['displays[page]' => 'page'], t('Apply'));
+    $this->drupalGet('admin/structure/views/nojs/display/' . $view_name . '/feed_1/displays');
+    $this->submitForm(['displays[page]' => 'page'], 'Apply');
     // Options summary should be escaped.
-    $this->assertEscaped('<em>Page</em>');
-    $this->assertNoRaw('<em>Page</em>');
+    $this->assertSession()->assertEscaped('<em>Page</em>');
+    $this->assertSession()->responseNotContains('<em>Page</em>');
 
     $this->drupalGet('admin/structure/views/view/' . $view_name . '/edit/feed_1');
-    $this->assertFieldByXpath('//*[@id="views-feed-1-displays"]', '<em>Page</em>');
+    $this->assertSession()->elementTextContains('xpath', '//*[@id="views-feed-1-displays"]', 'Page');
 
     // Add the default display, so there should now be multiple displays.
-    $this->drupalPostForm('admin/structure/views/nojs/display/' . $view_name . '/feed_1/displays', ['displays[default]' => 'default'], t('Apply'));
+    $this->drupalGet('admin/structure/views/nojs/display/' . $view_name . '/feed_1/displays');
+    $this->submitForm(['displays[default]' => 'default'], 'Apply');
     $this->drupalGet('admin/structure/views/view/' . $view_name . '/edit/feed_1');
-    $this->assertFieldByXpath('//*[@id="views-feed-1-displays"]', 'Multiple displays');
+    $this->assertSession()->elementTextContains('xpath', '//*[@id="views-feed-1-displays"]', 'Multiple displays');
   }
 
 }

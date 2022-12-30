@@ -9,6 +9,7 @@ use Drupal\user\Entity\Role;
 /**
  * Testing opening and saving block forms in the off-canvas dialog.
  *
+ * @group #slow
  * @group settings_tray
  */
 class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
@@ -16,16 +17,22 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'search',
     'settings_tray_test',
+    'off_canvas_test',
   ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     $user = $this->createUser([
@@ -40,14 +47,25 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
 
   /**
    * Tests opening off-canvas dialog by click blocks and elements in the blocks.
-   *
-   * @dataProvider providerTestBlocks
    */
-  public function testBlocks($theme, $block_plugin, $new_page_text, $element_selector, $label_selector, $button_text, $toolbar_item, $permissions) {
+  public function testBlocks() {
+    foreach ($this->getBlockTests() as $test) {
+      call_user_func_array([$this, 'doTestBlocks'], array_values($test));
+    }
+  }
+
+  /**
+   * Tests opening off-canvas dialog by click blocks and elements in the blocks.
+   */
+  protected function doTestBlocks($theme, $block_plugin, $new_page_text, $element_selector, $label_selector, $button_text, $toolbar_item, $permissions) {
     if ($permissions) {
       $this->grantPermissions(Role::load(Role::AUTHENTICATED_ID), $permissions);
     }
-
+    if ($new_page_text) {
+      // Some asserts can be based on this value, so it should not be the same
+      // for different blocks, because it can be saved in the site config.
+      $new_page_text = $new_page_text . ' ' . $theme . ' ' . $block_plugin;
+    }
     $web_assert = $this->assertSession();
     $page = $this->getSession()->getPage();
     $this->enableTheme($theme);
@@ -56,9 +74,10 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
     $block_id = $block->id();
     $this->drupalGet('user');
 
-    $link = $page->find('css', "$block_selector .contextual-links li a");
-    $this->assertEquals('Quick edit', $link->getText(), "'Quick edit' is the first contextual link for the block.");
-    $this->assertContains("/admin/structure/block/manage/$block_id/settings-tray?destination=user/2", $link->getAttribute('href'));
+    $link = $web_assert->waitForElement('css', "$block_selector .contextual-links li a");
+    $this->assertEquals('Quick edit', $link->getHtml(), "'Quick edit' is the first contextual link for the block.");
+    $destination = (string) $this->loggedInUser->toUrl()->toString();
+    $this->assertStringContainsString("/admin/structure/block/manage/$block_id/settings-tray?destination=$destination", $link->getAttribute('href'));
 
     if (isset($toolbar_item)) {
       // Check that you can open a toolbar tray and it will be closed after
@@ -66,14 +85,14 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
       if ($element = $page->find('css', "#toolbar-administration a.is-active")) {
         // If a tray was open from page load close it.
         $element->click();
-        $this->waitForNoElement("#toolbar-administration a.is-active");
+        $web_assert->assertNoElementAfterWait('css', "#toolbar-administration a.is-active");
       }
       $page->find('css', $toolbar_item)->click();
       $this->assertElementVisibleAfterWait('css', "{$toolbar_item}.is-active");
     }
     $this->enableEditMode();
     if (isset($toolbar_item)) {
-      $this->waitForNoElement("{$toolbar_item}.is-active");
+      $web_assert->assertNoElementAfterWait('css', "{$toolbar_item}.is-active");
     }
     $this->openBlockForm($block_selector);
     switch ($block_plugin) {
@@ -81,9 +100,9 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
         // Confirm "Display Title" is not checked.
         $web_assert->checkboxNotChecked('settings[label_display]');
         // Confirm Title is not visible.
-        $this->assertEquals($this->isLabelInputVisible(), FALSE, 'Label is not visible');
+        $this->assertFalse($this->isLabelInputVisible(), 'Label is not visible');
         $page->checkField('settings[label_display]');
-        $this->assertEquals($this->isLabelInputVisible(), TRUE, 'Label is visible');
+        $this->assertTrue($this->isLabelInputVisible(), 'Label is visible');
         // Fill out form, save the form.
         $page->fillField('settings[label]', $new_page_text);
 
@@ -117,7 +136,7 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
 
     $this->enableEditMode();
 
-    // Open block form by clicking a element inside the block.
+    // Open block form by clicking an element inside the block.
     // This confirms that default action for links and form elements is
     // suppressed.
     $this->openBlockForm("$block_selector {$element_selector}", $block_selector);
@@ -127,16 +146,24 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
     $this->getSession()->executeScript('jQuery("body").trigger(jQuery.Event("keyup", { keyCode: 27 }));');
     $this->waitForOffCanvasToClose();
     $this->getSession()->wait(100);
+    $this->getSession()->executeScript("jQuery('[data-quickedit-entity-id]').trigger('mouseleave')");
+    $this->getSession()->getPage()->find('css', static::TOOLBAR_EDIT_LINK_SELECTOR)->mouseOver();
     $this->assertEditModeDisabled();
-    $web_assert->elementTextContains('css', '#drupal-live-announce', 'Exited edit mode.');
-    $web_assert->elementTextNotContains('css', '.contextual-toolbar-tab button', 'Editing');
+    $this->assertNotEmpty($web_assert->waitForElement('css', '#drupal-live-announce:contains(Exited edit mode)'));
+    $web_assert->assertNoElementAfterWait('css', '.contextual-toolbar-tab button:contains(Editing)');
     $web_assert->elementAttributeNotContains('css', '.dialog-off-canvas-main-canvas', 'class', 'js-settings-tray-edit-mode');
+
+    // Clean up test data so each test does not impact the next.
+    $block->delete();
+    if ($permissions) {
+      user_role_revoke_permissions(Role::AUTHENTICATED_ID, $permissions);
+    }
   }
 
   /**
-   * Dataprovider for testBlocks().
+   * Creates tests for ::testBlocks().
    */
-  public function providerTestBlocks() {
+  public function getBlockTests() {
     $blocks = [];
     foreach ($this->getTestThemes() as $theme) {
       $blocks += [
@@ -164,7 +191,7 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
           'theme' => $theme,
           'block_plugin' => 'search_form_block',
           'new_page_text' => NULL,
-          'element_selector' => '#edit-submit',
+          'element_selector' => '[data-drupal-selector="edit-submit"]',
           'label_selector' => 'h2',
           'button_text' => 'Save Search form',
           'toolbar_item' => NULL,
@@ -236,7 +263,7 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
   }
 
   /**
-   * Test that validation errors appear in the off-canvas dialog.
+   * Tests that validation errors appear in the off-canvas dialog.
    */
   public function testValidationMessages() {
     $page = $this->getSession()->getPage();
@@ -255,17 +282,6 @@ class SettingsTrayBlockFormTest extends SettingsTrayTestBase {
       $this->disableEditMode();
       $block->delete();
     }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getTestThemes() {
-    // Remove 'seven' theme. Setting Tray "Edit Mode" will not work with 'seven'
-    // because it removes all contextual links the off-canvas dialog should.
-    return array_filter(parent::getTestThemes(), function ($theme) {
-      return $theme !== 'seven';
-    });
   }
 
 }

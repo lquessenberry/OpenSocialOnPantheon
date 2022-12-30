@@ -5,7 +5,7 @@ namespace Drupal\Tests\views\Functional\Plugin;
 use Drupal\entity_test\Entity\EntityTest;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
 use Drupal\Tests\views\Functional\ViewTestBase;
 use Drupal\views\Views;
 
@@ -32,7 +32,12 @@ class DisplayEntityReferenceTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['entity_test', 'field', 'views_ui'];
+  protected static $modules = ['entity_test', 'field', 'views_ui'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * The used field name in the test.
@@ -65,8 +70,8 @@ class DisplayEntityReferenceTest extends ViewTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->drupalLogin($this->drupalCreateUser(['administer views']));
 
@@ -117,7 +122,7 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     EntityTest::create([
       'bundle' => 'entity_test',
       'name' => 'name',
-      $this->fieldName => 'sometext',
+      $this->fieldName => 'some_text',
     ])->save();
   }
 
@@ -130,17 +135,22 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     $this->assertSession()->linkByHrefNotExists('admin/structure/views/nojs/display/test_display_entity_reference/entity_reference_1/title');
 
     // Add the new field to the fields.
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/field', ['name[entity_test__' . $this->fieldName . '.' . $this->fieldName . ']' => TRUE], t('Add and configure fields'));
-    $this->drupalPostForm(NULL, [], t('Apply'));
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/field');
+    $this->submitForm([
+      'name[entity_test__' . $this->fieldName . '.' . $this->fieldName . ']' => TRUE,
+    ], 'Add and configure fields');
+    $this->submitForm([], 'Apply');
 
     // Test that the right fields are shown on the display settings form.
     $this->drupalGet('admin/structure/views/nojs/display/test_display_entity_reference/entity_reference_1/style_options');
-    $this->assertText('Test entity: Name');
-    $this->assertText('Test entity: ' . $this->field->label());
+    $this->assertSession()->pageTextContains('Test entity: Name');
+    $this->assertSession()->pageTextContains('Test entity: ' . $this->field->label());
 
     // Add the new field to the search fields.
-    $this->drupalPostForm(NULL, ['style_options[search_fields][' . $this->fieldName . ']' => $this->fieldName], t('Apply'));
-    $this->drupalPostForm(NULL, [], t('Save'));
+    $this->submitForm([
+      'style_options[search_fields][' . $this->fieldName . ']' => $this->fieldName,
+    ], 'Apply');
+    $this->submitForm([], 'Save');
 
     $view = Views::getView('test_display_entity_reference');
     $view->setDisplay('entity_reference_1');
@@ -157,7 +167,7 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     $this->executeView($view);
 
     // Test that we have searched in both fields.
-    $this->assertEqual(count($view->result), 2, 'Search returned two rows');
+    $this->assertCount(2, $view->result, 'Search returned two rows');
     $view->destroy();
 
     // Test the 'CONTAINS' match_operator.
@@ -171,7 +181,7 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     ];
     $view->display_handler->setOption('entity_reference_options', $options);
     $this->executeView($view);
-    $this->assertEqual(count($view->result), 13, 'Search returned thirteen rows');
+    $this->assertCount(13, $view->result, 'Search returned thirteen rows');
     $view->destroy();
 
     // Test the 'STARTS_WITH' match_operator.
@@ -185,7 +195,7 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     ];
     $view->display_handler->setOption('entity_reference_options', $options);
     $this->executeView($view);
-    $this->assertEqual(count($view->result), 12, 'Search returned twelve rows');
+    $this->assertCount(12, $view->result, 'Search returned twelve rows');
     $view->destroy();
 
     // Test the '=' match_operator.
@@ -199,21 +209,24 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     ];
     $view->display_handler->setOption('entity_reference_options', $options);
     $this->executeView($view);
-    $this->assertEqual(count($view->result), 2, 'Search returned two rows');
+    $this->assertCount(2, $view->result, 'Search returned two rows');
     $view->destroy();
 
     // Add a relationship and a field using that relationship.
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/relationship', ['name[entity_test.user_id]' => TRUE], t('Add and configure relationships'));
-    $this->drupalPostForm(NULL, [], t('Apply'));
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/relationship');
+    $this->submitForm(['name[entity_test.user_id]' => TRUE], 'Add and configure relationships');
+    $this->submitForm([], 'Apply');
 
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/field', ['name[users_field_data.uid]' => TRUE], t('Add and configure fields'));
-    $this->drupalPostForm(NULL, [], t('Apply'));
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/field');
+    $this->submitForm(['name[users_field_data.uid]' => TRUE], 'Add and configure fields');
+    $this->submitForm([], 'Apply');
 
     // Add the new field to the search fields.
-    $this->drupalPostForm('admin/structure/views/nojs/display/test_display_entity_reference/entity_reference_1/style_options', ['style_options[search_fields][uid]' => 'uid'], t('Apply'));
-    $this->drupalPostForm(NULL, [], t('Save'));
+    $this->drupalGet('admin/structure/views/nojs/display/test_display_entity_reference/entity_reference_1/style_options');
+    $this->submitForm(['style_options[search_fields][uid]' => 'uid'], 'Apply');
+    $this->submitForm([], 'Save');
 
-    // Test that the search still works with the ralated field.
+    // Test that the search still works with the related field.
     $view = Views::getView('test_display_entity_reference');
     $view->setDisplay('entity_reference_1');
 
@@ -229,13 +242,16 @@ class DisplayEntityReferenceTest extends ViewTestBase {
     $this->executeView($view);
 
     // Run validation when using a relationship to the same base table.
-    $this->assertEqual(count($view->result), 2, 'Search returned two rows');
+    $this->assertCount(2, $view->result, 'Search returned two rows');
     $view->destroy();
 
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/relationship', ['name[entity_test__field_test_entity_ref_entity_ref.field_test_entity_ref_entity_ref]' => TRUE], t('Add and configure relationships'));
-    $this->drupalPostForm(NULL, [], t('Apply'));
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_display_entity_reference/default/relationship');
+    $this->submitForm([
+      'name[entity_test__field_test_entity_ref_entity_ref.field_test_entity_ref_entity_ref]' => TRUE,
+    ], 'Add and configure relationships');
+    $this->submitForm([], 'Apply');
 
-    $this->drupalPostForm(NULL, [], t('Save'));
+    $this->submitForm([], 'Save');
 
     // Test that the search still works with the related field.
     $view = Views::getView('test_display_entity_reference');
@@ -252,7 +268,7 @@ class DisplayEntityReferenceTest extends ViewTestBase {
 
     $this->executeView($view);
 
-    $this->assertEqual(count($view->result), 2, 'Search returned two rows');
+    $this->assertCount(2, $view->result, 'Search returned two rows');
 
     // Test that the render() return empty array for empty result.
     $view = Views::getView('test_display_entity_reference');

@@ -156,14 +156,17 @@ class DrushDriver extends BaseDriver {
    * {@inheritdoc}
    */
   public function userCreate(\stdClass $user) {
-    $arguments = array(
+    $arguments = [
       sprintf('"%s"', $user->name),
-    );
-    $options = array(
+    ];
+    $options = [
       'password' => $user->pass,
       'mail' => $user->mail,
-    );
-    $this->drush('user-create', $arguments, $options);
+    ];
+    $result = $this->drush('user-create', $arguments, $options);
+    if ($uid = $this->parseUserId($result)) {
+      $user->uid = $uid;
+    }
     if (isset($user->roles) && is_array($user->roles)) {
       foreach ($user->roles as $role) {
         $this->userAddRole($user, $role);
@@ -172,14 +175,27 @@ class DrushDriver extends BaseDriver {
   }
 
   /**
+   * Parse user id from drush user-information output.
+   */
+  protected function parseUserId($info) {
+    // Find the row containing "User ID : xxx".
+    preg_match('/User ID\s+:\s+\d+/', $info, $matches);
+    if (!empty($matches)) {
+      // Extract the ID from the row.
+      list(, $uid) = explode(':', $matches[0]);
+      return (int) $uid;
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function userDelete(\stdClass $user) {
-    $arguments = array(sprintf('"%s"', $user->name));
-    $options = array(
+    $arguments = [sprintf('"%s"', $user->name)];
+    $options = [
       'yes' => NULL,
       'delete-content' => NULL,
-    );
+    ];
     $this->drush('user-cancel', $arguments, $options);
   }
 
@@ -187,10 +203,10 @@ class DrushDriver extends BaseDriver {
    * {@inheritdoc}
    */
   public function userAddRole(\stdClass $user, $role) {
-    $arguments = array(
+    $arguments = [
       sprintf('"%s"', $role),
       sprintf('"%s"', $user->name),
-    );
+    ];
     $this->drush('user-add-role', $arguments);
   }
 
@@ -198,20 +214,29 @@ class DrushDriver extends BaseDriver {
    * {@inheritdoc}
    */
   public function fetchWatchdog($count = 10, $type = NULL, $severity = NULL) {
-    $options = array(
+    $options = [
       'count' => $count,
       'type' => $type,
       'severity' => $severity,
-    );
-    return $this->drush('watchdog-show', array(), $options);
+    ];
+    return $this->drush('watchdog-show', [], $options);
   }
 
   /**
    * {@inheritdoc}
    */
   public function clearCache($type = 'all') {
-    $type = array($type);
-    return $this->drush('cache-clear', $type, array());
+    if (self::$isLegacyDrush) {
+      $type = [$type];
+      return $this->drush('cache-clear', $type, []);
+    }
+    if (($type == 'all') || ($type == 'drush')) {
+      $this->drush('cache-clear', ['drush'], []);
+      if ($type == 'drush') {
+        return;
+      }
+    }
+    return $this->drush('cache:rebuild');
   }
 
   /**
@@ -245,8 +270,42 @@ class DrushDriver extends BaseDriver {
   /**
    * {@inheritdoc}
    */
+  public function createEntity($entity_type, \StdClass $entity) {
+    $options = [
+      'entity_type' => $entity_type,
+      'entity' => $entity,
+    ];
+    $result = $this->drush('behat',
+      ['create-entity', escapeshellarg(json_encode($options))], []);
+    return $this->decodeJsonObject($result);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function entityDelete($entity_type, \StdClass $entity) {
+    $options = [
+      'entity_type' => $entity_type,
+      'entity' => $entity,
+    ];
+    $this->drush('behat',
+      ['delete-entity', escapeshellarg(json_encode($options))], []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function createNode($node) {
-    $result = $this->drush('behat', array('create-node', escapeshellarg(json_encode($node))), array());
+    // Look up author by name.
+    if (isset($node->author)) {
+      $user_info = $this->drush('user-information', [sprintf('"%s"', $node->author)]);
+      if ($uid = $this->parseUserId($user_info)) {
+        $node->uid = $uid;
+      }
+    }
+    $result = $this->drush('behat',
+      ['create-node', escapeshellarg(json_encode($node))],
+      []);
     return $this->decodeJsonObject($result);
   }
 
@@ -254,14 +313,18 @@ class DrushDriver extends BaseDriver {
    * {@inheritdoc}
    */
   public function nodeDelete($node) {
-    $this->drush('behat', array('delete-node', escapeshellarg(json_encode($node))), array());
+    $this->drush('behat', ['delete-node', escapeshellarg(json_encode($node))], []);
   }
 
   /**
    * {@inheritdoc}
    */
   public function createTerm(\stdClass $term) {
-    $result = $this->drush('behat', array('create-term', escapeshellarg(json_encode($term))), array());
+    $result = $this->drush('behat',
+      [
+        'create-term',
+        escapeshellarg(json_encode($term)),
+      ], []);
     return $this->decodeJsonObject($result);
   }
 
@@ -269,7 +332,7 @@ class DrushDriver extends BaseDriver {
    * {@inheritdoc}
    */
   public function termDelete(\stdClass $term) {
-    $this->drush('behat', array('delete-term', escapeshellarg(json_encode($term))), array());
+    $this->drush('behat', ['delete-term', escapeshellarg(json_encode($term))], []);
   }
 
   /**
@@ -282,9 +345,9 @@ class DrushDriver extends BaseDriver {
     // Drush Driver to work with certain built-in Drush capabilities (e.g.
     // creating users) even if the Behat Drush Endpoint is not available.
     try {
-      $value = array($entity_type, $field_name);
-      $arguments = array('is-field', escapeshellarg(json_encode($value)));
-      $result = $this->drush('behat', $arguments, array());
+      $value = [$entity_type, $field_name];
+      $arguments = ['is-field', escapeshellarg(json_encode($value))];
+      $result = $this->drush('behat', $arguments, []);
       return strpos($result, "true\n") !== FALSE;
     }
     catch (\Exception $e) {
@@ -334,7 +397,7 @@ class DrushDriver extends BaseDriver {
   /**
    * Execute a drush command.
    */
-  public function drush($command, array $arguments = array(), array $options = array()) {
+  public function drush($command, array $arguments = [], array $options = []) {
     $arguments = implode(' ', $arguments);
 
     // Disable colored output from drush.
@@ -351,7 +414,7 @@ class DrushDriver extends BaseDriver {
     // Add any global arguments.
     $global = $this->getArguments();
 
-    $process = new Process("{$this->binary} {$alias} {$string_options} {$global} {$command} {$arguments}");
+    $process = Process::fromShellCommandline("{$this->binary} {$alias} {$string_options} {$global} {$command} {$arguments}");
     $process->setTimeout(3600);
     $process->run();
 

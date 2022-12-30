@@ -3,14 +3,14 @@
 namespace Drupal\Tests\field\Functional\Rest;
 
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 
-abstract class FieldStorageConfigResourceTestBase extends EntityResourceTestBase {
+abstract class FieldStorageConfigResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node'];
+  protected static $modules = ['field_ui', 'node'];
 
   /**
    * {@inheritdoc}
@@ -73,16 +73,13 @@ abstract class FieldStorageConfigResourceTestBase extends EntityResourceTestBase
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     switch ($method) {
       case 'GET':
         return "The 'administer node fields' permission is required.";
@@ -90,15 +87,6 @@ abstract class FieldStorageConfigResourceTestBase extends EntityResourceTestBase
       default:
         return parent::getExpectedUnauthorizedAccessMessage($method);
     }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getExpectedCacheContexts() {
-    return [
-      'user.permissions',
-    ];
   }
 
 }

@@ -9,12 +9,15 @@ dependencies:
     - field.field.node.event.field_event_comments
     - field.field.node.event.field_event_date
     - field.field.node.event.field_event_date_end
+    - field.field.node.event.field_event_enroll
     - field.field.node.event.field_event_image
     - field.field.node.event.field_event_location
     - field.field.node.event.field_files
+    - image.style.social_medium
     - node.type.event
   module:
     - datetime
+    - image
     - user
 id: node.event.small_teaser
 targetEntityType: node
@@ -23,27 +26,48 @@ mode: small_teaser
 content:
   field_event_date:
     type: datetime_default
-    weight: 0
+    weight: 1
     label: hidden
     settings:
       timezone_override: ''
       format_type: day_month_time
     third_party_settings: {  }
     region: content
+  field_event_image:
+    type: image
+    weight: 0
+    region: content
+    label: hidden
+    settings:
+      image_style: social_medium
+      image_link: content
+    third_party_settings: {  }
   flag_follow_content:
     weight: 10
     region: content
+  groups_type_public_group:
+    label: above
+    weight: -5
+    region: content
+    settings:
+      link: true
+    third_party_settings: {  }
+    type: entity_reference_label
 hidden:
   body: true
   field_content_visibility: true
   field_event_address: true
   field_event_comments: true
   field_event_date_end: true
-  field_event_image: true
+  field_event_enroll: true
   field_event_location: true
   field_files: true
-  like_and_dislike: true
-  links: true
+  field_hide_enrollments: true
   groups: true
   groups_type_closed_group: true
   groups_type_open_group: true
+  like_and_dislike: true
+  links: true
+  search_api_excerpt: true
+  field_event_all_day: true
+  field_event_send_confirmation: true

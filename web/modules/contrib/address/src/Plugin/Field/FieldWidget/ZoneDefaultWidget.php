@@ -84,7 +84,6 @@ class ZoneDefaultWidget extends WidgetBase {
 
     $element += [
       '#type' => 'details',
-      '#collapsible' => TRUE,
       '#open' => TRUE,
     ];
     $element['zone'] = [

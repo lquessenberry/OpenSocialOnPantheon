@@ -1,0 +1,127 @@
+:root {
+  --colorGinButtonShadow: #00000033;
+  --colorGinButtonText: #fff;
+  --colorGinFocus: rgba(0, 125, 250, .6);
+  --colorGinFocusBorder: rgba(0, 0, 0, .2);
+  --colorGinFocusNeutralRGB: rgba(0, 0, 0, .4);
+  --colorGinDisabled: #bbb;
+  --colorGinDisabledText: #8d8d8d;
+  --colorGinWarning: #d8b234;
+  --colorGinWarningLight: #efcf64;
+  --colorGinWarningBackground: #605328;
+  --colorGinWarningLightBackground: rgba(226, 151, 0, .08);
+  --colorGinDanger: #cc3d3d;
+  --colorGinDangerLightest: #fdd9d9;
+  --colorGinDangerLight: #f39b9d;
+  --colorGinDangerBackground: #583333;
+  --colorGinDangerLightBackground: rgba(222, 117, 96, .1);
+  --colorGinGreen: #058260;
+  --colorGinGreenLight: #32cea4;
+  --colorGinGreenLightest: #adebdb;
+  --colorGinGreenBackground: #145242;
+  --colorGinGreenLightBackground: rgba(72, 171, 123, .1);
+  --colorGinInfo: #082538;
+  --colorGinInfoLight: #589ac5;
+  --colorGinInfoBackground: #122b3c;
+  --colorGinInputBackground: #fff;
+  --colorGinLayerBackground: #fff;
+  --colorGinLayer2Background: #edeff5;
+  --colorGinLayer3Background: #fff;
+  --colorGinLayer4Background: #e2e5ec;
+  --colorGinSecondaryBackground: var(--colorGinLayerBackground);
+  --colorGinContextual: var(--colorGinText);
+  --colorGinContextualText: #eee;
+  --colorGinBorder: #d4d4d8;
+  --colorGinSecondaryBorder: rgba(0, 0, 0, .08);
+  --colorGinLayerBorder: rgba(0, 0, 0, .08);
+  --colorGinLayer2Border: #d4d4d8;
+  --colorGinTableBorder: rgba(0, 0, 0, .15);
+  --colorGinTabsBorder: rgba(0, 0, 0, .2);
+  --colorGinFormElementBorder: #8e929c;
+  --ginFont: Ginter, Inter, "Helvetica Neue", BlinkMacSystemFont, -apple-system, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+  --ginFontSizeSmall: small;
+  --colorGinTitle: #222330;
+  --colorGinText: #222330;
+  --colorGinTextLight: #545560;
+  --colorGinTableHeader: #eeeff3;
+  --colorGinSwitch: #0e9888;
+  --colorGinSwitchShadow: rgba(38, 167, 105, .3);
+  --colorGinIcons: #414247;
+  --colorGinPatternFallback: var(--colorGinLayer2Background);
+  --colorGinPattern: var(--colorGinBorder);
+  --ginSizePatternSquare: .5rem;
+  --ginStickyHeight: 72px;
+  --colorGinStickyBg: #c8cdd8;
+  --ginToolbarWidthCollapsed: 66px;
+  --ginToolbarWidth: 240px;
+  --ginSidebarWidth: 300px;
+  --ginShadowLevel1: 0 1px 2px rgb(20 45 82 / 2%), 0 3px 4px rgb(20 45 82 / 3%), 0 5px 8px rgb(20 45 82 / 4%);
+  --ginShadowLevel2: 0 1px 2px rgb(20 45 82 / 2%), 0 3px 4px rgb(20 45 82 / 3%), 0 5px 8px rgb(20 45 82 / 4%), 0 20px 24px rgb(20 45 82 / 12%);
+  --ginEasing: cubic-bezier(.19, 1, .22, 1);
+  --ginTransition: .15s var(--ginEasing);
+  --ginTransitionFast: .3s var(--ginEasing);
+  --ginBorderTiny: 2px;
+  --ginBorderXSmall: 4px;
+  --ginBorderSmall: 6px;
+  --ginBorderDefault: 8px;
+  --ginBorderMedium: 12px;
+  --ginBorderBig: 16px;
+  --iconGinSecondaryToolbar: 17px;
+  --iconGinToolbar: 17px;
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --ginSidebarWidth: 360px;
+  }
+}
+
+@media (min-width: 976px) {
+  :root {
+    --iconGinToolbar: 20px;
+  }
+}
+
+.gin--dark-mode {
+  --colorGinButtonShadow: rgba(#111, .9);
+  --colorGinButtonText: #111;
+  --colorGinFocus: rgb(81, 168, 255);
+  --colorGinFocusNeutralRGB: rgba(255, 255, 255, .8);
+  --colorGinFocusBorder: rgba(0, 0, 0, .8);
+  --colorGinDisabled: #555;
+  --colorGinDisabledText: #1b1b1d;
+  --colorGinWarning: #dec15f;
+  --colorGinWarningLightBackground: rgba(222, 193, 95, .1);
+  --colorGinDanger: #ce6060;
+  --colorGinDangerLightest: #483439;
+  --colorGinGreen: #32cea4;
+  --colorGinInfo: #559bca;
+  --colorGinInputBackground: var(--colorGinLayer2Background);
+  --colorGinAppBackground: #1b1b1d;
+  --colorGinLayerBackground: #2a2a2d;
+  --colorGinLayer2Background: #3b3b3f;
+  --colorGinLayer3Background: #47474c;
+  --colorGinLayer4Background: #19191b;
+  --colorGinSecondaryBackground: var(--colorGinAppBackground);
+  --colorGinContextual: var(--colorGinLayer3Background);
+  --colorGinBorder: #43454a;
+  --colorGinSecondaryBorder: rgba(255, 255, 255, .075);
+  --colorGinLayerBorder: rgba(0, 0, 0, .05);
+  --colorGinLayer2Border: #76777b;
+  --colorGinTableBorder: #43454a;
+  --colorGinTabsBorder: rgba(255, 255, 255, .12);
+  --colorGinFormElementBorder: var(--colorGinLayer2Border);
+  --colorGinTitle: #fff;
+  --colorGinText: #d2d3d3;
+  --colorGinTextLight: #9e9fa0;
+  --colorGinTableHeader: #1b1b1d;
+  --colorGinSwitch: var(--colorGinPrimary);
+  --colorGinSwitchShadow: var(--colorGinPrimaryLight);
+  --ginShadowLevel1: 0 1px 2px rgb(0 0 0 / 2%), 0 3px 4px rgb(0 0 0 / 3%), 0 5px 8px rgb(0 0 0 / 4%);
+  --ginShadowLevel2: 0 1px 2px rgb(0 0 0 / 2%), 0 3px 4px rgb(0 0 0 / 3%), 0 5px 8px rgb(0 0 0 / 4%), 0 20px 24px rgb(0 0 0 / 12%);
+  --colorGinIcons: #888;
+  --colorGinPatternFallback: var(--colorGinLayer2Background);
+  --colorGinPattern: var(--colorGinBorder);
+  --colorGinStickyBg: var(--colorGinLayer4Background);
+}
+

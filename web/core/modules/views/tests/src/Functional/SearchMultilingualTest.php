@@ -20,7 +20,17 @@ class SearchMultilingualTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'search', 'language', 'content_translation'];
+  protected static $modules = [
+    'node',
+    'search',
+    'language',
+    'content_translation',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -35,7 +45,14 @@ class SearchMultilingualTest extends ViewTestBase {
   public function testMultilingualSearchFilter() {
     // Create a user with admin for languages, content, and content types, plus
     // the ability to access content and searches.
-    $user = $this->drupalCreateUser(['administer nodes', 'administer content types', 'administer languages', 'administer content translation', 'access content', 'search content']);
+    $user = $this->drupalCreateUser([
+      'administer nodes',
+      'administer content types',
+      'administer languages',
+      'administer content translation',
+      'access content',
+      'search content',
+    ]);
     $this->drupalLogin($user);
 
     // Add Spanish language programmatically.
@@ -46,15 +63,16 @@ class SearchMultilingualTest extends ViewTestBase {
     $edit = [
       'language_configuration[language_alterable]' => TRUE,
     ];
-    $this->drupalPostForm('admin/structure/types/manage/' . $type->id(), $edit, t('Save content type'));
+    $this->drupalGet('admin/structure/types/manage/' . $type->id());
+    $this->submitForm($edit, 'Save content type');
     $edit = [
       'entity_types[node]' => TRUE,
       'settings[node][' . $type->id() . '][translatable]' => TRUE,
       'settings[node][' . $type->id() . '][fields][title]' => TRUE,
       'settings[node][' . $type->id() . '][fields][body]' => TRUE,
     ];
-    $this->drupalPostForm('admin/config/regional/content-language', $edit, t('Save configuration'));
-    \Drupal::entityManager()->clearCachedDefinitions();
+    $this->drupalGet('admin/config/regional/content-language');
+    $this->submitForm($edit, 'Save configuration');
 
     // Add a node in English, with title "sandwich".
     $values = [
@@ -78,8 +96,8 @@ class SearchMultilingualTest extends ViewTestBase {
     // translated node, which has 'pizza' in the title, but not the English
     // one, which does not have the word 'pizza' in it.
     $this->drupalGet('test-filter');
-    $this->assertLink('pizza', 0, 'Found translation with matching title');
-    $this->assertNoLink('sandwich', 'Did not find translation with non-matching title');
+    $this->assertSession()->linkExists('pizza', 0, 'Found translation with matching title');
+    $this->assertSession()->linkNotExists('sandwich', 'Did not find translation with non-matching title');
   }
 
 }

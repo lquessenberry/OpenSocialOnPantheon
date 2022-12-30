@@ -2,6 +2,9 @@
 
 namespace Drupal\Tests\group\Kernel;
 
+use Drupal\Core\Entity\Entity\EntityViewMode;
+use Drupal\Core\Entity\Entity\EntityViewDisplay;
+
 /**
  * Tests the general behavior of group entities.
  *
@@ -48,6 +51,30 @@ class GroupTest extends GroupKernelTestBase {
     $this->group->addMember($account);
     $this->group->removeMember($account);
     $this->assertFalse($this->group->getMember($account), 'Successfully removed a member.');
+  }
+
+  /**
+   * Tests creating group view modes.
+   *
+   * @uses Drupal\Core\Entity\Entity\EntityViewDisplay
+   * @uses Drupal\Core\Entity\Entity\EntityViewMode
+   */
+  public function testGroupEntityViewModes() {
+    EntityViewMode::create([
+      'id' => 'group.teaser',
+      'targetEntityType' => 'group',
+      'status' => TRUE,
+      'enabled' => TRUE,
+      'label' => 'Group teaser',
+    ])->save();
+    $group_type = $this->createGroupType();
+    EntityViewDisplay::create([
+      'targetEntityType' => 'group',
+      'bundle' => $group_type->id(),
+      'mode' => 'teaser',
+      'label' => 'Teaser',
+      'status' => TRUE,
+    ])->save();
   }
 
 }

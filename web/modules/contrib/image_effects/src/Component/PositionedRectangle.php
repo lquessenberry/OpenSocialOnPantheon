@@ -125,6 +125,88 @@ class PositionedRectangle {
   }
 
   /**
+   * Add points representing a grid within the rectangle.
+   *
+   * The grid point coordinates need to be integers, since we are handling
+   * pixels here. In case the grid cells dimensions do not fit with integers,
+   * the remainder pixels are distributed evenly around the midpoint of the
+   * grid.
+   *
+   * @param string $id
+   *   An identifier of the grid.
+   * @param int $x
+   *   The x-coordinate of the top-left point of the grid.
+   * @param int $y
+   *   The y-coordinate of the top-left point of the grid.
+   * @param int $width
+   *   The width of the grid.
+   * @param int $height
+   *   The height of the grid.
+   * @param int $rows
+   *   The number of rows of the grid.
+   * @param int $columns
+   *   The number of columns of the grid.
+   *
+   * @return $this
+   */
+  public function addGrid($id, $x, $y, $width, $height, $rows, $columns) {
+    $cell_width = (int) ($width / $columns);
+    $width_remainder = $width - $cell_width * $columns;
+    $width_midpoint = ((int) $columns / 2) - ((int) $width_remainder / 2);
+    $cell_height = (int) ($height / $rows);
+    $height_remainder = $height - $cell_height * $rows;
+    $height_midpoint = ((int) $rows / 2) - ((int) $height_remainder / 2);
+
+    $x_offset = $x;
+    $w_remainder = $width_remainder;
+    for ($i = 0; $i <= $columns; $i++) {
+      if ($i >= $width_midpoint && $w_remainder > 0) {
+        $x_offset++;
+        $w_remainder--;
+      }
+      $y_offset = $y;
+      $h_remainder = $height_remainder;
+      for ($j = 0; $j <= $rows; $j++) {
+        if ($j >= $height_midpoint && $h_remainder > 0) {
+          $y_offset++;
+          $h_remainder--;
+        }
+        $this->setPoint($id . '_' . $j . '_' . $i, [$x_offset, $y_offset]);
+        $y_offset += $cell_height;
+      }
+      $x_offset += $cell_width;
+    }
+
+    return $this;
+  }
+
+  /**
+   * Get the width and height dimensions of the portion of a grid.
+   *
+   * @param string $id
+   *   An identifier of the grid.
+   * @param int $x
+   *   The top-left point of the grid portion.
+   * @param int $y
+   *   The top-left point of the grid portion.
+   * @param int $rows_span
+   *   The number of rows of the grid portion.
+   * @param int $columns_span
+   *   The number of columns of the grid portion.
+   *
+   * @return int[]
+   *   An array with width and height of the protion of the grid.
+   */
+  public function getSubGridDimensions($id, $x, $y, $rows_span, $columns_span) {
+    $coord_tl = $this->getPoint($id . '_' . $x . '_' . $y);
+    $coord_br = $this->getPoint($id . '_' . ($x + $rows_span) . '_' . ($y + $columns_span));
+    return [
+      $coord_br[0] - $coord_tl[0],
+      $coord_br[1] - $coord_tl[1],
+    ];
+  }
+
+  /**
    * Sets a point and its coordinates.
    *
    * @param string $id
@@ -150,6 +232,16 @@ class PositionedRectangle {
    */
   public function getPoint($id) {
     return $this->points[$id];
+  }
+
+  /**
+   * Gets all the points defined for the rectangle.
+   *
+   * @return array
+   *   An array of points, keyed by id.
+   */
+  public function getPoints() {
+    return $this->points;
   }
 
   /**
@@ -273,6 +365,28 @@ class PositionedRectangle {
         $this->translatePoint($point, $offset);
       }
     }
+    return $this;
+  }
+
+  /**
+   * Resizes the rectangle and any additional point.
+   *
+   * @param int $width
+   *   The new width of the rectangle.
+   * @param int $height
+   *   The new height of the rectangle.
+   *
+   * @return $this
+   */
+  public function resize($width, $height) {
+    $width_multiplier = $width / $this->getWidth();
+    $height_multiplier = $height / $this->getHeight();
+    foreach ($this->points as &$point) {
+      $point[0] = (int) round($point[0] * $width_multiplier);
+      $point[1] = (int) round($point[1] * $height_multiplier);
+    }
+    $this->width = $width;
+    $this->height = $height;
     return $this;
   }
 

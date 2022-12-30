@@ -258,7 +258,7 @@ class ConfigHandler extends ViewsFormBase {
   }
 
   /**
-   * Submit handler for removing an item from a view
+   * Submit handler for removing an item from a view.
    */
   public function remove(&$form, FormStateInterface $form_state) {
     $view = $form_state->get('view');
@@ -266,7 +266,7 @@ class ConfigHandler extends ViewsFormBase {
     $type = $form_state->get('type');
     $id = $form_state->get('id');
     // Store the item back on the view
-    list($was_defaulted, $is_defaulted) = $view->getOverrideValues($form, $form_state);
+    [$was_defaulted, $is_defaulted] = $view->getOverrideValues($form, $form_state);
     $executable = $view->getExecutable();
     // If the display selection was changed toggle the override value.
     if ($was_defaulted != $is_defaulted) {

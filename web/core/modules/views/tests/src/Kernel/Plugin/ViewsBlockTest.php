@@ -19,7 +19,7 @@ class ViewsBlockTest extends ViewsKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['block', 'block_test_views'];
+  protected static $modules = ['block', 'block_test_views'];
 
   /**
    * Views used by this test.
@@ -31,10 +31,10 @@ class ViewsBlockTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp();
 
-    ViewTestData::createTestViews(get_class($this), ['block_test_views']);
+    ViewTestData::createTestViews(static::class, ['block_test_views']);
   }
 
   /**
@@ -49,7 +49,7 @@ class ViewsBlockTest extends ViewsKernelTestBase {
     $plugin_id = 'views_block:test_view_block-block_1';
     $views_block = ViewsBlock::create($this->container, [], $plugin_id, $plugin_definition);
 
-    $this->assertEqual($views_block->getMachineNameSuggestion(), 'views_block__test_view_block_block_1');
+    $this->assertEquals('views_block__test_view_block_block_1', $views_block->getMachineNameSuggestion());
   }
 
   /**
@@ -103,7 +103,7 @@ class ViewsBlockTest extends ViewsKernelTestBase {
         'title' => 'Overridden title',
         'default_argument_type' => 'fixed',
         'default_argument_options' => [
-          'argument' => 'fixed'
+          'argument' => 'fixed',
         ],
         'validate' => [
           'type' => 'none',
@@ -113,7 +113,7 @@ class ViewsBlockTest extends ViewsKernelTestBase {
         'table' => 'views_test_data',
         'field' => 'name',
         'plugin_id' => 'string',
-      ]
+      ],
     ]);
     $view->save();
 
@@ -125,6 +125,21 @@ class ViewsBlockTest extends ViewsKernelTestBase {
 
     $build = $views_block->build();
     $this->assertEquals('Overridden title', $build['#title']['#markup']);
+  }
+
+  /**
+   * Tests that ViewsBlock::getPreviewFallbackString() produces the right value.
+   *
+   * @see \Drupal\views\Plugin\Block\ViewsBlockBase::getPreviewFallbackString()
+   */
+  public function testGetPreviewFallbackString() {
+    $plugin_definition = [
+      'provider' => 'views',
+    ];
+    $plugin_id = 'views_block:test_view_block-block_1';
+    $views_block = ViewsBlock::create($this->container, [], $plugin_id, $plugin_definition);
+
+    $this->assertEquals('"test_view_block::block_1" views block', $views_block->getPreviewFallbackString());
   }
 
 }

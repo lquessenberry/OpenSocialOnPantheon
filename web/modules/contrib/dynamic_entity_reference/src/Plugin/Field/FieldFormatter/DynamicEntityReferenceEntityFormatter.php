@@ -2,11 +2,14 @@
 
 namespace Drupal\dynamic_entity_reference\Plugin\Field\FieldFormatter;
 
+use Drupal\Core\Entity\EntityTypeRepositoryInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\Plugin\Field\FieldFormatter\EntityReferenceEntityFormatter;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\dynamic_entity_reference\Plugin\Field\FieldType\DynamicEntityReferenceItem;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Plugin implementation of the 'rendered entity' formatter.
@@ -20,9 +23,32 @@ use Drupal\dynamic_entity_reference\Plugin\Field\FieldType\DynamicEntityReferenc
  *   }
  * )
  */
-class DynamicEntityReferenceEntityFormatter extends EntityReferenceEntityFormatter {
+class DynamicEntityReferenceEntityFormatter extends EntityReferenceEntityFormatter implements ContainerFactoryPluginInterface {
 
   use DynamicEntityReferenceFormatterTrait;
+
+  /**
+   * The entity type repository.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeRepositoryInterface
+   */
+  protected EntityTypeRepositoryInterface $entityTypeRepository;
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+    $instance->setEntityTypeRepository($container->get('entity_type.repository'));
+    return $instance;
+  }
+
+  /**
+   * Sets entity type repository service.
+   */
+  public function setEntityTypeRepository(EntityTypeRepositoryInterface $entity_type_repository) {
+    $this->entityTypeRepository = $entity_type_repository;
+  }
 
   /**
    * {@inheritdoc}
@@ -37,14 +63,17 @@ class DynamicEntityReferenceEntityFormatter extends EntityReferenceEntityFormatt
   public static function defaultSettings() {
     $labels = \Drupal::service('entity_type.repository')->getEntityTypeLabels(TRUE);
     $options = array_keys($labels[(string) t('Content', [], ['context' => 'Entity type group'])]);
-    return array_fill_keys($options, ['view_mode' => 'default', 'link' => FALSE]);
+    return array_fill_keys($options, [
+      'view_mode' => 'default',
+      'link' => FALSE,
+    ]);
   }
 
   /**
    * {@inheritdoc}
    */
   public function settingsSummary() {
-    $labels = \Drupal::service('entity_type.repository')->getEntityTypeLabels(TRUE);
+    $labels = $this->entityTypeRepository->getEntityTypeLabels(TRUE);
     $options = $labels[(string) t('Content', [], ['context' => 'Entity type group'])];
     $entity_type_ids = DynamicEntityReferenceItem::getTargetTypes($this->getFieldSettings());
     $available = [];
@@ -71,7 +100,7 @@ class DynamicEntityReferenceEntityFormatter extends EntityReferenceEntityFormatt
    * {@inheritdoc}
    */
   public function settingsForm(array $form, FormStateInterface $form_state) {
-    $labels = \Drupal::service('entity_type.repository')->getEntityTypeLabels(TRUE);
+    $labels = $this->entityTypeRepository->getEntityTypeLabels(TRUE);
     $options = $labels[(string) t('Content', [], ['context' => 'Entity type group'])];
     $entity_type_ids = DynamicEntityReferenceItem::getTargetTypes($this->getFieldSettings());
     $elements['view_mode'] = [];
@@ -107,6 +136,10 @@ class DynamicEntityReferenceEntityFormatter extends EntityReferenceEntityFormatt
       $recursive_render_id = $items->getFieldDefinition()->getTargetEntityTypeId()
         . $items->getFieldDefinition()->getTargetBundle()
         . $items->getName()
+        // We include the referencing entity, so we can render default images
+        // without hitting recursive protections.
+        . $items->getEntity()->id()
+        . $entity->getEntityTypeId()
         . $entity->id();
 
       if (isset(static::$recursiveRenderDepth[$recursive_render_id])) {

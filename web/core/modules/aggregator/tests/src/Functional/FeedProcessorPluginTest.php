@@ -9,6 +9,7 @@ use Drupal\aggregator\Entity\Item;
  * Tests the processor plugins functionality and discoverability.
  *
  * @group aggregator
+ * @group legacy
  *
  * @see \Drupal\aggregator_test\Plugin\aggregator\processor\TestProcessor.
  */
@@ -17,7 +18,12 @@ class FeedProcessorPluginTest extends AggregatorTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
     // Enable test plugins.
     $this->enableTestPlugins();
@@ -26,42 +32,42 @@ class FeedProcessorPluginTest extends AggregatorTestBase {
   }
 
   /**
-   * Test processing functionality.
+   * Tests processing functionality.
    */
   public function testProcess() {
     $feed = $this->createFeed();
     $this->updateFeedItems($feed);
     foreach ($feed->items as $iid) {
       $item = Item::load($iid);
-      $this->assertTrue(strpos($item->label(), 'testProcessor') === 0);
+      $this->assertStringStartsWith('testProcessor', $item->label());
     }
   }
 
   /**
-   * Test deleting functionality.
+   * Tests deleting functionality.
    */
   public function testDelete() {
     $feed = $this->createFeed();
     $description = $feed->description->value ?: '';
     $this->updateAndDelete($feed, NULL);
     // Make sure the feed title is changed.
-    $entities = entity_load_multiple_by_properties('aggregator_feed', ['description' => $description]);
-    $this->assertTrue(empty($entities));
+    $entities = \Drupal::entityTypeManager()->getStorage('aggregator_feed')->loadByProperties(['description' => $description]);
+    $this->assertEmpty($entities);
   }
 
   /**
-   * Test post-processing functionality.
+   * Tests post-processing functionality.
    */
   public function testPostProcess() {
     $feed = $this->createFeed(NULL, ['refresh' => 1800]);
     $this->updateFeedItems($feed);
     $feed_id = $feed->id();
     // Reset entity cache manually.
-    \Drupal::entityManager()->getStorage('aggregator_feed')->resetCache([$feed_id]);
+    \Drupal::entityTypeManager()->getStorage('aggregator_feed')->resetCache([$feed_id]);
     // Reload the feed to get new values.
     $feed = Feed::load($feed_id);
     // Make sure its refresh rate doubled.
-    $this->assertEqual($feed->getRefreshRate(), 3600);
+    $this->assertEquals(3600, $feed->getRefreshRate());
   }
 
 }

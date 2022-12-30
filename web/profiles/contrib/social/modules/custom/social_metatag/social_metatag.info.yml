@@ -1,0 +1,8 @@
+name: 'Social Metatag'
+description: 'Implement defaults for the Metatag module'
+type: module
+core_version_requirement: ^9
+package: Social
+dependencies:
+- metatag:metatag
+- metatag:metatag_open_graph

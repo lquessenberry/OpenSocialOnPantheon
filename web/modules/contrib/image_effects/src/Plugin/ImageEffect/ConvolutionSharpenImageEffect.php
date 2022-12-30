@@ -44,8 +44,8 @@ class ConvolutionSharpenImageEffect extends ConfigurableImageEffectBase implemen
 
     $form['level'] = [
       '#type' => 'number',
-      '#title' => t('Sharpen level'),
-      '#description' => t('Typically 1 - 50.'),
+      '#title' => $this->t('Sharpen level'),
+      '#description' => $this->t('Typically 1 - 50.'),
       '#default_value' => $this->configuration['level'],
       '#required' => TRUE,
       '#allow_negative' => FALSE,

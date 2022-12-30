@@ -4,11 +4,6 @@ namespace Drupal\layout_builder;
 
 /**
  * Provides an interface for loading layouts from tempstore.
- *
- * @internal
- *   Layout Builder is currently experimental and should only be leveraged by
- *   experimental modules and development releases of contributed modules.
- *   See https://www.drupal.org/core/experimental for more information.
  */
 interface LayoutTempstoreRepositoryInterface {
 
@@ -34,6 +29,17 @@ interface LayoutTempstoreRepositoryInterface {
    *   The section storage to set in tempstore.
    */
   public function set(SectionStorageInterface $section_storage);
+
+  /**
+   * Checks for the existence of a tempstore version of a section storage.
+   *
+   * @param \Drupal\layout_builder\SectionStorageInterface $section_storage
+   *   The section storage to check for in tempstore.
+   *
+   * @return bool
+   *   TRUE if there is a tempstore version of this section storage.
+   */
+  public function has(SectionStorageInterface $section_storage);
 
   /**
    * Removes the tempstore version of a section storage.

@@ -1,23 +1,25 @@
 <?php
+
 namespace Drush\Commands\core;
 
+use Consolidation\AnnotatedCommand\Input\StdinAwareInterface;
+use Consolidation\AnnotatedCommand\Input\StdinAwareTrait;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\Finder\Finder;
 
-class PhpCommands extends DrushCommands
+class PhpCommands extends DrushCommands implements StdinAwareInterface
 {
+    use StdinAwareTrait;
 
     /**
      * Evaluate arbitrary php code after bootstrapping Drupal (if available).
      *
      * @command php:eval
-     * @param $code PHP code
-     * @usage drush php:eval 'variable_set("hello", "world");'
-     *   Sets the hello variable using Drupal API.'
-     * @usage drush php:eval '$node = node_load(1); print $node->title;'
+     * @param $code PHP code. If shell escaping gets too tedious, consider using the php:script command.
+     * @usage drush php:eval '$node = \Drupal\node\Entity\Node::load(1); print $node->getTitle();'
      *   Loads node with nid 1 and then prints its title.
-     * @usage drush php:eval "file_unmanaged_copy(\'$HOME/Pictures/image.jpg\', \'public://image.jpg\');"
-     *   Copies a file whose path is determined by an environment\'s variable. Note the use of double quotes so the variable $HOME gets replaced by its value.
+     * @usage drush php:eval "\Drupal::service('file_system')->copy('$HOME/Pictures/image.jpg', 'public://image.jpg');"
+     *   Copies a file whose path is determined by an environment's variable. Use of double quotes so the variable $HOME gets replaced by its value.
      * @usage drush php:eval "node_access_rebuild();"
      *   Rebuild node access permissions.
      * @aliases eval,ev,php-eval
@@ -35,20 +37,22 @@ class PhpCommands extends DrushCommands
      * can't be bothered to figure out bash quoting. If you plan to share a
      * script with others, consider making a full Drush command instead, since
      * that's more self-documenting.  Drush provides commandline options to the
-     * script via a variable called $extra.
+     * script via a variable called <info>$extra</info>.
      *
      * @command php:script
      * @option script-path Additional paths to search for scripts, separated by
      *   : (Unix-based systems) or ; (Windows).
-     * @usage drush php:script example
-     *   --script-path=/path/to/scripts:/another/path Run a script named
-     *   example.php from specified paths
+     * @usage drush php:script example --script-path=/path/to/scripts:/another/path
+     *   Run a script named example.php from specified paths
+     * @usage drush php:script -
+     *   Run PHP code from standard input.
      * @usage drush php:script
      *   List all available scripts.
      * @usage drush php:script foo -- apple --cider
-     *  Run foo.php script with argument 'apple' and option 'cider'. Note the
-     *   -- separator.
+     *   Run foo.php script with argument <info>apple</info> and option <info>cider</info>. Note the
+     *   <info>--</info> separator.
      * @aliases scr,php-script
+     * @topics docs:script
      * @bootstrap max
      * @throws \Exception
      */
@@ -58,7 +62,7 @@ class PhpCommands extends DrushCommands
         $script = array_shift($extra);
 
         if ($script == '-') {
-            return eval(stream_get_contents(STDIN));
+            return eval($this->stdin()->contents());
         } elseif (file_exists($script)) {
             $found = $script;
         } else {

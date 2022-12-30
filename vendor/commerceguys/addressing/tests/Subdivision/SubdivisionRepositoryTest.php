@@ -2,13 +2,15 @@
 
 namespace CommerceGuys\Addressing\Tests\Subdivision;
 
+use CommerceGuys\Addressing\Subdivision\Subdivision;
 use CommerceGuys\Addressing\Subdivision\SubdivisionRepository;
 use org\bovigo\vfs\vfsStream;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \CommerceGuys\Addressing\Subdivision\SubdivisionRepository
  */
-class SubdivisionRepositoryTest extends \PHPUnit_Framework_TestCase
+final class SubdivisionRepositoryTest extends TestCase
 {
     /**
      * Subdivisions.
@@ -69,7 +71,10 @@ class SubdivisionRepositoryTest extends \PHPUnit_Framework_TestCase
         // Instantiate the subdivision repository and confirm that the
         // definition path was properly set.
         $subdivisionRepository = new SubdivisionRepository(null, 'vfs://resources/subdivision/');
-        $definitionPath = $this->getObjectAttribute($subdivisionRepository, 'definitionPath');
+
+        $reflected_constraint = (new \ReflectionObject($subdivisionRepository))->getProperty('definitionPath');
+        $reflected_constraint->setAccessible(TRUE);
+        $definitionPath = $reflected_constraint->getValue($subdivisionRepository);
         $this->assertEquals('vfs://resources/subdivision/', $definitionPath);
 
         return $subdivisionRepository;
@@ -90,7 +95,7 @@ class SubdivisionRepositoryTest extends \PHPUnit_Framework_TestCase
         $subdivision = $subdivisionRepository->get('SC', ['BR']);
         $subdivisionChild = $subdivisionRepository->get('Abelardo Luz', ['BR', 'SC']);
 
-        $this->assertInstanceOf('CommerceGuys\Addressing\Subdivision\Subdivision', $subdivision);
+        $this->assertInstanceOf(Subdivision::class, $subdivision);
         $this->assertEquals(null, $subdivision->getParent());
         $this->assertEquals('BR', $subdivision->getCountryCode());
         $this->assertEquals('pt', $subdivision->getLocale());
@@ -103,12 +108,12 @@ class SubdivisionRepositoryTest extends \PHPUnit_Framework_TestCase
         $children = $subdivision->getChildren();
         $this->assertEquals($subdivisionChild, $children['Abelardo Luz']);
 
-        $this->assertInstanceOf('CommerceGuys\Addressing\Subdivision\Subdivision', $subdivisionChild);
+        $this->assertInstanceOf(Subdivision::class, $subdivisionChild);
         $this->assertEquals('Abelardo Luz', $subdivisionChild->getCode());
         // $subdivision contains the loaded children while $parent doesn't,
         // so they can't be compared directly.
         $parent = $subdivisionChild->getParent();
-        $this->assertInstanceOf('CommerceGuys\Addressing\Subdivision\Subdivision', $parent);
+        $this->assertInstanceOf(Subdivision::class, $parent);
         $this->assertEquals($subdivision->getCode(), $parent->getCode());
     }
 
@@ -147,13 +152,13 @@ class SubdivisionRepositoryTest extends \PHPUnit_Framework_TestCase
         $this->assertCount(2, $subdivisions);
         $this->assertArrayHasKey('SC', $subdivisions);
         $this->assertArrayHasKey('SP', $subdivisions);
-        $this->assertEquals($subdivisions['SC']->getCode(), 'SC');
-        $this->assertEquals($subdivisions['SP']->getCode(), 'SP');
+        $this->assertEquals('SC', $subdivisions['SC']->getCode());
+        $this->assertEquals('SP', $subdivisions['SP']->getCode());
 
         $subdivisions = $subdivisionRepository->getAll(['BR', 'SC']);
         $this->assertCount(1, $subdivisions);
         $this->assertArrayHasKey('Abelardo Luz', $subdivisions);
-        $this->assertEquals($subdivisions['Abelardo Luz']->getCode(), 'Abelardo Luz');
+        $this->assertEquals('Abelardo Luz', $subdivisions['Abelardo Luz']->getCode());
     }
 
     /**

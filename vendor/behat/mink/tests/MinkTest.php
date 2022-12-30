@@ -12,7 +12,10 @@ class MinkTest extends TestCase
      */
     private $mink;
 
-    protected function setUp()
+    /**
+     * @before
+     */
+    protected function prepareMink()
     {
         $this->mink = new Mink();
     }
@@ -71,12 +74,7 @@ class MinkTest extends TestCase
         $this->mink->registerSession('mock_session', $session);
         $this->assertSame($session, $this->mink->getSession('mock_session'));
 
-        if (method_exists($this, 'expectException')) {
-            $this->expectException('InvalidArgumentException');
-        } else {
-            // BC with PHPUnit 4 used for PHP 5.5 and older
-            $this->setExpectedException('InvalidArgumentException');
-        }
+        $this->expectException('InvalidArgumentException');
 
         $this->mink->getSession('not_registered');
     }
@@ -91,12 +89,7 @@ class MinkTest extends TestCase
 
         $this->assertEquals('session_name', $this->mink->getDefaultSessionName());
 
-        if (method_exists($this, 'expectException')) {
-            $this->expectException('InvalidArgumentException');
-        } else {
-            // BC with PHPUnit 4 used for PHP 5.5 and older
-            $this->setExpectedException('InvalidArgumentException');
-        }
+        $this->expectException('InvalidArgumentException');
 
         $this->mink->setDefaultSessionName('not_registered');
     }
@@ -127,12 +120,7 @@ class MinkTest extends TestCase
 
         $this->mink->registerSession('session_1', $session1);
 
-        if (method_exists($this, 'expectException')) {
-            $this->expectException('InvalidArgumentException');
-        } else {
-            // BC with PHPUnit 4 used for PHP 5.5 and older
-            $this->setExpectedException('InvalidArgumentException');
-        }
+        $this->expectException('InvalidArgumentException');
 
         $this->mink->getSession();
     }
@@ -164,12 +152,7 @@ class MinkTest extends TestCase
         $this->mink->registerSession('started', $session_2);
         $this->assertTrue($this->mink->isSessionStarted('started'));
 
-        if (method_exists($this, 'expectException')) {
-            $this->expectException('InvalidArgumentException');
-        } else {
-            // BC with PHPUnit 4 used for PHP 5.5 and older
-            $this->setExpectedException('InvalidArgumentException');
-        }
+        $this->expectException('InvalidArgumentException');
 
         $this->mink->getSession('not_registered');
     }

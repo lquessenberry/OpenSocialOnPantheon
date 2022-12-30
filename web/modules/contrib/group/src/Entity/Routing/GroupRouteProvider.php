@@ -27,6 +27,7 @@ class GroupRouteProvider extends DefaultHtmlRouteProvider {
     if ($route = parent::getAddFormRoute($entity_type)) {
       $route->setOption('_group_operation_route', TRUE);
       $route->setDefault('_controller', '\Drupal\group\Entity\Controller\GroupController::addForm');
+      $route->setDefault('_title_callback', '\Drupal\group\Entity\Controller\GroupController::addFormTitle');
       return $route;
     }
   }

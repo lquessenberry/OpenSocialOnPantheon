@@ -5,6 +5,7 @@ namespace Drupal\search_api\DataType;
 use Drupal\Component\Plugin\DerivativeInspectionInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\search_api\Plugin\HideablePluginInterface;
 
 /**
  * Defines an interface for data type plugins.
@@ -14,7 +15,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
  * @see \Drupal\search_api\DataType\DataTypePluginBase
  * @see plugin_api
  */
-interface DataTypeInterface extends PluginInspectionInterface, DerivativeInspectionInterface, ContainerFactoryPluginInterface {
+interface DataTypeInterface extends HideablePluginInterface, PluginInspectionInterface, DerivativeInspectionInterface, ContainerFactoryPluginInterface {
 
   /**
    * Returns the label of the data type.

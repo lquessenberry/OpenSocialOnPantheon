@@ -4,6 +4,7 @@ namespace Drupal\Tests\crop\Kernel;
 
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\file\FileInterface;
 
 /**
  * Tests the crop entity CRUD operations.
@@ -62,7 +63,7 @@ abstract class CropUnitTestBase extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     /** @var \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager */
@@ -113,10 +114,10 @@ abstract class CropUnitTestBase extends KernelTestBase {
    *   File object.
    */
   protected function getTestFile() {
-    file_unmanaged_copy(drupal_get_path('module', 'crop') . '/tests/files/sarajevo.png', PublicStream::basePath());
+    \Drupal::service('file_system')->copy(\Drupal::service('extension.list.module')->getPath('crop') . '/tests/files/sarajevo.png', PublicStream::basePath());
     return $this->fileStorage->create([
       'uri' => 'public://sarajevo.png',
-      'status' => FILE_STATUS_PERMANENT,
+      'status' => FileInterface::STATUS_PERMANENT,
     ]);
   }
 

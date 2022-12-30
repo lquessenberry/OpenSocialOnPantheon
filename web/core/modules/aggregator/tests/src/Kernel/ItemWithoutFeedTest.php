@@ -9,18 +9,19 @@ use Drupal\KernelTests\KernelTestBase;
  * Tests clean handling of an item with a missing feed ID.
  *
  * @group aggregator
+ * @group legacy
  */
 class ItemWithoutFeedTest extends KernelTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['aggregator', 'options'];
+  protected static $modules = ['aggregator', 'options'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('aggregator_feed');
     $this->installEntitySchema('aggregator_item');
@@ -31,7 +32,7 @@ class ItemWithoutFeedTest extends KernelTestBase {
    */
   public function testEntityCreation() {
     $entity = Item::create([
-      'title' => t('Llama 2'),
+      'title' => 'Llama 2',
       'path' => 'https://groups.drupal.org/',
     ]);
     $violations = $entity->validate();

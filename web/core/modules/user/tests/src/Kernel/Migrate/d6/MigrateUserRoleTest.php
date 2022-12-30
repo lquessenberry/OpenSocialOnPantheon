@@ -17,7 +17,7 @@ class MigrateUserRoleTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->executeMigrations(['d6_filter_format', 'd6_user_role']);
   }
@@ -33,8 +33,10 @@ class MigrateUserRoleTest extends MigrateDrupal6TestBase {
    *   The original numeric ID of the role in the source database.
    * @param \Drupal\migrate\Plugin\MigrateIdMapInterface $id_map
    *   The map table plugin.
+   *
+   * @internal
    */
-  protected function assertRole($id, array $permissions, $lookupId, MigrateIdMapInterface $id_map) {
+  protected function assertRole(string $id, array $permissions, int $lookupId, MigrateIdMapInterface $id_map): void {
     /** @var \Drupal\user\RoleInterface $role */
     $role = Role::load($id);
     $this->assertInstanceOf(RoleInterface::class, $role);
@@ -49,8 +51,10 @@ class MigrateUserRoleTest extends MigrateDrupal6TestBase {
    *
    * @param \Drupal\migrate\Plugin\MigrateIdMapInterface $id_map
    *   The map table plugin.
+   *
+   * @internal
    */
-  protected function assertRoles(MigrateIdMapInterface $id_map) {
+  protected function assertRoles(MigrateIdMapInterface $id_map): void {
 
     // The permissions for each role are found in the two tables in the Drupal 6
     // source database. One is the permission table and the other is the
@@ -60,7 +64,7 @@ class MigrateUserRoleTest extends MigrateDrupal6TestBase {
       'access content',
       'migrate test anonymous permission',
       // From filter_format tables.
-      'use text format filtered_html'
+      'use text format filtered_html',
     ];
     $this->assertRole('anonymous', $permissions, 1, $id_map);
 
@@ -81,7 +85,7 @@ class MigrateUserRoleTest extends MigrateDrupal6TestBase {
       'migrate test role 1 test permission',
       // From filter format.
       'use text format full_html',
-      'use text format php_code'
+      'use text format php_code',
     ];
     $this->assertRole('migrate_test_role_1', $permissions, 3, $id_map);
 
@@ -126,7 +130,7 @@ class MigrateUserRoleTest extends MigrateDrupal6TestBase {
       'administrator1',
       'migrate_test_role_11',
       'migrate_test_role_21',
-      'migrate_test_role_3_that_is_longer_than_thirty_two_characters1'
+      'migrate_test_role_3_that_is_longer_than_thirty_two_characters1',
     ];
     $this->assertEmpty(Role::loadMultiple($roles));
 

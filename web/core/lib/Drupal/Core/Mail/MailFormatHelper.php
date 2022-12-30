@@ -3,7 +3,6 @@
 namespace Drupal\Core\Mail;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Site\Settings;
 
@@ -143,8 +142,6 @@ class MailFormatHelper {
     // required).
     // Odd/even counter (tag or no tag).
     $tag = FALSE;
-    // Case conversion function.
-    $casing = NULL;
     $output = '';
     // All current indentation string chunks.
     $indent = [];
@@ -156,7 +153,7 @@ class MailFormatHelper {
 
       // Process HTML tags (but don't output any literally).
       if ($tag) {
-        list($tagname) = explode(' ', strtolower($value), 2);
+        [$tagname] = explode(' ', strtolower($value), 2);
         switch ($tagname) {
           // List counters.
           case 'ul':
@@ -222,17 +219,14 @@ class MailFormatHelper {
           // Fancy headers.
           case 'h1':
             $indent[] = '======== ';
-            $casing = '\Drupal\Component\Utility\Unicode::strtoupper';
             break;
 
           case 'h2':
             $indent[] = '-------- ';
-            $casing = '\Drupal\Component\Utility\Unicode::strtoupper';
             break;
 
           case '/h1':
           case '/h2':
-            $casing = NULL;
             // Pad the line with dashes.
             $output = static::htmlToTextPad($output, ($tagname == '/h1') ? '=' : '-', ' ');
             array_pop($indent);
@@ -260,17 +254,13 @@ class MailFormatHelper {
         // Convert inline HTML text to plain text; not removing line-breaks or
         // white-space, since that breaks newlines when sanitizing plain-text.
         $value = trim(Html::decodeEntities($value));
-        if (Unicode::strlen($value)) {
+        if (mb_strlen($value)) {
           $chunk = $value;
         }
       }
 
       // See if there is something waiting to be output.
       if (isset($chunk)) {
-        // Apply any necessary case conversion.
-        if (isset($casing)) {
-          $chunk = call_user_func($casing, $chunk);
-        }
         $line_endings = Settings::get('mail_line_endings', PHP_EOL);
         // Format it and apply the current indentation.
         $output .= static::wrapMail($chunk, implode('', $indent)) . $line_endings;
@@ -344,7 +334,7 @@ class MailFormatHelper {
         static::$regexp = '@^' . preg_quote($base_path, '@') . '@';
       }
       if ($match) {
-        list(, , $url, $label) = $match;
+        [, , $url, $label] = $match;
         // Ensure all URLs are absolute.
         static::$urls[] = strpos($url, '://') ? $url : preg_replace(static::$regexp, $base_url . '/', $url);
         return $label . ' [' . count(static::$urls) . ']';

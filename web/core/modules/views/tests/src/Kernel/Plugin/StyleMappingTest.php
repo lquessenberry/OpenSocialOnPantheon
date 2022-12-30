@@ -2,7 +2,9 @@
 
 namespace Drupal\Tests\views\Kernel\Plugin;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\views\Views;
+use Drupal\views\ViewExecutable;
 
 /**
  * Tests mapping style functionality.
@@ -11,7 +13,7 @@ use Drupal\views\Views;
  */
 class StyleMappingTest extends StyleTestBase {
 
-  public static $modules = ['system'];
+  protected static $modules = ['system'];
 
   /**
    * Views used by this test.
@@ -26,13 +28,13 @@ class StyleMappingTest extends StyleTestBase {
   public function testMappedOutput() {
     $view = Views::getView('test_style_mapping');
     $output = $this->mappedOutputHelper($view);
-    $this->assertTrue(strpos($output, 'job') === FALSE, 'The job field is added to the view but not in the mapping.');
+    $this->assertStringNotContainsString('job', $output, 'The job field is added to the view but not in the mapping.');
     $view->destroy();
 
     $view->setDisplay();
     $view->displayHandlers->get('default')->options['style']['options']['mapping']['name_field'] = 'job';
     $output = $this->mappedOutputHelper($view);
-    $this->assertTrue(strpos($output, 'job') !== FALSE, 'The job field is added to the view and is in the mapping.');
+    $this->assertStringContainsString('job', $output, 'The job field is added to the view and is in the mapping.');
   }
 
   /**
@@ -44,7 +46,7 @@ class StyleMappingTest extends StyleTestBase {
    * @return string
    *   The view rendered as HTML.
    */
-  protected function mappedOutputHelper($view) {
+  protected function mappedOutputHelper(ViewExecutable $view) {
     $output = $view->preview();
     $rendered_output = \Drupal::service('renderer')->renderRoot($output);
     $this->storeViewPreview($rendered_output);
@@ -55,7 +57,7 @@ class StyleMappingTest extends StyleTestBase {
     foreach ($rows as $row) {
       $attributes = $row->attributes();
       $class = (string) $attributes['class'][0];
-      $this->assertTrue(strpos($class, 'views-row-mapping-test') !== FALSE, 'Make sure that each row has the correct CSS class.');
+      $this->assertStringContainsString('views-row-mapping-test', $class, 'Make sure that each row has the correct CSS class.');
 
       foreach ($row->div as $field) {
         // Split up the field-level class, the first part is the mapping name
@@ -68,7 +70,7 @@ class StyleMappingTest extends StyleTestBase {
         // separated by ':'.
         $expected_result = $name . ':' . $data_set[$count][$field_id];
         $actual_result = (string) $field;
-        $this->assertIdentical($expected_result, $actual_result, format_string('The fields were mapped successfully: %name => %field_id', ['%name' => $name, '%field_id' => $field_id]));
+        $this->assertSame($expected_result, $actual_result, new FormattableMarkup('The fields were mapped successfully: %name => %field_id', ['%name' => $name, '%field_id' => $field_id]));
       }
 
       $count++;

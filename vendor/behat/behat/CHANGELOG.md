@@ -4,6 +4,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.12.0] - 2022-11-29
+
+### Added
+* [#1417](https://github.com/Behat/Behat/pull/1417) Allow install with PHP 8.2 [@ciaranmcnulty](https://github.com/ciaranmcnulty)
+
+### Fixed
+* [#1412](https://github.com/Behat/Behat/pull/1412) Fix dynamic property deprecation notices in PHP 8.2 [@gquemener](https://github.com/gquemener)
+* [#1410](https://github.com/Behat/Behat/pull/1410) Fix deprecation errors in Junit formatter for PHP 8.1 [@albeorte96](https://github.com/albeorte96)
+
+### Other contributions
+* [#1415](https://github.com/Behat/Behat/pull/1415) Fix README typo [@vinceAmstoutz](https://github.com/vinceAmstoutz)
+
+## [3.11.0] - 2022-07-07
+
+### Added
+* [#1387](https://github.com/Behat/Behat/pull/1387) Added file attribute to Junit output [@ppaulis](https://github.com/ppaulis)
+* [#1266](https://github.com/Behat/Behat/pull/1266) Enable env placeholder resolution in config [@mpdude](https://github.com/mpdude)
+* [#1380](https://github.com/Behat/Behat/pull/1380) Support psr/container 2.0 [@wouterj](https://github.com/wouterj)
+* [#1340](https://github.com/Behat/Behat/pull/1340) Added Chinese language [@54853315](https://github.com/54853315)
+
+### Fixed
+* [#1374](https://github.com/Behat/Behat/pull/1374) Fixed counts in hu translations [@Sweetchuck](https://github.com/Sweetchuck)
+* [#1393](https://github.com/Behat/Behat/pull/1393) Fixed counts in bg and jo translations [@delyro](https://github.com/delyro)
+
+### Other contributions
+* [#1398](https://github.com/Behat/Behat/pull/1398) Fix failing builds due to composer --allow-plugins [@Chekote](https://github.com/Chekote)
+
+## 3.10.0 - 2021-11-02
+
+## What's Changed
+* PHP8 Hook attributes by @rpkamp in https://github.com/Behat/Behat/pull/1372
+
+**Full Changelog**: https://github.com/Behat/Behat/compare/v3.9.1...v3.10.0
+
+## 3.9.1 - 2021-11-02
+
+## What's Changed
+* Fix issue 1363 (Symfony 6 compatibility) by @dmaicher in https://github.com/Behat/Behat/pull/1368
+* update branch alias for dev-master by @dmaicher in https://github.com/Behat/Behat/pull/1369
+* Fix SYMFONY_REQUIRE for github action by @dmaicher in https://github.com/Behat/Behat/pull/1370
+* Issue #1373 - Replace %1% with %count% in hu translations by @Sweetchuck in https://github.com/Behat/Behat/pull/1374
+
+## New Contributors
+* @dmaicher made their first contribution in https://github.com/Behat/Behat/pull/1368
+* @Sweetchuck made their first contribution in https://github.com/Behat/Behat/pull/1374
+
+**Full Changelog**: https://github.com/Behat/Behat/compare/v3.9.0...v3.9.1
+
+## [3.9.0] - 2021-10-18
+
+### What's Changed
+* Fix syntax help test and bump gherkin dependency by @ciaranmcnulty in https://github.com/Behat/Behat/pull/1336
+* Remove legacy Symfony compatibility layers (#1305, #1347) by @simonhammes in https://github.com/Behat/Behat/pull/1349
+* Add PHP 8.1 support by @javer in https://github.com/Behat/Behat/pull/1355
+* Introduce reading PHP8 Attributes for Given, When and Then steps by @rpkamp in https://github.com/Behat/Behat/pull/1342
+* Allow Symfony 6 by @Kocal in https://github.com/Behat/Behat/pull/1346
+* Remove minimum-stability dev from composer.json & require Gherkin ^4.9.0 by @pamil in https://github.com/Behat/Behat/pull/1365
+* Allow to manually run GitHub Actions by @pamil in https://github.com/Behat/Behat/pull/1361
+* Add vimeo/psalm (#1307) by @simonhammes in https://github.com/Behat/Behat/pull/1348
+
+### New Contributors
+* @simonhammes made their first contribution in https://github.com/Behat/Behat/pull/1349
+* @javer made their first contribution in https://github.com/Behat/Behat/pull/1355
+* @Kocal made their first contribution in https://github.com/Behat/Behat/pull/1346
+
+## [3.8.1] - 2020-11-07
+
+### Fixed
+
+ * [1329](https://github.com/Behat/Behat/pull/1329): Regression when using scalar type hints ([@ciaranmcnulty](https://github.com/ciaranmcnulty))
+
+## [3.8.0] - 2020-11-01
+
+### Added
+ * [1198](https://github.com/Behat/Behat/pull/1198): Korean language translations ([@getsolaris](https://github.com/getsolaris))
+ * [1252](https://github.com/Behat/Behat/pull/1252): Hungarian language translations ([@kolesar-andras](https://github.com/kolesar-andras))
+ * [1217](https://github.com/Behat/Behat/pull/1217): Bulgarian language translations ([@toni-kolev](https://github.com/toni-kolev))
+ * [1322](https://github.com/Behat/Behat/pull/1322): Feature title as classname in JUnit output ([@steefmin](https://github.com/steefmin))
+ * [1313](https://github.com/Behat/Behat/pull/1313): PHP 8 support ([@ciaranmcnulty](https://github.com/ciaranmcnulty))
+ * [1313](https://github.com/Behat/Behat/pull/1323): Further PHP 8 support ([@dgafka](https://github.com/dgafka))
+ 
+### Fixed
+
+ * [#1303](https://github.com/Behat/Behat/pull/1303): Error when running `--debug` with recent Symfony versions ([@jawira](https://github.com/jawira))
+ * [#1311](https://github.com/Behat/Behat/pull/1311): Remove symfony deprecation messages about transChoice ([@guilliamxavier](https://github.com/guilliamxavier))
+ * [#1318](https://github.com/Behat/Behat/pull/1318): Allow negated filters on scenario hoooks ([@andrewnicols ](https://github.com/andrewnicols))
+
+### Changed  
+ * [#1299](https://github.com/Behat/Behat/pull/1299): Removed support for PHP <7.2, Symfony <4.4 ([@upamil](https://github.com/pamil))
+ * [#1310](https://github.com/Behat/Behat/pull/1310): Refactoring to use newer language features ([@rpkamp](https://github.com/rpkamp))
+ * [#1315](https://github.com/Behat/Behat/pull/1315): Remove BC layer for unsuppored symfony dispatcher ([@rpkamp](https://github.com/rpkamp))
+ * [#1314](https://github.com/Behat/Behat/pull/1314): Remove BC layer for unsuppored symfony translator ([@rpkamp](https://github.com/rpkamp))
+ * [#1212](https://github.com/Behat/Behat/pull/1212): Updated composer description ([@tkotosz](https://github.com/tkotosz))
+ * [#1317](https://github.com/Behat/Behat/pull/1317): Use PHPUnit8 for unit testing ([@phil-davis](https://github.com/phil-davis))
+
+## [3.7.0] - 2020-06-03
+
+### Added
+  * [#1236](https://github.com/Behat/Behat/pull/1236): Add support for php 7.4 ([@snapshotpl](https://github.com/snapshotpl))
+
+### Fixed
+  * [#1270](https://github.com/Behat/Behat/pull/1270): Fix issues with PHP version handling in build ([@Sam-Burns](https://github.com/Sam-Burns))
+  * [#1282](https://github.com/Behat/Behat/pull/1282): Updated the year on Changelog dates ([@choult](https://github.com/choult))
+  * [#1284](https://github.com/Behat/Behat/pull/1284): Restore PHP 5.3/5.4 compat ([@dvdoug](https://github.com/dvdoug), [@Sam-Burns](https://github.com/Sam-Burns), [@pamil](https://github.com/pamil))
+  
+### Changed  
+  * [#1281](https://github.com/Behat/Behat/pull/1281): Make container-interop/container-interop optional dependency ([@upyx](https://github.com/upyx))
+
+## [3.6.1] - 2020-02-06
+### Fixed
+  * [#1275](https://github.com/Behat/Behat/pull/1275): fix php 7.1 deprecation for ReflectionType::__toString
+  * [#1278](https://github.com/Behat/Behat/pull/1278): Fix fatal when unexpected symfony/event-dispatcher version is installed
+
+## [3.6.0] - 2020-02-04
+### Added
+  * [#1244](https://github.com/Behat/Behat/pull/1244): Hide internal steps from stack traces in very verbose mode
+### Fixed
+  * [#1238](https://github.com/Behat/Behat/pull/1238): Don't run Junit output if ext-dom is not present (and suggest in composer)
+### Changed
+  * [#1256](https://github.com/Behat/Behat/pull/1256): Update dependencies to support Symfony 5.x
+  * [#1171](https://github.com/Behat/Behat/pull/1171): Remove symfony/class-loader dependency
+  * [#1170](https://github.com/Behat/Behat/pull/1170): Switch to PSR-4 autoloading
+  * [#1230](https://github.com/Behat/Behat/pull/1230): PHP 7.3 support
+  * [#1230](https://github.com/Behat/Behat/pull/1230): Suggest ext-dom for JUnit support
+
 ## [3.5.0] - 2018-08-10
 ### Added
   * [#1144](https://github.com/Behat/Behat/pull/1144): Allow to use arrays as context parameters 
@@ -885,6 +1010,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
   * Initial release
 
+[3.12.0]: https://github.com/Behat/Behat/compare/v3.11.0...v3.12.0
+[3.11.0]: https://github.com/Behat/Behat/compare/v3.10.0...v3.11.0
+[3.9.0]: https://github.com/Behat/Behat/compare/v3.8.1...v3.9.0
+[3.8.1]: https://github.com/Behat/Behat/compare/v3.8.0...v3.8.1
+[3.8.0]: https://github.com/Behat/Behat/compare/v3.7.0...v3.8.0
+[3.7.0]: https://github.com/Behat/Behat/compare/v3.6.1...v3.7.0
+[3.6.1]: https://github.com/Behat/Behat/compare/v3.6.0...v3.6.1
+[3.6.0]: https://github.com/Behat/Behat/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/Behat/Behat/compare/v3.4.3...v3.5.0
 [3.4.3]: https://github.com/Behat/Behat/compare/v3.4.2...v3.4.3
 [3.4.2]: https://github.com/Behat/Behat/compare/v3.4.1...v3.4.2

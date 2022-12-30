@@ -18,6 +18,13 @@ class MenuTest extends BrowserTestBase {
   public static $modules = ['message'];
 
   /**
+   * Default theme.
+   *
+   * @var string
+   */
+  protected $defaultTheme = 'stable';
+
+  /**
    * Test that the menu links are working properly.
    */
   public function testMenuLinks() {

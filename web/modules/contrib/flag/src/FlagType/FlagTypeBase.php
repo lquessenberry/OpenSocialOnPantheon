@@ -4,11 +4,11 @@ namespace Drupal\flag\FlagType;
 
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Access\AccessResult;
-use Drupal\flag\FlagType\FlagTypePluginInterface;
 use Drupal\Component\Plugin\PluginBase;
-use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\flag\FlagInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -18,6 +18,8 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
  * Provides a base class for flag type plugins.
  */
 abstract class FlagTypeBase extends PluginBase implements FlagTypePluginInterface {
+
+  use StringTranslationTrait;
 
   /**
    * The module handler.
@@ -29,10 +31,11 @@ abstract class FlagTypeBase extends PluginBase implements FlagTypePluginInterfac
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ModuleHandlerInterface $module_handler) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ModuleHandlerInterface $module_handler, TranslationInterface $string_translation) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->moduleHandler = $module_handler;
     $this->configuration += $this->defaultConfiguration();
+    $this->stringTranslation = $string_translation;
   }
 
   /**
@@ -43,7 +46,8 @@ abstract class FlagTypeBase extends PluginBase implements FlagTypePluginInterfac
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('module_handler')
+      $container->get('module_handler'),
+      $container->get('string_translation')
     );
   }
 
@@ -88,6 +92,7 @@ abstract class FlagTypeBase extends PluginBase implements FlagTypePluginInterfac
    *
    * @return array
    *   The form array
+   *
    * @see \Drupal\flag\Form\FlagAddForm
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
@@ -124,7 +129,7 @@ abstract class FlagTypeBase extends PluginBase implements FlagTypePluginInterfac
    * Defines options for extra permissions.
    *
    * @return array
-   *  An array of options suitable for FormAPI.
+   *   An array of options suitable for FormAPI.
    */
   protected function getExtraPermissionsOptions() {
     return [];
@@ -150,12 +155,12 @@ abstract class FlagTypeBase extends PluginBase implements FlagTypePluginInterfac
   public function actionPermissions(FlagInterface $flag) {
     return [
       'flag ' . $flag->id() => [
-        'title' => t('Flag %flag_title', [
+        'title' => $this->t('Flag %flag_title', [
           '%flag_title' => $flag->label(),
         ]),
       ],
       'unflag ' . $flag->id() => [
-        'title' => t('Unflag %flag_title', [
+        'title' => $this->t('Unflag %flag_title', [
           '%flag_title' => $flag->label(),
         ]),
       ],

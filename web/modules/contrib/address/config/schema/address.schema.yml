@@ -157,13 +157,17 @@ field.widget.settings.address_zone_default:
       type: boolean
       label: 'Show the zone label field'
 
-views.field.country_code:
+views.field.country:
   type: views_field
-  label: 'Country code'
+  label: 'Country'
   mapping:
     display_name:
       type: boolean
       label: 'Display the country name instead of the country code'
+
+views.field.country_code:
+  type: views.field.country
+  label: 'Country code'
 
 views.field.subdivision:
   type: views_field
@@ -173,9 +177,13 @@ views.field.subdivision:
       type: boolean
       label: 'Display the subdivision name instead of the subdivision code'
 
-views.filter.country_code:
+views.filter.country:
   type: views.filter.in_operator
   label: 'Country'
+
+views.filter.country_code:
+  type: views.filter.country
+  label: 'Country code'
 
 views.filter.administrative_area:
   type: views.filter.in_operator
@@ -202,3 +210,11 @@ views.filter.administrative_area:
         label_type:
           type: string
           label: 'Label type'
+
+views.sort.country:
+  type: views_sort
+  label: 'Country'
+  mapping:
+    sort_by:
+      type: string
+      label: 'Sort by'

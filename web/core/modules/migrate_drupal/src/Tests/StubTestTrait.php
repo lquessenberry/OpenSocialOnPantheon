@@ -10,23 +10,16 @@ use Drupal\migrate\Row;
 trait StubTestTrait {
 
   /**
-   * Test that creating a stub of the given entity type results in a valid
-   * entity.
+   * Tests that a stub of the given entity type results in a valid entity.
    *
    * @param string $entity_type_id
    *   The entity type we are stubbing.
    */
   protected function performStubTest($entity_type_id) {
-    $entity_id = $this->createStub($entity_type_id);
-    $this->assertTrue($entity_id, 'Stub successfully created');
-    if ($entity_id) {
-      $violations = $this->validateStub($entity_type_id, $entity_id);
-      if (!$this->assertIdentical(count($violations), 0, 'Stub is a valid entity')) {
-        foreach ($violations as $violation) {
-          $this->fail((string) $violation->getMessage());
-        }
-      }
-    }
+    $entity_id = $this->createEntityStub($entity_type_id);
+    $this->assertNotEmpty($entity_id, 'Stub successfully created');
+    // When validateStub fails, it will return an array with the violations.
+    $this->assertEmpty($this->validateStub($entity_type_id, $entity_id));
   }
 
   /**
@@ -38,7 +31,7 @@ trait StubTestTrait {
    * @return int
    *   ID of the created entity.
    */
-  protected function createStub($entity_type_id) {
+  protected function createEntityStub($entity_type_id) {
     // Create a dummy migration to pass to the destination plugin.
     $definition = [
       'migration_tags' => ['Stub test'],
@@ -65,7 +58,7 @@ trait StubTestTrait {
    *   List of constraint violations identified.
    */
   protected function validateStub($entity_type_id, $entity_id) {
-    $controller = \Drupal::entityManager()->getStorage($entity_type_id);
+    $controller = \Drupal::entityTypeManager()->getStorage($entity_type_id);
     /** @var \Drupal\Core\Entity\ContentEntityInterface $stub_entity */
     $stub_entity = $controller->load($entity_id);
     return $stub_entity->validate();

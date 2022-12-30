@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Set canvas effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class SetCanvasTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class SetCanvasTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Set canvas effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,17 +33,10 @@ class SetCanvasTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testSetCanvasEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Set canvas effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testSetCanvasEffect() {
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
     // Test EXACT size canvas.
@@ -64,8 +57,8 @@ class SetCanvasTest extends ImageEffectsTestBase {
 
     // Check that ::transformDimensions returns expected dimensions.
     $image = $this->imageFactory->get($original_uri);
-    $this->assertEqual(40, $image->getWidth());
-    $this->assertEqual(20, $image->getHeight());
+    $this->assertEquals(40, $image->getWidth());
+    $this->assertEquals(20, $image->getHeight());
     $derivative_url = file_url_transform_relative($this->testImageStyle->buildUrl($original_uri));
     $variables = [
       '#theme' => 'image_style',
@@ -74,13 +67,13 @@ class SetCanvasTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" width="80" height="40" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"80\" height=\"40\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Check that ::applyEffect generates image with expected canvas.
     $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
     $image = $this->imageFactory->get($derivative_uri, 'gd');
-    $this->assertEqual(80, $image->getWidth());
-    $this->assertEqual(40, $image->getHeight());
+    $this->assertEquals(80, $image->getWidth());
+    $this->assertEquals(40, $image->getHeight());
     $this->assertColorsAreEqual($this->fuchsia, $this->getPixelColor($image, 0, 0));
     $this->assertColorsAreEqual($this->fuchsia, $this->getPixelColor($image, 79, 0));
     $this->assertColorsAreEqual($this->fuchsia, $this->getPixelColor($image, 0, 39));
@@ -107,8 +100,8 @@ class SetCanvasTest extends ImageEffectsTestBase {
 
     // Check that ::transformDimensions returns expected dimensions.
     $image = $this->imageFactory->get($original_uri);
-    $this->assertEqual(40, $image->getWidth());
-    $this->assertEqual(20, $image->getHeight());
+    $this->assertEquals(40, $image->getWidth());
+    $this->assertEquals(20, $image->getHeight());
     $derivative_url = file_url_transform_relative($this->testImageStyle->buildUrl($original_uri));
     $variables = [
       '#theme' => 'image_style',
@@ -117,13 +110,13 @@ class SetCanvasTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" width="70" height="90" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"70\" height=\"90\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Check that ::applyEffect generates image with expected canvas.
     $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
     $image = $this->imageFactory->get($derivative_uri, 'gd');
-    $this->assertEqual(70, $image->getWidth());
-    $this->assertEqual(90, $image->getHeight());
+    $this->assertEquals(70, $image->getWidth());
+    $this->assertEquals(90, $image->getHeight());
     $this->assertColorsAreEqual($this->yellow, $this->getPixelColor($image, 0, 0));
     $this->assertColorsAreEqual($this->yellow, $this->getPixelColor($image, 69, 0));
     $this->assertColorsAreEqual($this->yellow, $this->getPixelColor($image, 0, 89));

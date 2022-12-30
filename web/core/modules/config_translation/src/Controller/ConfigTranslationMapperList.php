@@ -14,7 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ConfigTranslationMapperList extends ControllerBase {
 
   /**
-   * A array of configuration mapper instances.
+   * An array of configuration mapper instances.
    *
    * @var \Drupal\config_translation\ConfigMapperInterface[]
    */
@@ -71,9 +71,7 @@ class ConfigTranslationMapperList extends ControllerBase {
       $mappers[$weight] = $mapper;
     }
 
-    foreach ($mappers as $mapper) {
-      $build['#rows'] = array_merge($build['#rows'], $mapper);
-    }
+    $build['#rows'] = array_merge([], ...$mappers);
 
     return $build;
   }

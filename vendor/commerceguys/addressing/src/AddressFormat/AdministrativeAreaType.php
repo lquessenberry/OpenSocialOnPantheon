@@ -12,6 +12,7 @@ use CommerceGuys\Addressing\AbstractEnum;
 final class AdministrativeAreaType extends AbstractEnum
 {
     const AREA = 'area';
+    const CANTON = 'canton';
     const COUNTY = 'county';
     const DEPARTMENT = 'department';
     const DISTRICT = 'district';
@@ -24,12 +25,7 @@ final class AdministrativeAreaType extends AbstractEnum
     const PROVINCE = 'province';
     const STATE = 'state';
 
-    /**
-     * Gets the default value.
-     *
-     * @return string The default value.
-     */
-    public static function getDefault()
+    public static function getDefault(): string
     {
         return static::PROVINCE;
     }

@@ -3,11 +3,10 @@
 namespace Drupal\Tests\system\Kernel\Entity;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\node\Entity\NodeType;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
 
 /**
  * Tests entity reference selection plugins.
@@ -35,47 +34,54 @@ class EntityReferenceSelectionReferenceableTest extends KernelTestBase {
   /**
    * The selection handler.
    *
-   * @var \Drupal\Core\Entity\EntityReferenceSelection\SelectionInterface.
+   * @var \Drupal\Core\Entity\EntityReferenceSelection\SelectionInterface
    */
   protected $selectionHandler;
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system', 'user', 'field', 'entity_reference', 'node', 'entity_test'];
+  protected static $modules = [
+    'system',
+    'user',
+    'field',
+    'node',
+    'entity_test',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_no_label');
+    $this->installEntitySchema('node');
 
     /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
-    $storage = $this->container->get('entity.manager')
+    $storage = $this->container->get('entity_type.manager')
       ->getStorage('entity_test_no_label');
 
     // Create a new node-type.
     NodeType::create([
-      'type' => $node_type = Unicode::strtolower($this->randomMachineName()),
+      'type' => $node_type = mb_strtolower($this->randomMachineName()),
       'name' => $this->randomString(),
     ])->save();
 
     // Create an entity reference field targeting 'entity_test_no_label'
     // entities.
-    $field_name = Unicode::strtolower($this->randomMachineName());
+    $field_name = mb_strtolower($this->randomMachineName());
     $this->createEntityReferenceField('node', $node_type, $field_name, $this->randomString(), 'entity_test_no_label');
     $field_config = FieldConfig::loadByName('node', $node_type, $field_name);
     $this->selectionHandler = $this->container->get('plugin.manager.entity_reference_selection')->getSelectionHandler($field_config);
 
     // Generate a bundle name to be used with 'entity_test_no_label'.
-    $this->bundle = Unicode::strtolower($this->randomMachineName());
+    $this->bundle = mb_strtolower($this->randomMachineName());
 
     // Create 6 entities to be referenced by the field.
     foreach (static::$labels as $name) {
       $storage->create([
-        'id' => Unicode::strtolower($this->randomMachineName()),
+        'id' => mb_strtolower($this->randomMachineName()),
         'name' => $name,
         'type' => $this->bundle,
       ])->save();
@@ -107,10 +113,10 @@ class EntityReferenceSelectionReferenceableTest extends KernelTestBase {
 
     // Number of returned items.
     if (empty($count_limited)) {
-      $this->assertTrue(empty($referenceables[$this->bundle]));
+      $this->assertArrayNotHasKey($this->bundle, $referenceables);
     }
     else {
-      $this->assertSame(count($referenceables[$this->bundle]), $count_limited);
+      $this->assertCount($count_limited, $referenceables[$this->bundle]);
     }
 
     // Test returned items.
@@ -119,7 +125,7 @@ class EntityReferenceSelectionReferenceableTest extends KernelTestBase {
       // entity labels.
       // @see \Drupal\Core\Entity\EntityReferenceSelection\SelectionInterface::getReferenceableEntities()
       $item = is_string($item) ? Html::escape($item) : $item;
-      $this->assertTrue(array_search($item, $referenceables[$this->bundle]) !== FALSE);
+      $this->assertContainsEquals($item, $referenceables[$this->bundle]);
     }
 
     // Test ::countReferenceableEntities().
@@ -179,15 +185,15 @@ class EntityReferenceSelectionReferenceableTest extends KernelTestBase {
       // 'xyabz_', 'foo_', 'bar_', 'baz_', 'șz_', NULL, '<strong>').
       //
       // Note: Even we set the name as NULL, when retrieving the label from the
-      //   entity we'll get an empty string, meaning that this match operator
-      //   will return TRUE every time.
+      // entity we'll get an empty string, meaning that this match operator
+      // will return TRUE every time.
       [NULL, 'IS NOT NULL', 0, 9, static::$labels, 9],
       // Referenceables null, no limit. Expecting 9 items ('abc', 'Xyz_',
       // 'xyabz_', 'foo_', 'bar_', 'baz_', 'șz_', NULL, '<strong>').
       //
       // Note: Even we set the name as NULL, when retrieving the label from the
-      //   entity we'll get an empty string, meaning that this match operator
-      //   will return FALSE every time.
+      // entity we'll get an empty string, meaning that this match operator
+      // will return FALSE every time.
       [NULL, 'IS NULL', 0, 9, static::$labels, 9],
       // Referenceables containing '<strong>' markup, no limit. Expecting 1 item
       // ('<strong>').

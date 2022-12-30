@@ -105,7 +105,7 @@ class RevisionRouteProvider implements EntityRouteProviderInterface {
    * @return \Symfony\Component\Routing\Route|null
    *   The generated route, if available.
    */
-  protected function getRevisionHistoryRoute($entity_type) {
+  protected function getRevisionHistoryRoute(EntityTypeInterface $entity_type) {
     if ($entity_type->hasLinkTemplate('version-history')) {
       $entity_type_id = $entity_type->id();
       $route = new Route($entity_type->getLinkTemplate('version-history'));

@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\field\Kernel;
 
-use Drupal\Component\Utility\Unicode;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\field\Entity\FieldStorageConfig;
@@ -19,11 +19,11 @@ class TranslationTest extends FieldKernelTestBase {
   /**
    * Modules to enable.
    *
-   * node is required because the tests alter the node entity type.
+   * The node module is required because the tests alter the node entity type.
    *
    * @var array
    */
-  public static $modules = ['language', 'node'];
+  protected static $modules = ['language', 'node'];
 
   /**
    * The name of the field to use in this test.
@@ -70,12 +70,13 @@ class TranslationTest extends FieldKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
+    $this->installEntitySchema('node');
     $this->installConfig(['language']);
 
-    $this->fieldName = Unicode::strtolower($this->randomMachineName());
+    $this->fieldName = mb_strtolower($this->randomMachineName());
 
     $this->entityType = 'entity_test';
 
@@ -104,12 +105,12 @@ class TranslationTest extends FieldKernelTestBase {
   }
 
   /**
-   * Test translatable fields storage/retrieval.
+   * Tests translatable fields storage/retrieval.
    */
   public function testTranslatableFieldSaveLoad() {
     // Enable field translations for nodes.
     field_test_entity_info_translatable('node', TRUE);
-    $entity_type = \Drupal::entityManager()->getDefinition('node');
+    $entity_type = \Drupal::entityTypeManager()->getDefinition('node');
     $this->assertTrue($entity_type->isTranslatable(), 'Nodes are translatable.');
 
     // Prepare the field translations.
@@ -136,11 +137,11 @@ class TranslationTest extends FieldKernelTestBase {
       foreach ($items as $delta => $item) {
         $result = $result && $item['value'] == $entity->getTranslation($langcode)->{$this->fieldName}[$delta]->value;
       }
-      $this->assertTrue($result, format_string('%language translation correctly handled.', ['%language' => $langcode]));
+      $this->assertTrue($result, new FormattableMarkup('%language translation correctly handled.', ['%language' => $langcode]));
     }
 
     // Test default values.
-    $field_name_default = Unicode::strtolower($this->randomMachineName() . '_field_name');
+    $field_name_default = mb_strtolower($this->randomMachineName() . '_field_name');
     $field_storage_definition = $this->fieldStorageDefinition;
     $field_storage_definition['field_name'] = $field_name_default;
     $field_storage = FieldStorageConfig::create($field_storage_definition);
@@ -168,17 +169,18 @@ class TranslationTest extends FieldKernelTestBase {
 
     $field_langcodes = array_keys($entity->getTranslationLanguages());
     sort($field_langcodes);
-    $this->assertEqual($translation_langcodes, $field_langcodes, 'Missing translations did not get a default value.');
+    $this->assertEquals($translation_langcodes, $field_langcodes, 'Missing translations did not get a default value.');
 
     // @todo Test every translation once the Entity Translation API allows for
     //   multilingual defaults.
     $langcode = $entity->language()->getId();
-    $this->assertEqual($entity->getTranslation($langcode)->{$field_name_default}->getValue(), $field->getDefaultValueLiteral(), format_string('Default value correctly populated for language %language.', ['%language' => $langcode]));
+    $this->assertEquals($field->getDefaultValueLiteral(), $entity->getTranslation($langcode)->{$field_name_default}->getValue(), new FormattableMarkup('Default value correctly populated for language %language.', ['%language' => $langcode]));
 
+    $storage = \Drupal::entityTypeManager()->getStorage($entity_type_id);
     // Check that explicit empty values are not overridden with default values.
     foreach ([NULL, []] as $empty_items) {
       $values = ['type' => $field->getTargetBundle(), 'langcode' => $translation_langcodes[0]];
-      $entity = entity_create($entity_type_id, $values);
+      $entity = $storage->create($values);
       foreach ($translation_langcodes as $langcode) {
         $values[$this->fieldName][$langcode] = $this->_generateTestFieldValues($this->fieldStorage->getCardinality());
         $translation = $entity->hasTranslation($langcode) ? $entity->getTranslation($langcode) : $entity->addTranslation($langcode);
@@ -188,7 +190,7 @@ class TranslationTest extends FieldKernelTestBase {
       }
 
       foreach ($entity->getTranslationLanguages() as $langcode => $language) {
-        $this->assertEquals([], $entity->getTranslation($langcode)->{$field_name_default}->getValue(), format_string('Empty value correctly populated for language %language.', ['%language' => $langcode]));
+        $this->assertEquals([], $entity->getTranslation($langcode)->{$field_name_default}->getValue(), new FormattableMarkup('Empty value correctly populated for language %language.', ['%language' => $langcode]));
       }
     }
   }
@@ -202,7 +204,7 @@ class TranslationTest extends FieldKernelTestBase {
    * @see https://www.drupal.org/node/2404739
    */
   public function testFieldAccess() {
-    $access_control_handler = \Drupal::entityManager()->getAccessControlHandler($this->entityType);
+    $access_control_handler = \Drupal::entityTypeManager()->getAccessControlHandler($this->entityType);
     $this->assertTrue($access_control_handler->fieldAccess('view', $this->field));
   }
 

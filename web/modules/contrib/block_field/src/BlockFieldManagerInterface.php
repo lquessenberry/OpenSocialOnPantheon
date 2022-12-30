@@ -15,4 +15,12 @@ interface BlockFieldManagerInterface {
    */
   public function getBlockDefinitions();
 
+  /**
+   * Get list of all block categories.
+   *
+   * @return string[]
+   *   A numerically indexed array of block categories.
+   */
+  public function getBlockCategories();
+
 }

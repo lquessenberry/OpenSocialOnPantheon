@@ -34,7 +34,7 @@ class ContentTypeHeaderMatcherTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->fixtures = new RoutingFixtures();
@@ -52,7 +52,7 @@ class ContentTypeHeaderMatcherTest extends UnitTestCase {
 
     $request = Request::create('path/two', $method);
     $routes = $this->matcher->filter($collection, $request);
-    $this->assertEquals(count($routes), 7, 'The correct number of routes was found.');
+    $this->assertCount(7, $routes, 'The correct number of routes was found.');
   }
 
   public function providerTestSafeRequestFilter() {
@@ -75,11 +75,11 @@ class ContentTypeHeaderMatcherTest extends UnitTestCase {
     $request = Request::create('path/two', 'POST');
     $request->headers->set('Content-type', 'application/json');
     $routes = $this->matcher->filter($collection, $request);
-    $this->assertEquals(count($routes), 6, 'The correct number of routes was found.');
+    $this->assertCount(6, $routes, 'The correct number of routes was found.');
     $this->assertNotNull($routes->get('route_f'), 'The json route was found.');
     $this->assertNull($routes->get('route_g'), 'The xml route was not found.');
     foreach ($routes as $name => $route) {
-      $this->assertEquals($name, 'route_f', 'The json route is the first one in the collection.');
+      $this->assertEquals('route_f', $name, 'The json route is the first one in the collection.');
       break;
     }
   }
@@ -96,7 +96,7 @@ class ContentTypeHeaderMatcherTest extends UnitTestCase {
     $request = Request::create('path/two', 'POST');
     $request->headers->set('Content-type', 'application/www-form-urlencoded');
     $routes = $this->matcher->filter($collection, $request);
-    $this->assertEquals(count($routes), 5, 'The correct number of routes was found.');
+    $this->assertCount(5, $routes, 'The correct number of routes was found.');
     $this->assertNull($routes->get('route_f'), 'The json route was found.');
     $this->assertNull($routes->get('route_g'), 'The xml route was not found.');
   }
@@ -111,8 +111,9 @@ class ContentTypeHeaderMatcherTest extends UnitTestCase {
 
     $routes = $this->fixtures->contentRouteCollection();
     $request = Request::create('path/two', 'POST');
-    $request->headers->set('Content-type', 'application/hal+json');
-    $this->setExpectedException(UnsupportedMediaTypeHttpException::class, 'No route found that matches "Content-Type: application/hal+json"');
+    $request->headers->set('Content-type', 'text/html');
+    $this->expectException(UnsupportedMediaTypeHttpException::class);
+    $this->expectExceptionMessage('No route found that matches "Content-Type: text/html"');
     $matcher->filter($routes, $request);
   }
 
@@ -128,7 +129,8 @@ class ContentTypeHeaderMatcherTest extends UnitTestCase {
     $request = Request::create('path/two', 'POST');
     // Delete all request headers that Request::create() sets by default.
     $request->headers = new ParameterBag();
-    $this->setExpectedException(UnsupportedMediaTypeHttpException::class, 'No "Content-Type" request header specified');
+    $this->expectException(UnsupportedMediaTypeHttpException::class);
+    $this->expectExceptionMessage('No "Content-Type" request header specified');
     $matcher->filter($routes, $request);
   }
 

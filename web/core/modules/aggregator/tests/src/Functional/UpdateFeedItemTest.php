@@ -2,14 +2,23 @@
 
 namespace Drupal\Tests\aggregator\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\aggregator\Entity\Feed;
+use Drupal\aggregator\Entity\Item;
 
 /**
  * Update feed items from a feed.
  *
  * @group aggregator
+ * @group legacy
  */
 class UpdateFeedItemTest extends AggregatorTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
   /**
    * Tests running "update items" from 'admin/config/services/aggregator' page.
    */
@@ -33,43 +42,47 @@ class UpdateFeedItemTest extends AggregatorTestBase {
     ];
 
     $this->drupalGet($edit['url[0][value]']);
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
 
-    $this->drupalPostForm('aggregator/sources/add', $edit, t('Save'));
-    $this->assertText(t('The feed @name has been added.', ['@name' => $edit['title[0][value]']]), format_string('The feed @name has been added.', ['@name' => $edit['title[0][value]']]));
+    $this->drupalGet('aggregator/sources/add');
+    $this->submitForm($edit, 'Save');
+    $this->assertSession()->pageTextContains('The feed ' . $edit['title[0][value]'] . ' has been added.');
 
     // Verify that the creation message contains a link to a feed.
-    $view_link = $this->xpath('//div[@class="messages"]//a[contains(@href, :href)]', [':href' => 'aggregator/sources/']);
-    $this->assert(isset($view_link), 'The message area contains a link to a feed');
+    $this->assertSession()->elementExists('xpath', '//div[@data-drupal-messages]//a[contains(@href, "aggregator/sources/")]');
 
-    $fid = db_query("SELECT fid FROM {aggregator_feed} WHERE url = :url", [':url' => $edit['url[0][value]']])->fetchField();
-    $feed = Feed::load($fid);
+    $fids = \Drupal::entityQuery('aggregator_feed')
+      ->accessCheck(FALSE)
+      ->condition('url', $edit['url[0][value]'])
+      ->execute();
+    $feed = Feed::load(array_values($fids)[0]);
 
     $feed->refreshItems();
-    $before = db_query('SELECT timestamp FROM {aggregator_item} WHERE fid = :fid', [':fid' => $feed->id()])->fetchField();
+    $item_ids = \Drupal::entityQuery('aggregator_item')
+      ->accessCheck(FALSE)
+      ->condition('fid', $feed->id())
+      ->execute();
+    $before = Item::load(array_values($item_ids)[0])->getPostedTime();
 
     // Sleep for 3 second.
     sleep(3);
-    db_update('aggregator_feed')
-      ->condition('fid', $feed->id())
-      ->fields([
-        'checked' => 0,
-        'hash' => '',
-        'etag' => '',
-        'modified' => 0,
-      ])
-      ->execute();
+    $feed
+      ->setLastCheckedTime(0)
+      ->setHash('')
+      ->setEtag('')
+      ->setLastModified(0)
+      ->save();
     $feed->refreshItems();
 
-    $after = db_query('SELECT timestamp FROM {aggregator_item} WHERE fid = :fid', [':fid' => $feed->id()])->fetchField();
-    $this->assertTrue($before === $after, format_string('Publish timestamp of feed item was not updated (@before === @after)', ['@before' => $before, '@after' => $after]));
+    $after = Item::load(array_values($item_ids)[0])->getPostedTime();
+    $this->assertSame($before, $after, new FormattableMarkup('Publish timestamp of feed item was not updated (@before === @after)', ['@before' => $before, '@after' => $after]));
 
     // Make sure updating items works even after uninstalling a module
     // that provides the selected plugins.
     $this->enableTestPlugins();
     $this->container->get('module_installer')->uninstall(['aggregator_test']);
     $this->updateFeedItems($feed);
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
   }
 
 }

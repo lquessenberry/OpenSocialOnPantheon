@@ -1,0 +1,24 @@
+{
+  "name": "drupal/variationcache",
+  "type": "drupal-module",
+  "description": "This project provides VariationCache, a redirect-aware caching implementation.",
+  "homepage": "http://drupal.org/project/variationcache",
+  "authors": [
+    {
+      "name": "Kristiaan Van den Eynde",
+      "homepage": "https://www.drupal.org/u/kristiaanvandeneynde",
+      "role": "Maintainer"
+    },
+    {
+      "name": "Brad Jones",
+      "homepage": "https://www.drupal.org/u/bradjones1",
+      "role": "Maintainer"
+    }
+  ],
+  "support": {
+    "issues": "https://drupal.org/project/issues/variationcache",
+    "source": "https://git.drupalcode.org/project/variationcache"
+  },
+  "license": "GPL-2.0+",
+  "minimum-stability": "dev"
+}

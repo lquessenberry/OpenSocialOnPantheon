@@ -4,8 +4,14 @@ entity.informblock.add_form:
   appears_on:
     - entity.informblock.collection
 
-data_policy.data_policy.edit:
-  route_name: 'data_policy.data_policy.edit'
+data_policy.data_policy.add:
+  route_name: data_policy.data_policy.add
+  title: 'Add new entity'
+  appears_on:
+    - entity.data_policy.collection
+
+entity.data_policy.revision_add:
+  route_name: 'entity.data_policy.revision_add'
   title: 'Add new revision'
   appears_on:
     - entity.data_policy.version_history

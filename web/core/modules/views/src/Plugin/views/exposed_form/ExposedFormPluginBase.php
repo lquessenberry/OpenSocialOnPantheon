@@ -2,7 +2,6 @@
 
 namespace Drupal\views\Plugin\views\exposed_form;
 
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Form\FormState;
@@ -153,24 +152,22 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
    */
   public function query() {
     $view = $this->view;
-    $exposed_data = isset($view->exposed_data) ? $view->exposed_data : [];
-    $sort_by = isset($exposed_data['sort_by']) ? $exposed_data['sort_by'] : NULL;
+    $exposed_data = $view->exposed_data ?? [];
+    $sort_by = $exposed_data['sort_by'] ?? NULL;
     if (!empty($sort_by)) {
       // Make sure the original order of sorts is preserved
       // (e.g. a sticky sort is often first)
-      if (isset($view->sort[$sort_by])) {
-        $view->query->orderby = [];
-        foreach ($view->sort as $key => $sort) {
-          if (!$sort->isExposed()) {
-            $sort->query();
+      $view->query->orderby = [];
+      foreach ($view->sort as $sort) {
+        if (!$sort->isExposed()) {
+          $sort->query();
+        }
+        elseif (!empty($sort->options['expose']['field_identifier']) && $sort->options['expose']['field_identifier'] === $sort_by) {
+          if (isset($exposed_data['sort_order']) && in_array($exposed_data['sort_order'], ['ASC', 'DESC'], TRUE)) {
+            $sort->options['order'] = $exposed_data['sort_order'];
           }
-          elseif ($key == $sort_by) {
-            if (isset($exposed_data['sort_order']) && in_array($exposed_data['sort_order'], ['ASC', 'DESC'])) {
-              $sort->options['order'] = $exposed_data['sort_order'];
-            }
-            $sort->setRelationship();
-            $sort->query();
-          }
+          $sort->setRelationship();
+          $sort->query();
         }
       }
     }
@@ -206,16 +203,18 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
 
     // Check if there is exposed sorts for this view
     $exposed_sorts = [];
+    $exposed_sorts_options = [];
     foreach ($this->view->sort as $id => $handler) {
-      if ($handler->canExpose() && $handler->isExposed()) {
-        $exposed_sorts[$id] = Html::escape($handler->options['expose']['label']);
+      if ($handler->canExpose() && $handler->isExposed() && !empty($handler->options['expose']['field_identifier'])) {
+        $exposed_sorts[$handler->options['expose']['field_identifier']] = $id;
+        $exposed_sorts_options[$handler->options['expose']['field_identifier']] = $handler->options['expose']['label'];
       }
     }
 
     if (count($exposed_sorts)) {
       $form['sort_by'] = [
         '#type' => 'select',
-        '#options' => $exposed_sorts,
+        '#options' => $exposed_sorts_options,
         '#title' => $this->options['exposed_sorts_label'],
       ];
       $sort_order = [
@@ -223,8 +222,8 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
         'DESC' => $this->options['sort_desc_label'],
       ];
       $user_input = $form_state->getUserInput();
-      if (isset($user_input['sort_by']) && isset($this->view->sort[$user_input['sort_by']])) {
-        $default_sort_order = $this->view->sort[$user_input['sort_by']]->options['order'];
+      if (isset($user_input['sort_by']) && isset($exposed_sorts[$user_input['sort_by']]) && isset($this->view->sort[$exposed_sorts[$user_input['sort_by']]])) {
+        $default_sort_order = $this->view->sort[$exposed_sorts[$user_input['sort_by']]]->options['order'];
       }
       else {
         $first_sort = reset($this->view->sort);
@@ -245,7 +244,6 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
           '#default_value' => $default_sort_order,
         ];
       }
-      $form['submit']['#weight'] = 10;
     }
 
     if (!empty($this->options['reset_button'])) {
@@ -319,9 +317,12 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
     // remember settings.
     $display_id = ($this->view->display_handler->isDefaulted('filters')) ? 'default' : $this->view->current_display;
 
-    if (isset($_SESSION['views'][$this->view->storage->id()][$display_id])) {
-      unset($_SESSION['views'][$this->view->storage->id()][$display_id]);
+    $session = $this->view->getRequest()->getSession();
+    $views_session = $session->get('views', []);
+    if (isset($views_session[$this->view->storage->id()][$display_id])) {
+      unset($views_session[$this->view->storage->id()][$display_id]);
     }
+    $session->set('views', $views_session);
 
     // Set the form to allow redirect.
     if (empty($this->view->live_preview) && !\Drupal::request()->isXmlHttpRequest()) {
@@ -349,7 +350,7 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
   public function getCacheContexts() {
     $contexts = [];
     if ($this->options['expose_sort_order']) {
-      // The sort order query arg is just important in case there is a exposed
+      // The sort order query arg is just important in case there is an exposed
       // sort order.
       $has_exposed_sort_handler = FALSE;
       /** @var \Drupal\views\Plugin\views\sort\SortPluginBase $sort_handler */
@@ -366,9 +367,9 @@ abstract class ExposedFormPluginBase extends PluginBase implements CacheableDepe
 
     // Merge in cache contexts for all exposed filters to prevent display of
     // cached forms.
-    foreach ($this->displayHandler->getHandlers('filter') as $filter_hander) {
-      if ($filter_hander->isExposed()) {
-        $contexts = Cache::mergeContexts($contexts, $filter_hander->getCacheContexts());
+    foreach ($this->displayHandler->getHandlers('filter') as $filter_handler) {
+      if ($filter_handler->isExposed()) {
+        $contexts = Cache::mergeContexts($contexts, $filter_handler->getCacheContexts());
       }
     }
 

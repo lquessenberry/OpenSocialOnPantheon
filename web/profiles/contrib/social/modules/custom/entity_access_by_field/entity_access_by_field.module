@@ -4,40 +4,51 @@
  * @file
  * Entity Access By Field module file.
  *
- * @todo: Prevent creating multiple visibility fields on one node.
- * @todo: Add support for multiple entity types.
+ * @todo Prevent creating multiple visibility fields on one node.
+ * @todo Add support for multiple entity types.
  */
 
-use Drupal\entity_access_by_field\EntityAccessHelper;
-use Drupal\node\NodeInterface;
-use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Access\AccessResultInterface;
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Entity\EntityFormInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\social_post\Entity\PostInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\entity_access_by_field\EntityAccessHelper;
 use Drupal\field\Entity\FieldConfig;
+use Drupal\node\NodeInterface;
+use Drupal\social_post\Entity\PostInterface;
 
 /**
  * Here we define a constant for our node access grant ID.
  */
-define('ENTITY_ACCESS_BY_FIELD_ALLOWED_REALM', 1);
+const ENTITY_ACCESS_BY_FIELD_ALLOWED_REALM = 1;
 
 /**
- * Implements hook_node_access().
+ * Implements hook_ENTITY_TYPE_access().
  */
-function entity_access_by_field_node_access(NodeInterface $node, $op, AccountInterface $account) {
-  return EntityAccessHelper::getEntityAccessResult($node, $op, $account);
+function entity_access_by_field_node_access(
+  EntityInterface $entity,
+  string $operation,
+  AccountInterface $account
+): AccessResultInterface {
+  return EntityAccessHelper::getEntityAccessResult(
+    $entity,
+    $operation,
+    $account,
+    'administer nodes',
+  );
 }
 
 /**
  * Implements hook_node_grants().
  */
-function entity_access_by_field_node_grants(AccountInterface $account, $op) {
+function entity_access_by_field_node_grants(AccountInterface $account, $op): array {
   $grants = [];
   if ($op === 'view') {
 
-    // @TODO Check performance hit, this is not cached.
+    // @todo Check performance hit, this is not cached.
     $entityAccessPermissions = \Drupal::getContainer()
       ->get('entity_access_by_field.permissions');
     $permissions = $entityAccessPermissions->getRealmWithPermission();
@@ -55,15 +66,52 @@ function entity_access_by_field_node_grants(AccountInterface $account, $op) {
 }
 
 /**
+ * Implements hook_node_grants_alter().
+ */
+function entity_access_by_field_node_grants_alter(array &$grants, AccountInterface $account, string $op): void {
+  if ($op === 'view') {
+    $entity_type_manager = \Drupal::entityTypeManager();
+
+    /** @var \Drupal\group\Entity\Storage\GroupContentStorageInterface $group_content_storage */
+    $group_content_storage = $entity_type_manager->getStorage('group_content');
+
+    /** @var \Drupal\user\UserStorageInterface $user_storage */
+    $user_storage = $entity_type_manager->getStorage('user');
+
+    // Get all user's memberships.
+    /** @var \Drupal\user\UserInterface $user */
+    $user = $user_storage->load($account->id());
+    $memberships = $group_content_storage->loadByEntity($user);
+    $gids = [];
+    foreach ($memberships as $membership) {
+      $gids[] = $membership->getGroup()->id();
+    }
+
+    // Load node types.
+    $node_types = \Drupal::entityTypeManager()
+      ->getStorage('node_type')
+      ->getQuery()
+      ->execute();
+
+    // Remove grants of node type if user are not a member in this group.
+    foreach ($node_types as $node_type) {
+      if (isset($grants["gnode:$node_type"])) {
+        $grants["gnode:$node_type"] = array_intersect($grants["gnode:$node_type"], $gids);
+      }
+    }
+  }
+}
+
+/**
  * Implements hook_node_access_records().
  */
-function entity_access_by_field_node_access_records(NodeInterface $node) {
+function entity_access_by_field_node_access_records(NodeInterface $node): array {
 
   $grants = [];
 
   // Get the field definitions of the node.
   $field_definitions = $node->getFieldDefinitions();
-  /* @var \Drupal\Core\Field\FieldConfigInterface $field_definition */
+  /** @var \Drupal\Core\Field\FieldConfigInterface $field_definition */
   foreach ($field_definitions as $field_name => $field_definition) {
     // Lets add a node access realm if the field is implemented.
     if ($field_definition->getType() === 'entity_access_field') {
@@ -143,7 +191,7 @@ function entity_access_by_field_node_presave(NodeInterface $node) {
 
   // Get the field definitions of the node.
   $field_definitions = $node->getFieldDefinitions();
-  /* @var \Drupal\Core\Field\FieldConfigInterface $field_definition */
+  /** @var \Drupal\Core\Field\FieldConfigInterface $field_definition */
   foreach ($field_definitions as $field_name => $field_definition) {
     // Lets add a node access realm if the field is implemented.
     if ($field_definition->getType() === 'entity_access_field') {
@@ -180,14 +228,17 @@ function entity_access_by_field_post_presave(PostInterface $post) {
 function entity_access_by_field_field_widget_form_alter(&$element, FormStateInterface $form_state, $context) {
   $field_definition = $context['items']->getFieldDefinition();
 
-  if ($field_definition->getType() != 'entity_access_field' && $field_definition->getName() != 'field_visibility') {
+  if ($field_definition->getType() !== 'entity_access_field' && $field_definition->getName() !== 'field_visibility') {
+    return;
+  }
+
+  if ($field_definition instanceof BaseFieldDefinition && $field_definition->isMultiple()) {
     return;
   }
 
   $form_object = $form_state->getFormObject();
 
   if (!$form_object instanceof EntityFormInterface) {
-
     return;
   }
 

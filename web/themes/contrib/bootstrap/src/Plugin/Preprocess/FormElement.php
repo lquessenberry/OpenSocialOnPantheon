@@ -25,7 +25,7 @@ class FormElement extends PreprocessBase implements PreprocessInterface {
       $variables['is_autocomplete'] = TRUE;
     }
 
-    // See https://getbootstrap.com/docs/3.3/css/#forms-controls.
+    // See https://getbootstrap.com/docs/3.4/css/#forms-controls.
     $checkbox = $variables['is_checkbox'] = $element->isType('checkbox');
     $radio = $variables['is_radio'] = $element->isType('radio');
 

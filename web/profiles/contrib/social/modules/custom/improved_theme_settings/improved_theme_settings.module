@@ -14,7 +14,9 @@ use Drupal\Core\Render\Markup;
  */
 function improved_theme_settings_form_system_theme_settings_alter(&$form, FormStateInterface $form_state, $form_id) {
 
-  $form['logo']['default_logo']['#description'] = t('This logo is shown in the platform header and on emails sent to your users. It can be overriden in the above E-mail setting');
+  if (isset($form['logo']['default_logo'])) {
+    $form['logo']['default_logo']['#description'] = t('This logo is shown in the platform header and on emails sent to your users. It can be overriden in the above E-mail setting');
+  }
 
   // If user has the improved settings, we don't alter nothing.
   if (\Drupal::currentUser()->hasPermission('administer improved theme settings')) {
@@ -61,7 +63,7 @@ function improved_theme_settings_page_attachments(array &$page) {
   // We render our color & font settings in the head. Only if socialblue is
   // the default theme. And only if the current active theme is socialblue.
   // Otherwise we also render it on all admin pages.
-  if (array_key_exists('socialbase', \Drupal::service('theme.manager')->getActiveTheme()->getBaseThemes())) {
+  if (array_key_exists('socialbase', \Drupal::service('theme.manager')->getActiveTheme()->getBaseThemeExtensions())) {
     if ($active_theme == $system_theme_settings) {
       $style_to_add = '';
       if (\Drupal::moduleHandler()->moduleExists('social_font')) {
@@ -78,7 +80,7 @@ function improved_theme_settings_page_attachments(array &$page) {
         .hero-canvas {
           border-radius: ' . $card_radius . 'px !important;
         }
-        
+
         .tabs-left .vertical-tabs-list {
           border-radius: ' . $card_radius . 'px 0 0 ' . $card_radius . 'px !important;
         }
@@ -93,24 +95,28 @@ function improved_theme_settings_page_attachments(array &$page) {
         .teaser--stream:last-child .teaser__image {
           border-bottom-left-radius: ' . $card_radius . 'px !important;
         }
-        
+
         .card__block:first-child {
           border-top-left-radius: ' . $card_radius . 'px !important;
           border-top-right-radius: ' . $card_radius . 'px !important;
         }
-        
+
         @media (min-width: 600px) {
           .teaser__teaser-type {
             border-radius: 0 0 ' . $card_radius . 'px 0 !important;
           }
+
+          [dir="rtl"] .teaser__teaser-type {
+            border-radius: 0 0 0 ' . $card_radius . 'px !important;
+          }
         }
-        
+
         @media (min-width: 900px) {
           .off-canvas-xs-only {
             border-radius: ' . $card_radius . 'px !important;
           }
         }
-        
+
         .message__message-body {
           border-radius: ' . $card_radius / 2 . 'px !important;
         }
@@ -126,24 +132,45 @@ function improved_theme_settings_page_attachments(array &$page) {
           .form-control {
             border-radius: ' . $form_control_radius . 'px !important;
           }
-          
+
           .search-take-over .form-control {
             border-radius: 0 !important;
           }
-          
-          .input-group .form-control:first-child, .input-group-addon:first-child {
-            border-bottom-right-radius: 0 !important;
-            border-top-right-radius: 0 !important;
+
+          .input-group .form-control:first-child, .input-group-addon:first-child,
+          .input-group-addon {
+            border-radius: ' . $form_control_radius . 'px 0 0 ' . $form_control_radius . 'px !important;
           }
-          
+
+          [dir="rtl"] .input-group .form-control:first-child, [dir="rtl"] .input-group-addon:first-child,
+          [dir="rtl"] .input-group-addon {
+            border-radius: 0 ' . $form_control_radius . 'px ' . $form_control_radius . 'px 0 !important;
+          }
+
+          .input-group-addon {
+            border-radius: 0 ' . $form_control_radius . 'px ' . $form_control_radius . 'px 0 !important;
+          }
+
+          [dir="rtl"] .input-group-addon {
+            border-radius: ' . $form_control_radius . 'px 0 0 ' . $form_control_radius . 'px !important;
+          }
+
           .input-group .form-control:last-child, .input-group-addon:last-child {
             border-bottom-left-radius: 0 !important;
             border-top-left-radius: 0 !important;
           }
 
+          [dir="rtl"] .input-group .form-control:last-child, [dir="rtl"] .input-group-addon:last-child {
+            border-radius: ' . $form_control_radius . 'px 0 0 ' . $form_control_radius . 'px !important;
+          }
+
           .input-group .select-wrapper:first-child .form-control:first-child {
             border-bottom-left-radius: ' . $form_control_radius . 'px !important;
             border-top-left-radius: ' . $form_control_radius . 'px !important;
+          }
+
+          [dir="rtl"] .input-group .select-wrapper:first-child .form-control:first-child {
+            border-radius: 0 ' . $form_control_radius . 'px ' . $form_control_radius . 'px 0 !important;
           }
         ';
       }
@@ -155,40 +182,77 @@ function improved_theme_settings_page_attachments(array &$page) {
           :not(.btn-group) > .btn {
             border-radius: ' . $button_radius . 'px !important;
           }
-          
+
           .btn.btn-floating,
           .btn.btn-icon-toggle {
             border-radius: 50% !important;
           }
 
+          .shariff-button {
+            border-radius: ' . $button_radius . 'px !important;
+          }
         ';
       }
 
-      if (!empty($style_to_add)) {
-        $page['#attached']['html_head'][] = [
-          [
-            '#type' => 'html_tag',
-            '#tag' => 'style',
-            '#value' => Markup::create($style_to_add),
-          ],
+      // Default values.
+      $hero_gradient_opacity_start = 0.1;
+      $hero_gradient_opacity_end = 0.7;
 
-          // A key, to make it possible to recognize this HTML element when
-          // altering.
-          'social_theme_preprocess',
-        ];
+      // Alwasys cast as an integer.
+      $hero_gradient_opacity = improved_theme_settings_get_setting('hero_gradient_opacity', $system_theme_settings);
+      if ($hero_gradient_opacity !== FALSE) {
+        // Convert to values that the gradient can work with.
+        $hero_gradient_opacity_end = (int) $hero_gradient_opacity / 100;
+
+        // If our opacity has been set to 0, also change the start value to 0.
+        if ($hero_gradient_opacity_end === 0) {
+          $hero_gradient_opacity_start = 0;
+        }
       }
+
+      $style_to_add .= '
+        .hero__bgimage-overlay {
+          background: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0,' . $hero_gradient_opacity_start . ')), to(rgba(34, 34, 34,' . $hero_gradient_opacity_end . '))) !important;
+          background: linear-gradient(rgba(0, 0, 0, ' . $hero_gradient_opacity_start . ') 0%, rgba(34, 34, 34, ' . $hero_gradient_opacity_end . ') 100%) !important;
+        }
+      ';
+
+      // Add any styles from modules that define selector with configurable
+      // styles.
+      $module_styles = \Drupal::moduleHandler()->invokeAll('improved_theme_settings_add', [$system_theme_settings]);
+      $style_to_add .= implode("\n", $module_styles);
+
+      $page['#attached']['html_head'][] = [
+        [
+          '#type' => 'html_tag',
+          '#tag' => 'style',
+          '#value' => Markup::create($style_to_add),
+        ],
+
+        // A key, to make it possible to recognize this HTML element when
+        // altering.
+        'social_theme_preprocess',
+      ];
     }
   }
 }
 
 /**
  * Function that returns a valid integer or FALSE.
+ *
+ * @param string $setting
+ *   The setting to retrieve.
+ * @param string $themename
+ *   The theme to retrieve the setting from.
+ *
+ * @return bool|string
+ *   The value of the settings.
  */
 function improved_theme_settings_get_setting($setting, $themename) {
   // Fetch setting from the theme.
   $themevar = Xss::filter(theme_get_setting($setting, $themename));
   // In this case '' is something different than 0.
-  if ($themevar !== trim(intval($themevar))) {
+  if ($themevar !== trim((string) ((int) $themevar))) {
     return FALSE;
   }
   return $themevar;

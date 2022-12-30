@@ -3,13 +3,10 @@
  * Custom library creating cross-browser support for the JS History API.
  */
 
-/*global Drupal, window*/
-/*jslint white:true, this, browser:true*/
-
 Drupal.history = {};
 
 (function (Drupal, window) {
-  "use strict";
+  'use strict';
 
   Drupal.behaviors.historyApi = {
     attach: function () {
@@ -29,23 +26,23 @@ Drupal.history = {};
  * use the History API
  */
 (function (window) {
-  "use strict";
+  'use strict';
 
   // There's nothing to do for older browsers ;)
   if (!window.addEventListener) {
     return;
   }
 
-  var blockPopstateEvent = document.readyState !== "complete";
+  var blockPopstateEvent = document.readyState !== 'complete';
 
-  window.addEventListener("load", function () {
+  window.addEventListener('load', function () {
     // The timeout ensures that popstate-events will be unblocked right
     // after the load event occured, but not in the same event-loop cycle.
     window.setTimeout(function () { blockPopstateEvent = false; }, 0);
   }, false);
 
-  window.addEventListener("popstate", function (evt) {
-    if (blockPopstateEvent && document.readyState === "complete") {
+  window.addEventListener('popstate', function (evt) {
+    if (blockPopstateEvent && document.readyState === 'complete') {
       evt.preventDefault();
       evt.stopImmediatePropagation();
     }

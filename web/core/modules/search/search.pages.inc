@@ -30,9 +30,9 @@ function template_preprocess_search_result(&$variables) {
   $result = $variables['result'];
   $variables['url'] = UrlHelper::stripDangerousProtocols($result['link']);
   $variables['title'] = $result['title'];
-  if (isset($result['language']) && $result['language'] != $language_interface->getId() && $result['language'] != LanguageInterface::LANGCODE_NOT_SPECIFIED) {
-    $variables['title_attributes']['lang'] = $result['language'];
-    $variables['content_attributes']['lang'] = $result['language'];
+  if (isset($result['langcode']) && $result['langcode'] != $language_interface->getId() && $result['langcode'] != LanguageInterface::LANGCODE_NOT_SPECIFIED) {
+    $variables['title_attributes']['lang'] = $result['langcode'];
+    $variables['content_attributes']['lang'] = $result['langcode'];
   }
 
   $info = [];
@@ -43,13 +43,13 @@ function template_preprocess_search_result(&$variables) {
     $info['user'] = $result['user'];
   }
   if (!empty($result['date'])) {
-    $info['date'] = format_date($result['date'], 'short');
+    $info['date'] = \Drupal::service('date.formatter')->format($result['date'], 'short');
   }
   if (isset($result['extra']) && is_array($result['extra'])) {
     $info = array_merge($info, $result['extra']);
   }
   // Check for existence. User search does not include snippets.
-  $variables['snippet'] = isset($result['snippet']) ? $result['snippet'] : '';
+  $variables['snippet'] = $result['snippet'] ?? '';
   // Provide separated and grouped meta information..
   $variables['info_split'] = $info;
   $variables['info'] = [

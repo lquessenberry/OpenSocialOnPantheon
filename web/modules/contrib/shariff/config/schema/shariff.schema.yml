@@ -1,0 +1,131 @@
+shariff.settings:
+  type: config_object
+  label: 'Shariff settings'
+  mapping:
+    shariff_services:
+      type: mapping
+      label: 'Services'
+      mapping:
+        twitter:
+          type: string
+          label: 'twitter'
+        diaspora:
+          type: string
+          label: 'diaspora'
+        flipboard:
+          type: string
+          label: 'flipboard'
+        pocket:
+          type: string
+          label: 'pocket'
+        print:
+          type: string
+          label: 'print'
+        qzone:
+          type: string
+          label: 'qzone'
+        weibo:
+          type: string
+          label: 'weibo'
+        tencent_weibo:
+          type: string
+          label: 'tencent weibo'
+        facebook:
+          type: string
+          label: 'facebook'
+        linkedin:
+          type: string
+          label: 'linkedin'
+        pinterest:
+          type: string
+          label: 'pinterest'
+        vk:
+          type: string
+          label: 'vk'
+        xing:
+          type: string
+          label: 'xing'
+        whatsapp:
+          type: string
+          label: 'whatsapp'
+        addthis:
+          type: string
+          label: 'addthis'
+        telegram:
+          type: string
+          label: 'telegram'
+        tumblr:
+          type: string
+          label: 'tumblr'
+        flattr:
+          type: string
+          label: 'flattr'
+        reddit:
+          type: string
+          label: 'reddit'
+        stumbleupon:
+          type: string
+          label: 'stumbleupon'
+        threema:
+          type: string
+          label: 'threema'
+        mail:
+          type: string
+          label: 'mail'
+        info:
+          type: string
+          label: 'info'
+        buffer:
+          type: string
+          label: 'buffer'
+    shariff_theme:
+      type: string
+      label: 'Shariff layout'
+    shariff_css:
+      type: string
+      label: 'CSS variant'
+    shariff_orientation:
+      type: string
+      label: 'Orientation of the buttons'
+    shariff_twitter_via:
+      type: string
+      label: 'Twitter Via User'
+    shariff_mail_url:
+      type: string
+      label: 'Mail link'
+    shariff_mail_subject:
+      type: string
+      label: 'Mail subject'
+    shariff_mail_body:
+      type: string
+      label: 'Mail body'
+    shariff_referrer_track:
+      type: string
+      label: 'Referrer track code'
+    shariff_backend_url:
+      type: string
+      label: 'Backend URL'
+    shariff_flattr_category:
+      type: string
+      label: 'Flattr category'
+    shariff_flattr_user:
+      type: string
+      label: 'Flattr user'
+    shariff_media_url:
+      type: string
+      label: 'Media url'
+    shariff_button_style:
+      type: string
+      label: 'Button layout'
+    shariff_info_url:
+      type: string
+      label: 'Info Link'
+    shariff_info_display:
+      type: string
+      label: 'Information display link'
+    shariff_url:
+      type: string
+      label: 'Canonical URL'
+    shariff_title:
+      type: string
+      label: 'Twitter/WhatsApp Title'

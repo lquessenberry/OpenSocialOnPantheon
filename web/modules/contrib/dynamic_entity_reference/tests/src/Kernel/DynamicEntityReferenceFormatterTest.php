@@ -63,16 +63,16 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['dynamic_entity_reference'];
+  protected static $modules = ['dynamic_entity_reference'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Use Classy theme for testing markup output.
-    \Drupal::service('theme_handler')->install(['classy']);
+    \Drupal::service('theme_installer')->install(['classy']);
     $this->config('system.theme')->set('default', 'classy')->save();
 
     // Grant the 'view test entity' permission.
@@ -82,7 +82,6 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
       ->save();
 
     // The label formatter rendering generates links, so build the router.
-    $this->installSchema('system', 'router');
     $this->container->get('router.builder')->rebuild();
 
     FieldStorageConfig::create([
@@ -176,18 +175,18 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
 
     $formatter_manager = $this->container->get('plugin.manager.field.formatter');
 
+    $entity_type_manager = \Drupal::entityTypeManager();
     // Get all the existing formatters.
     foreach ($formatter_manager->getOptions('dynamic_entity_reference') as $formatter => $name) {
       // Set formatter type for the 'full' view mode.
-      entity_get_display($this->entityType, $this->bundle, 'default')
-        ->setComponent($field_name, [
-          'type' => $formatter,
-          'settings' => $formatter == 'dynamic_entity_reference_entity_view' ? ['view_mode' => [$referencing_entity->getEntityTypeId() => 'default']] : [],
-        ])
+      $this->getEntityDisplay($this->entityType, $this->bundle, 'default')->setComponent($field_name, [
+        'type' => $formatter,
+        'settings' => $formatter == 'dynamic_entity_reference_entity_view' ? ['view_mode' => [$referencing_entity->getEntityTypeId() => 'default']] : [],
+      ])
         ->save();
 
       // Invoke entity view.
-      \Drupal::entityTypeManager()->getViewBuilder($referencing_entity->getEntityTypeId())->view($referencing_entity, 'default');
+      $entity_type_manager->getViewBuilder($referencing_entity->getEntityTypeId())->view($referencing_entity, 'default');
 
       // Verify the un-accessible item still exists.
       $this->assertEquals($referencing_entity->{$field_name}->target_id, $this->referencedEntity->id(), (string) new FormattableMarkup('The un-accessible item still exists after @name formatter was executed.', ['@name' => $name]));
@@ -199,7 +198,10 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
    */
   public function testIdFormatter() {
     $formatter = 'dynamic_entity_reference_entity_id';
-    $build = $this->buildRenderArray([$this->referencedEntity, $this->unsavedReferencedEntity], $formatter);
+    $build = $this->buildRenderArray([
+      $this->referencedEntity,
+      $this->unsavedReferencedEntity,
+    ], $formatter);
 
     $this->assertEquals($build[0]['#plain_text'], $this->referencedEntity->id(), sprintf('The markup returned by the %s formatter is correct for an item with a saved entity.', $formatter));
     $this->assertEquals($build[0]['#cache']['tags'], $this->referencedEntity->getCacheTags(), sprintf('The %s formatter has the expected cache tags.', $formatter));
@@ -213,16 +215,21 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
     /** @var \Drupal\Core\Render\RendererInterface $renderer */
     $renderer = $this->container->get('renderer');
     $formatter = 'dynamic_entity_reference_entity_view';
-    $build = $this->buildRenderArray([$this->referencedEntity, $this->unsavedReferencedEntity], $formatter, [
-      $this->referencedEntity->getEntityTypeId() => [
-        'view_mode' => 'default',
-        'link' => FALSE,
-      ],
-      $this->unsavedReferencedEntity->getEntityTypeId() => [
-        'view_mode' => 'default',
-        'link' => FALSE,
-      ],
-    ]);
+    $build = $this->buildRenderArray([
+      $this->referencedEntity,
+      $this->unsavedReferencedEntity,
+    ],
+      $formatter,
+      [
+        $this->referencedEntity->getEntityTypeId() => [
+          'view_mode' => 'default',
+          'link' => FALSE,
+        ],
+        $this->unsavedReferencedEntity->getEntityTypeId() => [
+          'view_mode' => 'default',
+          'link' => FALSE,
+        ],
+      ]);
 
     // Test the first field item.
     $expected_rendered_name_field_1 = '
@@ -265,7 +272,10 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
     $formatter = 'dynamic_entity_reference_label';
 
     // The 'link' settings is TRUE by default.
-    $build = $this->buildRenderArray([$this->referencedEntity, $this->unsavedReferencedEntity], $formatter);
+    $build = $this->buildRenderArray([
+      $this->referencedEntity,
+      $this->unsavedReferencedEntity,
+    ], $formatter);
 
     $expected_field_cacheability = [
       'contexts' => [],
@@ -304,7 +314,11 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
     $this->assertEquals($build[1], $expected_item_2, sprintf('The render array returned by the %s formatter is correct for an item with a unsaved entity.', $formatter));
 
     // Test with the 'link' setting set to FALSE.
-    $build = $this->buildRenderArray([$this->referencedEntity, $this->unsavedReferencedEntity], $formatter, ['link' => FALSE]);
+    $build = $this->buildRenderArray([
+      $this->referencedEntity,
+      $this->unsavedReferencedEntity,
+    ],
+      $formatter, ['link' => FALSE]);
     $this->assertEquals($build[0]['#plain_text'], $this->referencedEntity->label(), sprintf('The markup returned by the %s formatter is correct for an item with a saved entity.', $formatter));
     $this->assertEquals($build[1]['#plain_text'], $this->unsavedReferencedEntity->label(), sprintf('The markup returned by the %s formatter is correct for an item with a unsaved entity.', $formatter));
 
@@ -322,6 +336,45 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
 
     $build = $this->buildRenderArray([$referenced_entity_with_no_link_template], $formatter, ['link' => TRUE]);
     $this->assertEquals($build[0]['#plain_text'], $referenced_entity_with_no_link_template->label(), sprintf('The markup returned by the %s formatter is correct for an entity type with no valid link template.', $formatter));
+  }
+
+  /**
+   * Renders the same entity referenced from different places.
+   */
+  public function testEntityReferenceRecursiveProtectionWithManyRenderedEntities() {
+    $formatter = 'dynamic_entity_reference_entity_view';
+    $view_builder = $this->entityTypeManager->getViewBuilder($this->entityType);
+
+    // Set the default view mode to use the 'entity_reference_entity_view'
+    // formatter.
+    \Drupal::service('entity_display.repository')
+      ->getViewDisplay($this->entityType, $this->bundle)
+      ->setComponent($this->fieldName, [
+        'type' => $formatter,
+      ])
+      ->save();
+
+    $storage = $this->entityTypeManager->getStorage($this->entityType);
+    /** @var \Drupal\Core\Entity\ContentEntityInterface $referenced_entity */
+    $referenced_entity = $storage->create(['name' => $this->randomMachineName()]);
+
+    $referencing_entities = array_map(function () use ($storage, $referenced_entity) {
+      $referencing_entity = $storage->create([
+        'name' => $this->randomMachineName(),
+        $this->fieldName => $referenced_entity,
+      ]);
+      $referencing_entity->save();
+      return $referencing_entity;
+    }, range(0, 29));
+
+    $build = $view_builder->viewMultiple($referencing_entities, 'default');
+    $output = $this->render($build);
+
+    // The title of entity_test entities is printed twice by default, so we have
+    // to multiply the formatter's recursive rendering protection limit by 2.
+    $expected_occurrences = 30 * 2;
+    $actual_occurrences = substr_count($output, $referenced_entity->get('name')->value);
+    $this->assertEquals($expected_occurrences, $actual_occurrences);
   }
 
   /**
@@ -352,7 +405,45 @@ class DynamicEntityReferenceFormatterTest extends EntityKernelTestBase {
     }
 
     // Build the renderable array for the field.
-    return $items->view(['type' => $formatter, 'settings' => $formatter_options]);
+    return $items->view([
+      'type' => $formatter,
+      'settings' => $formatter_options,
+    ]);
+  }
+
+  /**
+   * Returns the entity view display associated with a bundle and view mode.
+   *
+   * @param string $entity_type
+   *   The entity type.
+   * @param string $bundle
+   *   The bundle.
+   * @param string $view_mode
+   *   The view mode, or 'default' to retrieve the 'default' display object for
+   *   this bundle.
+   *
+   * @return \Drupal\Core\Entity\Display\EntityViewDisplayInterface
+   *   The entity view display associated with the view mode.
+   */
+  protected function getEntityDisplay($entity_type, $bundle, $view_mode) {
+    // Try loading the display from configuration.
+    $display = EntityViewDisplay::load($entity_type . '.' . $bundle . '.' . $view_mode);
+
+    // If not found, create a fresh display object. We do not preemptively
+    // create new entity_view_display configuration entries for each existing
+    // entity type and bundle whenever a new view mode becomes available.
+    // Instead, configuration entries are only created when a display object is
+    // explicitly configured and saved.
+    if (!$display) {
+      $display = EntityViewDisplay::create([
+        'targetEntityType' => $entity_type,
+        'bundle' => $bundle,
+        'mode' => $view_mode,
+        'status' => TRUE,
+      ]);
+    }
+
+    return $display;
   }
 
 }

@@ -1,0 +1,4 @@
+services:
+  gin_toolbar.active_trail:
+    class: Drupal\gin_toolbar\Menu\GinToolbarActiveTrail
+    parent: menu.active_trail

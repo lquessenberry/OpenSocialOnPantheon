@@ -7,8 +7,8 @@ use Drupal\migrate\Audit\AuditResult;
 use Drupal\migrate\Audit\IdAuditor;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
 use Drupal\Tests\migrate_drupal\Traits\CreateTestContentEntitiesTrait;
-use Drupal\workflows\Entity\Workflow;
 
 /**
  * Tests the migration auditor for ID conflicts.
@@ -19,11 +19,12 @@ class MigrateDrupal6AuditIdsTest extends MigrateDrupal6TestBase {
 
   use FileSystemModuleDiscoveryDataProviderTrait;
   use CreateTestContentEntitiesTrait;
+  use ContentModerationTestTrait;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     // Enable all modules.
     self::$modules = array_keys($this->coreModuleListDataProvider());
     parent::setUp();
@@ -44,7 +45,7 @@ class MigrateDrupal6AuditIdsTest extends MigrateDrupal6TestBase {
     $this->installEntitySchema('content_moderation_state');
     $this->installConfig('content_moderation');
     NodeType::create(['type' => 'page'])->save();
-    $workflow = Workflow::load('editorial');
+    $workflow = $this->createEditorialWorkflow();
     $workflow->getTypePlugin()->addEntityTypeAndBundle('node', 'page');
     $workflow->save();
   }
@@ -58,10 +59,11 @@ class MigrateDrupal6AuditIdsTest extends MigrateDrupal6TestBase {
     $node->moderation_state->value = 'published';
     $node->save();
 
-    // Insert data in the d6_node:page migration mappping table to simulate a
+    // Insert data in the d6_node:page migration mapping table to simulate a
     // previously migrated node.
-    $table_name = $this->getMigration('d6_node:page')->getIdMap()->mapTableName();
-    $this->container->get('database')->insert($table_name)
+    $id_map = $this->getMigration('d6_node:page')->getIdMap();
+    $table_name = $id_map->mapTableName();
+    $id_map->getDatabase()->insert($table_name)
       ->fields([
         'source_ids_hash' => 1,
         'sourceid1' => 1,
@@ -126,6 +128,7 @@ class MigrateDrupal6AuditIdsTest extends MigrateDrupal6TestBase {
     );
 
     $expected = [
+      // @todo Remove aggregator in https://www.drupal.org/project/drupal/issues/3264120
       'd6_aggregator_feed',
       'd6_aggregator_item',
       'd6_comment',
@@ -133,6 +136,7 @@ class MigrateDrupal6AuditIdsTest extends MigrateDrupal6TestBase {
       'd6_file',
       'd6_menu_links',
       'd6_node',
+      'd6_node_complete',
       'd6_node_revision',
       'd6_taxonomy_term',
       'd6_term_node_revision',
@@ -156,10 +160,11 @@ class MigrateDrupal6AuditIdsTest extends MigrateDrupal6TestBase {
     $node->setNewRevision(TRUE);
     $node->save();
 
-    // Insert data in the d6_node_revision:page migration mappping table to
-    // simulate a previously migrated node revison.
-    $table_name = $this->getMigration('d6_node_revision:page')->getIdMap()->mapTableName();
-    $this->container->get('database')->insert($table_name)
+    // Insert data in the d6_node_revision:page migration mapping table to
+    // simulate a previously migrated node revision.
+    $id_map = $this->getMigration('d6_node_revision:page')->getIdMap();
+    $table_name = $id_map->mapTableName();
+    $id_map->getDatabase()->insert($table_name)
       ->fields([
         'source_ids_hash' => 1,
         'sourceid1' => 1,

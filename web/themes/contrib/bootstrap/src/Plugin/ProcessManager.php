@@ -16,6 +16,20 @@ use Drupal\Core\Form\FormStateInterface;
 class ProcessManager extends PluginManager {
 
   /**
+   * A list of element types that should be rendered as inline.
+   *
+   * @var array
+   *
+   * @deprecated in bootstrap:8.x-3.21 and is removed from bootstrap:8.x-4.0.
+   *   This method will be removed when process managers can be sub-classed.
+   *
+   * @see https://www.drupal.org/project/bootstrap/issues/2868538
+   *
+   * @internal
+   */
+  protected static $inlineElementTypes;
+
+  /**
    * Constructs a new \Drupal\bootstrap\Plugin\ProcessManager object.
    *
    * @param \Drupal\bootstrap\Theme $theme
@@ -58,11 +72,13 @@ class ProcessManager extends PluginManager {
       static::processAjax($e, $form_state, $complete_form);
     }
 
-    // Add "form-inline" class.
+    // Add "form-inline" class to the container.
     if ($e->hasClass('container-inline')) {
       $e->replaceClass('container-inline', 'form-inline');
     }
-    if ($e->isType(['color', 'date', 'number', 'range', 'tel', 'weight'])) {
+
+    // Add "form-inline" class to certain element types.
+    if ($e->isType(static::getInlineElementTypes())) {
       $e->addClass('form-inline', 'wrapper_attributes');
     }
 
@@ -72,6 +88,28 @@ class ProcessManager extends PluginManager {
     }
 
     return $element;
+  }
+
+  /**
+   * Retrieves the element types that should be rendered as inline.
+   *
+   * @return array
+   *   The inline element types.
+   *
+   * @deprecated in bootstrap:8.x-3.21 and is removed from bootstrap:8.x-4.0.
+   *   This method will be removed when process managers can be sub-classed.
+   *
+   * @see https://www.drupal.org/project/bootstrap/issues/2868538
+   *
+   * @internal
+   */
+  protected static function getInlineElementTypes() {
+    if (!static::$inlineElementTypes) {
+      $types = ['color', 'date', 'number', 'range', 'tel', 'weight'];
+      \Drupal::theme()->alter('bootstrap_inline_element_types', $types);
+      static::$inlineElementTypes = $types;
+    }
+    return static::$inlineElementTypes;
   }
 
   /**

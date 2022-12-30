@@ -2,6 +2,7 @@
 
 namespace Drupal\locale\Form;
 
+use Drupal\Component\Gettext\PoItem;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\locale\SourceString;
@@ -70,7 +71,7 @@ class TranslateEditForm extends TranslateFormBase {
             '#title' => $this->t('Source string (@language)', ['@language' => $this->t('Built-in English')]),
             '#title_display' => 'invisible',
             '#plain_text' => $source_array[0],
-            '#preffix' => '<span lang="en">',
+            '#prefix' => '<span lang="en">',
             '#suffix' => '</span>',
           ];
         }
@@ -88,7 +89,7 @@ class TranslateEditForm extends TranslateFormBase {
             '#type' => 'item',
             '#title' => $this->t('Plural form'),
             '#plain_text' => $source_array[1],
-            '#preffix' => '<span lang="en">',
+            '#prefix' => '<span lang="en">',
             '#suffix' => '</span>',
           ];
           $form['strings'][$string->lid]['original'] = [
@@ -127,7 +128,7 @@ class TranslateEditForm extends TranslateFormBase {
               // @todo Should use better labels https://www.drupal.org/node/2499639
               '#title' => ($i == 0 ? $this->t('Singular form') : $this->formatPlural($i, 'First plural form', '@count. plural form')),
               '#rows' => $rows,
-              '#default_value' => isset($translation_array[$i]) ? $translation_array[$i] : '',
+              '#default_value' => $translation_array[$i] ?? '',
               '#attributes' => ['lang' => $langcode],
               '#prefix' => $i == 0 ? ('<span class="visually-hidden">' . $this->t('Translated string (@language)', ['@language' => $langname]) . '</span>') : '',
             ];
@@ -186,7 +187,7 @@ class TranslateEditForm extends TranslateFormBase {
       // Plural translations are saved in a delimited string. To be able to
       // compare the new strings with the existing strings a string in the same
       // format is created.
-      $new_translation_string_delimited = implode(LOCALE_PLURAL_DELIMITER, $new_translation['translations']);
+      $new_translation_string_delimited = implode(PoItem::DELIMITER, $new_translation['translations']);
 
       // Generate an imploded string without delimiter, to be able to run
       // empty() on it.
@@ -206,7 +207,7 @@ class TranslateEditForm extends TranslateFormBase {
 
       if ($is_changed) {
         // Only update or insert if we have a value to use.
-        $target = isset($existing_translation_objects[$lid]) ? $existing_translation_objects[$lid] : $this->localeStorage->createTranslation(['lid' => $lid, 'language' => $langcode]);
+        $target = $existing_translation_objects[$lid] ?? $this->localeStorage->createTranslation(['lid' => $lid, 'language' => $langcode]);
         $target->setPlurals($new_translation['translations'])
           ->setCustomized()
           ->save();
@@ -219,7 +220,7 @@ class TranslateEditForm extends TranslateFormBase {
       }
     }
 
-    drupal_set_message($this->t('The strings have been saved.'));
+    $this->messenger()->addStatus($this->t('The strings have been saved.'));
 
     // Keep the user on the current pager page.
     $page = $this->getRequest()->query->get('page');

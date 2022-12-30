@@ -58,7 +58,7 @@ class Days extends MessagePurgeBase {
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.query')->get('message'),
+      $container->get('entity_type.manager')->getStorage('message')->getQuery(),
       $container->get('queue')->get('message_delete'),
       $container->get('request_stack')
     );
@@ -71,8 +71,8 @@ class Days extends MessagePurgeBase {
     $form['days'] = [
       '#type' => 'number',
       '#min' => 1,
-      '#title' => t('Messages older than'),
-      '#description' => t('Maximal message age in days.'),
+      '#title' => $this->t('Messages older than'),
+      '#description' => $this->t('Maximal message age in days.'),
       '#default_value' => $this->configuration['days'],
       '#tree' => FALSE,
     ];

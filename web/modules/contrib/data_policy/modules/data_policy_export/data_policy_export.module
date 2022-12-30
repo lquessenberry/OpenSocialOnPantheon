@@ -1,0 +1,41 @@
+<?php
+
+/**
+ * @file
+ * The Data Policy Export module.
+ */
+
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
+use Drupal\file\Entity\File;
+
+/**
+ * Implements hook_file_download().
+ */
+function data_policy_export_file_download($uri) {
+  $scheme = StreamWrapperManager::getScheme($uri);
+  $target = StreamWrapperManager::getTarget($uri);
+
+  // Get the file to see who the owner is.
+  $query = \Drupal::entityQuery('file');
+  $query->condition('uri', $uri);
+  $fid = $query->execute();
+
+  /** @var \Drupal\file\FileInterface $file */
+  $file = File::load(reset($fid));
+
+  $access = FALSE;
+
+  // Allow access to users with correct permission or file owner.
+  if (\Drupal::currentUser()->hasPermission('administer users') || \Drupal::currentUser()->id() === $file->get('uid')->getString()) {
+    $access = TRUE;
+  }
+
+  // The pattern should match all the declared file patterns from
+  // the `generateFilePath()` methods in export bulk actions plugins.
+  if ($scheme === 'private' && $access
+    && preg_match('/^csv\/export-data-policies-([a-f0-9]{12})\.csv$/i', $target)) {
+    return [
+      'Content-disposition' => 'attachment; filename="' . basename($target) . '"',
+    ];
+  }
+}

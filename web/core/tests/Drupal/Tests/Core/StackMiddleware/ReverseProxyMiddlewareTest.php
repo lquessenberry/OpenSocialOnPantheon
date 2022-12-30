@@ -6,6 +6,8 @@ use Drupal\Core\Site\Settings;
 use Drupal\Core\StackMiddleware\ReverseProxyMiddleware;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
  * Unit test the reverse proxy stack middleware.
@@ -15,15 +17,15 @@ use Symfony\Component\HttpFoundation\Request;
 class ReverseProxyMiddlewareTest extends UnitTestCase {
 
   /**
-   * @var \Symfony\Component\HttpKernel\HttpKernelInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Symfony\Component\HttpKernel\HttpKernelInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $mockHttpKernel;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    $this->mockHttpKernel = $this->getMock('Symfony\Component\HttpKernel\HttpKernelInterface');
+  protected function setUp(): void {
+    $this->mockHttpKernel = $this->createMock(MockHttpKernelInterface::class);
   }
 
   /**
@@ -35,10 +37,12 @@ class ReverseProxyMiddlewareTest extends UnitTestCase {
 
     $middleware = new ReverseProxyMiddleware($this->mockHttpKernel, $settings);
     // Mock a request object.
-    $request = $this->getMock('Symfony\Component\HttpFoundation\Request', ['setTrustedHeaderName', 'setTrustedProxies']);
-    // setTrustedHeaderName() should never fire.
+    $request = $this->getMockBuilder('Symfony\Component\HttpFoundation\Request')
+      ->onlyMethods(['setTrustedProxies'])
+      ->getMock();
+    // setTrustedProxies() should never fire.
     $request->expects($this->never())
-      ->method('setTrustedHeaderName');
+      ->method('setTrustedProxies');
     // Actually call the check method.
     $middleware->handle($request);
   }
@@ -47,15 +51,11 @@ class ReverseProxyMiddlewareTest extends UnitTestCase {
    * Tests that subscriber sets trusted headers when reverse proxy is set.
    *
    * @dataProvider reverseProxyEnabledProvider
-   *
-   * @group legacy
-   *
-   * @expectedDeprecation The "Symfony\Component\HttpFoundation\Request::setTrustedHeaderName()" method is deprecated since Symfony 3.3 and will be removed in 4.0. Use the $trustedHeaderSet argument of the Request::setTrustedProxies() method instead.
    */
-  public function testReverseProxyEnabled($provided_settings) {
+  public function testReverseProxyEnabled($provided_settings, $expected_trusted_header_set) {
     // Enable reverse proxy and add test values.
     $settings = new Settings(['reverse_proxy' => 1] + $provided_settings);
-    $this->trustedHeadersAreSet($settings);
+    $this->trustedHeadersAreSet($settings, $expected_trusted_header_set);
   }
 
   /**
@@ -63,40 +63,57 @@ class ReverseProxyMiddlewareTest extends UnitTestCase {
    */
   public function reverseProxyEnabledProvider() {
     return [
-      [
+      'Proxy with default trusted headers' => [
+        ['reverse_proxy_addresses' => ['127.0.0.2', '127.0.0.3']],
+        Request::HEADER_FORWARDED | Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+      ],
+      'Proxy with AWS trusted headers' => [
         [
-          'reverse_proxy_header' => 'X_FORWARDED_FOR_CUSTOMIZED',
-          'reverse_proxy_proto_header' => 'X_FORWARDED_PROTO_CUSTOMIZED',
-          'reverse_proxy_host_header' => 'X_FORWARDED_HOST_CUSTOMIZED',
-          'reverse_proxy_port_header' => 'X_FORWARDED_PORT_CUSTOMIZED',
-          'reverse_proxy_forwarded_header' => 'FORWARDED_CUSTOMIZED',
           'reverse_proxy_addresses' => ['127.0.0.2', '127.0.0.3'],
+          'reverse_proxy_trusted_headers' => Request::HEADER_X_FORWARDED_AWS_ELB,
         ],
+        Request::HEADER_X_FORWARDED_AWS_ELB,
+      ],
+      'Proxy with custom trusted headers' => [
+        [
+          'reverse_proxy_addresses' => ['127.0.0.2', '127.0.0.3'],
+          'reverse_proxy_trusted_headers' => Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST,
+        ],
+        Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST,
       ],
     ];
   }
 
   /**
-   * Tests that trusted header methods are called.
+   * Tests that trusted headers are set correctly.
    *
-   * \Symfony\Component\HttpFoundation\Request::setTrustedHeaderName() and
    * \Symfony\Component\HttpFoundation\Request::setTrustedProxies() should
    * always be called when reverse proxy settings are enabled.
    *
    * @param \Drupal\Core\Site\Settings $settings
    *   The settings object that holds reverse proxy configuration.
+   * @param int $expected_trusted_header_set
+   *   The expected bit value returned by
+   *   \Symfony\Component\HttpFoundation\Request::getTrustedHeaderSet()
    */
-  protected function trustedHeadersAreSet(Settings $settings) {
+  protected function trustedHeadersAreSet(Settings $settings, $expected_trusted_header_set) {
     $middleware = new ReverseProxyMiddleware($this->mockHttpKernel, $settings);
     $request = new Request();
 
     $middleware->handle($request);
-    $this->assertSame($settings->get('reverse_proxy_header'), $request->getTrustedHeaderName($request::HEADER_X_FORWARDED_FOR));
-    $this->assertSame($settings->get('reverse_proxy_proto_header'), $request->getTrustedHeaderName($request::HEADER_X_FORWARDED_PROTO));
-    $this->assertSame($settings->get('reverse_proxy_host_header'), $request->getTrustedHeaderName($request::HEADER_X_FORWARDED_HOST));
-    $this->assertSame($settings->get('reverse_proxy_port_header'), $request->getTrustedHeaderName($request::HEADER_X_FORWARDED_PORT));
-    $this->assertSame($settings->get('reverse_proxy_forwarded_header'), $request->getTrustedHeaderName($request::HEADER_FORWARDED));
     $this->assertSame($settings->get('reverse_proxy_addresses'), $request->getTrustedProxies());
+    $this->assertSame($expected_trusted_header_set, $request->getTrustedHeaderSet());
   }
+
+}
+
+/**
+ * Helper interface for the Symfony 6 version of the HttpKernelInterface.
+ *
+ * @todo Remove this interface when the Symfony 6 is in core.
+ */
+interface MockHttpKernelInterface extends HttpKernelInterface {
+
+  public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = TRUE): Response;
 
 }

@@ -15,6 +15,22 @@ use Drupal\Core\Form\FormStateInterface;
 interface SettingInterface extends PluginInspectionInterface, FormInterface {
 
   /**
+   * Indicates whether a setting is accessible.
+   *
+   * @return \Drupal\Core\Access\AccessResultInterface
+   *   The value to supply to the setting's #access property.
+   */
+  public function access();
+
+  /**
+   * Indicates whether a form element should be created automatically.
+   *
+   * @return bool
+   *   TRUE or FALSE
+   */
+  public function autoCreateFormElement();
+
+  /**
    * Determines whether a theme setting should added to drupalSettings.
    *
    * By default, this value will be FALSE unless the method is overridden. This
@@ -44,6 +60,14 @@ interface SettingInterface extends PluginInspectionInterface, FormInterface {
    *   The setting's default value.
    */
   public function getDefaultValue();
+
+  /**
+   * Retrieves the setting's description, if any.
+   *
+   * @return \Drupal\Core\StringTranslation\TranslatableMarkup
+   *   The setting description.
+   */
+  public function getDescription();
 
   /**
    * Retrieves the group form element the setting belongs to.
@@ -124,5 +148,19 @@ interface SettingInterface extends PluginInspectionInterface, FormInterface {
    *   The setting's type.
    */
   public function getTitle();
+
+  /**
+   * Retrieves the value from other deprecated settings.
+   *
+   * @param array $values
+   *   An array of values, keyed by deprecated setting name.
+   * @param \Drupal\bootstrap\Plugin\Setting\DeprecatedSettingInterface[] $deprecated
+   *   An array of deprecated Setting objects indicating this setting replaced
+   *   theirs, keyed by deprecated setting name.
+   *
+   * @return string
+   *   The setting's deprecated value.
+   */
+  public function processDeprecatedValues(array $values, array $deprecated);
 
 }

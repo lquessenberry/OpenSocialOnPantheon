@@ -35,7 +35,7 @@
       $glyphicon.addClass('glyphicon-spin');
 
       // Add any message as a tooltip to the glyphicon.
-      if (drupalSettings.bootstrap.tooltip_enabled) {
+      if ($.fn.tooltip && drupalSettings.bootstrap.tooltip_enabled) {
         $glyphicon
           .removeAttr('data-toggle')
           .removeAttr('data-original-title')
@@ -66,7 +66,7 @@
     var $glyphicon = this.findGlyphicon(element);
     if ($glyphicon[0]) {
       $glyphicon.removeClass('glyphicon-spin');
-      if (drupalSettings.bootstrap.tooltip_enabled) {
+      if ($.fn.tooltip && drupalSettings.bootstrap.tooltip_enabled) {
         $glyphicon
           .removeAttr('data-toggle')
           .removeAttr('data-original-title')
@@ -116,6 +116,7 @@
    * @param {Array.<Drupal.AjaxCommands~commandDefinition>} response
    * @param {number} status
    */
+  var success = Drupal.Ajax.prototype.success;
   Drupal.Ajax.prototype.success = function (response, status) {
     if (this.progress.element) {
 
@@ -132,60 +133,8 @@
       this.progress.element.parent().find('.message').remove();
     }
 
-    // --------------------------------------------------------
-    // Everything below is from core/misc/ajax.js.
-    // --------------------------------------------------------
-
-    if (this.progress.object) {
-      this.progress.object.stopMonitoring();
-    }
-    $(this.element).prop('disabled', false);
-
-    // Save element's ancestors tree so if the element is removed from the dom
-    // we can try to refocus one of its parents. Using addBack reverse the
-    // result array, meaning that index 0 is the highest parent in the hierarchy
-    // in this situation it is usually a <form> element.
-    var elementParents = $(this.element).parents('[data-drupal-selector]').addBack().toArray();
-
-    // Track if any command is altering the focus so we can avoid changing the
-    // focus set by the Ajax command.
-    var focusChanged = false;
-    for (var i in response) {
-      if (response.hasOwnProperty(i) && response[i].command && this.commands[response[i].command]) {
-        this.commands[response[i].command](this, response[i], status);
-        if (response[i].command === 'invoke' && response[i].method === 'focus') {
-          focusChanged = true;
-        }
-      }
-    }
-
-    // If the focus hasn't be changed by the ajax commands, try to refocus the
-    // triggering element or one of its parents if that element does not exist
-    // anymore.
-    if (!focusChanged && this.element && !$(this.element).data('disable-refocus')) {
-      var target = false;
-
-      for (var n = elementParents.length - 1; !target && n > 0; n--) {
-        target = document.querySelector('[data-drupal-selector="' + elementParents[n].getAttribute('data-drupal-selector') + '"]');
-      }
-
-      if (target) {
-        $(target).trigger('focus');
-      }
-    }
-
-    // Reattach behaviors, if they were detached in beforeSerialize(). The
-    // attachBehaviors() called on the new content from processing the response
-    // commands is not sufficient, because behaviors from the entire form need
-    // to be reattached.
-    if (this.$form) {
-      var settings = this.settings || drupalSettings;
-      Drupal.attachBehaviors(this.$form.get(0), settings);
-    }
-
-    // Remove any response-specific settings so they don't get used on the next
-    // call by mistake.
-    this.settings = null;
+    // Invoke the original success handler.
+    return success.apply(this, [response, status]);
   };
 
 })(jQuery, this, Drupal, drupalSettings);

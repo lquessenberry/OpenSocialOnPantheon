@@ -4,7 +4,7 @@ namespace Drupal\message\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\ContentEntityTypeInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\message\MessagePurgePluginManager;
@@ -16,13 +16,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class MessageSettingsForm extends ConfigFormBase {
 
   /**
-   * The entity manager object.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
-   *
-   * @todo Use the entity type manager service.
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The message purge plugin manager.
@@ -60,7 +58,7 @@ class MessageSettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('entity.manager'),
+      $container->get('entity_type.manager'),
       $container->get('plugin.manager.message.purge')
     );
   }
@@ -70,14 +68,14 @@ class MessageSettingsForm extends ConfigFormBase {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager object.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\message\MessagePurgePluginManager $purge_manager
    *   The message purge plugin manager service.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, EntityManagerInterface $entity_manager, MessagePurgePluginManager $purge_manager) {
+  public function __construct(ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, MessagePurgePluginManager $purge_manager) {
     parent::__construct($config_factory);
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
     $this->purgeManager = $purge_manager;
   }
 
@@ -144,7 +142,7 @@ class MessageSettingsForm extends ConfigFormBase {
    */
   protected function getContentEntityTypes() {
     $options = [];
-    foreach ($this->entityManager->getDefinitions() as $entity_id => $entity_type) {
+    foreach ($this->entityTypeManager->getDefinitions() as $entity_id => $entity_type) {
       if ($entity_type instanceof ContentEntityTypeInterface) {
         $options[$entity_type->id()] = $entity_type->getLabel();
       }

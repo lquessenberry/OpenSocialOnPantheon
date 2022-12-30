@@ -28,6 +28,11 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
   protected static $dateString = '2017-03-01T20:02:00';
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Datetime test field name.
    *
    * @var string
@@ -37,12 +42,12 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['datetime', 'entity_test'];
+  protected static $modules = ['datetime', 'entity_test'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     // Add datetime field.
@@ -90,7 +95,7 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
     return parent::getExpectedNormalizedEntity() + [
       static::$fieldName => [
         [
-          'value' => $this->entity->get(static::$fieldName)->value,
+          'value' => '2017-03-02T07:02:00+11:00',
         ],
       ],
     ];
@@ -103,7 +108,7 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
     return parent::getNormalizedPostEntity() + [
       static::$fieldName => [
         [
-          'value' => static::$dateString,
+          'value' => static::$dateString . '+00:00',
         ],
       ],
     ];
@@ -112,7 +117,7 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function assertNormalizationEdgeCases($method, Url $url, array $request_options) {
+  protected function assertNormalizationEdgeCases($method, Url $url, array $request_options): void {
     parent::assertNormalizationEdgeCases($method, $url, $request_options);
 
     if ($this->entity->getEntityType()->hasKey('bundle')) {
@@ -136,7 +141,7 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
 
       $request_options[RequestOptions::BODY] = $this->serializer->encode($normalization, static::$format);
       $response = $this->request($method, $url, $request_options);
-      $message = "Unprocessable Entity: validation failed.\n{$fieldName}.0: The datetime value '{$value}' is invalid for the format 'Y-m-d\\TH:i:s'\n";
+      $message = "The specified date \"$value\" is not in an accepted format: \"Y-m-d\\TH:i:sP\" (RFC 3339), \"Y-m-d\\TH:i:sO\" (ISO 8601).";
       $this->assertResourceErrorResponse(422, $message, $response);
 
       // DX: 422 when date format is incorrect.
@@ -146,7 +151,17 @@ class EntityTestDatetimeTest extends EntityTestResourceTestBase {
 
       $request_options[RequestOptions::BODY] = $this->serializer->encode($normalization, static::$format);
       $response = $this->request($method, $url, $request_options);
-      $message = "Unprocessable Entity: validation failed.\n{$fieldName}.0: The datetime value '{$value}' did not parse properly for the format 'Y-m-d\\TH:i:s'\n{$fieldName}.0.value: This value should be of the correct primitive type.\n";
+      $message = "The specified date \"$value\" is not in an accepted format: \"Y-m-d\\TH:i:sP\" (RFC 3339), \"Y-m-d\\TH:i:sO\" (ISO 8601).";
+      $this->assertResourceErrorResponse(422, $message, $response);
+
+      // DX: 422 when date value is invalid.
+      $normalization = $this->getNormalizedPostEntity();
+      $value = '2017-13-55T20:02:00+00:00';
+      $normalization[static::$fieldName][0]['value'] = $value;
+
+      $request_options[RequestOptions::BODY] = $this->serializer->encode($normalization, static::$format);
+      $response = $this->request($method, $url, $request_options);
+      $message = "The specified date \"$value\" is not in an accepted format: \"Y-m-d\\TH:i:sP\" (RFC 3339), \"Y-m-d\\TH:i:sO\" (ISO 8601).";
       $this->assertResourceErrorResponse(422, $message, $response);
     }
   }

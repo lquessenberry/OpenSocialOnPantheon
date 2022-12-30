@@ -9,6 +9,7 @@ use Drupal\Tests\Traits\Core\CronRunTrait;
  * Tests aggregator feeds in multiple languages.
  *
  * @group aggregator
+ * @group legacy
  */
 class FeedLanguageTest extends AggregatorTestBase {
 
@@ -19,7 +20,12 @@ class FeedLanguageTest extends AggregatorTestBase {
    *
    * @var array
    */
-  public static $modules = ['language'];
+  protected static $modules = ['language'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * List of langcodes.
@@ -31,7 +37,7 @@ class FeedLanguageTest extends AggregatorTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Create test languages.
@@ -50,14 +56,21 @@ class FeedLanguageTest extends AggregatorTestBase {
    * Tests creation of feeds with a language.
    */
   public function testFeedLanguage() {
-    $admin_user = $this->drupalCreateUser(['administer languages', 'access administration pages', 'administer news feeds', 'access news feeds', 'create article content']);
+    $admin_user = $this->drupalCreateUser([
+      'administer languages',
+      'access administration pages',
+      'administer news feeds',
+      'access news feeds',
+      'create article content',
+    ]);
     $this->drupalLogin($admin_user);
 
     // Enable language selection for feeds.
     $edit['entity_types[aggregator_feed]'] = TRUE;
     $edit['settings[aggregator_feed][aggregator_feed][settings][language][language_alterable]'] = TRUE;
 
-    $this->drupalPostForm('admin/config/regional/content-language', $edit, t('Save configuration'));
+    $this->drupalGet('admin/config/regional/content-language');
+    $this->submitForm($edit, 'Save configuration');
 
     /** @var \Drupal\aggregator\FeedInterface[] $feeds */
     $feeds = [];
@@ -66,8 +79,8 @@ class FeedLanguageTest extends AggregatorTestBase {
     $feeds[2] = $this->createFeed(NULL, ['langcode[0][value]' => $this->langcodes[2]]);
 
     // Make sure that the language has been assigned.
-    $this->assertEqual($feeds[1]->language()->getId(), $this->langcodes[1]);
-    $this->assertEqual($feeds[2]->language()->getId(), $this->langcodes[2]);
+    $this->assertEquals($this->langcodes[1], $feeds[1]->language()->getId());
+    $this->assertEquals($this->langcodes[2], $feeds[2]->language()->getId());
 
     // Create example nodes to create feed items from and then update the feeds.
     $this->createSampleNodes();
@@ -77,10 +90,11 @@ class FeedLanguageTest extends AggregatorTestBase {
     // the one from the feed.
     foreach ($feeds as $feed) {
       /** @var \Drupal\aggregator\ItemInterface[] $items */
-      $items = entity_load_multiple_by_properties('aggregator_item', ['fid' => $feed->id()]);
-      $this->assertTrue(count($items) > 0, 'Feed items were created.');
+      $items = \Drupal::entityTypeManager()->getStorage('aggregator_item')->loadByProperties(['fid' => $feed->id()]);
+      // Verify that the feed items were created.
+      $this->assertNotEmpty($items);
       foreach ($items as $item) {
-        $this->assertEqual($item->language()->getId(), $feed->language()->getId());
+        $this->assertEquals($feed->language()->getId(), $item->language()->getId());
       }
     }
   }

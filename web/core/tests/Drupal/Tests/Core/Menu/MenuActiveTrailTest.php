@@ -5,7 +5,7 @@ namespace Drupal\Tests\Core\Menu;
 use Drupal\Core\Menu\MenuActiveTrail;
 use Drupal\Core\Routing\CurrentRouteMatch;
 use Drupal\Tests\UnitTestCase;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,47 +38,47 @@ class MenuActiveTrailTest extends UnitTestCase {
   /**
    * The current route match service.
    *
-   * @var \Drupal\Core\Routing\CurrentRouteMatch;
+   * @var \Drupal\Core\Routing\CurrentRouteMatch
    */
   protected $currentRouteMatch;
 
   /**
    * The mocked menu link manager.
    *
-   * @var \Drupal\Core\Menu\MenuLinkManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Menu\MenuLinkManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $menuLinkManager;
 
   /**
    * The mocked cache backend.
    *
-   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $cache;
 
   /**
    * The mocked lock.
    *
-   * @var \Drupal\Core\Lock\LockBackendInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Lock\LockBackendInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $lock;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->requestStack = new RequestStack();
     $this->currentRouteMatch = new CurrentRouteMatch($this->requestStack);
-    $this->menuLinkManager = $this->getMock('Drupal\Core\Menu\MenuLinkManagerInterface');
-    $this->cache = $this->getMock('\Drupal\Core\Cache\CacheBackendInterface');
-    $this->lock = $this->getMock('\Drupal\Core\Lock\LockBackendInterface');
+    $this->menuLinkManager = $this->createMock('Drupal\Core\Menu\MenuLinkManagerInterface');
+    $this->cache = $this->createMock('\Drupal\Core\Cache\CacheBackendInterface');
+    $this->lock = $this->createMock('\Drupal\Core\Lock\LockBackendInterface');
 
     $this->menuActiveTrail = new MenuActiveTrail($this->menuLinkManager, $this->currentRouteMatch, $this->cache, $this->lock);
 
     $container = new Container();
-    $container->set('cache_tags.invalidator', $this->getMock('\Drupal\Core\Cache\CacheTagsInvalidatorInterface'));
+    $container->set('cache_tags.invalidator', $this->createMock('\Drupal\Core\Cache\CacheTagsInvalidatorInterface'));
     \Drupal::setContainer($container);
   }
 
@@ -173,9 +173,9 @@ class MenuActiveTrailTest extends UnitTestCase {
       if ($expected_link !== NULL) {
         $this->menuLinkManager->expects($this->exactly(2))
           ->method('getParentIds')
-          ->will($this->returnValueMap([
+          ->willReturnMap([
             [$expected_link->getPluginId(), $expected_trail_ids],
-          ]));
+          ]);
       }
     }
 
@@ -213,9 +213,9 @@ class MenuActiveTrailTest extends UnitTestCase {
 
     $this->menuLinkManager->expects($this->any())
       ->method('getParentIds')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         [$expected_link->getPluginId(), $expected_trail_ids],
-      ]));
+      ]);
 
     $this->assertSame($expected_trail_ids, $this->menuActiveTrail->getActiveTrailIds($data[2]));
 

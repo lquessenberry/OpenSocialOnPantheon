@@ -1,0 +1,12 @@
+{% block file_methods %}
+{% if update_version %}
+{{ update_version }}:
+    '#title': 'Update to version {{ update_version }}'
+    '#description': '<h3>These are the new features for this release:</h3>'
+{% endif %}
+    {{ update_hook_name }}:
+        '#title': '{{ description }}'
+        '#description': '<p>{{ update_description }}</p>'
+        '#description_successful': '<p>{{ success_message }}</p>'
+        '#description_failed': '<p><strong>{{ failure_message }}</strong><p>'
+{% endblock %}

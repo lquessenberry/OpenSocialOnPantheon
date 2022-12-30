@@ -17,7 +17,6 @@ description: 'Activity stream notifications on a profile'
 tag: ''
 base_table: activity_field_data
 base_field: id
-core: 8.x
 display:
   default:
     display_plugin: default
@@ -31,7 +30,7 @@ display:
           role:
             authenticated: authenticated
       cache:
-        type: none
+        type: tag
         options: {  }
       query:
         type: views_query
@@ -44,7 +43,7 @@ display:
       exposed_form:
         type: basic
         options:
-          submit_button: Apply
+          submit_button: Filter
           reset_button: false
           reset_button_label: Reset
           exposed_sorts_label: 'Sort by'
@@ -144,6 +143,8 @@ display:
             multiple: false
             remember_roles:
               authenticated: authenticated
+            operator_limit_selection: false
+            operator_list: {  }
           is_grouped: false
           group_info:
             label: ''
@@ -183,6 +184,8 @@ display:
             remember_roles:
               authenticated: authenticated
             reduce: false
+            operator_limit_selection: false
+            operator_list: {  }
           is_grouped: false
           group_info:
             label: ''
@@ -220,6 +223,8 @@ display:
             multiple: false
             remember_roles:
               authenticated: authenticated
+            operator_limit_selection: false
+            operator_list: {  }
           is_grouped: false
           group_info:
             label: ''
@@ -235,6 +240,45 @@ display:
           entity_type: activity
           entity_field: status
           plugin_id: boolean
+        activity_notification_visibility_access_filter:
+          id: activity_notification_visibility_access_filter
+          table: activity
+          field: activity_notification_visibility_access_filter
+          relationship: none
+          group_type: group
+          admin_label: ''
+          operator: '='
+          value: ''
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
+          entity_type: activity
+          plugin_id: activity_notification_visibility_access
       sorts:
         created:
           id: created
@@ -327,11 +371,14 @@ display:
     display_options:
       display_extenders: {  }
       style:
-        type: default
+        type: html_list
         options:
           row_class: ''
           default_row_class: false
           uses_fields: false
+          type: ul
+          wrapper_class: item-list
+          class: scrollable-menu
       defaults:
         style: false
         row: false
@@ -362,7 +409,7 @@ display:
       pager:
         type: mini
         options:
-          items_per_page: 30
+          items_per_page: 20
           offset: 0
           id: 0
           total_pages: null

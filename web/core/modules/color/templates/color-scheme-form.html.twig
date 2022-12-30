@@ -21,8 +21,6 @@
     {{ form.palette }}
   </div>
   {{ form|without('scheme', 'palette') }}
-  {% if html_preview is not null %}
-    <h2>{{ 'Preview'|t }}</h2>
-    {{ html_preview }}
-  {% endif %}
+  <h2>{{ 'Preview'|t }}</h2>
+  {{ html_preview }}
 </div>

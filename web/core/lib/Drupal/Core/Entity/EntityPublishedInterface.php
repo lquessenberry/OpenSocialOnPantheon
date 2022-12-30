@@ -5,7 +5,7 @@ namespace Drupal\Core\Entity;
 /**
  * Provides an interface for access to an entity's published state.
  */
-interface EntityPublishedInterface {
+interface EntityPublishedInterface extends EntityInterface {
 
   /**
    * Returns whether or not the entity is published.
@@ -18,18 +18,11 @@ interface EntityPublishedInterface {
   /**
    * Sets the entity as published.
    *
-   * @param bool|null $published
-   *   (optional and deprecated) TRUE to set this entity to published, FALSE to
-   *   set it to unpublished. Defaults to NULL. This parameter is deprecated in
-   *   Drupal 8.3.0 and will be removed before Drupal 9.0.0. Use this method,
-   *   without any parameter, to set the entity as published and
-   *   setUnpublished() to set the entity as unpublished.
-   *
    * @return $this
    *
    * @see \Drupal\Core\Entity\EntityPublishedInterface::setUnpublished()
    */
-  public function setPublished($published = NULL);
+  public function setPublished();
 
   /**
    * Sets the entity as unpublished.

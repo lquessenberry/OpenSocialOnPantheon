@@ -5,6 +5,7 @@
  * Framework for handling the filtering of content.
  */
 
+use Drupal\Core\Url;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Cache\Cache;
@@ -21,11 +22,11 @@ function filter_help($route_name, RouteMatchInterface $route_match) {
     case 'help.page.filter':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Filter module allows administrators to configure text formats. Text formats change how HTML tags and other text will be <em>processed and displayed</em> in the site. They are used to transform text, and also help to defend your web site against potentially damaging input from malicious users. Visual text editors can be associated with text formats by using the <a href=":editor_help">Text Editor module</a>. For more information, see the <a href=":filter_do">online documentation for the Filter module</a>.', [':filter_do' => 'https://www.drupal.org/documentation/modules/filter/', ':editor_help' => (\Drupal::moduleHandler()->moduleExists('editor')) ? \Drupal::url('help.page', ['name' => 'editor']) : '#']) . '</p>';
+      $output .= '<p>' . t('The Filter module allows administrators to configure text formats. Text formats change how HTML tags and other text will be <em>processed and displayed</em> in the site. They are used to transform text, and also help to defend your website against potentially damaging input from malicious users. Visual text editors can be associated with text formats by using the <a href=":editor_help">Text Editor module</a>. For more information, see the <a href=":filter_do">online documentation for the Filter module</a>.', [':filter_do' => 'https://www.drupal.org/documentation/modules/filter/', ':editor_help' => (\Drupal::moduleHandler()->moduleExists('editor')) ? Url::fromRoute('help.page', ['name' => 'editor'])->toString() : '#']) . '</p>';
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Managing text formats') . '</dt>';
-      $output .= '<dd>' . t('You can create and edit text formats on the <a href=":formats">Text formats page</a> (if the Text Editor module is enabled, this page is named Text formats and editors). One text format is included by default: Plain text (which removes all HTML tags). Additional text formats may be created during installation. You can create a text format by clicking "<a href=":add_format">Add text format</a>".', [':formats' => \Drupal::url('filter.admin_overview'), ':add_format' => \Drupal::url('filter.format_add')]) . '</dd>';
+      $output .= '<dd>' . t('You can create and edit text formats on the <a href=":formats">Text formats page</a> (if the Text Editor module is enabled, this page is named Text formats and editors). One text format is included by default: Plain text (which removes all HTML tags). Additional text formats may be created during installation. You can create a text format by clicking "<a href=":add_format">Add text format</a>".', [':formats' => Url::fromRoute('filter.admin_overview')->toString(), ':add_format' => Url::fromRoute('filter.format_add')->toString()]) . '</dd>';
       $output .= '<dt>' . t('Assigning roles to text formats') . '</dt>';
       $output .= '<dd>' . t('You can define which users will be able to use each text format by selecting roles. To ensure security, anonymous and untrusted users should only have access to text formats that restrict them to either plain text or a safe set of HTML tags. This is because HTML tags can allow embedding malicious links or scripts in text. More trusted registered users may be granted permission to use less restrictive text formats in order to create rich text. <strong>Improper text format configuration is a security risk.</strong>') . '</dd>';
       $output .= '<dt>' . t('Selecting filters') . '</dt>';
@@ -39,7 +40,7 @@ function filter_help($route_name, RouteMatchInterface $route_match) {
       return $output;
 
     case 'filter.admin_overview':
-      $output = '<p>' . t('Text formats define how text is filtered for output and how HTML tags and other text is displayed, replaced, or removed. <strong>Improper text format configuration is a security risk.</strong> Learn more on the <a href=":filter_help">Filter module help page</a>.', [':filter_help' => \Drupal::url('help.page', ['name' => 'filter'])]) . '</p>';
+      $output = '<p>' . t('Text formats define how text is filtered for output and how HTML tags and other text is displayed, replaced, or removed. <strong>Improper text format configuration is a security risk.</strong> Learn more on the <a href=":filter_help">Filter module help page</a>.', [':filter_help' => Url::fromRoute('help.page', ['name' => 'filter'])->toString()]) . '</p>';
       $output .= '<p>' . t('Text formats are presented on content editing pages in the order defined on this page. The first format available to a user will be selected by default.') . '</p>';
       return $output;
 
@@ -74,7 +75,7 @@ function filter_theme() {
         'caption' => NULL,
         'classes' => NULL,
       ],
-    ]
+    ],
   ];
 }
 
@@ -102,9 +103,9 @@ function filter_formats(AccountInterface $account = NULL) {
       $formats['all'] = $cache->data;
     }
     else {
-      $formats['all'] = \Drupal::entityManager()->getStorage('filter_format')->loadByProperties(['status' => TRUE]);
+      $formats['all'] = \Drupal::entityTypeManager()->getStorage('filter_format')->loadByProperties(['status' => TRUE]);
       uasort($formats['all'], 'Drupal\Core\Config\Entity\ConfigEntityBase::sort');
-      \Drupal::cache()->set("filter_formats:{$language_interface->getId()}", $formats['all'], Cache::PERMANENT, \Drupal::entityManager()->getDefinition('filter_format')->getListCacheTags());
+      \Drupal::cache()->set("filter_formats:{$language_interface->getId()}", $formats['all'], Cache::PERMANENT, \Drupal::entityTypeManager()->getDefinition('filter_format')->getListCacheTags());
     }
   }
 
@@ -261,11 +262,11 @@ function filter_fallback_format() {
  * preview of content in a disallowed format.
  *
  * Note: this function should only be used when filtering text for use elsewhere
- * than on a rendered HTML page. If this is part of a HTML page, then a
+ * than on a rendered HTML page. If this is part of an HTML page, then a
  * renderable array with a #type 'processed_text' element should be used instead
  * of this, because that will allow cacheability metadata to be set and bubbled
  * up and attachments to be associated (assets, placeholders, etc.). In other
- * words: if you are presenting the filtered text in a HTML page, the only way
+ * words: if you are presenting the filtered text in an HTML page, the only way
  * this will be presented correctly, is by using the 'processed_text' element.
  *
  * @param string $text
@@ -300,22 +301,6 @@ function check_markup($text, $format_id = NULL, $langcode = '', $filter_types_to
     '#langcode' => $langcode,
   ];
   return \Drupal::service('renderer')->renderPlain($build);
-}
-
-/**
- * Render API callback: Hides the field value of 'text_format' elements.
- *
- * To not break form processing and previews if a user does not have access to
- * a stored text format, the expanded form elements in filter_process_format()
- * are forced to take over the stored #default_values for 'value' and 'format'.
- * However, to prevent the unfiltered, original #value from being displayed to
- * the user, we replace it with a friendly notice here.
- *
- * @see filter_process_format()
- */
-function filter_form_access_denied($element) {
-  $element['#value'] = t('This field has been disabled because you do not have sufficient permissions to edit it.');
-  return $element;
 }
 
 /**
@@ -376,6 +361,9 @@ function template_preprocess_filter_guidelines(&$variables) {
     '#theme' => 'filter_tips',
     '#tips' => _filter_tips($format->id(), FALSE),
   ];
+
+  // Add format id for filter.es6.js.
+  $variables['attributes']['data-drupal-format-id'] = $format->id();
 }
 
 /**
@@ -502,9 +490,12 @@ function _filter_url($text, $filter) {
 
   // Prepare domain name pattern.
   // The ICANN seems to be on track towards accepting more diverse top level
-  // domains, so this pattern has been "future-proofed" to allow for TLDs
-  // of length 2-64.
+  // domains (TLDs), so this pattern has been "future-proofed" to allow for
+  // TLDs of length 2-64.
   $domain = '(?:[\p{L}\p{M}\p{N}._+-]+\.)?[\p{L}\p{M}]{2,64}\b';
+  // Mail domains differ from the generic domain pattern, specifically:
+  // A . character must be present in the string that follows the @ character.
+  $email_domain = '(?:[\p{L}\p{M}\p{N}._+-]+\.)+[\p{L}\p{M}]{2,64}\b';
   $ip = '(?:[0-9]{1,3}\.){3}[0-9]{1,3}';
   $auth = '[\p{L}\p{M}\p{N}:%_+*~#?&=.,/;-]+@';
   $trail = '(' . $valid_url_path . '*)?(\\?' . $valid_url_query_chars . '*' . $valid_url_query_ending_chars . ')?';
@@ -515,7 +506,7 @@ function _filter_url($text, $filter) {
   $tasks['_filter_url_parse_full_links'] = $pattern;
 
   // Match email addresses.
-  $url_pattern = "[\p{L}\p{M}\p{N}._+-]{1,254}@(?:$domain)";
+  $url_pattern = "[\p{L}\p{M}\p{N}._+-]{1,254}@(?:$email_domain)";
   $pattern = "`($url_pattern)`u";
   $tasks['_filter_url_parse_email_links'] = $pattern;
 
@@ -615,7 +606,7 @@ function _filter_url_parse_email_links($match) {
 }
 
 /**
- * Makes links out of domain names starting with "www."
+ * Makes links out of domain names starting with "www.".
  *
  * Callback for preg_replace_callback() within _filter_url().
  */
@@ -670,7 +661,7 @@ function _filter_url_escape_comments($match, $escape = NULL) {
 }
 
 /**
- * Shortens long URLs to http://www.example.com/long/url…
+ * Shortens a long URL to a given length ending with an ellipsis.
  */
 function _filter_url_trim($text, $length = NULL) {
   static $_length;
@@ -678,7 +669,7 @@ function _filter_url_trim($text, $length = NULL) {
     $_length = $length;
   }
 
-  if (isset($_length)) {
+  if (isset($text) && isset($_length)) {
     $text = Unicode::truncate($text, $_length, FALSE, TRUE);
   }
 
@@ -699,7 +690,7 @@ function _filter_autop($text) {
   // to avoid messing up code. We look for matched pairs and allow basic
   // nesting. For example:
   // "processed <pre> ignored <script> ignored </script> ignored </pre> processed"
-  $chunks = preg_split('@(<!--.*?-->|</?(?:pre|script|style|object|iframe|!--)[^>]*>)@i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+  $chunks = preg_split('@(<!--.*?-->|</?(?:pre|script|style|object|iframe|drupal-media|svg|!--)[^>]*>)@i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
   // Note: PHP ensures the array consists of alternating delimiters and literals
   // and begins and ends with a literal (inserting NULL as required).
   $ignore = FALSE;
@@ -715,7 +706,7 @@ function _filter_autop($text) {
       }
       // Opening or closing tag?
       $open = ($chunk[1] != '/');
-      list($tag) = preg_split('/[ >]/', substr($chunk, 2 - $open), 2);
+      [$tag] = preg_split('/[ >]/', substr($chunk, 2 - $open), 2);
       if (!$ignore) {
         if ($open) {
           $ignore = TRUE;
@@ -773,40 +764,44 @@ function _filter_html_escape($text) {
 function _filter_html_image_secure_process($text) {
   // Find the path (e.g. '/') to Drupal root.
   $base_path = base_path();
-  $base_path_length = Unicode::strlen($base_path);
+  $base_path_length = mb_strlen($base_path);
 
   // Find the private path.
-  $private_path = '/system/files/';
-  $private_path_length = Unicode::strlen($private_path);
+  $private_path = $base_path . 'system/files/';
+  $private_path_length = mb_strlen($private_path);
 
   // Find the directory on the server where index.php resides.
   $local_dir = \Drupal::root() . '/';
 
   $html_dom = Html::load($text);
   $images = $html_dom->getElementsByTagName('img');
+
+  /** @var \Drupal\Core\File\FileUrlGeneratorInterface $file_url_generator */
+  $file_url_generator = \Drupal::service('file_url_generator');
   foreach ($images as $image) {
     $src = $image->getAttribute('src');
     // Transform absolute image URLs to relative image URLs: prevent problems on
     // multisite set-ups and prevent mixed content errors.
-    $image->setAttribute('src', file_url_transform_relative($src));
+    $image->setAttribute('src', $file_url_generator->transformRelative($src));
 
     // Verify that $src starts with $base_path.
     // This also ensures that external images cannot be referenced.
     $src = $image->getAttribute('src');
-    if (Unicode::substr($src, 0, $private_path_length) === $private_path) {
-      $private_image_path = Unicode::substr($src, $private_path_length);
+    if (mb_substr($src, 0, $private_path_length) === $private_path) {
+      $private_image_path = mb_substr($src, $private_path_length);
       $private_image_path = 'private://' . $private_image_path;
+      $private_image_path = urldecode($private_image_path);
       $image_object = \Drupal::service('image.factory')->get($private_image_path);
       if ($image_object->getFileSize()) {
         // The image has the right path. Erroneous images are dealt with below.
         continue;
       }
     }
-    elseif (Unicode::substr($src, 0, $base_path_length) === $base_path) {
+    elseif (mb_substr($src, 0, $base_path_length) === $base_path) {
       // Remove the $base_path to get the path relative to the Drupal root.
       // Ensure the path refers to an actual image by prefixing the image source
       // with the Drupal root and running getimagesize() on it.
-      $local_image_path = $local_dir . Unicode::substr($src, $base_path_length);
+      $local_image_path = $local_dir . mb_substr($src, $base_path_length);
       $local_image_path = rawurldecode($local_image_path);
 
       // Check for query string and remove it if present.
@@ -832,9 +827,6 @@ function _filter_html_image_secure_process($text) {
  * Implements hook_filter_secure_image_alter().
  *
  * Formats an image DOM element that has an invalid source.
- *
- * @param DOMElement $image
- *   An IMG node to format, parsed from the filtered text.
  *
  * @see _filter_html_image_secure_process()
  */

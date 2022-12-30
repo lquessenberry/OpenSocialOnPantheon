@@ -7,17 +7,21 @@ use Robo\Contract\PrintedInterface;
 use Robo\Result;
 use Robo\Contract\CommandInterface;
 use Robo\Exception\TaskException;
+use Robo\Common\CommandReceiver;
 
 abstract class CommandStack extends BaseTask implements CommandInterface, PrintedInterface
 {
     use ExecCommand;
-    use \Robo\Common\CommandReceiver;
+    use CommandReceiver;
 
     /**
      * @var string
      */
     protected $executable;
 
+    /**
+     * @var \Robo\Result
+     */
     protected $result;
 
     /**
@@ -69,9 +73,9 @@ abstract class CommandStack extends BaseTask implements CommandInterface, Printe
             $command = $this->executable . ' ' . $this->stripExecutableFromCommand($command);
             $command = trim($command);
         }
-        
+
         $this->exec[] = $command;
-        
+
         return $this;
     }
 

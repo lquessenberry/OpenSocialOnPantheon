@@ -45,7 +45,12 @@ class CommentAccessControlHandler extends EntityAccessControlHandler {
         return $access_result;
 
       case 'update':
-        return AccessResult::allowedIf($account->id() && $account->id() == $entity->getOwnerId() && $entity->isPublished() && $account->hasPermission('edit own comments'))->cachePerPermissions()->cachePerUser()->addCacheableDependency($entity);
+        $access_result = AccessResult::allowedIf($account->id() && $account->id() == $entity->getOwnerId() && $entity->isPublished() && $account->hasPermission('edit own comments'))
+          ->cachePerPermissions()->cachePerUser()->addCacheableDependency($entity);
+        if (!$access_result->isAllowed()) {
+          $access_result->setReason("The 'edit own comments' permission is required, the user must be the comment author, and the comment must be published.");
+        }
+        return $access_result;
 
       default:
         // No opinion.
@@ -121,7 +126,7 @@ class CommentAccessControlHandler extends EntityAccessControlHandler {
         $commented_entity = $entity->getCommentedEntity();
         $anonymous_contact = $commented_entity->get($entity->getFieldName())->getFieldDefinition()->getSetting('anonymous');
         $admin_access = AccessResult::allowedIfHasPermission($account, 'administer comments');
-        $anonymous_access = AccessResult::allowedIf($entity->isNew() && $account->isAnonymous() && ($anonymous_contact != COMMENT_ANONYMOUS_MAYNOT_CONTACT || $is_name) && $account->hasPermission('post comments'))
+        $anonymous_access = AccessResult::allowedIf($entity->isNew() && $account->isAnonymous() && ($anonymous_contact != CommentInterface::ANONYMOUS_MAYNOT_CONTACT || $is_name) && $account->hasPermission('post comments'))
           ->cachePerPermissions()
           ->addCacheableDependency($entity)
           ->addCacheableDependency($field_definition->getConfig($commented_entity->bundle()))

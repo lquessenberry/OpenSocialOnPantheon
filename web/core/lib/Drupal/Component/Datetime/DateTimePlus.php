@@ -41,12 +41,12 @@ class DateTimePlus {
 
   use ToStringTrait;
 
-  const FORMAT   = 'Y-m-d H:i:s';
+  const FORMAT = 'Y-m-d H:i:s';
 
   /**
    * A RFC7231 Compliant date.
    *
-   * http://tools.ietf.org/html/rfc7231#section-7.1.1.1
+   * @see http://tools.ietf.org/html/rfc7231#section-7.1.1.1
    *
    * Example: Sun, 06 Nov 1994 08:49:37 GMT
    */
@@ -129,7 +129,8 @@ class DateTimePlus {
    * @param \DateTime $datetime
    *   A DateTime object.
    * @param array $settings
-   *   @see __construct()
+   *   (optional) A keyed array for settings, suitable for passing on to
+   *   __construct().
    *
    * @return static
    *   A new DateTimePlus object.
@@ -183,9 +184,11 @@ class DateTimePlus {
    * @param int $timestamp
    *   A UNIX timestamp.
    * @param mixed $timezone
-   *   @see __construct()
+   *   (optional) \DateTimeZone object, time zone string or NULL. See
+   *   __construct() for more details.
    * @param array $settings
-   *   @see __construct()
+   *   (optional) A keyed array for settings, suitable for passing on to
+   *   __construct().
    *
    * @return static
    *   A new DateTimePlus object.
@@ -211,11 +214,14 @@ class DateTimePlus {
    *   any other specialized input with a known format. If provided the
    *   date will be created using the createFromFormat() method.
    *   @see http://php.net/manual/datetime.createfromformat.php
-   * @param mixed $time
-   *   @see __construct()
+   * @param string $time
+   *   String representing the time.
    * @param mixed $timezone
-   *   @see __construct()
+   *   (optional) \DateTimeZone object, time zone string or NULL. See
+   *   __construct() for more details.
    * @param array $settings
+   *   (optional) A keyed array for settings, suitable for passing on to
+   *   __construct(). Supports an additional key:
    *   - validate_format: (optional) Boolean choice to validate the
    *     created date using the input format. The format used in
    *     createFromFormat() allows slightly different values than format().
@@ -223,7 +229,6 @@ class DateTimePlus {
    *     possible to a validation step to confirm that the date created
    *     from a format string exactly matches the input. This option
    *     indicates the format can be used for validation. Defaults to TRUE.
-   *   @see __construct()
    *
    * @return static
    *   A new DateTimePlus object.
@@ -248,21 +253,15 @@ class DateTimePlus {
       throw new \InvalidArgumentException('The date cannot be created from a format.');
     }
     else {
+      $datetimeplus->setTimestamp($date->getTimestamp());
+      $datetimeplus->setTimezone($date->getTimezone());
+
       // Functions that parse date is forgiving, it might create a date that
       // is not exactly a match for the provided value, so test for that by
       // re-creating the date/time formatted string and comparing it to the input. For
       // instance, an input value of '11' using a format of Y (4 digits) gets
       // created as '0011' instead of '2011'.
-      if ($date instanceof DateTimePlus) {
-        $test_time = $date->format($format, $settings);
-      }
-      elseif ($date instanceof \DateTime) {
-        $test_time = $date->format($format);
-      }
-      $datetimeplus->setTimestamp($date->getTimestamp());
-      $datetimeplus->setTimezone($date->getTimezone());
-
-      if ($settings['validate_format'] && $test_time != $time) {
+      if ($settings['validate_format'] && $date->format($format) != $time) {
         throw new \UnexpectedValueException('The created date does not match the input value.');
       }
     }
@@ -355,7 +354,7 @@ class DateTimePlus {
       throw new \Exception('DateTime object not set.');
     }
     if (!method_exists($this->dateTimeObject, $method)) {
-      throw new \BadMethodCallException(sprintf('Call to undefined method %s::%s()', get_class($this), $method));
+      throw new \BadMethodCallException(sprintf('Call to undefined method %s::%s()', static::class, $method));
     }
 
     $result = call_user_func_array([$this->dateTimeObject, $method], $args);
@@ -394,7 +393,7 @@ class DateTimePlus {
    */
   public static function __callStatic($method, $args) {
     if (!method_exists('\DateTime', $method)) {
-      throw new \BadMethodCallException(sprintf('Call to undefined method %s::%s()', get_called_class(), $method));
+      throw new \BadMethodCallException(sprintf('Call to undefined method %s::%s()', static::class, $method));
     }
     return call_user_func_array(['\DateTime', $method], $args);
   }
@@ -476,7 +475,6 @@ class DateTimePlus {
   protected function prepareFormat($format) {
     return $format;
   }
-
 
   /**
    * Examines getLastErrors() to see what errors to report.
@@ -620,11 +618,10 @@ class DateTimePlus {
     $valid_date = FALSE;
     $valid_time = TRUE;
     // Check for a valid date using checkdate(). Only values that
-    // meet that test are valid.
-    if (array_key_exists('year', $array) && array_key_exists('month', $array) && array_key_exists('day', $array)) {
-      if (@checkdate($array['month'], $array['day'], $array['year'])) {
-        $valid_date = TRUE;
-      }
+    // meet that test are valid. An empty value, either a string or a 0, is not
+    // a valid value.
+    if (!empty($array['year']) && !empty($array['month']) && !empty($array['day'])) {
+      $valid_date = checkdate($array['month'], $array['day'], $array['year']);
     }
     // Testing for valid time is reversed. Missing time is OK,
     // but incorrect values are not.
@@ -637,6 +634,7 @@ class DateTimePlus {
               $valid_time = FALSE;
             }
             break;
+
           case 'minute':
           case 'second':
           default:
@@ -713,6 +711,16 @@ class DateTimePlus {
    */
   public function setDefaultDateTime() {
     $this->dateTimeObject->setTime(12, 0, 0);
+  }
+
+  /**
+   * Gets a clone of the proxied PHP \DateTime object wrapped by this class.
+   *
+   * @return \DateTime
+   *   A clone of the wrapped PHP \DateTime object.
+   */
+  public function getPhpDateTime() {
+    return clone $this->dateTimeObject;
   }
 
 }

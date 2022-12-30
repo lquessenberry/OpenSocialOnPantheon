@@ -16,7 +16,7 @@ class MigrateEmbeddedDataTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['migrate'];
+  protected static $modules = ['migrate'];
 
   /**
    * Tests the embedded_data source plugin.
@@ -45,6 +45,8 @@ class MigrateEmbeddedDataTest extends KernelTestBase {
     $results = [];
     /** @var \Drupal\migrate\Row $row */
     foreach ($source as $row) {
+      $this->assertFalse($row->isStub());
+
       $data_row = $row->getSource();
       // The "data" row returned by getSource() also includes all source
       // configuration - we remove it so we see only the data itself.
@@ -53,17 +55,17 @@ class MigrateEmbeddedDataTest extends KernelTestBase {
       unset($data_row['ids']);
       $results[] = $data_row;
     }
-    $this->assertIdentical($results, $data_rows);
+    $this->assertSame($data_rows, $results);
 
     // Validate the public APIs.
-    $this->assertIdentical($source->count(), count($data_rows));
-    $this->assertIdentical($source->getIds(), $ids);
+    $this->assertSame(count($data_rows), $source->count());
+    $this->assertSame($ids, $source->getIds());
     $expected_fields = [
       'key' => 'key',
       'field1' => 'field1',
       'field2' => 'field2',
     ];
-    $this->assertIdentical($source->fields(), $expected_fields);
+    $this->assertSame($expected_fields, $source->fields());
   }
 
 }

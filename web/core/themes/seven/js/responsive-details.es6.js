@@ -14,26 +14,26 @@
    */
   Drupal.behaviors.responsiveDetails = {
     attach(context) {
-      const $details = $(context).find('details').once('responsive-details');
+      const details = once('responsive-details', 'details', context);
 
-      if (!$details.length) {
+      if (!details.length) {
         return;
       }
+
+      const $details = $(details);
+      const $summaries = $details.find('> summary');
 
       function detailsToggle(matches) {
         if (matches) {
           $details.attr('open', true);
           $summaries.attr('aria-expanded', true);
           $summaries.on('click.details-open', false);
-        }
-        else {
+        } else {
           // If user explicitly opened one, leave it alone.
           const $notPressed = $details
             .find('> summary[aria-pressed!=true]')
             .attr('aria-expanded', false);
-          $notPressed
-            .parent('details')
-            .attr('open', false);
+          $notPressed.parent('details').attr('open', false);
           // After resize, allow user to close previously opened details.
           $summaries.off('.details-open');
         }
@@ -43,10 +43,9 @@
         detailsToggle(event.matches);
       }
 
-      const $summaries = $details.find('> summary');
       const mql = window.matchMedia('(min-width:48em)');
       mql.addListener(handleDetailsMQ);
       detailsToggle(mql.matches);
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

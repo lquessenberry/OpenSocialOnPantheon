@@ -11,6 +11,7 @@ class Mc implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{0903}\x{093B}\x{093E}\x{093F}\x{0940}\x{0949}\x{094A}' .
       '\x{094B}\x{094C}\x{094E}\x{094F}\x{0982}\x{0983}\x{09BE}' .
@@ -63,6 +64,7 @@ class Mc implements UnicodeCharacterPropertyInterface {
       '\x{16F77}\x{16F78}\x{16F79}\x{16F7A}\x{16F7B}\x{16F7C}\x{16F7D}' .
       '\x{16F7E}\x{1D165}\x{1D166}\x{1D16D}\x{1D16E}\x{1D16F}\x{1D170}' .
       '\x{1D171}\x{1D172}';
+    // phpcs:enable
   }
 
 }

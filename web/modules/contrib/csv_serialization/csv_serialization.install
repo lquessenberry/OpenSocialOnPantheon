@@ -1,12 +1,22 @@
 <?php
 
+use League\Csv\Writer;
+
+/**
+ * @file
+ */
+
 /**
  * Implements hook_requirements().
+ *
+ * @param $phase
+ *
+ * @return array
  */
 function csv_serialization_requirements($phase) {
   $requirements = [];
-  if ($phase == 'install') {
-    if (!class_exists('\League\Csv\Writer')) {
+  if ($phase === 'install') {
+    if (!class_exists(Writer::class)) {
       $requirements['league_csv'] = [
         'description' => t('CSV Serialization requires the League\Csv library.'),
         'severity' => REQUIREMENT_ERROR,

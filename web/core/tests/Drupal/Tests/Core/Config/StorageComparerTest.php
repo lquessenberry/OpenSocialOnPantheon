@@ -13,19 +13,14 @@ use Drupal\Tests\UnitTestCase;
 class StorageComparerTest extends UnitTestCase {
 
   /**
-   * @var \Drupal\Core\Config\StorageInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Config\StorageInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $sourceStorage;
 
   /**
-   * @var \Drupal\Core\Config\StorageInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Config\StorageInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $targetStorage;
-
-  /**
-   * @var \Drupal\Core\Config\ConfigManager|\PHPUnit_Framework_MockObject_MockObject
-   */
-  protected $configManager;
 
   /**
    * The storage comparer to test.
@@ -41,11 +36,10 @@ class StorageComparerTest extends UnitTestCase {
    */
   protected $configData;
 
-  protected function setUp() {
-    $this->sourceStorage = $this->getMock('Drupal\Core\Config\StorageInterface');
-    $this->targetStorage = $this->getMock('Drupal\Core\Config\StorageInterface');
-    $this->configManager = $this->getMock('Drupal\Core\Config\ConfigManagerInterface');
-    $this->storageComparer = new StorageComparer($this->sourceStorage, $this->targetStorage, $this->configManager);
+  protected function setUp(): void {
+    $this->sourceStorage = $this->createMock('Drupal\Core\Config\StorageInterface');
+    $this->targetStorage = $this->createMock('Drupal\Core\Config\StorageInterface');
+    $this->storageComparer = new StorageComparer($this->sourceStorage, $this->targetStorage);
   }
 
   protected function getConfigData() {
@@ -63,7 +57,7 @@ class StorageComparerTest extends UnitTestCase {
         'uuid' => $uuid->generate(),
         'dependencies' => [
           'config' => [
-            'field.storage.node.body'
+            'field.storage.node.body',
           ],
         ],
       ],
@@ -89,7 +83,7 @@ class StorageComparerTest extends UnitTestCase {
       ],
       // Simple config.
       'system.performance' => [
-        'stale_file_threshold' => 2592000
+        'stale_file_threshold' => 2592000,
       ],
 
     ];

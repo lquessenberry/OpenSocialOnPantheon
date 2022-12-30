@@ -1,0 +1,86 @@
+ajax_comments.settings:
+  path: '/admin/config/content/ajax_comments'
+  defaults:
+    _form: '\Drupal\ajax_comments\Form\SettingsForm'
+    _title: 'Ajax comments'
+  requirements:
+    _permission: 'administer site configuration'
+
+ajax_comments.edit:
+  path: '/ajax_comments/{comment}/edit'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::edit'
+  requirements:
+    _entity_access: 'comment.update'
+  options:
+    parameters:
+      comment:
+        type: entity:comment
+
+ajax_comments.save:
+  path: '/ajax_comments/{comment}/save'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::save'
+  requirements:
+    _entity_access: 'comment.update'
+  options:
+    parameters:
+      comment:
+        type: entity:comment
+
+ajax_comments.save_reply:
+  path: '/ajax_comments/save_reply/{entity_type}/{entity}/{field_name}/{pid}'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::saveReply'
+  requirements:
+    _access: 'TRUE'
+    pid: ^[0-9]+
+  options:
+    parameters:
+      entity:
+        type: entity:{entity_type}
+
+ajax_comments.cancel:
+  path: '/ajax_comments/{cid}/cancel'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::cancel'
+  requirements:
+    _access: 'TRUE'
+    cid: ^[0-9]+
+
+ajax_comments.delete:
+  path: '/ajax_comments/{comment}/delete'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::delete'
+    _title: 'Delete comment'
+  requirements:
+    _entity_access: 'comment.delete'
+  options:
+    parameters:
+      comment:
+        type: entity:comment
+
+ajax_comments.add:
+  path: '/ajax_comments/add/{entity_type}/{entity}/{field_name}/{pid}'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::add'
+    pid: ~
+  requirements:
+    _access: 'TRUE'
+  options:
+    parameters:
+      entity:
+        type: entity:{entity_type}
+
+ajax_comments.reply:
+  path: '/ajax_comments/reply/{entity_type}/{entity}/{field_name}/{pid}'
+  defaults:
+    _controller: '\Drupal\ajax_comments\Controller\AjaxCommentsController::reply'
+    pid: ~
+  requirements:
+    _access: 'TRUE'
+    pid: ^[0-9]+
+  options:
+    parameters:
+      entity:
+        type: entity:{entity_type}

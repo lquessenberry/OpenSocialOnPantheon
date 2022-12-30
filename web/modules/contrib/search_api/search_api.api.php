@@ -21,6 +21,10 @@
  * @param array $backend_info
  *   The Search API backend info array, keyed by backend ID.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_backends" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Backend\BackendPluginBase
  */
 function hook_search_api_backend_info_alter(array &$backend_info) {
@@ -38,6 +42,10 @@ function hook_search_api_backend_info_alter(array &$backend_info) {
  * @param \Drupal\search_api\ServerInterface $server
  *   The search server in question.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.determining_server_features" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Backend\BackendSpecificInterface::getSupportedFeatures()
  */
 function hook_search_api_server_features_alter(array &$features, \Drupal\search_api\ServerInterface $server) {
@@ -57,6 +65,10 @@ function hook_search_api_server_features_alter(array &$features, \Drupal\search_
  * @param array $infos
  *   The datasource info array, keyed by datasource IDs.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_data_sources" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Datasource\DatasourcePluginBase
  */
 function hook_search_api_datasource_info_alter(array &$infos) {
@@ -75,6 +87,10 @@ function hook_search_api_datasource_info_alter(array &$infos) {
  * @param array $processors
  *   The processor information to be altered, keyed by processor IDs.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_processors" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Processor\ProcessorPluginBase
  */
 function hook_search_api_processor_info_alter(array &$processors) {
@@ -87,8 +103,12 @@ function hook_search_api_processor_info_alter(array &$processors) {
  * Alter the available data types.
  *
  * @param array $data_type_definitions
- *   The definitions of the data type plugins.
+ *   The definitions of the parse mode plugins.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_data_types" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\DataType\DataTypePluginBase
  */
 function hook_search_api_data_type_info_alter(array &$data_type_definitions) {
@@ -101,8 +121,12 @@ function hook_search_api_data_type_info_alter(array &$data_type_definitions) {
  * Alter the available parse modes.
  *
  * @param array $parse_mode_definitions
- *   The definitions of the data type plugins.
+ *   The definitions of the parse mode plugins.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_parse_modes" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\ParseMode\ParseModePluginBase
  */
 function hook_search_api_parse_mode_info_alter(array &$parse_mode_definitions) {
@@ -117,6 +141,10 @@ function hook_search_api_parse_mode_info_alter(array &$parse_mode_definitions) {
  * @param array $tracker_info
  *   The Search API tracker info array, keyed by tracker ID.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_trackers" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Tracker\TrackerPluginBase
  */
 function hook_search_api_tracker_info_alter(array &$tracker_info) {
@@ -132,6 +160,10 @@ function hook_search_api_tracker_info_alter(array &$tracker_info) {
  * @param array $displays
  *   The Search API display info array, keyed by display ID.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.gathering_displays" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Display\DisplayPluginBase
  */
 function hook_search_api_displays_alter(array &$displays) {
@@ -148,6 +180,10 @@ function hook_search_api_displays_alter(array &$displays) {
  *   corresponding Search API data types. A value of FALSE means that fields of
  *   that type should be ignored by the Search API.
  *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.mapping_field_types" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  * @see \Drupal\search_api\Utility\DataTypeHelperInterface::getFieldTypeMapping()
  */
 function hook_search_api_field_type_mapping_alter(array &$mapping) {
@@ -169,6 +205,11 @@ function hook_search_api_field_type_mapping_alter(array &$mapping) {
  *   list, "entity" for general entity-typed fields or "entity:ENTITY_TYPE"
  *   (with "ENTITY_TYPE" being the machine name of an entity type) for entities
  *   of that type.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.mapping_views_handlers" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_views_handler_mapping_alter(array &$mapping) {
   $mapping['entity:my_entity_type'] = [
@@ -205,6 +246,11 @@ function hook_search_api_views_handler_mapping_alter(array &$mapping) {
  *   specific type exists, and longer type patterns will be tried before shorter
  *   ones. The "*" mapping therefore is the default if no other match could be
  *   found.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.mapping_views_field_handlers" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_views_field_handler_mapping_alter(array &$mapping) {
   $mapping['field_item:string_long'] = [
@@ -229,6 +275,11 @@ function hook_search_api_views_field_handler_mapping_alter(array &$mapping) {
  *   The search index on which items will be indexed.
  * @param \Drupal\search_api\Item\ItemInterface[] $items
  *   The items that will be indexed.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.indexing_items" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_index_items_alter(\Drupal\search_api\IndexInterface $index, array &$items) {
   foreach ($items as $item_id => $item) {
@@ -241,7 +292,8 @@ function hook_search_api_index_items_alter(\Drupal\search_api\IndexInterface $in
     '%index' => $index->label(),
     '@ids' => implode(', ', array_keys($items)),
   ];
-  drupal_set_message(t('Indexing items on index %index with the following IDs: @ids', $arguments));
+  $message = t('Indexing items on index %index with the following IDs: @ids', $arguments);
+  \Drupal::messenger()->addStatus($message);
 }
 
 /**
@@ -251,13 +303,19 @@ function hook_search_api_index_items_alter(\Drupal\search_api\IndexInterface $in
  *   The used index.
  * @param array $item_ids
  *   An array containing the successfully indexed items' IDs.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.items_indexed" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_items_indexed(\Drupal\search_api\IndexInterface $index, array $item_ids) {
   if ($index->isValidDatasource('entity:node')) {
     // Note that this is just an example, and would only work if there are only
     // nodes indexed in that index (and even then the printed IDs would probably
     // not be as expected).
-    drupal_set_message(t('Nodes indexed: @ids.', implode(', ', $item_ids)));
+    $message = t('Nodes indexed: @ids.', implode(', ', $item_ids));
+    \Drupal::messenger()->addStatus($message);
   }
 }
 
@@ -268,8 +326,13 @@ function hook_search_api_items_indexed(\Drupal\search_api\IndexInterface $index,
  *
  * @param \Drupal\search_api\Query\QueryInterface $query
  *   The query that will be executed.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.query_pre_execute" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
-function hook_search_api_query_alter(\Drupal\search_api\Query\QueryInterface &$query) {
+function hook_search_api_query_alter(\Drupal\search_api\Query\QueryInterface $query) {
   // Do not run for queries with a certain tag.
   if ($query->hasTag('example_tag')) {
     return;
@@ -292,8 +355,13 @@ function hook_search_api_query_alter(\Drupal\search_api\Query\QueryInterface &$q
  *
  * @param \Drupal\search_api\Query\QueryInterface $query
  *   The query that will be executed.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.query_pre_execute.TAG" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
-function hook_search_api_query_TAG_alter(\Drupal\search_api\Query\QueryInterface &$query) {
+function hook_search_api_query_TAG_alter(\Drupal\search_api\Query\QueryInterface $query) {
   // Exclude the node with ID 10 from the search results.
   $fields = $query->getIndex()->getFields();
   foreach ($query->getIndex()->getDatasources() as $datasource_id => $datasource) {
@@ -313,6 +381,11 @@ function hook_search_api_query_TAG_alter(\Drupal\search_api\Query\QueryInterface
  *
  * @param \Drupal\search_api\Query\ResultSetInterface $results
  *   The search results to alter.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.processing_results" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_results_alter(\Drupal\search_api\Query\ResultSetInterface &$results) {
   $results->setExtraData('example_hook_invoked', microtime(TRUE));
@@ -326,6 +399,11 @@ function hook_search_api_results_alter(\Drupal\search_api\Query\ResultSetInterfa
  *
  * @param \Drupal\search_api\Query\ResultSetInterface $results
  *   The search results to alter.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.processing_results.TAG" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_results_TAG_alter(\Drupal\search_api\Query\ResultSetInterface &$results) {
   $results->setExtraData('example_hook_invoked', microtime(TRUE));
@@ -338,6 +416,11 @@ function hook_search_api_results_TAG_alter(\Drupal\search_api\Query\ResultSetInt
  *   The index scheduled for reindexing.
  * @param bool $clear
  *   Boolean indicating whether the index was also cleared.
+ *
+ * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+ *   Please use the "search_api.reindex_scheduled" event instead.
+ *
+ * @see https://www.drupal.org/node/3059866
  */
 function hook_search_api_index_reindex(\Drupal\search_api\IndexInterface $index, $clear = FALSE) {
   \Drupal\Core\Database\Database::getConnection()->insert('example_search_index_reindexed')

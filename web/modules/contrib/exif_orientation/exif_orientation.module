@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Module file for EXIF Orientation.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\file\FileInterface;
+
+/**
+ * Implements hook_file_presave().
+ */
+function exif_orientation_file_presave(EntityInterface $entity) {
+  // Provide EXIF Orientation correction.
+  _exif_orientation_rotate($entity);
+}
+
+/**
+ * Implements hook_field_widget_form_alter().
+ *
+ * Add a custom validator before file_validate_image_resolution().
+ * file_validate_image_resolution resizes the image if it's too large losing the
+ * exif data in the process.
+ */
+function exif_orientation_field_widget_form_alter(&$element, FormStateInterface $form_state, $context) {
+  if(isset($element['#upload_validators']['file_validate_image_resolution'])){
+    $element['#upload_validators'] = ['exif_orientation_validate_image_rotation' => []] + $element['#upload_validators'];
+  }
+}
+
+/**
+ * Ensures that image orientation is according to exif data.
+ *
+ * @param \Drupal\file\FileInterface $file
+ *   A file entity. This function may rotate the file.
+ *
+ * @return array
+ *   An empty array.
+ *
+ * @see hook_file_validate()
+ */
+function exif_orientation_validate_image_rotation(FileInterface $file) {
+  _exif_orientation_rotate($file);
+  // This validator did not produce any errors.
+  return [];
+}
+
+/**
+ * Rotates an image to its EXIF Orientation.
+ *
+ * iPhone 4 and up save all images in landscape, relying on EXIF data to
+ * set the orientation properly. This does not always translate well in the
+ * browser or other devices.
+ * @link: http://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto/
+ */
+function _exif_orientation_rotate($file) {
+  if (function_exists('exif_read_data') && $file->getMimeType() == 'image/jpeg') {
+    $file_exif = @exif_read_data(\Drupal::service('file_system')->realpath($file->getFileUri()));
+
+    // Ensure that the Orientation key|value exists, otherwise leave.
+    if (!is_array($file_exif) || !isset($file_exif['Orientation'])) {
+      return;
+    }
+
+    // Orientation numbers and corresponding degrees.
+    // @note: Odd numbers are flipped images, would need different process.
+    switch ($file_exif['Orientation']) {
+      case 3:
+        $degrees = 180;
+        break;
+
+      case 6:
+        $degrees = 90;
+        break;
+
+      case 8:
+        $degrees = 270;
+        break;
+
+      default:
+        $degrees = 0;
+    }
+
+    if ($degrees > 0) {
+      $image = \Drupal::service('image.factory')->get($file->getFileUri());
+      if ($image->rotate($degrees)) {
+        $image->save();
+      }
+    }
+  }
+}

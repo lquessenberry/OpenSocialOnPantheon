@@ -7,12 +7,20 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Auto Orientation effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class AutoOrientTest extends ImageEffectsTestBase {
 
   /**
-   * Test effect on required toolkits.
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
+    static::$modules = array_merge(static::$modules, ['file_mdm', 'file_mdm_exif']);
+    parent::setUp();
+  }
+
+  /**
+   * Auto Orientation effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -23,16 +31,9 @@ class AutoOrientTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testAutoOrientEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Auto Orientation effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testAutoOrientEffect() {
     // Add Auto Orient effect to the test image style.
     $effect = [
       'id' => 'image_effects_auto_orient',
@@ -63,7 +64,7 @@ class AutoOrientTest extends ImageEffectsTestBase {
       ],
       // Test a JPEG image without EXIF data.
       [
-        'test_file' => $this->getTestImageCopyUri('/files/image-test.jpg', 'simpletest'),
+        'test_file' => $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.jpg'),
         'original_width' => 40,
         'original_height' => 20,
         'derivative_width' => 200,
@@ -71,7 +72,7 @@ class AutoOrientTest extends ImageEffectsTestBase {
       ],
       // Test a non-EXIF image.
       [
-        'test_file' => $this->getTestImageCopyUri('/files/image-1.png', 'simpletest'),
+        'test_file' => $this->getTestImageCopyUri('core/tests/fixtures/files/image-1.png'),
         'original_width' => 360,
         'original_height' => 240,
         'derivative_width' => 200,
@@ -85,8 +86,8 @@ class AutoOrientTest extends ImageEffectsTestBase {
 
       // Test source image dimensions.
       $image = $this->imageFactory->get($original_uri);
-      $this->assertEqual($data['original_width'], $image->getWidth());
-      $this->assertEqual($data['original_height'], $image->getHeight());
+      $this->assertEquals($data['original_width'], $image->getWidth());
+      $this->assertEquals($data['original_height'], $image->getHeight());
 
       // Get expected derivative URL.
       $derivative_url = file_url_transform_relative($this->testImageStyle->buildUrl($original_uri));
@@ -99,23 +100,32 @@ class AutoOrientTest extends ImageEffectsTestBase {
         '#width' => $image->getWidth(),
         '#height' => $image->getHeight(),
       ];
-      $this->assertEqual('<img src="' . $derivative_url . '" width="' . $data['derivative_width'] . '" height="' . $data['derivative_height'] . '" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+      $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"{$data['derivative_width']}\" height=\"{$data['derivative_height']}\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
       // Check that ::applyEffect generates image with expected dimensions.
       $derivative_uri = $this->testImageStyle->buildUri($original_uri);
       $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
       $image = $this->imageFactory->get($derivative_uri);
-      $this->assertEqual($data['derivative_width'], $image->getWidth());
-      $this->assertEqual($data['derivative_height'], $image->getHeight());
+      $this->assertEquals($data['derivative_width'], $image->getWidth());
+      $this->assertEquals($data['derivative_height'], $image->getHeight());
     }
   }
 
   /**
    * Auto Orientation effect test, all EXIF orientation tags.
    *
-   * @depends testOnToolkits
+   * @param string $toolkit_id
+   *   The id of the toolkit to set up.
+   * @param string $toolkit_config
+   *   The config object of the toolkit to set up.
+   * @param array $toolkit_settings
+   *   The settings of the toolkit to set up.
+   *
+   * @dataProvider providerToolkits
    */
-  public function testAutoOrientAllTags() {
+  public function testAutoOrientAllTags($toolkit_id, $toolkit_config, array $toolkit_settings) {
+    $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
+
     // Add Auto Orient effect to the test image style.
     $effect = [
       'id' => 'image_effects_auto_orient',
@@ -139,8 +149,8 @@ class AutoOrientTest extends ImageEffectsTestBase {
       $derivative_uri = $this->testImageStyle->buildUri($original_uri);
       $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
       $image = $this->imageFactory->get($derivative_uri, 'gd');
-      $this->assertEqual(120, $image->getWidth());
-      $this->assertEqual(60, $image->getHeight());
+      $this->assertEquals(120, $image->getWidth());
+      $this->assertEquals(60, $image->getHeight());
       $this->assertColorsAreClose($this->red, $this->getPixelColor($image, 0, 0), 10);
       $this->assertColorsAreClose($this->green, $this->getPixelColor($image, 119, 0), 10);
       $this->assertColorsAreClose($this->yellow, $this->getPixelColor($image, 0, 59), 10);

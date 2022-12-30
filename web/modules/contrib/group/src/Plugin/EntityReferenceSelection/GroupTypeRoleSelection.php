@@ -24,7 +24,7 @@ class GroupTypeRoleSelection extends DefaultSelection {
    * {@inheritdoc}
    */
   protected function buildEntityQuery($match = NULL, $match_operator = 'CONTAINS') {
-    $group_type_id = $this->configuration['handler_settings']['group_type_id'];
+    $group_type_id = $this->configuration['group_type_id'];
 
     $query = parent::buildEntityQuery($match, $match_operator);
     $query->condition('group_type', $group_type_id, '=');

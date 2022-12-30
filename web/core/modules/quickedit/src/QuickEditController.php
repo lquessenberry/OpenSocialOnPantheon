@@ -3,15 +3,19 @@
 namespace Drupal\quickedit;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Entity\EntityRepositoryInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Render\RendererInterface;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
 use Drupal\quickedit\Ajax\FieldFormCommand;
 use Drupal\quickedit\Ajax\FieldFormSavedCommand;
 use Drupal\quickedit\Ajax\FieldFormValidationErrorsCommand;
@@ -51,6 +55,20 @@ class QuickEditController extends ControllerBase {
   protected $renderer;
 
   /**
+   * The entity display repository service.
+   *
+   * @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
+
+  /**
+   * The entity repository.
+   *
+   * @var \Drupal\Core\Entity\EntityRepositoryInterface
+   */
+  protected $entityRepository;
+
+  /**
    * Constructs a new QuickEditController.
    *
    * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $temp_store_factory
@@ -61,12 +79,18 @@ class QuickEditController extends ControllerBase {
    *   The in-place editor selector.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
+   * @param \Drupal\Core\Entity\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository service.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
    */
-  public function __construct(PrivateTempStoreFactory $temp_store_factory, MetadataGeneratorInterface $metadata_generator, EditorSelectorInterface $editor_selector, RendererInterface $renderer) {
+  public function __construct(PrivateTempStoreFactory $temp_store_factory, MetadataGeneratorInterface $metadata_generator, EditorSelectorInterface $editor_selector, RendererInterface $renderer, EntityDisplayRepositoryInterface $entity_display_repository, EntityRepositoryInterface $entity_repository) {
     $this->tempStoreFactory = $temp_store_factory;
     $this->metadataGenerator = $metadata_generator;
     $this->editorSelector = $editor_selector;
     $this->renderer = $renderer;
+    $this->entityDisplayRepository = $entity_display_repository;
+    $this->entityRepository = $entity_repository;
   }
 
   /**
@@ -77,7 +101,9 @@ class QuickEditController extends ControllerBase {
       $container->get('tempstore.private'),
       $container->get('quickedit.metadata.generator'),
       $container->get('quickedit.editor.selector'),
-      $container->get('renderer')
+      $container->get('renderer'),
+      $container->get('entity_display.repository'),
+      $container->get('entity.repository')
     );
   }
 
@@ -100,13 +126,13 @@ class QuickEditController extends ControllerBase {
 
     $metadata = [];
     foreach ($fields as $field) {
-      list($entity_type, $entity_id, $field_name, $langcode, $view_mode) = explode('/', $field);
+      [$entity_type, $entity_id, $field_name, $langcode, $view_mode] = explode('/', $field);
 
       // Load the entity.
-      if (!$entity_type || !$this->entityManager()->getDefinition($entity_type)) {
+      if (!$entity_type || !$this->entityTypeManager()->getDefinition($entity_type)) {
         throw new NotFoundHttpException();
       }
-      $entity = $this->entityManager()->getStorage($entity_type)->load($entity_id);
+      $entity = $this->entityTypeManager()->getStorage($entity_type)->load($entity_id);
       if (!$entity) {
         throw new NotFoundHttpException();
       }
@@ -131,6 +157,32 @@ class QuickEditController extends ControllerBase {
     }
 
     return new JsonResponse($metadata);
+  }
+
+  /**
+   * Throws an AccessDeniedHttpException if the request fails CSRF validation.
+   *
+   * This is used instead of \Drupal\Core\Access\CsrfAccessCheck, in order to
+   * allow access for anonymous users.
+   *
+   * @todo Refactor this to an access checker.
+   */
+  private static function checkCsrf(Request $request, AccountInterface $account) {
+    $header = 'X-Drupal-Quickedit-CSRF-Token';
+
+    if (!$request->headers->has($header)) {
+      throw new AccessDeniedHttpException();
+    }
+    if ($account->isAnonymous()) {
+      // For anonymous users, just the presence of the custom header is
+      // sufficient protection.
+      return;
+    }
+    // For authenticated users, validate the token value.
+    $token = $request->headers->get($header);
+    if (!\Drupal::csrfToken()->validate($token, $header)) {
+      throw new AccessDeniedHttpException();
+    }
   }
 
   /**
@@ -221,7 +273,7 @@ class QuickEditController extends ControllerBase {
       $errors = $form_state->getErrors();
       if (count($errors)) {
         $status_messages = [
-          '#type' => 'status_messages'
+          '#type' => 'status_messages',
         ];
         $response->addCommand(new FieldFormValidationErrorsCommand($this->renderer->renderRoot($status_messages)));
       }
@@ -256,9 +308,9 @@ class QuickEditController extends ControllerBase {
    * @see hook_quickedit_render_field()
    */
   protected function renderField(EntityInterface $entity, $field_name, $langcode, $view_mode_id) {
-    $entity_view_mode_ids = array_keys($this->entityManager()->getViewModes($entity->getEntityTypeId()));
+    $entity_view_mode_ids = array_keys($this->entityDisplayRepository->getViewModes($entity->getEntityTypeId()));
     if (in_array($view_mode_id, $entity_view_mode_ids)) {
-      $entity = \Drupal::entityManager()->getTranslationFromContext($entity, $langcode);
+      $entity = $this->entityRepository->getTranslationFromContext($entity, $langcode);
       $output = $entity->get($field_name)->view($view_mode_id);
     }
     else {
@@ -283,6 +335,8 @@ class QuickEditController extends ControllerBase {
    *   The Ajax response.
    */
   public function entitySave(EntityInterface $entity) {
+    self::checkCsrf(\Drupal::request(), \Drupal::currentUser());
+
     // Take the entity from PrivateTempStore and save in entity storage.
     // fieldForm() ensures that the PrivateTempStore copy exists ahead.
     $tempstore = $this->tempStoreFactory->get('quickedit');
@@ -293,7 +347,7 @@ class QuickEditController extends ControllerBase {
     // to identify it.
     $output = [
       'entity_type' => $entity->getEntityTypeId(),
-      'entity_id' => $entity->id()
+      'entity_id' => $entity->id(),
     ];
 
     // Respond to client that the entity was saved properly.

@@ -484,6 +484,8 @@ display:
           text: 'View relation'
           entity_type: group_content
           plugin_id: entity_link
+          output_url_as_text: false
+          absolute: false
         edit_group_content:
           id: edit_group_content
           table: group_content
@@ -757,7 +759,7 @@ display:
           group_type: group
           admin_label: ''
           operator: '='
-          value: false
+          value: '1'
           group: 1
           exposed: true
           expose:
@@ -908,13 +910,14 @@ display:
       display_extenders: {  }
       title: Nodes
     cache_metadata:
-      max-age: 0
+      max-age: -1
       contexts:
-        - group_membership.roles.permissions
         - 'languages:language_content'
         - 'languages:language_interface'
+        - route.group
         - url
         - url.query_args
+        - user.group_permissions
         - 'user.node_grants:view'
       tags: {  }
   page_1:
@@ -936,12 +939,13 @@ display:
         menu_name: main
         enabled: true
     cache_metadata:
-      max-age: 0
+      max-age: -1
       contexts:
-        - group_membership.roles.permissions
         - 'languages:language_content'
         - 'languages:language_interface'
+        - route.group
         - url
         - url.query_args
+        - user.group_permissions
         - 'user.node_grants:view'
       tags: {  }

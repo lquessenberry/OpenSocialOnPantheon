@@ -8,11 +8,14 @@ use Drupal\Core\Entity\EntityDisplayPluginCollection;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Entity\EntityDisplayBase;
+use Drupal\Core\Render\Element;
 use Drupal\Core\TypedData\TranslatableInterface as TranslatableDataInterface;
 
 /**
- * Configuration entity that contains display options for all components of a
- * rendered entity in a given view mode.
+ * Configuration entity.
+ *
+ * Contains display options for all components of a rendered entity in a given
+ * view mode.
  *
  * @ConfigEntityType(
  *   id = "entity_view_display",
@@ -50,10 +53,10 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
    *
    * This method should only be used internally when rendering an entity. When
    * assigning suggested display options for a component in a given view mode,
-   * entity_get_display() should be used instead, in order to avoid
-   * inadvertently modifying the output of other view modes that might happen to
-   * use the 'default' display too. Those options will then be effectively
-   * applied only if the view mode is configured to use them.
+   * EntityDisplayRepositoryInterface::getViewDisplay() should be used instead,
+   * in order to avoid inadvertently modifying the output of other view modes
+   * that might happen to use the 'default' display too. Those options will then
+   * be effectively applied only if the view mode is configured to use them.
    *
    * hook_entity_view_display_alter() is invoked on each display, allowing 3rd
    * party code to alter the display options held in the display before they are
@@ -68,7 +71,7 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
    *   The display objects to use to render the entities, keyed by entity
    *   bundle.
    *
-   * @see entity_get_display()
+   * @see \Drupal\Core\Entity\EntityDisplayRepositoryInterface::getViewDisplay()
    * @see hook_entity_view_display_alter()
    */
   public static function collectRenderDisplays($entities, $view_mode) {
@@ -111,7 +114,7 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
     }
 
     // Load the selected displays.
-    $storage = \Drupal::entityManager()->getStorage('entity_view_display');
+    $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
     $displays = $storage->loadMultiple($load_ids);
 
     $displays_by_bundle = [];
@@ -181,8 +184,8 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
   public function postSave(EntityStorageInterface $storage, $update = TRUE) {
     // Reset the render cache for the target entity type.
     parent::postSave($storage, $update);
-    if (\Drupal::entityManager()->hasHandler($this->targetEntityType, 'view_builder')) {
-      \Drupal::entityManager()->getViewBuilder($this->targetEntityType)->resetCache();
+    if (\Drupal::entityTypeManager()->hasHandler($this->targetEntityType, 'view_builder')) {
+      \Drupal::entityTypeManager()->getViewBuilder($this->targetEntityType)->resetCache();
     }
   }
 
@@ -201,7 +204,7 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
         'view_mode' => $this->originalMode,
         // No need to prepare, defaults have been merged in setComponent().
         'prepare' => FALSE,
-        'configuration' => $configuration
+        'configuration' => $configuration,
       ]);
     }
     else {
@@ -269,7 +272,7 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
     foreach ($entities as $id => $entity) {
       // Assign the configured weights.
       foreach ($this->getComponents() as $name => $options) {
-        if (isset($build_list[$id][$name])) {
+        if (isset($build_list[$id][$name]) && !Element::isEmpty($build_list[$id][$name])) {
           $build_list[$id][$name]['#weight'] = $options['weight'];
         }
       }
@@ -301,7 +304,7 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
     }
 
     return [
-      'formatters' => new EntityDisplayPluginCollection($this->pluginManager, $configurations)
+      'formatters' => new EntityDisplayPluginCollection($this->pluginManager, $configurations),
     ];
   }
 

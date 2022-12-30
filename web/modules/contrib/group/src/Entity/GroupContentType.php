@@ -32,7 +32,7 @@ use Drupal\Core\Entity\EntityStorageInterface;
  *   static_cache = TRUE,
  *   entity_keys = {
  *     "id" = "id",
- *     "label" = "label"
+ *     "label" = "label",
  *   },
  *   config_export = {
  *     "id",
@@ -41,6 +41,9 @@ use Drupal\Core\Entity\EntityStorageInterface;
  *     "group_type",
  *     "content_plugin",
  *     "plugin_config",
+ *   },
+ *   links = {
+ *     "edit-form" = "/admin/group/content/manage/{group_content_type}",
  *   }
  * )
  */

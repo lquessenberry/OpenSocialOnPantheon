@@ -61,7 +61,9 @@ class SubformStateTest extends UnitTestCase {
    * @dataProvider providerGetValues
    *
    * @param string[] $parents
+   *   The parents.
    * @param string $expected
+   *   The expected state values.
    */
   public function testGetValues(array $parents, $expected) {
     $parent_form_state = new FormState();
@@ -98,10 +100,12 @@ class SubformStateTest extends UnitTestCase {
    * @dataProvider providerGetValuesBroken
    *
    * @param string[] $parents
+   *   The parents.
    * @param string $expected
+   *   The expected state values.
    */
   public function testGetValuesBroken(array $parents, $expected) {
-    $this->setExpectedException(\UnexpectedValueException::class);
+    $this->expectException(\UnexpectedValueException::class);
     $this->testGetValues($parents, $expected);
   }
 
@@ -162,7 +166,7 @@ class SubformStateTest extends UnitTestCase {
    * @dataProvider providerTestGetValueBroken
    */
   public function testGetValueBroken(array $parents, $key, $expected, $default = NULL) {
-    $this->setExpectedException(\UnexpectedValueException::class);
+    $this->expectException(\UnexpectedValueException::class);
     $this->testGetValue($parents, $key, $expected, $default);
   }
 
@@ -217,7 +221,7 @@ class SubformStateTest extends UnitTestCase {
    * @dataProvider providerTestSetValuesBroken
    */
   public function testSetValuesBroken($parents, $new_values, $expected) {
-    $this->setExpectedException(\UnexpectedValueException::class);
+    $this->expectException(\UnexpectedValueException::class);
     $this->testSetValues($parents, $new_values, $expected);
   }
 
@@ -296,6 +300,7 @@ class SubformStateTest extends UnitTestCase {
   public function testSetErrorByName() {
     $parent_form_error_name = 'dog][name';
     $subform_error_name = 'name';
+    // cSpell:disable-next-line
     $message = 'De kat krabt de krullen van de trap.';
 
     $parent_form_state = $this->prophesize(FormStateInterface::class);

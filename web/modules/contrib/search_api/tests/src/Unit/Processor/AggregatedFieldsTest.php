@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\search_api\Unit\Processor;
 
+use Drupal\Core\TypedData\ComplexDataInterface;
 use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\TypedData\TypedDataInterface;
 use Drupal\search_api\Datasource\DatasourceInterface;
@@ -15,7 +16,6 @@ use Drupal\search_api\Processor\ProcessorInterface;
 use Drupal\search_api\Processor\ProcessorProperty;
 use Drupal\search_api\Utility\PluginHelperInterface;
 use Drupal\search_api\Utility\Utility;
-use Drupal\Tests\search_api\Unit\TestComplexDataInterface;
 use Drupal\Tests\UnitTestCase;
 
 /**
@@ -39,7 +39,7 @@ class AggregatedFieldsTest extends UnitTestCase {
   /**
    * A search index mock for the tests.
    *
-   * @var \Drupal\search_api\IndexInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\search_api\IndexInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $index;
 
@@ -60,10 +60,10 @@ class AggregatedFieldsTest extends UnitTestCase {
   /**
    * Creates a new processor object for use in the tests.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $datasource = $this->getMock(DatasourceInterface::class);
+    $datasource = $this->createMock(DatasourceInterface::class);
     $datasource->expects($this->any())
       ->method('getPropertyDefinitions')
       ->willReturn([]);
@@ -71,6 +71,7 @@ class AggregatedFieldsTest extends UnitTestCase {
       'datasourceInstances' => [
         'entity:test1' => $datasource,
         'entity:test2' => $datasource,
+        'entity:test3' => $datasource,
       ],
       'processorInstances' => [],
       'field_settings' => [
@@ -89,6 +90,11 @@ class AggregatedFieldsTest extends UnitTestCase {
           'datasource_id' => 'entity:test2',
           'property_path' => 'foobaz:bla',
         ],
+        'always_empty' => [
+          'type' => 'string',
+          'datasource_id' => 'entity:test3',
+          'property_path' => 'always_empty',
+        ],
         'aggregated_field' => [
           'type' => 'text',
           'property_path' => 'aggregated_field',
@@ -99,16 +105,12 @@ class AggregatedFieldsTest extends UnitTestCase {
     $this->index->addProcessor($this->processor);
     $this->setUpMockContainer();
 
-    $plugin_helper = $this->getMockBuilder(PluginHelperInterface::class)
-      ->disableOriginalConstructor()
-      ->getMock();
-    $plugin_helper->method('getProcessorsByStage')
-      ->willReturn([]);
+    $plugin_helper = $this->createMock(PluginHelperInterface::class);
     $this->container->set('search_api.plugin_helper', $plugin_helper);
 
     // We want to check correct data type handling, so we need a somewhat more
     // complex mock-up for the datatype plugin handler.
-    /** @var \PHPUnit_Framework_MockObject_MockObject|\Drupal\search_api\DataType\DataTypePluginManager $data_type_manager */
+    /** @var \PHPUnit\Framework\MockObject\MockObject|\Drupal\search_api\DataType\DataTypePluginManager $data_type_manager */
     $data_type_manager = $this->container->get('plugin.manager.search_api.data_type');
     $data_type_manager->method('hasDefinition')
       ->willReturn(TRUE);
@@ -120,7 +122,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         return '*' . $value;
       }
     };
-    $data_type = $this->getMock(DataTypeInterface::class);
+    $data_type = $this->createMock(DataTypeInterface::class);
     $data_type->method('getValue')
       ->willReturnCallback($this->valueCallback);
     $data_type_manager->method('createInstance')
@@ -150,6 +152,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         'entity:test1/foo',
         'entity:test1/foo:bar',
         'entity:test2/foobaz:bla',
+        'entity:test3/always_empty',
       ],
     ];
     $this->index->getField($this->fieldId)->setConfiguration($configuration);
@@ -170,7 +173,7 @@ class AggregatedFieldsTest extends UnitTestCase {
     }
     $items = [];
     $i = 0;
-    foreach (['entity:test1', 'entity:test2'] as $datasource_id) {
+    foreach (['entity:test1', 'entity:test2', 'entity:test3'] as $datasource_id) {
       $this->itemIds[$i++] = $item_id = Utility::createCombinedId($datasource_id, '1:en');
       $item = \Drupal::getContainer()
         ->get('search_api.fields_helper')
@@ -195,6 +198,7 @@ class AggregatedFieldsTest extends UnitTestCase {
 
     $this->assertEquals(array_map($this->valueCallback, $expected[0]), $items[$this->itemIds[0]]->getField($this->fieldId)->getValues(), 'Correct aggregation for item 1.');
     $this->assertEquals(array_map($this->valueCallback, $expected[1]), $items[$this->itemIds[1]]->getField($this->fieldId)->getValues(), 'Correct aggregation for item 2.');
+    $this->assertEquals(array_map($this->valueCallback, $expected[2]), $items[$this->itemIds[2]]->getField($this->fieldId)->getValues(), 'Correct aggregation for item 3.');
   }
 
   /**
@@ -213,6 +217,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           ['foo', 'bar', 'baz'],
           ['foobar'],
+          [],
         ],
       ],
       '"Concatenation" aggregation' => [
@@ -220,6 +225,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           ["foo\n\nbar\n\nbaz"],
           ['foobar'],
+          [''],
         ],
       ],
       '"Sum" aggregation' => [
@@ -227,6 +233,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           [22],
           [7],
+          [0],
         ],
         TRUE,
       ],
@@ -235,6 +242,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           [3],
           [1],
+          [0],
         ],
       ],
       '"Maximum" aggregation' => [
@@ -242,6 +250,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           [16],
           [7],
+          [],
         ],
         TRUE,
       ],
@@ -250,6 +259,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           [2],
           [7],
+          [],
         ],
         TRUE,
       ],
@@ -258,6 +268,7 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           ['foo'],
           ['foobar'],
+          [],
         ],
       ],
       '"Last" aggregation' => [
@@ -265,6 +276,15 @@ class AggregatedFieldsTest extends UnitTestCase {
         [
           ['baz'],
           ['foobar'],
+          [],
+        ],
+      ],
+      '"First letter" aggregation' => [
+        'first_char',
+        [
+          ['F'],
+          ['F'],
+          [],
         ],
       ],
     ];
@@ -292,7 +312,7 @@ class AggregatedFieldsTest extends UnitTestCase {
     $this->assertEquals($expected_description, $properties['aggregated_field']->getDescription(), 'Correct description set in the data definition.');
 
     // Verify that there are no properties if a datasource is given.
-    $datasource = $this->getMock(DatasourceInterface::class);
+    $datasource = $this->createMock(DatasourceInterface::class);
     $properties = $this->processor->getPropertyDefinitions($datasource);
     $this->assertEmpty($properties, 'Datasource-specific properties did not get changed.');
   }
@@ -301,14 +321,14 @@ class AggregatedFieldsTest extends UnitTestCase {
    * Tests that field extraction in the processor works correctly.
    */
   public function testFieldExtraction() {
-    /** @var \Drupal\Tests\search_api\Unit\TestComplexDataInterface|\PHPUnit_Framework_MockObject_MockObject $object */
-    $object = $this->getMock(TestComplexDataInterface::class);
-    $bar_foo_property = $this->getMock(TypedDataInterface::class);
+    /** @var \Drupal\Core\TypedData\ComplexDataInterface|\PHPUnit\Framework\MockObject\MockObject $object */
+    $object = $this->createMock(ComplexDataInterface::class);
+    $bar_foo_property = $this->createMock(TypedDataInterface::class);
     $bar_foo_property->method('getValue')
       ->willReturn('value3');
     $bar_foo_property->method('getDataDefinition')
       ->willReturn(new DataDefinition());
-    $bar_property = $this->getMock(TestComplexDataInterface::class);
+    $bar_property = $this->createMock(ComplexDataInterface::class);
     $bar_property->method('get')
       ->willReturnMap([
         ['foo', $bar_foo_property],
@@ -317,7 +337,7 @@ class AggregatedFieldsTest extends UnitTestCase {
       ->willReturn([
         'foo' => TRUE,
       ]);
-    $foobar_property = $this->getMock(TypedDataInterface::class);
+    $foobar_property = $this->createMock(TypedDataInterface::class);
     $foobar_property->method('getValue')
       ->willReturn('wrong_value2');
     $foobar_property->method('getDataDefinition')
@@ -333,8 +353,8 @@ class AggregatedFieldsTest extends UnitTestCase {
         'foobar' => TRUE,
       ]);
 
-    /** @var \Drupal\search_api\IndexInterface|\PHPUnit_Framework_MockObject_MockObject $index */
-    $index = $this->getMock(IndexInterface::class);
+    /** @var \Drupal\search_api\IndexInterface|\PHPUnit\Framework\MockObject\MockObject $index */
+    $index = $this->createMock(IndexInterface::class);
 
     $fields_helper = \Drupal::getContainer()->get('search_api.fields_helper');
     $field = $fields_helper->createField($index, 'aggregated_field', [
@@ -371,7 +391,7 @@ class AggregatedFieldsTest extends UnitTestCase {
           ],
         ],
       ]);
-    $processor_mock = $this->getMock(ProcessorInterface::class);
+    $processor_mock = $this->createMock(ProcessorInterface::class);
     $processor_mock->method('addFieldValues')
       ->willReturnCallback(function (ItemInterface $item) {
         foreach ($item->getFields(FALSE) as $field) {
@@ -393,8 +413,8 @@ class AggregatedFieldsTest extends UnitTestCase {
       ]);
     $this->processor->setIndex($index);
 
-    /** @var \Drupal\search_api\Datasource\DatasourceInterface|\PHPUnit_Framework_MockObject_MockObject $datasource */
-    $datasource = $this->getMock(DatasourceInterface::class);
+    /** @var \Drupal\search_api\Datasource\DatasourceInterface|\PHPUnit\Framework\MockObject\MockObject $datasource */
+    $datasource = $this->createMock(DatasourceInterface::class);
     $datasource->method('getPluginId')
       ->willReturn('entity:test1');
 

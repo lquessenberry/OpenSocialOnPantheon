@@ -4,6 +4,7 @@ namespace Drupal\search_api\Plugin\views\cache;
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\Context\CacheContextsManager;
 use Drupal\search_api\Plugin\views\query\SearchApiQuery;
@@ -109,32 +110,61 @@ trait SearchApiCachePluginTrait {
    * {@inheritdoc}
    */
   public function cacheSet($type) {
-    if ($type != 'results') {
+    if ($type !== 'results') {
       parent::cacheSet($type);
       return;
     }
 
     $view = $this->getView();
+    $query = $this->getQuery();
     $data = [
       'result' => $view->result,
-      'total_rows' => isset($view->total_rows) ? $view->total_rows : 0,
+      'total_rows' => $view->total_rows ?? 0,
       'current_page' => $view->getCurrentPage(),
-      'search_api results' => $this->getQuery()->getSearchApiResults(),
+      'search_api results' => $query->getSearchApiResults(),
     ];
 
+    // Get the max-age value according to the configuration of the view.
     $expire = $this->cacheSetMaxAge($type);
+    // Get the max-age value of the executed query. A 3rd party module might
+    // have set a different value on the query, especially in case of an error.
+    // Search API advises backend implementations to set a max-age of "0" on
+    // the query in case of errors before throwing exceptions.
+    $query_max_age = $query->getCacheMaxAge();
+
+    // If the max-age set on the query at runtime is anything else than
+    // Cache::PERMANENT we must handle it.
+    if ($query_max_age !== Cache::PERMANENT) {
+      // If the max-age set on the query at runtime is lower than the value
+      // configured in the view's caching settings, we must use the value
+      // provided by the query. That mathematical rule covers the case of no
+      // caching (max-age is "0") as well.
+      // In case that Cache::PERMANENT is configured for the view, any runtime
+      // value set on the query has precedence.
+      if ($expire === Cache::PERMANENT || $query_max_age < $expire) {
+        $expire = $query_max_age;
+      }
+    }
+
+    if ($expire === 0) {
+      // Don't cache the results.
+      return;
+    }
+
     if ($expire !== Cache::PERMANENT) {
       $expire += (int) $view->getRequest()->server->get('REQUEST_TIME');
     }
+    $tags = Cache::mergeTags($this->getCacheTags(), $query->getCacheTags());
+
     $this->getCacheBackend()
-      ->set($this->generateResultsKey(), $data, $expire, $this->getCacheTags());
+      ->set($this->generateResultsKey(), $data, $expire, $tags);
   }
 
   /**
    * {@inheritdoc}
    */
   public function cacheGet($type) {
-    if ($type != 'results') {
+    if ($type !== 'results') {
       return parent::cacheGet($type);
     }
 
@@ -173,8 +203,7 @@ trait SearchApiCachePluginTrait {
    */
   public function generateResultsKey() {
     if (!isset($this->resultsKey)) {
-      $query = $this->getQuery()->getSearchApiQuery();
-      $query->preExecute();
+      $this->getQuery()->getSearchApiQuery()->preExecute();
 
       $view = $this->getView();
       $build_info = $view->build_info;
@@ -188,6 +217,9 @@ trait SearchApiCachePluginTrait {
         ],
       ];
 
+      // Vary the results key by the cache contexts of the display handler.
+      // These cache contexts are calculated when the view is saved in the Views
+      // UI and stored in the view config entity.
       $display_handler_cache_contexts = $this->displayHandler
         ->getCacheMetadata()
         ->getCacheContexts();
@@ -214,18 +246,54 @@ trait SearchApiCachePluginTrait {
   /**
    * Retrieves the Search API Views query for the current view.
    *
-   * @return \Drupal\search_api\Plugin\views\query\SearchApiQuery|null
+   * @param bool $reset
+   *   (optional) If TRUE, reset the query to its initial/unprocessed state.
+   *   Should only be used in the context of a view being saved, never when the
+   *   view is actually being executed.
+   *
+   * @return \Drupal\search_api\Plugin\views\query\SearchApiQuery
    *   The Search API Views query associated with the current view.
    *
    * @throws \Drupal\search_api\SearchApiException
    *   Thrown if there is no current Views query, or it is no Search API query.
    */
-  protected function getQuery() {
-    $query = $this->getView()->getQuery();
+  protected function getQuery(bool $reset = FALSE): SearchApiQuery {
+    if ($reset) {
+      $view = $this->getView();
+      $view_display = $view->getDisplay();
+      $query = $view_display->getPlugin('query');
+      $query->init($view, $view_display);
+    }
+    else {
+      $query = $this->getView()->getQuery();
+    }
+
     if ($query instanceof SearchApiQuery) {
       return $query;
     }
     throw new SearchApiException('No matching Search API Views query found in view.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function alterCacheMetadata(CacheableMetadata $cache_metadata) {
+    // A view can have multiple displays, but when information is gathered about
+    // all the displays' metadata, it initializes the query plugin only once for
+    // the first display. However, we need to collect cacheability metadata for
+    // every single cacheable display in the view, thus we are resetting the
+    // query to its original unprocessed state.
+    $query = $this->getQuery(TRUE)->getSearchApiQuery();
+    // Add a tag to the query to indicate that this is not a real search but the
+    // save process of a view. Modules like facets can use this information to
+    // not perform their normal search time tasks on this query. This is
+    // especially important when an event handler would add caching information
+    // to the query.
+    $query->addTag('alter_cache_metadata');
+    $query->preExecute();
+    // Allow modules that alter the query to add their cache metadata to the
+    // view.
+    $cache_metadata->addCacheableDependency($query);
   }
 
 }

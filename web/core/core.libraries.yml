@@ -2,45 +2,350 @@
 
 backbone:
   remote: https://github.com/jashkenas/backbone
-  version: "1.2.3"
+  version: "1.4.1"
   license:
     name: MIT
-    url: https://github.com/jashkenas/backbone/blob/1.2.3/LICENSE
+    url: https://raw.githubusercontent.com/jashkenas/backbone/1.4.1/LICENSE
     gpl-compatible: true
   js:
     assets/vendor/backbone/backbone-min.js: { weight: -19, minified: true }
   dependencies:
     - core/underscore
+  deprecated: The %library_id% asset library is deprecated in Drupal 9.4.0 and will be removed in Drupal 10.0.0.
 
-classList:
-  remote: https://github.com/eligrey/classList.js
-  version: "2014-12-13"
+internal.backbone:
+  # Internal library. Do not depend on it outside core nor add new core usage.
+  # The library will be removed as soon as the following issues are fixed:
+  #  - https://www.drupal.org/project/drupal/issues/3203920
+  #  - https://www.drupal.org/project/drupal/issues/3204011
+  #  - https://www.drupal.org/project/drupal/issues/3204015
+  remote: https://github.com/jashkenas/backbone
+  version: "1.4.1"
   license:
-    name: Public Domain
-    url: https://github.com/eligrey/classList.js/blob/2014-12-13/LICENSE.md
+    name: MIT
+    url: https://raw.githubusercontent.com/jashkenas/backbone/1.4.1/LICENSE
     gpl-compatible: true
   js:
-    assets/vendor/classList/classList.min.js: { weight: -21, browsers: { IE: 'lte IE 9', '!IE': false }, minified: true }
+    assets/vendor/backbone/backbone-min.js: { weight: -19, minified: true }
+  dependencies:
+    - core/internal.underscore
 
 ckeditor:
-  remote: https://github.com/ckeditor/ckeditor-dev
-  version: "4.8.0+2018-04-18-security-patch"
+  remote: https://github.com/ckeditor/ckeditor4
+  version: "4.18.0"
   license:
     name: GNU-GPL-2.0-or-later
-    url: https://github.com/ckeditor/ckeditor-dev/blob/4.8.0/LICENSE.md
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor4/4.18.0/LICENSE.md
     gpl-compatible: true
   js:
     assets/vendor/ckeditor/ckeditor.js: { preprocess: false, minified: true }
 
-domready:
-  remote: https://github.com/ded/domready
-  version: "1.0.8"
+ckeditor5:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
   license:
-    name: MIT
-    url: https://github.com/ded/domready/blob/v1.0.8/LICENSE
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.0/LICENSE.md
     gpl-compatible: true
   js:
-    assets/vendor/domready/ready.min.js: { weight: -21, minified: true }
+    # This file is not aggregated to force the creation of a new aggregate file
+    # containing all files between this one and the next non-aggregated file
+    # (if it exists). The files loaded after this one will include CKEditor 5
+    # translations, enabled plugins, and the rest of the JavaScript needed on
+    # the page.
+    assets/vendor/ckeditor5/ckeditor5-dll/ckeditor5-dll.js: { preprocess: false, minified: true }
+  dependencies:
+    - core/ckeditor5.translations
+
+ckeditor5.editorClassic:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/editor-classic/editor-classic.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+
+ckeditor5.editorDecoupled:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/editor-decoupled/editor-decoupled.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.htmlSupport
+
+ckeditor5.internal:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://github.com/ckeditor/ckeditor5/blob/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/essentials/essentials.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.heading
+
+ckeditor5.heading:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/heading/heading.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.basic:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/basic-styles/basic-styles.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.specialCharacters:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/special-characters/special-characters.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.blockquote:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/block-quote/block-quote.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.image:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/image/image.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.link:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/link/link.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.list:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/list/list.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.horizontalLine:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/horizontal-line/horizontal-line.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.htmlSupport:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/html-support/html-support.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.alignment:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/alignment/alignment.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.removeFormat:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/remove-format/remove-format.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.pasteFromOffice:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/paste-from-office/paste-from-office.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+
+ckeditor5.indent:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/indent/indent.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.sourceEditing:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/source-editing/source-editing.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.table:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/table/table.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.language:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/language/language.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.codeBlock:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/code-block/code-block.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.style:
+  remote: https://github.com/ckeditor/ckeditor5
+  version: "35.3.2"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/ckeditor/ckeditor5/v35.3.2/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/ckeditor5/style/style.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations
+
+ckeditor5.translations:
+  # No sensible version can be specified, since the translations may change at
+  # any time.
+  js:
+    # This file does not actually exist; it's a placeholder file that will be
+    # overridden by ckeditor5_js_alter(), and is here because empty libraries
+    # are not allowed.
+    assets/vendor/ckeditor5/translation.js: {}
+
+css.escape:
+  remote: https://github.com/mathiasbynens/CSS.escape
+  version: "1.5.1"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/mathiasbynens/CSS.escape/v1.5.1/LICENSE-MIT.txt
+    gpl-compatible: true
+  js:
+    assets/vendor/css-escape/css.escape.js: { weight: -20 }
 
 drupal:
   version: VERSION
@@ -48,8 +353,9 @@ drupal:
     misc/drupal.js: { weight: -18 }
     misc/drupal.init.js: { weight: -17 }
   dependencies:
-    - core/domready
     - core/drupalSettings
+  drupalSettings:
+    suppressDeprecationErrors: true
 
 drupalSettings:
   version: VERSION
@@ -76,7 +382,6 @@ drupal.active-link:
   dependencies:
     - core/drupal
     - core/drupalSettings
-    - core/classList
 
 drupal.ajax:
   version: VERSION
@@ -93,8 +398,11 @@ drupal.ajax:
     - core/jquery
     - core/drupal
     - core/drupalSettings
+    - core/drupal.nodelist.foreach
     - core/drupal.progress
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
+    - core/tabbable
 
 drupal.announce:
   version: VERSION
@@ -104,16 +412,68 @@ drupal.announce:
     - core/drupal
     - core/drupal.debounce
 
+loadjs:
+  remote: https://github.com/muicss/loadjs
+  version: "4.2.0"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/muicss/loadjs/4.2.0/LICENSE.txt
+    gpl-compatible: true
+  js:
+    assets/vendor/loadjs/loadjs.min.js: { minified: true }
+
 drupal.autocomplete:
   version: VERSION
   js:
     misc/autocomplete.js: { weight: -1 }
+    # The remaining JavaScript assets previously came from core/jquery.ui, a
+    # deprecated library.
+    # All weights are based on on the requirements defined within each file.
+    # @todo replace with solution in https://drupal.org/node/3076171
+    assets/vendor/jquery.ui/ui/widgets/autocomplete-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/labels-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/menu-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/data-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/disable-selection-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/focusable-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/form-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/ie-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/jquery-patch-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/keycode-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/plugin-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-active-element-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-blur-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/scroll-parent-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/unique-id-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/widget-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/version-min.js: { weight: -11.9, minified: true }
+  # All CSS assets previously came from core/jquery.ui, a deprecated library.
+  # @todo replace with solution found in https://drupal.org/node/3076171
+  css:
+    component:
+      assets/vendor/jquery.ui/themes/base/autocomplete.css: { weight: -11.7 }
+      assets/vendor/jquery.ui/themes/base/menu.css: { weight: -11.7 }
+      assets/vendor/jquery.ui/themes/base/core.css: { weight: -11.8 }
+    theme:
+      assets/vendor/jquery.ui/themes/base/theme.css: { weight: -11.8 }
   dependencies:
     - core/jquery
     - core/drupal
     - core/drupalSettings
     - core/drupal.ajax
-    - core/jquery.ui.autocomplete
+    - core/tabbable.jquery.shim
+    - core/drupal.jquery.position
+
+
+drupal.array.find:
+  version: VERSION
+  js:
+    misc/polyfills/array.find.js: { weight: -20 }
+
+drupal.array.includes:
+  version: VERSION
+  js:
+    misc/polyfills/array.includes.js: { weight: -20 }
 
 drupal.batch:
   version: VERSION
@@ -125,11 +485,20 @@ drupal.batch:
     - core/drupalSettings
     - core/drupal.ajax
     - core/drupal.progress
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
+
+drupal.checkbox:
+  version: VERSION
+  js:
+    misc/checkbox.js: {}
+  dependencies:
+    - core/drupal
 
 drupal.collapse:
   version: VERSION
   js:
+    misc/details-summarized-content.js: {}
     misc/details-aria.js: {}
     misc/collapse.js: {}
   dependencies:
@@ -137,17 +506,23 @@ drupal.collapse:
     - core/modernizr
     - core/drupal
     - core/drupal.form
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
+
+drupal.customevent:
+  version: VERSION
+  js:
+    misc/polyfills/customevent.js: { weight: -20 }
 
 drupal.date:
+  deprecated: The "%library_id%" asset library is deprecated in drupal:9.4.0 and is removed from drupal:10.0.0. There is no replacement. See https://www.drupal.org/node/3258267
   version: VERSION
   js:
     misc/date.js: {}
   dependencies:
     - core/drupal
     - core/modernizr
-    - core/jquery.once
-    - core/jquery.ui.datepicker
+    - core/once
 
 drupal.debounce:
   version: VERSION
@@ -163,13 +538,53 @@ drupal.dialog:
     misc/dialog/dialog.js: {}
     misc/dialog/dialog.position.js: {}
     misc/dialog/dialog.jquery-ui.js: {}
+    # The remaining JavaScript assets previously came from core/jquery.ui, a
+    # deprecated library.
+    # All weights are based on on the requirements defined within each file.
+    # @todo replace with solution in https://drupal.org/node/2158943
+    assets/vendor/jquery.ui/ui/widgets/dialog-min.js: { weight: -11.4, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/button-min.js: { weight: -11.5, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/checkboxradio-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/draggable-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/resizable-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/controlgroup-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/form-reset-mixin-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/labels-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/mouse-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/data-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/disable-selection-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/form-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/jquery-patch-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/scroll-parent-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/unique-id-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/focusable-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/ie-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/keycode-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/plugin-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-active-element-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-blur-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/widget-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/version-min.js: { weight: -11.9, minified: true }
+  # All CSS assets previously came from core/jquery.ui, a deprecated library.
+  # @todo replace with solution found in https://drupal.org/node/2158943
+  css:
+    component:
+      assets/vendor/jquery.ui/themes/base/dialog.css: { weight: -11.4 }
+      assets/vendor/jquery.ui/themes/base/button.css: { weight: -11.5 }
+      assets/vendor/jquery.ui/themes/base/checkboxradio.css: { weight: -11.6 }
+      assets/vendor/jquery.ui/themes/base/resizable.css: { weight: -11.6 }
+      assets/vendor/jquery.ui/themes/base/controlgroup.css: { weight: -11.7 }
+      assets/vendor/jquery.ui/themes/base/core.css: { weight: -11.8 }
+    theme:
+      assets/vendor/jquery.ui/themes/base/theme.css: { weight: -11.8 }
   dependencies:
     - core/jquery
     - core/drupal
     - core/drupalSettings
     - core/drupal.debounce
     - core/drupal.displace
-    - core/jquery.ui.dialog
+    - core/tabbable.jquery.shim
+    - core/drupal.jquery.position
 
 drupal.dialog.ajax:
   version: VERSION
@@ -181,6 +596,7 @@ drupal.dialog.ajax:
     - core/drupalSettings
     - core/drupal.ajax
     - core/drupal.dialog
+    - core/tabbable
 
 drupal.displace:
   version: VERSION
@@ -202,7 +618,20 @@ drupal.dropbutton:
     - core/jquery
     - core/drupal
     - core/drupalSettings
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
+
+drupal.element.closest:
+  version: VERSION
+  js:
+    misc/polyfills/element.closest.js: { weight: -20 }
+  dependencies:
+    - core/drupal.element.matches
+
+drupal.element.matches:
+  version: VERSION
+  js:
+    misc/polyfills/element.matches.js: { weight: -20 }
 
 drupal.entity-form:
   version: VERSION
@@ -219,8 +648,8 @@ drupal.form:
     - core/jquery
     - core/drupal
     - core/drupal.debounce
-    - core/jquery.cookie
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
 
 drupal.machine-name:
   version: VERSION
@@ -228,10 +657,29 @@ drupal.machine-name:
     misc/machine-name.js: {}
   dependencies:
     - core/jquery
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
     - core/drupal
     - core/drupalSettings
     - core/drupal.form
+
+drupal.message:
+  version: VERSION
+  js:
+    misc/message.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupal.announce
+
+drupal.nodelist.foreach:
+  version: VERSION
+  js:
+    misc/polyfills/nodelist.foreach.js: { weight: -20 }
+
+drupal.object.assign:
+  version: VERSION
+  js:
+    misc/polyfills/object.assign.js: { weight: -20 }
 
 drupal.progress:
   version: VERSION
@@ -250,7 +698,13 @@ drupal.states:
     - core/jquery
     - core/drupal
     - core/drupalSettings
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
+
+drupal.string.includes:
+  version: VERSION
+  js:
+    misc/polyfills/string.includes.js: { weight: -20 }
 
 drupal.tabbingmanager:
   version: VERSION
@@ -258,9 +712,8 @@ drupal.tabbingmanager:
     misc/tabbingmanager.js: {}
   dependencies:
     - core/jquery
-    # Supplies the ':tabbable' pseudo selector.
-    - core/jquery.ui
     - core/drupal
+    - core/tabbable
 
 drupal.tabledrag:
   version: VERSION
@@ -270,8 +723,9 @@ drupal.tabledrag:
     - core/jquery
     - core/drupal
     - core/drupalSettings
-    - core/jquery.once
-    - core/jquery.cookie
+    - core/once
+    - core/jquery.once.bc
+    - core/drupal.touchevents-test
 
 drupal.tableheader:
   version: VERSION
@@ -281,7 +735,8 @@ drupal.tableheader:
     - core/jquery
     - core/drupal
     - core/drupalSettings
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
     - core/drupal.displace
 
 drupal.tableresponsive:
@@ -291,7 +746,8 @@ drupal.tableresponsive:
   dependencies:
     - core/jquery
     - core/drupal
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
 
 drupal.tableselect:
   version: VERSION
@@ -299,17 +755,32 @@ drupal.tableselect:
     misc/tableselect.js: {}
   dependencies:
     - core/drupal
+    - core/drupal.checkbox
     - core/jquery
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
 
 drupal.timezone:
   version: VERSION
   js:
     misc/timezone.js: {}
   dependencies:
+    - core/drupal.nodelist.foreach
     - core/jquery
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
     - core/drupal
+
+drupal.touchevents-test:
+  header: true
+  version: VERSION
+  js:
+    # Set weight to -22 so it loads before the Modernizr test it is
+    # replacing, located in modernizr-additional-tests.js. If the deprecated
+    # Modernizr test sees either of the classes this test adds to <body>, the
+    # test will not be added to Modernizr and deprecation warnings will not be
+    # triggered.
+    misc/touchevents-test.js: { weight: -22 }
 
 drupal.vertical-tabs:
   version: VERSION
@@ -321,45 +792,40 @@ drupal.vertical-tabs:
       misc/vertical-tabs.css: {}
   dependencies:
     - core/jquery
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
     - core/drupal
     - core/drupalSettings
     - core/drupal.form
-    - core/matchmedia
 
-html5shiv:
-  # Block the page from being loaded until html5shiv is initialized.
-  header: true
-  remote: https://github.com/aFarkas/html5shiv
-  version: "3.7.3"
+es6-promise:
+  version: "4.2.8"
   license:
-    name: GNU-GPL-2.0-or-later
-    url: http://www.gnu.org/licenses/gpl-2.0.html
+    name: MIT
+    url: https://raw.githubusercontent.com/stefanpenner/es6-promise/v4.2.8/LICENSE
     gpl-compatible: true
   js:
-    assets/vendor/html5shiv/html5shiv.min.js: { weight: -22, browsers: { IE: 'lte IE 8', '!IE': false }, minified: true }
+    assets/vendor/es6-promise/es6-promise.auto.min.js: { weight: -20, minified: true }
 
 jquery:
   remote: https://github.com/jquery/jquery
-  version: "3.2.1"
+  version: "3.6.0"
   license:
     name: MIT
-    url: https://github.com/jquery/jquery/blob/3.2.1/LICENSE.txt
+    url: https://raw.githubusercontent.com/jquery/jquery/3.6.0/LICENSE.txt
     gpl-compatible: true
   js:
     assets/vendor/jquery/jquery.min.js: { minified: true, weight: -20 }
 
 jquery.cookie:
-  remote: https://github.com/carhartl/jquery-cookie
-  version: "v1.4.1"
-  license:
-    name: MIT
-    url: https://github.com/carhartl/jquery-cookie/blob/v1.4.1/MIT-LICENSE.txt
-    gpl-compatible: true
+  version: VERSION
   js:
-    assets/vendor/jquery.cookie/jquery.cookie.min.js: { minified: true }
+    misc/jquery.cookie.shim.js: {}
   dependencies:
     - core/jquery
+    - core/drupal
+    - core/js-cookie
+  deprecated: The %library_id% asset library is deprecated in Drupal 9.0.0 and will be removed in Drupal 10.0.0. Use the core/js-cookie library instead. See https://www.drupal.org/node/3104677
 
 jquery.farbtastic:
   remote: https://github.com/mattfarina/farbtastic
@@ -367,7 +833,7 @@ jquery.farbtastic:
   version: "1.2"
   license:
     name: GNU-GPL-2.0-or-later
-    url: https://github.com/mattfarina/farbtastic/blob/master/LICENSE.txt
+    url: https://raw.githubusercontent.com/mattfarina/farbtastic/master/LICENSE.txt
     gpl-compatible: true
   js:
     assets/vendor/farbtastic/farbtastic.js: { minified: true }
@@ -378,11 +844,25 @@ jquery.farbtastic:
     - core/jquery
 
 jquery.form:
-  remote: https://github.com/malsup/form
-  version: "3.51"
+  remote: https://github.com/jquery-form/form
+  version: "4.3.0"
   license:
     name: GNU-GPL-2.0-or-later
-    url: http://malsup.github.com/gpl-license-v2.txt
+    url: https://raw.githubusercontent.com/jquery-form/form/master/LICENSE
+    gpl-compatible: true
+  js:
+    assets/vendor/jquery-form/jquery.form.min.js: { minified: true }
+  dependencies:
+    - core/jquery
+  deprecated: The %library_id% asset library is deprecated in Drupal 9.4.0 and will be removed in Drupal 10.0.0.
+
+internal.jquery.form:
+  # Internal library. Do not depend on it outside core nor add new core usage.
+  remote: https://github.com/jquery-form/form
+  version: "4.3.0"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://raw.githubusercontent.com/jquery-form/form/master/LICENSE
     gpl-compatible: true
   js:
     assets/vendor/jquery-form/jquery.form.min.js: { minified: true }
@@ -399,147 +879,157 @@ jquery.joyride:
   version: "2.1.0.1"
   license:
     name: MIT
-    url: https://github.com/zurb/joyride/blob/v2.1.0/README.markdown
+    url: https://raw.githubusercontent.com/zurb/joyride/v2.1.0/README.markdown
     gpl-compatible: true
   js:
     assets/vendor/jquery-joyride/jquery.joyride-2.1.js: { }
+  deprecated: The "%library_id%" asset library is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use the core/shepherd library instead. See https://www.drupal.org/node/3195234
   dependencies:
     - core/jquery
-    - core/jquery.cookie
+
+shepherd:
+  remote: https://github.com/shipshapecode/shepherd
+  version: "9.1.0"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/shipshapecode/shepherd/v9.1.0/LICENSE
+    gpl-compatible: true
+  js:
+    assets/vendor/shepherd/shepherd.min.js: { minified: true }
 
 jquery.once:
   remote: https://github.com/RobLoach/jquery-once
-  version: "2.2.0"
+  version: "2.2.3"
   license:
     name: GNU-GPL-2.0-or-later
-    url: https://raw.githubusercontent.com/RobLoach/jquery-once/2.2.0/LICENSE.md
+    url: https://raw.githubusercontent.com/RobLoach/jquery-once/2.2.3/LICENSE.md
     gpl-compatible: true
   js:
     assets/vendor/jquery-once/jquery.once.min.js: { weight: -19, minified: true }
   dependencies:
     - core/jquery
+    - core/jquery.once.bc
+  deprecated: The %library_id% asset library is deprecated in Drupal 9.3.0 and will be removed in Drupal 10.0.0. Use the core/once library instead. See https://www.drupal.org/node/3158256
+
+# Internal library, do not depend on it.
+# The library will be removed in Drupal 10.0.0.
+jquery.once.bc:
+  version: VERSION
+  js:
+    assets/vendor/jquery-once/jquery.once.min.js: { weight: -19, minified: true }
+    misc/jquery.once.bc.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/once
+    - core/drupal.object.assign
 
 jquery.ui:
-  remote: https://github.com/jquery/jquery-ui
-  version: &jquery_ui_version 1.12.1
+  version: &jquery_ui_version "1.13.2"
   license: &jquery_ui_license
     name: Public Domain
-    url: https://github.com/jquery/jquery-ui/blob/1.12.1/LICENSE.txt
+    url: https://raw.githubusercontent.com/jquery/jquery-ui/1.13.2/LICENSE.txt
     gpl-compatible: true
   js:
-    assets/vendor/jquery.ui/ui/data-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/disable-selection-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/form-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/labels-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/jquery-1-7-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/scroll-parent-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/tabbable-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/unique-id-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/version-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/focusable-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/ie-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/keycode-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/plugin-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/safe-active-element-min.js: { weight: -11, minified: true }
-    assets/vendor/jquery.ui/ui/safe-blur-min.js: { weight: -11, minified: true }
+    assets/vendor/jquery.ui/ui/labels-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/data-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/disable-selection-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/focusable-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/form-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/ie-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/jquery-patch-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/keycode-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/plugin-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-active-element-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-blur-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/scroll-parent-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/unique-id-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/version-min.js: { weight: -11.9, minified: true }
   css:
     component:
-      assets/vendor/jquery.ui/themes/base/core.css: {}
+      assets/vendor/jquery.ui/themes/base/core.css: { weight: -11.8 }
     theme:
-      assets/vendor/jquery.ui/themes/base/theme.css: {}
+      assets/vendor/jquery.ui/themes/base/theme.css: { weight: -11.8 }
   dependencies:
     - core/jquery
-
-jquery.ui.accordion:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/accordion-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/accordion.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
+    - core/tabbable.jquery.shim
+  deprecated: &jquery_ui_unused_deprecated The "%library_id%" asset library is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. See https://www.drupal.org/node/3067969
 
 jquery.ui.autocomplete:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widgets/autocomplete-min.js: { minified: true }
+    assets/vendor/jquery.ui/ui/widgets/autocomplete-min.js: { weight: -11.7, minified: true }
   css:
     component:
-      assets/vendor/jquery.ui/themes/base/autocomplete.css: {}
+      assets/vendor/jquery.ui/themes/base/autocomplete.css: { weight: -11.7 }
   dependencies:
     - core/jquery.ui
     - core/jquery.ui.widget
     - core/jquery.ui.position
     - core/jquery.ui.menu
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.button:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widgets/button-min.js: { minified: true }
+    assets/vendor/jquery.ui/ui/widgets/button-min.js: { weight: -11.5, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/checkboxradio-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/controlgroup-min.js: { weight: -11.7, minified: true }
   css:
     component:
-      assets/vendor/jquery.ui/themes/base/button.css: {}
+      assets/vendor/jquery.ui/themes/base/button.css: { weight: -11.5 }
+      assets/vendor/jquery.ui/themes/base/checkboxradio.css: { weight: -11.6 }
+      assets/vendor/jquery.ui/themes/base/controlgroup.css: { weight: -11.7 }
   dependencies:
     - core/jquery.ui
     - core/jquery.ui.widget
-
-jquery.ui.checkboxradio:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/checkboxradio-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/checkboxradio.css: {}
-      assets/vendor/jquery.ui/themes/base/button.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-
-jquery.ui.controlgroup:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/controlgroup-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/controlgroup.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-
-jquery.ui.datepicker:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/datepicker-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/datepicker.css: {}
-  dependencies:
-    - core/jquery.ui
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.dialog:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widgets/dialog-min.js: { minified: true }
+    # All weights are based on on the requirements defined within each file.
+    assets/vendor/jquery.ui/ui/widgets/dialog-min.js: { weight: -11.4, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/button-min.js: { weight: -11.5, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/checkboxradio-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/draggable-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/resizable-min.js: { weight: -11.6, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/controlgroup-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/form-reset-mixin-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/labels-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/widgets/mouse-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/data-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/disable-selection-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/focusable-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/form-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/ie-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/jquery-patch-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/keycode-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/plugin-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-active-element-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/safe-blur-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/scroll-parent-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/unique-id-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/widget-min.js: { weight: -11.8, minified: true }
+    assets/vendor/jquery.ui/ui/version-min.js: { weight: -11.9, minified: true }
   css:
     component:
-      assets/vendor/jquery.ui/themes/base/dialog.css: {}
+      assets/vendor/jquery.ui/themes/base/dialog.css: { weight: -11.4 }
+      assets/vendor/jquery.ui/themes/base/button.css: { weight: -11.5 }
+      assets/vendor/jquery.ui/themes/base/checkboxradio.css: { weight: -11.6 }
+      assets/vendor/jquery.ui/themes/base/resizable.css: { weight: -11.6 }
+      assets/vendor/jquery.ui/themes/base/controlgroup.css: { weight: -11.7 }
+      assets/vendor/jquery.ui/themes/base/core.css: { weight: -11.8 }
+    theme:
+      assets/vendor/jquery.ui/themes/base/theme.css: { weight: -11.8 }
   dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-    - core/jquery.ui.button
-    - core/jquery.ui.draggable
-    - core/jquery.ui.mouse
-    - core/jquery.ui.position
-    - core/jquery.ui.resizable
+    - core/jquery
+    - core/tabbable.jquery.shim
+    - core/drupal.jquery.position
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.draggable:
   version: *jquery_ui_version
@@ -550,323 +1040,73 @@ jquery.ui.draggable:
     - core/jquery.ui
     - core/jquery.ui.mouse
     - core/jquery.ui.widget
-
-jquery.ui.droppable:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/droppable-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-    - core/jquery.ui.mouse
-    - core/jquery.ui.draggable
-
-jquery.ui.effects.core:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effect-min.js: { weight: -9, minified: true }
-
-jquery.ui.effects.blind:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-blind-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.bounce:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-bounce-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.clip:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-clip-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.drop:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-drop-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.explode:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-explode-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.fade:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-fade-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.fold:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-fold-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.highlight:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-highlight-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.puff:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-puff-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.pulsate:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-pulsate-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.scale:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-scale-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.shake:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-shake-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.size:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-size-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.slide:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-slide-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
-
-jquery.ui.effects.transfer:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/effects/effect-transfer-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui.effects.core
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.menu:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widgets/menu-min.js: { minified: true }
+    assets/vendor/jquery.ui/ui/widgets/menu-min.js: { weight: -11.7, minified: true }
   css:
     component:
-      assets/vendor/jquery.ui/themes/base/menu.css: {}
+      assets/vendor/jquery.ui/themes/base/menu.css: { weight: -11.7 }
   dependencies:
     - core/jquery.ui
+    - core/jquery.ui.position
     - core/jquery.ui.widget
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.mouse:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widgets/mouse-min.js: { minified: true }
+    assets/vendor/jquery.ui/ui/widgets/mouse-min.js: { weight: -11.7, minified: true }
+    assets/vendor/jquery.ui/ui/ie-min.js: { weight: -11.8, minified: true }
   dependencies:
     - core/jquery.ui.widget
+  deprecated: *jquery_ui_unused_deprecated
+
+drupal.jquery.position:
+  # For most positioning needs, the core/popperjs library should be used. This
+  # is a modified version of jQuery UI position for that does not require any
+  # jQuery UI assets, only jQuery. It is provided by core for use with
+  # pre-existing libraries that expect the jQuery UI position API. Popperjs is
+  # recommended for any new uses.
+  version: VERSION
+  js:
+    misc/position.js: {}
+  dependencies:
+    - core/jquery
 
 jquery.ui.position:
   version: *jquery_ui_version
   license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/position-min.js: { minified: true }
   dependencies:
-    - core/jquery.ui
-
-jquery.ui.progressbar:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/progressbar-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/progressbar.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
+    - core/drupal.jquery.position
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.resizable:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widgets/resizable-min.js: { minified: true }
+    assets/vendor/jquery.ui/ui/widgets/resizable-min.js: { weight: -11.6, minified: true }
   css:
     component:
-      assets/vendor/jquery.ui/themes/base/resizable.css: {}
+      assets/vendor/jquery.ui/themes/base/resizable.css: { weight: -11.6 }
   dependencies:
     - core/jquery.ui
     - core/jquery.ui.widget
     - core/jquery.ui.mouse
-
-jquery.ui.selectable:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/selectable-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/selectable.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.mouse
-    - core/jquery.ui.widget
-
-jquery.ui.selectmenu:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/selectmenu-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/selectmenu.css: {}
-      assets/vendor/jquery.ui/themes/base/button.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.menu
-    - core/jquery.ui.position
-    - core/jquery.ui.widget
-
-jquery.ui.slider:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/slider-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/slider.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.mouse
-    - core/jquery.ui.widget
-
-jquery.ui.sortable:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/sortable-min.js: { minified: true }
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.mouse
-    - core/jquery.ui.widget
-
-jquery.ui.spinner:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/spinner-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/spinner.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-    - core/jquery.ui.button
-
-jquery.ui.tabs:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/tabs-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/tabs.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-
-jquery.ui.tooltip:
-  version: *jquery_ui_version
-  license: *jquery_ui_license
-  js:
-    assets/vendor/jquery.ui/ui/widgets/tooltip-min.js: { minified: true }
-  css:
-    component:
-      assets/vendor/jquery.ui/themes/base/tooltip.css: {}
-  dependencies:
-    - core/jquery.ui
-    - core/jquery.ui.widget
-    - core/jquery.ui.position
-
-jquery.ui.touch-punch:
-  remote: https://github.com/furf/jquery-ui-touch-punch
-  version: "0.2.3"
-  license:
-    name: GNU-GPL-2.0-or-later
-    url: https://github.com/furf/jquery-ui-touch-punch
-    gpl-compatible: true
-  js:
-    assets/vendor/jquery-ui-touch-punch/jquery.ui.touch-punch.js: {}
-  dependencies:
-    - core/jquery.ui
+  deprecated: *jquery_ui_unused_deprecated
 
 jquery.ui.widget:
   version: *jquery_ui_version
   license: *jquery_ui_license
   js:
-    assets/vendor/jquery.ui/ui/widget-min.js: { weight: -10, minified: true }
+    assets/vendor/jquery.ui/ui/widget-min.js: { weight: -11.8, minified: true }
   dependencies:
     - core/jquery.ui
-
-matchmedia:
-  remote: https://github.com/paulirish/matchMedia.js
-  version: &matchmedia_version 0.2.0
-  license: &matchmedia_license
-    name: MIT
-    url: https://github.com/paulirish/matchMedia.js/blob/0.2.0/LICENSE.txt
-    gpl-compatible: true
-  js:
-    assets/vendor/matchMedia/matchMedia.min.js: { minified: true }
-
-matchmedia.addListener:
-  version: *matchmedia_version
-  license: *matchmedia_license
-  js:
-    assets/vendor/matchMedia/matchMedia.addListener.min.js: { minified: true }
-  dependencies:
-    - core/matchmedia
+  deprecated: *jquery_ui_unused_deprecated
 
 modernizr:
   # Block the page from being loaded until Modernizr is initialized.
@@ -874,44 +1114,118 @@ modernizr:
   remote: https://github.com/Modernizr/Modernizr
   license:
     name: MIT
-    url: http://modernizr.com/license/
+    url: https://modernizr.com/license/
     gpl-compatible: true
-  version: "v3.3.1"
+  version: "3.11.7"
   js:
     assets/vendor/modernizr/modernizr.min.js: { preprocess: 0, weight: -21, minified: true }
+    misc/modernizr-additional-tests.js: { preprocess: 0, weight: -20 }
 
 normalize:
   remote: https://github.com/necolas/normalize.css
-  version: "3.0.3"
+  version: "8.0.1"
   license:
     name: MIT
-    url: https://github.com/necolas/normalize.css/blob/master/LICENSE.md
+    url: https://raw.githubusercontent.com/necolas/normalize.css/8.0.1/LICENSE.md
     gpl-compatible: true
   css:
     base:
       assets/vendor/normalize-css/normalize.css: { weight: -20 }
+      misc/normalize-fixes.css: { weight: -19 }
+
+once:
+  remote: https://git.drupalcode.org/project/once
+  version: "1.0.1"
+  license:
+    name: GNU-GPL-2.0-or-later
+    url: https://git.drupalcode.org/project/once/-/raw/v1.0.1/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/once/once.min.js: { weight: -19, minified: true }
+  dependencies:
+    - core/drupal.element.matches
 
 picturefill:
   remote: https://github.com/scottjehl/picturefill
-  version: "3.0.1"
+  version: "3.0.3"
   license:
     name: MIT
-    url: https://github.com/scottjehl/picturefill/blob/3.0.1/LICENSE
+    url: https://raw.githubusercontent.com/scottjehl/picturefill/3.0.3/LICENSE
     gpl-compatible: true
   js:
     assets/vendor/picturefill/picturefill.min.js: { weight: -10, minified: true }
+
+popperjs:
+  version: "2.11.5"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/popperjs/popper-core/v2.11.5/LICENSE.md
+    gpl-compatible: true
+  js:
+    assets/vendor/popperjs/popper.min.js: { minified: true }
   dependencies:
-    - core/matchmedia
+    - core/drupal.array.find
+    - core/es6-promise
+    - core/drupal.object.assign
+
+sortable:
+  remote: https://github.com/SortableJS/Sortable
+  version: "1.15.0"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/SortableJS/Sortable/1.15.0/LICENSE
+    gpl-compatible: true
+  js:
+    assets/vendor/sortable/Sortable.min.js: { minified: true }
+
+tabbable:
+  remote: https://github.com/focus-trap/tabbable
+  version: "5.3.2"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/focus-trap/tabbable/v5.3.2/LICENSE
+    gpl-compatible: true
+  js:
+    assets/vendor/tabbable/index.umd.min.js: { weight: -1, minified: true }
+  dependencies:
+    - core/css.escape
+
+tabbable.jquery.shim:
+  version: VERSION
+  js:
+    misc/jquery.tabbable.shim.js: {}
+  dependencies:
+    - core/drupal
+    - core/tabbable
+    - core/jquery
 
 underscore:
   remote: https://github.com/jashkenas/underscore
-  version: "1.8.3"
+  version: "1.13.3"
   license:
     name: MIT
-    url: https://github.com/jashkenas/underscore/blob/1.8.3/LICENSE
+    url: https://raw.githubusercontent.com/jashkenas/underscore/1.13.3/LICENSE
     gpl-compatible: true
   js:
     assets/vendor/underscore/underscore-min.js: { weight: -20, minified: true }
+  deprecated: The %library_id% asset library is deprecated in Drupal 9.4.0 and will be removed in Drupal 10.0.0.
+
+internal.underscore:
+  # Internal library. Do not depend on it outside core nor add new core usage.
+  # The library will be removed as soon as the following issues are fixed:
+  #  - https://www.drupal.org/project/drupal/issues/3270395
+  #  - https://www.drupal.org/project/drupal/issues/3203920
+  #  - https://www.drupal.org/project/drupal/issues/3204011
+  #  - https://www.drupal.org/project/drupal/issues/3204015
+  remote: https://github.com/jashkenas/underscore
+  version: "1.13.3"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/jashkenas/underscore/1.13.3/LICENSE
+    gpl-compatible: true
+  js:
+    assets/vendor/underscore/underscore-min.js: { weight: -20, minified: true }
+
 
 drupal.dialog.off_canvas:
   version: VERSION
@@ -936,8 +1250,21 @@ drupal.dialog.off_canvas:
       misc/dialog/off-canvas.layout.css: {}
   dependencies:
     - core/jquery
+    - core/once
+    - core/jquery.once.bc
     - core/drupal
     - core/drupal.ajax
     - core/drupal.announce
     - core/drupal.dialog
     - core/drupal.dialog.ajax
+    - core/drupal.touchevents-test
+
+js-cookie:
+  remote: https://github.com/js-cookie/js-cookie
+  version: "3.0.1"
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/js-cookie/js-cookie/v3.0.1/LICENSE
+    gpl-compatible: true
+  js:
+    assets/vendor/js-cookie/js.cookie.min.js: {}

@@ -1,0 +1,231 @@
+// Settings: Custom accent color selector.
+[data-drupal-selector="edit-preset-accent-color"] {
+  .form-radios {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: .5rem;
+
+    .form-item--preset-accent-color {
+      position: relative;
+
+      input {
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        margin-right: .5rem;
+        border-color: transparent;
+
+        &,
+        .gin--dark-mode & {
+          background-color: var(--colorGinPrimary);
+        }
+
+        &:hover {
+          box-shadow: none;
+        }
+
+        &:hover,
+        &:focus,
+        &:checked {
+          border-color: var(--colorGinPrimary);
+        }
+
+        &:focus,
+        &:checked {
+          box-shadow: 0 0 0 2px var(--colorGinLayerBackground), 0 0 0 4px var(--colorGinPrimary);
+        }
+
+        &:checked {
+          border-width: 16px;
+        }
+
+        // Custom
+        &[data-gin-accent="custom"] {
+          background-color: #fff;
+          background-image: url(~settings/custom-color.jpg);
+          background-size: 100%;
+          background-repeat: no-repeat;
+          border-color: var(--colorGinBorder);
+
+          &:checked {
+            background-color: #fff;
+            border-color: var(--colorGinBorder);
+            border-width: 1px;
+          }
+        }
+      }
+
+      .form-item__label {
+        display: none;
+        visibility: hidden;
+        z-index: 1;
+        position: absolute;
+        top: 100%;
+        left: -10px;
+        padding: .5rem;
+        color: var(--colorGinContextualText);
+        background: var(--colorGinContextual);
+        border-radius: var(--ginBorderXSmall);
+        transform: translateX(-50%);
+      }
+
+      &:hover .form-item__label,
+      input:active ~ .form-item__label,
+      input:focus ~ .form-item__label {
+        display: block;
+        visibility: visible;
+      }
+    }
+  }
+}
+
+// Groups
+[data-drupal-selector="edit-accent-group"],
+[data-drupal-selector="edit-focus-group"] {
+  .form-type--color,
+  .form-type--textfield {
+    float: left;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .form-type--color {
+    margin-right: .5rem;
+  }
+
+  .fieldset__description {
+    clear: both;
+  }
+}
+
+// Darkmode
+[data-drupal-selector="edit-enable-darkmode"] {
+  .form-radios {
+    display: inline-flex;
+    flex-wrap: wrap;
+    padding: .1875rem .5rem;
+    margin-top: .5rem;
+    border: 1px solid var(--colorGinFormElementBorder);
+    border-radius: 2rem;
+
+    .gin--dark-mode & {
+      background: var(--colorGinLayer2Background);
+    }
+
+    .form-type--radio {
+      margin-left: 0;
+    }
+
+    .form-item__label {
+      padding: .375rem 1rem;
+      border: 2px solid transparent;
+      border-radius: var(--ginBorderBig);
+      box-sizing: border-box;
+
+      &:hover {
+        color: var(--colorGinPrimary);
+        background: var(--colorGinPrimaryLightHover);
+      }
+    }
+
+    input {
+      opacity: 0;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: 0;
+      border: 0;
+
+      &:focus + .form-item__label {
+        box-shadow: 0 0 0 1px var(--colorGinFocusBorder),
+                    0 0 0 4px var(--colorGinFocus);
+      }
+
+      &:checked + .form-item__label {
+        font-weight: 600;
+        color: var(--colorGinPrimaryActive);
+        background: var(--colorGinPrimaryLightActive);
+      }
+    }
+  }
+}
+
+// Settings: Toolbar selector.
+[data-drupal-selector="edit-classic-toolbar"] {
+  .form-radios {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: .5rem;
+
+    .form-item--classic-toolbar {
+      position: relative;
+      display: flex;
+      flex-wrap: wrap;
+      width: 140px;
+      margin: 0 .75rem 0 0;
+
+      input {
+        cursor: pointer;
+        position: static;
+        width: 140px;
+        height: 100px;
+        margin-left: 0;
+        border-radius: var(--ginBorderMedium);
+        transform: none;
+
+        &
+        &:focus {
+          border-color: var(--colorGinText);
+          box-shadow: none;
+        }
+
+        &:checked,
+        &:hover:checked {
+          border-color: transparent;
+          box-shadow: 0 0 0 2px var(--colorGinLayerBackground), 0 0 0 4px var(--colorGinPrimary);
+        }
+
+        &:focus {
+          border-color: transparent;
+          box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+        }
+
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
+
+        // Standard: Sidebar
+        &[data-gin-toolbar=vertical] {
+          background-image: url(~settings/toolbar_sidebar.png);
+
+          .gin--dark-mode & {
+            background-image: url(~settings/toolbar_sidebar_darkmode.png);
+          }
+        }
+
+        // Minimal
+        &[data-gin-toolbar=horizontal] {
+          background-image: url(~settings/toolbar_minimal.png);
+
+          .gin--dark-mode & {
+            background-image: url(~settings/toolbar_minimal_darkmode.png);
+          }
+        }
+
+        // Classic/Legacy
+        &[data-gin-toolbar=classic] {
+          background-image: url(~settings/toolbar_legacy.png);
+
+          .gin--dark-mode & {
+            background-image: url(~settings/toolbar_legacy_darkmode.png);
+          }
+        }
+      }
+
+      .form-item__label {
+        font-size: .75rem;
+        display: block;
+        margin-top: .5rem;
+        margin-bottom: 1rem;
+      }
+    }
+  }
+}

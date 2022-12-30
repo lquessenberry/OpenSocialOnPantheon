@@ -7,7 +7,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
- * Interface DemoContentInterface.
+ * Interface for demo content.
  *
  * @package Drupal\social_demo
  */
@@ -76,5 +76,18 @@ interface DemoContentInterface extends PluginInspectionInterface, ContainerFacto
    *   The EntityStorageInterface entity_storage.
    */
   public function setEntityStorage(EntityStorageInterface $entity_storage);
+
+  /**
+   * Scramble it.
+   *
+   * @param array $data
+   *   The data array to scramble.
+   * @param int|null $max
+   *   How many items to generate.
+   *
+   * @return array
+   *   An array with list of data.
+   */
+  public function scrambleData(array $data, $max = NULL);
 
 }

@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\views_ui\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Tests views creation wizard.
@@ -10,21 +10,26 @@ use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
  * @see core/modules/views_ui/js/views-admin.js
  * @group views_ui
  */
-class ViewsWizardTest extends JavascriptTestBase {
+class ViewsWizardTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_ui', 'block', 'user'];
+  protected static $modules = ['node', 'views', 'views_ui', 'block', 'user'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     $admin_user = $this->drupalCreateUser([
-      'administer site configuration',
+      'access administration pages',
       'administer views',
     ]);
     $this->drupalLogin($admin_user);
@@ -52,6 +57,15 @@ class ViewsWizardTest extends JavascriptTestBase {
     // Create a menu item.
     $page->findField('page[link]')->click();
     $this->assertEquals($label_value, $page->findField('page[link_properties][title]')->getValue());
+
+    // Wait for conditional field to show.
+    $this->assertSession()->waitForElementVisible('named', ['select', 'page[link_properties][parent]']);
+
+    // Assert a menu can be selected as a parent.
+    $this->assertSession()->optionExists('page[link_properties][parent]', 'admin:');
+
+    // Assert a parent menu item can be selected from within a menu.
+    $this->assertSession()->optionExists('page[link_properties][parent]', 'admin:entity.view.collection');
 
     // Add a block display.
     $page->findField('block[create]')->click();

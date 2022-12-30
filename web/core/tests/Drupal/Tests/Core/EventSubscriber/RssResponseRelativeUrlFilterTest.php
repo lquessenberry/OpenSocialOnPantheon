@@ -6,7 +6,7 @@ use Drupal\Core\EventSubscriber\RssResponseRelativeUrlFilter;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
@@ -25,7 +25,7 @@ class RssResponseRelativeUrlFilterTest extends UnitTestCase {
   <title>Drupal.org</title>
   <link>https://www.drupal.org</link>
   <description>Come for the software, stay for the community
-D rupal is an open source content management platform powering millions of websites and applications. It’s built, used, and supported by an active and diverse community of people around the world.</description>
+Drupal is an open source content management platform powering millions of websites and applications. It’s built, used, and supported by an active and diverse community of people around the world.</description>
   <language>en</language>
   <item>
      <title>Drupal 8 turns one!</title>
@@ -44,7 +44,7 @@ RSS;
   <title>Drupal.org</title>
   <link>https://www.drupal.org</link>
   <description>Come for the software, stay for the community
-D rupal is an open source content management platform powering millions of websites and applications. It’s built, used, and supported by an active and diverse community of people around the world.</description>
+Drupal is an open source content management platform powering millions of websites and applications. It’s built, used, and supported by an active and diverse community of people around the world.</description>
   <language>en</language>
   <item>
      <title>Drupal 8 turns one!</title>
@@ -66,7 +66,7 @@ RSS;
   <title>Drupal.org</title>
   <link>https://www.drupal.org</link>
   <description>Come for the software, stay for the community
-D rupal is an open source content management platform powering millions of websites and applications. It’s built, used, and supported by an active and diverse community of people around the world.</description>
+Drupal is an open source content management platform powering millions of websites and applications. It’s built, used, and supported by an active and diverse community of people around the world.</description>
   <language>en</language>
   <item>
      <title>Drupal 8 turns one!</title>
@@ -108,15 +108,17 @@ RSS;
    * @dataProvider providerTestOnResponse
    *
    * @param string $content
+   *   The content for the request.
    * @param string $expected_content
+   *   The expected content from the response.
    */
   public function testOnResponse($content, $expected_content) {
-    $event = new FilterResponseEvent(
+    $event = new ResponseEvent(
       $this->prophesize(HttpKernelInterface::class)->reveal(),
       Request::create('/'),
-      'foo',
+      HttpKernelInterface::MASTER_REQUEST,
       new Response($content, 200, [
-        'Content-Type' => 'application/rss+xml'
+        'Content-Type' => 'application/rss+xml',
       ])
     );
 

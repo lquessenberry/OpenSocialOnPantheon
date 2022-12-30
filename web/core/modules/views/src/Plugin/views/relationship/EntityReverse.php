@@ -18,6 +18,12 @@ class EntityReverse extends RelationshipPluginBase {
   /**
    * Constructs an EntityReverse object.
    *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param array $plugin_definition
+   *   The plugin implementation definition.
    * @param \Drupal\views\Plugin\ViewsHandlerManager $join_manager
    *   The views plugin join manager.
    */
@@ -53,7 +59,7 @@ class EntityReverse extends RelationshipPluginBase {
       'left_field' => $left_field,
       'table' => $this->definition['field table'],
       'field' => $this->definition['field field'],
-      'adjusted' => TRUE
+      'adjusted' => TRUE,
     ];
     if (!empty($this->options['required'])) {
       $first['type'] = 'INNER';
@@ -80,7 +86,7 @@ class EntityReverse extends RelationshipPluginBase {
       'left_field' => 'entity_id',
       'table' => $this->definition['base'],
       'field' => $this->definition['base field'],
-      'adjusted' => TRUE
+      'adjusted' => TRUE,
     ];
 
     if (!empty($this->options['required'])) {

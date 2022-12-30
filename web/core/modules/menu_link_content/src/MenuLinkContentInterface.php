@@ -4,11 +4,13 @@ namespace Drupal\menu_link_content;
 
 use Drupal\Core\Entity\EntityChangedInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Entity\EntityPublishedInterface;
+use Drupal\Core\Entity\RevisionLogInterface;
 
 /**
  * Defines an interface for custom menu links.
  */
-interface MenuLinkContentInterface extends ContentEntityInterface, EntityChangedInterface {
+interface MenuLinkContentInterface extends ContentEntityInterface, EntityChangedInterface, EntityPublishedInterface, RevisionLogInterface {
 
   /**
    * Flags this instance as being wrapped in a menu link plugin instance.

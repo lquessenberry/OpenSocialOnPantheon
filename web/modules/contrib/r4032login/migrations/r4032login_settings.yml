@@ -1,0 +1,49 @@
+id: r4032login_settings
+label: Redirect 403 to login configuration
+migration_tags:
+  - Drupal 7
+  - Configuration
+source:
+  plugin: variable
+  variables:
+    - r4032login_access_denied_message
+    - r4032login_access_denied_message_type
+    - r4032login_default_redirect_code
+    - r4032login_display_denied_message
+    - r4032login_match_noredirect_pages
+    - r4032login_redirect_authenticated_users_to
+    - r4032login_redirect_to_destination
+    - r4032login_user_login_path
+  source_module: r4032login
+process:
+  display_denied_message:
+    plugin: static_map
+    source: 'r4032login_display_denied_message'
+    map:
+      1: true
+    default_value: false
+  access_denied_message: r4032login_access_denied_message
+  access_denied_message_type: r4032login_access_denied_message_type
+  redirect_authenticated_users_to: r4032login_redirect_authenticated_users_to
+  user_login_path:
+    plugin: r4032login_path
+    source: 'r4032login_user_login_path'
+  default_redirect_code:
+    plugin: static_map
+    source: 'r4032login_default_redirect_code'
+    map:
+      301: 301
+      302: 302
+    default_value: 307
+  match_noredirect_pages:
+    plugin: r4032login_path
+    source: 'r4032login_match_noredirect_pages'
+  redirect_to_destination:
+    plugin: static_map
+    source: 'r4032login_redirect_to_destination'
+    map:
+      1: true
+    default_value: false
+destination:
+  plugin: config
+  config_name: r4032login.settings

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * Contains \Drush\Psysh\DrushCommand.
@@ -10,6 +11,8 @@
 namespace Drush\Psysh;
 
 use Consolidation\AnnotatedCommand\AnnotatedCommand;
+use Drush\Drush;
+use Symfony\Component\Console\Command\Command;
 use Psy\Command\Command as BaseCommand;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,19 +23,18 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class DrushCommand extends BaseCommand
 {
-
     /**
-     * @var \Consolidation\AnnotatedCommand\AnnotatedCommand
+     * @var \Symfony\Component\Console\Command\Command
      */
     private $command;
 
     /**
      * DrushCommand constructor.
      *
-     * @param \Consolidation\AnnotatedCommand\AnnotatedCommand $command
-     *   Original (annotated) Drush command.
+     * @param \Symfony\Component\Console\Command\Command $command
+     *   Original Drush command.
      */
-    public function __construct(AnnotatedCommand $command)
+    public function __construct(Command $command)
     {
         $this->command = $command;
         parent::__construct();
@@ -41,7 +43,7 @@ class DrushCommand extends BaseCommand
     /**
      * Get the namespace of this command.
      */
-    public function getNamespace()
+    public function getNamespace(): string
     {
         $parts = explode(':', $this->getName());
         return count($parts) >= 2 ? array_shift($parts) : 'global';
@@ -50,7 +52,7 @@ class DrushCommand extends BaseCommand
     /**
      * {@inheritdoc}
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName($this->command->getName())
@@ -63,7 +65,7 @@ class DrushCommand extends BaseCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): void
     {
         $args = $input->getArguments();
         $first = array_shift($args);
@@ -81,19 +83,15 @@ class DrushCommand extends BaseCommand
         }
 
         $options = array_diff_assoc($input->getOptions(), $this->getDefinition()->getOptionDefaults());
-        // Force the 'backend' option to TRUE.
-        $options['backend'] = true;
+        $process = Drush::drush(Drush::aliasManager()->get($alias), $command, array_filter(array_values($args)), $options);
+        $process->run();
 
-        $return = drush_invoke_process($alias, $command, array_values($args), $options, ['interactive' => true]);
-
-        if (($return['error_status'] > 0) && !empty($return['error_log'])) {
-            foreach ($return['error_log'] as $error_type => $errors) {
-                $output->write($errors);
-            }
+        if ((!$process->isSuccessful()) && !empty($process->getErrorOutput())) {
+            $output->write($process->getErrorOutput());
             // Add a newline after so the shell returns on a new line.
             $output->writeln('');
         } else {
-            $output->page(drush_backend_get_result());
+            $output->page($process->getOutput());
         }
     }
 
@@ -102,22 +100,24 @@ class DrushCommand extends BaseCommand
      *
      * Currently it's a word-wrapped description, plus any examples provided.
      *
-     * @return string
      *   The help string.
      */
-    protected function buildHelpFromCommand()
+    protected function buildHelpFromCommand(): string
     {
         $help = wordwrap($this->command->getDescription());
 
         $examples = [];
-        foreach ($this->command->getExampleUsages() as $ex => $def) {
-            // Skip empty examples and things with obvious pipes...
-            if (($ex === '') || (strpos($ex, '|') !== false)) {
-                continue;
-            }
 
-            $ex = preg_replace('/^drush\s+/', '', $ex);
-            $examples[$ex] = $def;
+        if ($this->command instanceof AnnotatedCommand) {
+            foreach ($this->command->getExampleUsages() as $ex => $def) {
+                // Skip empty examples and things with obvious pipes...
+                if (($ex === '') || (strpos($ex, '|') !== false)) {
+                    continue;
+                }
+
+                $ex = preg_replace('/^drush\s+/', '', $ex);
+                $examples[$ex] = $def;
+            }
         }
 
         if (!empty($examples)) {

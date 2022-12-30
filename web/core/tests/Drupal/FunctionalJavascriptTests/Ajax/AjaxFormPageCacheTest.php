@@ -2,24 +2,29 @@
 
 namespace Drupal\FunctionalJavascriptTests\Ajax;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Performs tests on AJAX forms in cached pages.
  *
  * @group Ajax
  */
-class AjaxFormPageCacheTest extends JavascriptTestBase {
+class AjaxFormPageCacheTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['ajax_test', 'ajax_forms_test'];
+  protected static $modules = ['ajax_test', 'ajax_forms_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'classy';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     $config = $this->config('system.performance');
@@ -31,9 +36,9 @@ class AjaxFormPageCacheTest extends JavascriptTestBase {
    * Return the build id of the current form.
    */
   protected function getFormBuildId() {
-    $build_id_fields = $this->xpath('//input[@name="form_build_id"]');
-    $this->assertEquals(count($build_id_fields), 1, 'One form build id field on the page');
-    return $build_id_fields[0]->getValue();
+    // Ensure the hidden 'form_build_id' field is unique.
+    $this->assertSession()->elementsCount('xpath', '//input[@name="form_build_id"]', 1);
+    return $this->assertSession()->hiddenFieldExists('form_build_id')->getValue();
   }
 
   /**
@@ -41,10 +46,9 @@ class AjaxFormPageCacheTest extends JavascriptTestBase {
    */
   public function testSimpleAJAXFormValue() {
     $this->drupalGet('ajax_forms_test_get_form');
-    $this->assertEquals($this->drupalGetHeader('X-Drupal-Cache'), 'MISS', 'Page was not cached.');
     $build_id_initial = $this->getFormBuildId();
 
-    // Changing the value of a select input element, triggers a AJAX
+    // Changing the value of a select input element, triggers an AJAX
     // request/response. The callback on the form responds with three AJAX
     // commands:
     // - UpdateBuildIdCommand
@@ -62,7 +66,7 @@ class AjaxFormPageCacheTest extends JavascriptTestBase {
     $build_id_first_ajax = $this->getFormBuildId();
     $this->assertNotEquals($build_id_initial, $build_id_first_ajax, 'Build id is changed in the form_build_id element on first AJAX submission');
 
-    // Changing the value of a select input element, triggers a AJAX
+    // Changing the value of a select input element, triggers an AJAX
     // request/response.
     $session->getPage()->selectFieldOption('select', 'red');
 
@@ -77,11 +81,10 @@ class AjaxFormPageCacheTest extends JavascriptTestBase {
     // Emulate a push of the reload button and then repeat the test sequence
     // this time with a page loaded from the cache.
     $session->reload();
-    $this->assertEquals($this->drupalGetHeader('X-Drupal-Cache'), 'HIT', 'Page was cached.');
     $build_id_from_cache_initial = $this->getFormBuildId();
     $this->assertEquals($build_id_initial, $build_id_from_cache_initial, 'Build id is the same as on the first request');
 
-    // Changing the value of a select input element, triggers a AJAX
+    // Changing the value of a select input element, triggers an AJAX
     // request/response.
     $session->getPage()->selectFieldOption('select', 'green');
 
@@ -93,7 +96,7 @@ class AjaxFormPageCacheTest extends JavascriptTestBase {
     $this->assertNotEquals($build_id_from_cache_initial, $build_id_from_cache_first_ajax, 'Build id is changed in the simpletest-DOM on first AJAX submission');
     $this->assertNotEquals($build_id_first_ajax, $build_id_from_cache_first_ajax, 'Build id from first user is not reused');
 
-    // Changing the value of a select input element, triggers a AJAX
+    // Changing the value of a select input element, triggers an AJAX
     // request/response.
     $session->getPage()->selectFieldOption('select', 'red');
 
@@ -115,7 +118,9 @@ class AjaxFormPageCacheTest extends JavascriptTestBase {
     $this->drupalGet('ajax_validation_test');
     // Changing the value of the textfield will trigger an AJAX
     // request/response.
-    $this->getSession()->getPage()->fillField('drivertext', 'some dumb text');
+    $field = $this->getSession()->getPage()->findField('drivertext');
+    $field->setValue('some dumb text');
+    $field->blur();
 
     // When the AJAX command updates the DOM a <ul> unsorted list
     // "message__list" structure will appear on the page echoing back the

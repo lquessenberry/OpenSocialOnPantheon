@@ -3,7 +3,9 @@
 namespace Drupal\field_ui\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldTypePluginManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -34,11 +36,25 @@ class FieldStorageAddForm extends FormBase {
   protected $bundle;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManager
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
+
+  /**
+   * The entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
 
   /**
    * The field type plugin manager.
@@ -57,17 +73,23 @@ class FieldStorageAddForm extends FormBase {
   /**
    * Constructs a new FieldStorageAddForm object.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\Core\Field\FieldTypePluginManagerInterface $field_type_plugin_manager
    *   The field type plugin manager.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface|null $entity_field_manager
+   *   (optional) The entity field manager.
+   * @param \Drupal\Core\Entity\EntityDisplayRepositoryInterface $entity_display_repository
+   *   (optional) The entity display repository.
    */
-  public function __construct(EntityManagerInterface $entity_manager, FieldTypePluginManagerInterface $field_type_plugin_manager, ConfigFactoryInterface $config_factory) {
-    $this->entityManager = $entity_manager;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, FieldTypePluginManagerInterface $field_type_plugin_manager, ConfigFactoryInterface $config_factory, EntityFieldManagerInterface $entity_field_manager = NULL, EntityDisplayRepositoryInterface $entity_display_repository = NULL) {
+    $this->entityTypeManager = $entity_type_manager;
     $this->fieldTypePluginManager = $field_type_plugin_manager;
     $this->configFactory = $config_factory;
+    $this->entityFieldManager = $entity_field_manager;
+    $this->entityDisplayRepository = $entity_display_repository;
   }
 
   /**
@@ -82,9 +104,11 @@ class FieldStorageAddForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager'),
+      $container->get('entity_type.manager'),
       $container->get('plugin.manager.field.field_type'),
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('entity_field.manager'),
+      $container->get('entity_display.repository')
     );
   }
 
@@ -163,9 +187,7 @@ class FieldStorageAddForm extends FormBase {
     $field_prefix = $this->config('field_ui.settings')->get('field_prefix');
     $form['new_storage_wrapper']['field_name'] = [
       '#type' => 'machine_name',
-      // This field should stay LTR even for RTL languages.
-      '#field_prefix' => '<span dir="ltr">' . $field_prefix,
-      '#field_suffix' => '</span>&lrm;',
+      '#field_prefix' => $field_prefix,
       '#size' => 15,
       '#description' => $this->t('A unique machine-readable name containing letters, numbers, and underscores.'),
       // Calculate characters depending on the length of the field prefix
@@ -293,7 +315,7 @@ class FieldStorageAddForm extends FormBase {
     $error = FALSE;
     $values = $form_state->getValues();
     $destinations = [];
-    $entity_type = $this->entityManager->getDefinition($this->entityTypeId);
+    $entity_type = $this->entityTypeManager->getDefinition($this->entityTypeId);
 
     // Create new field.
     if ($values['new_storage_type']) {
@@ -316,7 +338,7 @@ class FieldStorageAddForm extends FormBase {
 
       // Check if we're dealing with a preconfigured field.
       if (strpos($field_storage_values['type'], 'field_ui:') !== FALSE) {
-        list(, $field_type, $option_key) = explode(':', $field_storage_values['type'], 3);
+        [, $field_type, $option_key] = explode(':', $field_storage_values['type'], 3);
         $field_storage_values['type'] = $field_type;
 
         $field_definition = $this->fieldTypePluginManager->getDefinition($field_type);
@@ -341,16 +363,16 @@ class FieldStorageAddForm extends FormBase {
           }
         }
 
-        $widget_id = isset($field_options['entity_form_display']['type']) ? $field_options['entity_form_display']['type'] : NULL;
-        $widget_settings = isset($field_options['entity_form_display']['settings']) ? $field_options['entity_form_display']['settings'] : [];
-        $formatter_id = isset($field_options['entity_view_display']['type']) ? $field_options['entity_view_display']['type'] : NULL;
-        $formatter_settings = isset($field_options['entity_view_display']['settings']) ? $field_options['entity_view_display']['settings'] : [];
+        $widget_id = $field_options['entity_form_display']['type'] ?? NULL;
+        $widget_settings = $field_options['entity_form_display']['settings'] ?? [];
+        $formatter_id = $field_options['entity_view_display']['type'] ?? NULL;
+        $formatter_settings = $field_options['entity_view_display']['settings'] ?? [];
       }
 
       // Create the field storage and field.
       try {
-        $this->entityManager->getStorage('field_storage_config')->create($field_storage_values)->save();
-        $field = $this->entityManager->getStorage('field_config')->create($field_values);
+        $this->entityTypeManager->getStorage('field_storage_config')->create($field_storage_values)->save();
+        $field = $this->entityTypeManager->getStorage('field_config')->create($field_values);
         $field->save();
 
         $this->configureEntityFormDisplay($values['field_name'], $widget_id, $widget_settings);
@@ -370,7 +392,7 @@ class FieldStorageAddForm extends FormBase {
       }
       catch (\Exception $e) {
         $error = TRUE;
-        drupal_set_message($this->t('There was a problem creating field %label: @message', ['%label' => $values['label'], '@message' => $e->getMessage()]), 'error');
+        $this->messenger()->addError($this->t('There was a problem creating field %label: @message', ['%label' => $values['label'], '@message' => $e->getMessage()]));
       }
     }
 
@@ -379,7 +401,7 @@ class FieldStorageAddForm extends FormBase {
       $field_name = $values['existing_storage_name'];
 
       try {
-        $field = $this->entityManager->getStorage('field_config')->create([
+        $field = $this->entityTypeManager->getStorage('field_config')->create([
           'field_name' => $field_name,
           'entity_type' => $this->entityTypeId,
           'bundle' => $this->bundle,
@@ -401,7 +423,7 @@ class FieldStorageAddForm extends FormBase {
       }
       catch (\Exception $e) {
         $error = TRUE;
-        drupal_set_message($this->t('There was a problem creating field %label: @message', ['%label' => $values['label'], '@message' => $e->getMessage()]), 'error');
+        $this->messenger()->addError($this->t('There was a problem creating field %label: @message', ['%label' => $values['label'], '@message' => $e->getMessage()]));
       }
     }
 
@@ -411,7 +433,7 @@ class FieldStorageAddForm extends FormBase {
       $form_state->setRedirectUrl(FieldUI::getNextDestination($destinations, $form_state));
     }
     elseif (!$error) {
-      drupal_set_message($this->t('Your settings have been saved.'));
+      $this->messenger()->addStatus($this->t('Your settings have been saved.'));
     }
   }
 
@@ -436,7 +458,7 @@ class FieldStorageAddForm extends FormBase {
     // Make sure the field is displayed in the 'default' form mode (using
     // default widget and settings). It stays hidden for other form modes
     // until it is explicitly configured.
-    entity_get_form_display($this->entityTypeId, $this->bundle, 'default')
+    $this->entityDisplayRepository->getFormDisplay($this->entityTypeId, $this->bundle, 'default')
       ->setComponent($field_name, $options)
       ->save();
   }
@@ -462,7 +484,7 @@ class FieldStorageAddForm extends FormBase {
     // Make sure the field is displayed in the 'default' view mode (using
     // default formatter and settings). It stays hidden for other view
     // modes until it is explicitly configured.
-    entity_get_display($this->entityTypeId, $this->bundle, 'default')
+    $this->entityDisplayRepository->getViewDisplay($this->entityTypeId, $this->bundle)
       ->setComponent($field_name, $options)
       ->save();
   }
@@ -477,7 +499,7 @@ class FieldStorageAddForm extends FormBase {
     $options = [];
     // Load the field_storages and build the list of options.
     $field_types = $this->fieldTypePluginManager->getDefinitions();
-    foreach ($this->entityManager->getFieldStorageDefinitions($this->entityTypeId) as $field_name => $field_storage) {
+    foreach ($this->entityFieldManager->getFieldStorageDefinitions($this->entityTypeId) as $field_name => $field_storage) {
       // Do not show:
       // - non-configurable field storages,
       // - locked field storages,
@@ -515,11 +537,11 @@ class FieldStorageAddForm extends FormBase {
   protected function getExistingFieldLabels(array $field_names) {
     // Get all the fields corresponding to the given field storage names and
     // this entity type.
-    $field_ids = $this->entityManager->getStorage('field_config')->getQuery()
+    $field_ids = $this->entityTypeManager->getStorage('field_config')->getQuery()
       ->condition('entity_type', $this->entityTypeId)
       ->condition('field_name', $field_names)
       ->execute();
-    $fields = $this->entityManager->getStorage('field_config')->loadMultiple($field_ids);
+    $fields = $this->entityTypeManager->getStorage('field_config')->loadMultiple($field_ids);
 
     // Go through all the fields and use the label of the first encounter.
     $labels = [];
@@ -558,7 +580,7 @@ class FieldStorageAddForm extends FormBase {
     // Add the field prefix.
     $field_name = $this->configFactory->get('field_ui.settings')->get('field_prefix') . $value;
 
-    $field_storage_definitions = $this->entityManager->getFieldStorageDefinitions($this->entityTypeId);
+    $field_storage_definitions = $this->entityFieldManager->getFieldStorageDefinitions($this->entityTypeId);
     return isset($field_storage_definitions[$field_name]);
   }
 

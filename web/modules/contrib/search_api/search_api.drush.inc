@@ -83,8 +83,8 @@ function search_api_drush_command() {
       'drush search-api-index' => dt('Index all items for all enabled indexes.'),
       'drush sapi-i' => dt('Alias to index all items for all enabled indexes.'),
       'drush sapi-i node_index' => dt('Index all items for the index with the ID @name.', ['@name' => 'node_index']),
-      'drush sapi-i node_index 100' => dt('Index a maximum number of @limit items for the index with the ID @name.', ['@limit' => 100, '@name' => 'node_index']),
-      'drush sapi-i node_index 100 10' => dt('Index a maximum number of @limit items (@batch_size items per batch run) for the index with the ID @name.', ['@limit' => 100, '@batch_size' => 10, '@name' => 'node_index']),
+      'drush sapi-i --limit=100 node_index' => dt('Index a maximum number of @limit items for the index with the ID @name.', ['@limit' => 100, '@name' => 'node_index']),
+      'drush sapi-i --limit=100 --batch-size=10 node_index' => dt('Index a maximum number of @limit items (@batch_size items per batch run) for the index with the ID @name.', ['@limit' => 100, '@batch_size' => 10, '@name' => 'node_index']),
     ],
     'options' => [
       'limit' => dt('The number of items to index. Set to 0 to index all items. Defaults to 0 (index all).'),
@@ -443,7 +443,7 @@ function drush_search_api_set_index_server($index_id = NULL, $server_id = NULL) 
  *   An instance of the command helper class.
  */
 function _search_api_drush_command_helper() {
-  $command_helper = new CommandHelper(\Drupal::entityTypeManager(), \Drupal::moduleHandler(), 'dt');
+  $command_helper = new CommandHelper(\Drupal::entityTypeManager(), \Drupal::moduleHandler(), \Drupal::service('event_dispatcher'), 'dt');
   $command_helper->setLogger(\Drupal::logger('search_api'));
   return $command_helper;
 }

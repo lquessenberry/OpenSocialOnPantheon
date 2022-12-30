@@ -11,7 +11,7 @@ namespace Drupal\statistics;
 interface StatisticsStorageInterface {
 
   /**
-   * Count a entity view.
+   * Counts an entity view.
    *
    * @param int $id
    *   The ID of the entity to count.
@@ -47,14 +47,13 @@ interface StatisticsStorageInterface {
   public function fetchView($id);
 
   /**
-   * Returns the number of times a entity has been viewed.
+   * Returns the number of times an entity has been viewed.
    *
    * @param string $order
    *   The counter name to order by:
    *   - 'totalcount' The total number of views.
    *   - 'daycount' The number of views today.
    *   - 'timestamp' The unix timestamp of the last view.
-   *
    * @param int $limit
    *   The number of entity IDs to return.
    *

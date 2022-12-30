@@ -2,7 +2,6 @@
 
 namespace Drupal\group\Access;
 
-use Drupal\Core\Routing\UrlGeneratorTrait;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\group\Entity\GroupType;
 
@@ -12,7 +11,6 @@ use Drupal\group\Entity\GroupType;
 class GroupPermissions {
 
   use StringTranslationTrait;
-  use UrlGeneratorTrait;
 
   /**
    * Returns an array of group type permissions.

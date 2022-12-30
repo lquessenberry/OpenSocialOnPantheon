@@ -14,7 +14,12 @@ class ContentTranslationEnableTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_test', 'menu_link_content', 'node'];
+  protected static $modules = ['entity_test', 'menu_link_content', 'node'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests that entity schemas are up-to-date after enabling translation.
@@ -27,20 +32,20 @@ class ContentTranslationEnableTest extends BrowserTestBase {
       'modules[content_translation][enable]' => TRUE,
       'modules[language][enable]' => TRUE,
     ];
-    $this->drupalPostForm('admin/modules', $edit, t('Install'));
+    $this->drupalGet('admin/modules');
+    $this->submitForm($edit, 'Install');
 
     // Status messages are shown.
-    $this->assertText(t('This site has only a single language enabled. Add at least one more language in order to translate content.'));
-    $this->assertText(t('Enable translation for content types, taxonomy vocabularies, accounts, or any other element you wish to translate.'));
+    $this->assertSession()->statusMessageContains('This site has only a single language enabled. Add at least one more language in order to translate content.', 'warning');
+    $this->assertSession()->statusMessageContains('Enable translation for content types, taxonomy vocabularies, accounts, or any other element you wish to translate.', 'warning');
 
     // No pending updates should be available.
     $this->drupalGet('admin/reports/status');
-    $requirement_value = $this->cssSelect("details.system-status-report__entry summary:contains('Entity/field definitions') + div");
-    $this->assertEqual(t('Up to date'), trim($requirement_value[0]->getText()));
+    $this->assertSession()->elementTextEquals('css', "details.system-status-report__entry summary:contains('Entity/field definitions') + div", 'Up to date');
 
     $this->drupalGet('admin/config/regional/content-language');
     // The node entity type should not be an option because it has no bundles.
-    $this->assertNoRaw('entity_types[node]');
+    $this->assertSession()->responseNotContains('entity_types[node]');
     // Enable content translation on entity types that have will have a
     // content_translation_uid.
     $edit = [
@@ -49,12 +54,11 @@ class ContentTranslationEnableTest extends BrowserTestBase {
       'entity_types[entity_test_mul]' => TRUE,
       'settings[entity_test_mul][entity_test_mul][translatable]' => TRUE,
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
+    $this->submitForm($edit, 'Save configuration');
 
     // No pending updates should be available.
     $this->drupalGet('admin/reports/status');
-    $requirement_value = $this->cssSelect("details.system-status-report__entry summary:contains('Entity/field definitions') + div");
-    $this->assertEqual(t('Up to date'), trim($requirement_value[0]->getText()));
+    $this->assertSession()->elementTextEquals('css', "details.system-status-report__entry summary:contains('Entity/field definitions') + div", 'Up to date');
 
     // Create a node type and check the content translation settings are now
     // available for nodes.
@@ -63,9 +67,10 @@ class ContentTranslationEnableTest extends BrowserTestBase {
       'title_label' => 'title for foo',
       'type' => 'foo',
     ];
-    $this->drupalPostForm('admin/structure/types/add', $edit, t('Save content type'));
+    $this->drupalGet('admin/structure/types/add');
+    $this->submitForm($edit, 'Save content type');
     $this->drupalGet('admin/config/regional/content-language');
-    $this->assertRaw('entity_types[node]');
+    $this->assertSession()->responseContains('entity_types[node]');
   }
 
 }

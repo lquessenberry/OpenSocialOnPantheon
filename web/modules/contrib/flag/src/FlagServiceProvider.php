@@ -2,7 +2,6 @@
 
 namespace Drupal\flag;
 
-
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\ServiceModifierInterface;
 use Symfony\Component\DependencyInjection\Definition;

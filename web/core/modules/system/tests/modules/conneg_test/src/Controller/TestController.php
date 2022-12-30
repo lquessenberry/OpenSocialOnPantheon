@@ -7,7 +7,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Test controller for content negotation tests.
+ * Test controller for content negotiation tests.
  */
 class TestController {
 
@@ -32,7 +32,7 @@ class TestController {
   }
 
   /**
-   * Returns different responses dependening on the request format.
+   * Returns different responses depending on the request format.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request

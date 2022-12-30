@@ -3,10 +3,10 @@
 namespace Drupal\migrate\Event;
 
 use Drupal\migrate\Plugin\MigrationInterface;
-use Symfony\Component\EventDispatcher\Event;
+use Drupal\Component\EventDispatcher\Event;
 
 /**
- * Wraps an idmap message event for event listeners.
+ * Wraps an ID map message event for event listeners.
  */
 class MigrateIdMapMessageEvent extends Event {
 

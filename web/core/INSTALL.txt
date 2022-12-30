@@ -2,6 +2,7 @@
 CONTENTS OF THIS FILE
 ---------------------
 
+ * Quickstart
  * Requirements and notes
  * Optional server requirements
  * Installation
@@ -10,28 +11,58 @@ CONTENTS OF THIS FILE
  * Multisite configuration
  * Multilingual configuration
 
+QUICKSTART
+----------------------
+
+Prerequisites:
+- PHP 7.4.0 (or greater) (https://php.net).
+
+In the instructions below, replace the version x.y.z with the specific version
+you wish to download. Example: 8.6.0.zip. You can find the latest stable version
+at https://www.drupal.org/project/drupal.
+
+Download and extract the Drupal package:
+- curl -sS https://ftp.drupal.org/files/projects/drupal-x.y.z.zip --output drupal-x.y.z.zip
+- unzip drupal-x.y.z.zip
+- cd /path/to/drupal-x.y.z
+- php core/scripts/drupal quick-start
+
+Wait… installation can take a minute or two. A successful installation will
+result in opening the new site in your browser.
+
+Run the following command for a list of available options that you may need to
+configure quick-start:
+- php core/scripts/drupal quick-start --help
+
+Follow the instructions in the REINSTALL section below to start over.
+
+NOTE: This quick start solution uses PHP's built-in web server and is not
+intended for production use. Read more about how to run Drupal in a production
+environment below.
+
 REQUIREMENTS AND NOTES
 ----------------------
 
 Drupal requires:
 
 - A web server with PHP support, for example:
-  - Apache 2.0 (or greater) (http://httpd.apache.org/).
+  - Apache 2.4.7 (or greater) (http://httpd.apache.org/).
   - Nginx 1.1 (or greater) (http://nginx.com/).
-- PHP 5.5.9 (or greater) (http://php.net/). For better security support it is
-  recommended to update to at least 5.5.21 or 5.6.5.
+- PHP 7.4.0 (or greater) (http://php.net/). For better security support it is
+  recommended to update to at least 8.1.0.
 - One of the following databases:
-  - MySQL 5.5.3 (or greater) (http://www.mysql.com/).
-  - MariaDB 5.5.20 (or greater) (https://mariadb.org/). MariaDB is a fully
+  - MySQL 5.7.8 (or greater) (http://www.mysql.com/).
+  - MariaDB 10.3.7 (or greater) (https://mariadb.org/). MariaDB is a fully
     compatible drop-in replacement for MySQL.
-  - Percona Server 5.5.8 (or greater) (http://www.percona.com/). Percona
+  - Percona Server 5.7.8 (or greater) (http://www.percona.com/). Percona
     Server is a backwards-compatible replacement for MySQL.
-  - PostgreSQL 9.1.2 (or greater) (http://www.postgresql.org/).
-  - SQLite 3.7.11 (or greater) (http://www.sqlite.org/).
+  - PostgreSQL 10 (or greater) (http://www.postgresql.org/).
+  - SQLite 3.26 (or greater) (http://www.sqlite.org/).
 
 For more detailed information about Drupal requirements, including a list of
 PHP extensions and configurations that are required, see "System requirements"
-(https://www.drupal.org/requirements) in the Drupal.org online documentation.
+(https://www.drupal.org/docs/system-requirements) in the Drupal.org online
+documentation.
 
 For detailed information on how to configure a test server environment using a
 variety of operating systems and web servers, see "Local server setup"
@@ -62,10 +93,6 @@ OPTIONAL SERVER REQUIREMENTS
   functionality, you need to verify that your hosting provider or server
   configuration allows the web server to initiate outbound connections. Most web
   hosting setups allow this.
-
-- PHP 5.5.21 provides features for improved security when used with MySQL. While
-  this is not required, it is highly encouraged to use PHP 5.5.21 or 5.6.5 and
-  above.
 
 INSTALLATION
 ------------
@@ -122,7 +149,7 @@ INSTALLATION
 
    You will be guided through several screens to set up the database, add the
    site maintenance account (the first user, also known as user/1), and provide
-   basic web site settings.
+   basic website settings.
 
    During installation, several files and directories need to be created, which
    the install script will try to do automatically. However, on some hosting
@@ -150,7 +177,7 @@ INSTALLATION
       permissions on the sites/default directory. The web server can then
       create the files directory within it for you.
 
-      For example, on a Unix/Linux command line, you can you can grant everyone
+      For example, on a Unix/Linux command line, you can grant everyone
       (including the web server) permission to write to the sites/default
       directory with this command:
 
@@ -164,7 +191,7 @@ INSTALLATION
         chmod a+w sites/default/files
 
       Be sure to set the permissions for the default directory back after the
-      installation is finished! (Leave the files directory writeable.)
+      installation is finished! (Leave the files directory writable.)
       Sample command:
 
         chmod go-w sites/default
@@ -208,7 +235,7 @@ INSTALLATION
    maintenance account on a "Welcome" page. If the default Drupal theme is not
    displaying properly and links on the page result in "Page Not Found" errors,
    you may be experiencing problems with clean URLs. Visit
-   https://www.drupal.org/getting-started/clean-urls to troubleshoot.
+   https://www.drupal.org/docs/8/clean-urls-in-drupal-8 to troubleshoot.
 
 5. Change file system storage settings (optional).
 
@@ -303,7 +330,7 @@ INSTALLATION
    cron key, is available in the "Cron maintenance tasks" section of the Status
    report page at Administration > Reports > Status report.
 
-   As an example for how to set up this automated process, you can use the
+   As an example of how to set up this automated process, you can use the
    crontab utility on Unix/Linux systems. The following crontab line uses the
    wget command to visit the cron page, and runs each hour, on the hour:
 
@@ -375,7 +402,7 @@ The new directory name is constructed from the site's URL. The configuration
 for www.example.com could be in 'sites/example.com/settings.php' (note that
 'www.' should be omitted if users can access your site at http://example.com/).
 
-  $ cp sites/default/defaults.settings.php sites/example.com/settings.php
+  $ cp sites/default/default.settings.php sites/example.com/settings.php
 
 Sites do not have to have a different domain. You can also use subdomains and
 subdirectories for Drupal sites. For example, example.com, sub.example.com, and
@@ -418,7 +445,7 @@ accessible to other sites, the setup would look like this:
     modules/custom_module
 
 For more information about multiple virtual hosts or the configuration
-settings, consult https://www.drupal.org/documentation/install/multi-site
+settings, consult https://www.drupal.org/docs/8/multisite
 
 For more information on configuring Drupal's file system path in a multisite
 configuration, see step 6 above.
@@ -430,4 +457,4 @@ By default, Drupal is installed in one language, and further languages may be
 installed later.
 
 For detailed instructions, visit
-https://www.drupal.org/documentation/multilingual
+https://www.drupal.org/docs/8/multilingual

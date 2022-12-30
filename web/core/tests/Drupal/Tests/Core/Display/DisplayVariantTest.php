@@ -19,13 +19,13 @@ class DisplayVariantTest extends UnitTestCase {
    * @param array $definition
    *   The plugin definition array.
    *
-   * @return \Drupal\Core\Display\VariantBase|\PHPUnit_Framework_MockObject_MockObject
+   * @return \Drupal\Core\Display\VariantBase|\PHPUnit\Framework\MockObject\MockObject
    *   A mocked display variant plugin.
    */
   public function setUpDisplayVariant($configuration = [], $definition = []) {
     return $this->getMockBuilder('Drupal\Core\Display\VariantBase')
       ->setConstructorArgs([$configuration, 'test', $definition])
-      ->setMethods(['build'])
+      ->onlyMethods(['build'])
       ->getMock();
   }
 

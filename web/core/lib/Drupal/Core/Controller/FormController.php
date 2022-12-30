@@ -7,21 +7,20 @@ use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface;
 
 /**
  * Common base class for form interstitial controllers.
- *
- * @todo Make this a trait in PHP 5.4.
  */
 abstract class FormController {
   use DependencySerializationTrait;
 
   /**
-   * The controller resolver.
+   * The argument resolver.
    *
-   * @var \Drupal\Core\Controller\ControllerResolverInterface
+   * @var \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface
    */
-  protected $controllerResolver;
+  protected $argumentResolver;
 
   /**
    * The form builder.
@@ -33,13 +32,13 @@ abstract class FormController {
   /**
    * Constructs a new \Drupal\Core\Controller\FormController object.
    *
-   * @param \Drupal\Core\Controller\ControllerResolverInterface $controller_resolver
-   *   The controller resolver.
+   * @param \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface $argument_resolver
+   *   The argument resolver.
    * @param \Drupal\Core\Form\FormBuilderInterface $form_builder
    *   The form builder.
    */
-  public function __construct(ControllerResolverInterface $controller_resolver, FormBuilderInterface $form_builder) {
-    $this->controllerResolver = $controller_resolver;
+  public function __construct(ArgumentResolverInterface $argument_resolver, FormBuilderInterface $form_builder) {
+    $this->argumentResolver = $argument_resolver;
     $this->formBuilder = $form_builder;
   }
 
@@ -63,7 +62,7 @@ abstract class FormController {
     $form_state = new FormState();
     $request->attributes->set('form', []);
     $request->attributes->set('form_state', $form_state);
-    $args = $this->controllerResolver->getArguments($request, [$form_object, 'buildForm']);
+    $args = $this->argumentResolver->getArguments($request, [$form_object, 'buildForm']);
     $request->attributes->remove('form');
     $request->attributes->remove('form_state');
 

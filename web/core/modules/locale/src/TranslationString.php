@@ -58,7 +58,7 @@ class TranslationString extends StringBase {
    * @param bool $customized
    *   (optional) Whether the string is customized or not. Defaults to TRUE.
    *
-   * @return \Drupal\locale\TranslationString
+   * @return $this
    *   The called object.
    */
   public function setCustomized($customized = TRUE) {
@@ -84,7 +84,7 @@ class TranslationString extends StringBase {
    * {@inheritdoc}
    */
   public function getString() {
-    return isset($this->translation) ? $this->translation : '';
+    return $this->translation ?? '';
   }
 
   /**

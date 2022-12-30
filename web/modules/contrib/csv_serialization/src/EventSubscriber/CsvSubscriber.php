@@ -4,7 +4,6 @@ namespace Drupal\csv_serialization\EventSubscriber;
 
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
@@ -19,14 +18,15 @@ class CsvSubscriber implements EventSubscriberInterface {
    *   The Event to process.
    */
   public function onKernelRequest(GetResponseEvent $event) {
-    $event->getRequest()->setFormat('csv', array('text/csv'));
+    $event->getRequest()->setFormat('csv', ['text/csv']);
   }
 
   /**
    * Implements \Symfony\Component\EventDispatcher\EventSubscriberInterface::getSubscribedEvents().
    */
-  static function getSubscribedEvents() {
-    $events[KernelEvents::REQUEST][] = array('onKernelRequest');
+  public static function getSubscribedEvents() {
+    $events[KernelEvents::REQUEST][] = ['onKernelRequest'];
     return $events;
   }
+
 }

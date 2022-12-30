@@ -2,10 +2,8 @@
 
 namespace Drupal\Tests\flag\Kernel;
 
-use Drupal\Component\Utility\Unicode;
-use Drupal\flag\Entity\Flag;
-use Drupal\simpletest\ContentTypeCreationTrait;
-use Drupal\simpletest\NodeCreationTrait;
+use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
+use Drupal\Tests\node\Traits\NodeCreationTrait;
 
 /**
  * Tests for flagging storage.

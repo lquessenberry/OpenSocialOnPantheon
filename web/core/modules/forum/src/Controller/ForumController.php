@@ -125,20 +125,20 @@ class ForumController extends ControllerBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    /** @var \Drupal\Core\Entity\EntityManagerInterface $entity_manager */
-    $entity_manager = $container->get('entity.manager');
+    /** @var \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager */
+    $entity_type_manager = $container->get('entity_type.manager');
 
     return new static(
       $container->get('forum_manager'),
-      $entity_manager->getStorage('taxonomy_vocabulary'),
-      $entity_manager->getStorage('taxonomy_term'),
+      $entity_type_manager->getStorage('taxonomy_vocabulary'),
+      $entity_type_manager->getStorage('taxonomy_term'),
       $container->get('current_user'),
-      $entity_manager->getAccessControlHandler('node'),
-      $entity_manager->getFieldMap(),
-      $entity_manager->getStorage('node_type'),
+      $entity_type_manager->getAccessControlHandler('node'),
+      $container->get('entity_field.manager')->getFieldMap(),
+      $entity_type_manager->getStorage('node_type'),
       $container->get('renderer'),
-      $entity_manager->getDefinition('node'),
-      $entity_manager->getDefinition('comment')
+      $entity_type_manager->getDefinition('node'),
+      $entity_type_manager->getDefinition('comment')
     );
   }
 
@@ -154,7 +154,7 @@ class ForumController extends ControllerBase {
   public function forumPage(TermInterface $taxonomy_term) {
     // Get forum details.
     $taxonomy_term->forums = $this->forumManager->getChildren($this->config('forum.settings')->get('vocabulary'), $taxonomy_term->id());
-    $taxonomy_term->parents = $this->forumManager->getParents($taxonomy_term->id());
+    $taxonomy_term->parents = $this->termStorage->loadAllParents($taxonomy_term->id());
 
     if (empty($taxonomy_term->forum_container->value)) {
       $build = $this->forumManager->getTopics($taxonomy_term->id(), $this->currentUser());
@@ -235,8 +235,9 @@ class ForumController extends ControllerBase {
     }
     $this->renderer->addCacheableDependency($build, $term);
 
+    $is_forum = empty($term->forum_container->value);
     return [
-      'action' => $this->buildActionLinks($config->get('vocabulary'), $term),
+      'action' => ($is_forum) ? $this->buildActionLinks($config->get('vocabulary'), $term) : [],
       'forum' => $build,
       '#cache' => [
         'tags' => Cache::mergeTags($this->nodeEntityTypeDefinition->getListCacheTags(), $this->commentEntityTypeDefinition->getListCacheTags()),
@@ -294,7 +295,6 @@ class ForumController extends ControllerBase {
       if ($this->nodeAccess->createAccess($type)) {
         $node_type = $this->nodeTypeStorage->load($type);
         $links[$type] = [
-          '#attributes' => ['class' => ['action-links']],
           '#theme' => 'menu_local_action',
           '#link' => [
             'title' => $this->t('Add new @node_type', [
@@ -323,14 +323,25 @@ class ForumController extends ControllerBase {
       // Anonymous user does not have access to create new topics.
       else {
         $links['login'] = [
-          '#attributes' => ['class' => ['action-links']],
           '#theme' => 'menu_local_action',
           '#link' => [
             'title' => $this->t('Log in to post new content in the forum.'),
             'url' => Url::fromRoute('user.login', [], ['query' => $this->getDestinationArray()]),
           ],
+          // Without this workaround, the action links will be rendered as <li>
+          // with no wrapping <ul> element.
+          // @todo Find a better way for this in https://www.drupal.org/node/3181052.
+          '#prefix' => '<ul class="action-links">',
+          '#suffix' => '</ul>',
         ];
       }
+    }
+    else {
+      // Without this workaround, the action links will be rendered as <li> with
+      // no wrapping <ul> element.
+      // @todo Find a better way for this in https://www.drupal.org/node/3181052.
+      $links['#prefix'] = '<ul class="action-links">';
+      $links['#suffix'] = '</ul>';
     }
     return $links;
   }

@@ -4,7 +4,7 @@ namespace Drupal\Tests\Core\Routing;
 
 use Drupal\Core\Routing\RoutePreloader;
 use Drupal\Tests\UnitTestCase;
-use Symfony\Component\EventDispatcher\Event;
+use Drupal\Component\EventDispatcher\Event;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
@@ -18,14 +18,14 @@ class RoutePreloaderTest extends UnitTestCase {
   /**
    * The mocked route provider.
    *
-   * @var \Drupal\Core\Routing\RouteProviderInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Routing\RouteProviderInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $routeProvider;
 
   /**
    * The mocked state.
    *
-   * @var \Drupal\Core\State\StateInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\State\StateInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $state;
 
@@ -39,17 +39,17 @@ class RoutePreloaderTest extends UnitTestCase {
   /**
    * The mocked cache.
    *
-   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $cache;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    $this->routeProvider = $this->getMock('Drupal\Core\Routing\PreloadableRouteProviderInterface');
-    $this->state = $this->getMock('\Drupal\Core\State\StateInterface');
-    $this->cache = $this->getMock('Drupal\Core\Cache\CacheBackendInterface');
+  protected function setUp(): void {
+    $this->routeProvider = $this->createMock('Drupal\Core\Routing\PreloadableRouteProviderInterface');
+    $this->state = $this->createMock('\Drupal\Core\State\StateInterface');
+    $this->cache = $this->createMock('Drupal\Core\Cache\CacheBackendInterface');
     $this->preloader = new RoutePreloader($this->routeProvider, $this->state, $this->cache);
   }
 
@@ -97,7 +97,6 @@ class RoutePreloaderTest extends UnitTestCase {
     $this->preloader->onFinishedRoutes(new Event());
   }
 
-
   /**
    * Tests onAlterRoutes with admin routes and non admin routes.
    */
@@ -109,14 +108,29 @@ class RoutePreloaderTest extends UnitTestCase {
     $route_collection->add('test', new Route('/admin/foo', ['_controller' => 'Drupal\ExampleController']));
     $route_collection->add('test2', new Route('/bar', ['_controller' => 'Drupal\ExampleController']));
     // Non content routes, like ajax callbacks should be ignored.
-    $route_collection->add('test3', new Route('/bar', ['_controller' => 'Drupal\ExampleController']));
+    $route3 = new Route('/bar', ['_controller' => 'Drupal\ExampleController']);
+    $route3->setMethods(['POST']);
+    $route_collection->add('test3', $route3);
+    // Routes with the option _admin_route set to TRUE will be included.
+    $route4 = new Route('/bar', ['_controller' => 'Drupal\ExampleController']);
+    $route4->setOption('_admin_route', TRUE);
+    $route_collection->add('test4', $route4);
+    // Non-HTML routes, like api_json routes should be ignored.
+    $route5 = new Route('/bar', ['_controller' => 'Drupal\ExampleController']);
+    $route5->setRequirement('_format', 'api_json');
+    $route_collection->add('test5', $route5);
+    // Routes which include HTML should be included.
+    $route6 = new Route('/bar', ['_controller' => 'Drupal\ExampleController']);
+    $route6->setRequirement('_format', 'json_api|html');
+    $route_collection->add('test6', $route6);
+
     $event->expects($this->once())
       ->method('getRouteCollection')
       ->will($this->returnValue($route_collection));
 
     $this->state->expects($this->once())
       ->method('set')
-      ->with('routing.non_admin_routes', ['test2', 'test3']);
+      ->with('routing.non_admin_routes', ['test2', 'test4', 'test6']);
     $this->preloader->onAlterRoutes($event);
     $this->preloader->onFinishedRoutes(new Event());
   }

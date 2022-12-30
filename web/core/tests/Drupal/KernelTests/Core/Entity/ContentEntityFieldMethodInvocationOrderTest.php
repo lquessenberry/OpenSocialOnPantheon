@@ -16,7 +16,7 @@ class ContentEntityFieldMethodInvocationOrderTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['language', 'system', 'entity_test'];
+  protected static $modules = ['language', 'system', 'entity_test'];
 
   /**
    * The EntityTest entity type storage.
@@ -28,7 +28,7 @@ class ContentEntityFieldMethodInvocationOrderTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Enable an additional language.
@@ -37,7 +37,7 @@ class ContentEntityFieldMethodInvocationOrderTest extends EntityKernelTestBase {
 
     $this->installEntitySchema('entity_test_field_methods');
 
-    $this->entityTestFieldMethodsStorage = $this->entityManager->getStorage('entity_test_field_methods');
+    $this->entityTestFieldMethodsStorage = $this->entityTypeManager->getStorage('entity_test_field_methods');
   }
 
   /**
@@ -61,7 +61,9 @@ class ContentEntityFieldMethodInvocationOrderTest extends EntityKernelTestBase {
     }
     $entity->getTranslation('de')
       ->save();
-    $this->assertTrue($entity->getTranslation('fr')->test_invocation_order->value > $entity->getTranslation('de')->test_invocation_order->value, 'The field presave method has been invoked in the correct entity translation order.');
+    // Verify that the field presave method has been invoked in the correct
+    // entity translation order.
+    $this->assertGreaterThan($entity->getTranslation('de')->test_invocation_order->value, $entity->getTranslation('fr')->test_invocation_order->value);
 
     // Reset the current value of the test field.
     foreach (['de', 'fr'] as $langcode) {
@@ -69,7 +71,9 @@ class ContentEntityFieldMethodInvocationOrderTest extends EntityKernelTestBase {
     }
     $entity->getTranslation('fr')
       ->save();
-    $this->assertTrue($entity->getTranslation('de')->test_invocation_order->value > $entity->getTranslation('fr')->test_invocation_order->value, 'The field presave method has been invoked in the correct entity translation order.');
+    // Verify that the field presave method has been invoked in the correct
+    // entity translation order.
+    $this->assertGreaterThan($entity->getTranslation('fr')->test_invocation_order->value, $entity->getTranslation('de')->test_invocation_order->value);
   }
 
 }

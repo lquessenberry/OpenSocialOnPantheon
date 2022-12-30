@@ -1,0 +1,299 @@
+[data-gin-accent] {
+  --colorGinPrimary: rgb(var(--colorGinPrimaryRGB));
+  --colorGinPrimaryLight: rgba(var(--colorGinPrimaryRGB), .15);
+  --colorGinAppBackground: rgb(var(--colorGinAppBackgroundRGB));
+  --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .1);
+  --colorGinPrimaryLightHover: rgba(var(--colorGinPrimaryRGB), .2);
+  --colorGinPrimaryLightActive: rgba(var(--colorGinPrimaryRGB), .3);
+  --colorGinPrimaryLightShadow: rgba(var(--colorGinPrimaryRGB), .45);
+}
+
+.gin--dark-mode[data-gin-accent],
+.gin--dark-mode [data-gin-accent] {
+  --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .08);
+  --colorGinAppBackgroundRGB: 27, 27, 29;
+}
+
+[data-gin-accent=blue] {
+  --colorGinPrimaryRGB: 5, 80, 230;
+  --colorGinPrimaryLightRGB: 205, 220, 250;
+  --colorGinPrimaryHover: #0444c4;
+  --colorGinPrimaryActive: #043cad;
+  --colorGinAppBackgroundRGB: 248, 250, 254;
+  --colorGinTableHeader: #e1eafc;
+}
+
+[data-gin-accent=light_blue] {
+  --colorGinPrimaryRGB: 50, 117, 224;
+  --colorGinPrimaryLightRGB: 214, 227, 249;
+  --colorGinPrimaryHover: #2b63be;
+  --colorGinPrimaryActive: #2658a8;
+  --colorGinAppBackgroundRGB: 249, 251, 254;
+  --colorGinTableHeader: #e6eefb;
+}
+
+[data-gin-accent=dark_purple] {
+  --colorGinPrimaryRGB: 67, 0, 191;
+  --colorGinPrimaryLightRGB: 217, 204, 242;
+  --colorGinPrimaryHover: #3900a2;
+  --colorGinPrimaryActive: #32008f;
+  --colorGinAppBackgroundRGB: 249, 247, 253;
+  --colorGinTableHeader: #e8e0f7;
+  --colorGinPrimaryLightHover: rgba(var(--colorGinPrimaryRGB), .2);
+  --colorGinPrimaryLightActive: rgba(var(--colorGinPrimaryRGB), .25);
+  --colorGinPrimaryLightShadow: rgba(var(--colorGinPrimaryRGB), .4);
+  --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .08);
+}
+
+[data-gin-accent=purple] {
+  --colorGinPrimaryRGB: 91, 0, 255;
+  --colorGinPrimaryLightRGB: 222, 204, 255;
+  --colorGinPrimaryHover: #4d00d9;
+  --colorGinPrimaryActive: #4400bf;
+  --colorGinAppBackgroundRGB: 250, 247, 255;
+  --colorGinTableHeader: #ebe0ff;
+  --colorGinPrimaryLightHover: rgba(var(--colorGinPrimaryRGB), .2);
+  --colorGinPrimaryLightActive: rgba(var(--colorGinPrimaryRGB), .25);
+  --colorGinPrimaryLightShadow: rgba(var(--colorGinPrimaryRGB), .4);
+  --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .08);
+}
+
+[data-gin-accent=teal] {
+  --colorGinPrimaryRGB: 16, 133, 127;
+  --colorGinPrimaryLightRGB: 207, 231, 229;
+  --colorGinPrimaryHover: #0e716c;
+  --colorGinPrimaryActive: #0c645f;
+  --colorGinAppBackgroundRGB: 248, 251, 251;
+  --colorGinTableHeader: #e2f0f0;
+}
+
+[data-gin-accent=green] {
+  --colorGinPrimaryRGB: 0, 135, 95;
+  --colorGinPrimaryLightRGB: 204, 231, 223;
+  --colorGinPrimaryHover: #007351;
+  --colorGinPrimaryActive: #006547;
+  --colorGinAppBackgroundRGB: 247, 251, 250;
+  --colorGinTableHeader: #e0f1ec;
+}
+
+[data-gin-accent=red] {
+  --colorGinPrimaryRGB: 216, 0, 47;
+  --colorGinPrimaryLightRGB: 247, 204, 213;
+  --colorGinPrimaryHover: #b80028;
+  --colorGinPrimaryActive: #a20023;
+  --colorGinAppBackgroundRGB: 254, 247, 249;
+  --colorGinTableHeader: #fae0e6;
+}
+
+[data-gin-accent=orange] {
+  --colorGinPrimaryRGB: 239, 92, 32;
+  --colorGinPrimaryLightRGB: 252, 222, 210;
+  --colorGinPrimaryHover: #cb4e1b;
+  --colorGinPrimaryActive: #b34518;
+  --colorGinAppBackgroundRGB: 255, 250, 248;
+  --colorGinTableHeader: #fdebe4;
+}
+
+[data-gin-accent=yellow] {
+  --colorGinPrimaryRGB: 197, 137, 0;
+  --colorGinPrimaryLightRGB: 243, 231, 204;
+  --colorGinPrimaryHover: #a77400;
+  --colorGinPrimaryActive: #946700;
+  --colorGinAppBackgroundRGB: 253, 251, 247;
+  --colorGinTableHeader: #f8f1e0;
+}
+
+[data-gin-accent=pink] {
+  --colorGinPrimaryRGB: 226, 49, 119;
+  --colorGinPrimaryLightRGB: 249, 214, 228;
+  --colorGinPrimaryHover: #c02a65;
+  --colorGinPrimaryActive: #aa2559;
+  --colorGinAppBackgroundRGB: 254, 249, 251;
+  --colorGinTableHeader: #fce6ef;
+}
+
+[data-gin-accent=neutral] {
+  --colorGinPrimaryRGB: 17, 17, 17;
+  --colorGinPrimaryLightRGB: 207, 207, 207;
+  --colorGinPrimaryHover: #0e0e0e;
+  --colorGinPrimaryActive: #0d0d0d;
+  --colorGinAppBackgroundRGB: 248, 248, 248;
+  --colorGinTableHeader: #e2e2e2;
+}
+
+[data-gin-accent=custom] {
+  --colorGinPrimaryRGB: 17, 17, 17;
+  --colorGinPrimaryLightRGB: 207, 207, 207;
+  --colorGinPrimaryHover: #0e0e0e;
+  --colorGinPrimaryActive: #0d0d0d;
+  --colorGinAppBackgroundRGB: 248, 248, 248;
+  --colorGinTableHeader: #e2e2e2;
+}
+
+.gin--dark-mode[data-gin-accent=blue],
+.gin--dark-mode [data-gin-accent=blue] {
+  --colorGinPrimaryRGB: 144, 174, 239;
+  --colorGinPrimaryLightRGB: 62, 68, 84;
+  --colorGinPrimaryHover: #9bb6f1;
+  --colorGinPrimaryActive: #a1baf1;
+  --colorGinTableHeader: #373b45;
+}
+
+.gin--dark-mode[data-gin-accent=claro_blue],
+.gin--dark-mode [data-gin-accent=claro_blue] {
+  --colorGinPrimaryRGB: 115, 145, 216;
+  --colorGinPrimaryLightRGB: 57, 63, 79;
+  --colorGinPrimaryHover: #819cdc;
+  --colorGinPrimaryActive: #88a2de;
+  --colorGinTableHeader: #333742;
+}
+
+.gin--dark-mode[data-gin-accent=light_blue],
+.gin--dark-mode [data-gin-accent=light_blue] {
+  --colorGinPrimaryRGB: 130, 191, 232;
+  --colorGinPrimaryLightRGB: 60, 72, 82;
+  --colorGinPrimaryHover: #8fc5ea;
+  --colorGinPrimaryActive: #95c9eb;
+  --colorGinTableHeader: #353d44;
+}
+
+.gin--dark-mode[data-gin-accent=dark_purple],
+.gin--dark-mode [data-gin-accent=dark_purple] {
+  --colorGinPrimaryRGB: 173, 143, 232;
+  --colorGinPrimaryLightRGB: 68, 62, 82;
+  --colorGinPrimaryHover: #b59aea;
+  --colorGinPrimaryActive: #b9a0eb;
+  --colorGinTableHeader: #3a3744;
+}
+
+.gin--dark-mode[data-gin-accent=purple],
+.gin--dark-mode [data-gin-accent=purple] {
+  --colorGinPrimaryRGB: 219, 165, 239;
+  --colorGinPrimaryLightRGB: 77, 67, 84;
+  --colorGinPrimaryHover: #dfaef1;
+  --colorGinPrimaryActive: #e0b3f1;
+  --colorGinTableHeader: #403945;
+}
+
+.gin--dark-mode[data-gin-accent=teal],
+.gin--dark-mode [data-gin-accent=teal] {
+  --colorGinPrimaryRGB: 0, 234, 208;
+  --colorGinPrimaryLightRGB: 34, 80, 78;
+  --colorGinPrimaryHover: #1aecd5;
+  --colorGinPrimaryActive: #26edd7;
+  --colorGinTableHeader: #254241;
+}
+
+.gin--dark-mode[data-gin-accent=green],
+.gin--dark-mode [data-gin-accent=green] {
+  --colorGinPrimaryRGB: 107, 212, 161;
+  --colorGinPrimaryLightRGB: 55, 76, 68;
+  --colorGinPrimaryHover: #7ad8aa;
+  --colorGinPrimaryActive: #81daaf;
+  --colorGinTableHeader: #323f3c;
+}
+
+.gin--dark-mode[data-gin-accent=red],
+.gin--dark-mode [data-gin-accent=red] {
+  --colorGinPrimaryRGB: 236, 137, 137;
+  --colorGinPrimaryLightRGB: 81, 61, 63;
+  --colorGinPrimaryHover: #ee9595;
+  --colorGinPrimaryActive: #ef9b9b;
+  --colorGinTableHeader: #423639;
+}
+
+.gin--dark-mode[data-gin-accent=orange],
+.gin--dark-mode [data-gin-accent=orange] {
+  --colorGinPrimaryRGB: 247, 149, 118;
+  --colorGinPrimaryLightRGB: 83, 63, 60;
+  --colorGinPrimaryHover: #f8a084;
+  --colorGinPrimaryActive: #f8a58b;
+  --colorGinTableHeader: #443736;
+}
+
+.gin--dark-mode[data-gin-accent=yellow],
+.gin--dark-mode [data-gin-accent=yellow] {
+  --colorGinPrimaryRGB: 241, 201, 112;
+  --colorGinPrimaryLightRGB: 82, 74, 58;
+  --colorGinPrimaryHover: #f2ce7e;
+  --colorGinPrimaryActive: #f3d185;
+  --colorGinTableHeader: #433e35;
+}
+
+.gin--dark-mode[data-gin-accent=pink],
+.gin--dark-mode [data-gin-accent=pink] {
+  --colorGinPrimaryRGB: 231, 157, 163;
+  --colorGinPrimaryLightRGB: 80, 65, 69;
+  --colorGinPrimaryHover: #e9a7ac;
+  --colorGinPrimaryActive: #ebacb1;
+  --colorGinTableHeader: #42383c;
+}
+
+.gin--dark-mode[data-gin-accent=neutral],
+.gin--dark-mode [data-gin-accent=neutral] {
+  --colorGinPrimaryRGB: 255, 255, 255;
+  --colorGinPrimaryLightRGB: 85, 85, 87;
+  --colorGinPrimaryHover: white;
+  --colorGinPrimaryActive: white;
+  --colorGinTableHeader: #454547;
+}
+
+.gin--dark-mode[data-gin-accent=custom],
+.gin--dark-mode [data-gin-accent=custom] {
+  --colorGinPrimaryRGB: 255, 255, 255;
+  --colorGinPrimaryLightRGB: 85, 85, 87;
+  --colorGinPrimaryHover: white;
+  --colorGinPrimaryActive: white;
+  --colorGinTableHeader: #454547;
+}
+
+.gin--high-contrast-mode {
+  --colorGinAppBackground: #d9dbde;
+  --colorGinText: rgba(0, 0, 0, .8);
+  --colorGinTextLight: rgba(0, 0, 0, .8);
+  --colorGinIcons: rgba(0, 0, 0, .8);
+  --colorGinFocus: rgba(0, 0, 0, .8);
+  --colorGinBorder: rgba(0, 0, 0, .8);
+  --colorGinSecondaryBorder: rgba(0, 0, 0, .6);
+  --colorGinLayerBorder: rgba(0, 0, 0, .6);
+  --colorGinLayer2Border: rgba(0, 0, 0, .8);
+  --colorGinTableBorder: rgba(0, 0, 0, .8);
+  --colorGinTabsBorder: rgba(0, 0, 0, .8);
+  --colorGinFormElementBorder: rgba(0, 0, 0, .8);
+}
+
+.gin--dark-mode .gin--high-contrast-mode {
+  --colorGinAppBackground: #000;
+  --colorGinText: rgba(255, 255, 255, .8);
+  --colorGinTextLight: rgba(255, 255, 255, .8);
+  --colorGinIcons: rgba(255, 255, 255, .8);
+  --colorGinFocus: rgba(255, 255, 255, .8);
+  --colorGinBorder: rgba(255, 255, 255, .8);
+  --colorGinSecondaryBorder: rgba(255, 255, 255, .6);
+  --colorGinLayerBorder: rgba(255, 255, 255, .6);
+  --colorGinLayer2Border: rgba(255, 255, 255, .8);
+  --colorGinTableBorder: rgba(255, 255, 255, .8);
+  --colorGinTabsBorder: rgba(255, 255, 255, .8);
+  --colorGinFormElementBorder: rgba(255, 255, 255, .8);
+}
+
+[data-gin-focus=green] {
+  --colorGinFocus: rgba(8, 163, 144, .6);
+}
+
+[data-gin-focus=claro] {
+  --colorGinFocus: rgba(38, 167, 105, .6);
+}
+
+[data-gin-focus=orange] {
+  --colorGinFocus: rgba(236, 124, 87, .6);
+}
+
+[data-gin-focus=dark] {
+  --colorGinFocus: var(--colorGinFocusNeutralRGB);
+}
+
+[data-gin-focus=accent] {
+  --colorGinFocus: rgba(var(--colorGinPrimaryRGB), .6);
+}
+

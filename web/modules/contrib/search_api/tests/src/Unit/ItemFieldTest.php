@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\search_api\Unit;
 
+use Drupal\search_api\DataType\DataTypeInterface;
 use Drupal\search_api\Entity\Index;
 use Drupal\search_api\Item\Field;
 use Drupal\Tests\UnitTestCase;
@@ -25,17 +26,17 @@ class ItemFieldTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $data_type = $this->getMock('Drupal\search_api\DataType\DataTypeInterface');
+    $data_type = $this->createMock(DataTypeInterface::class);
     $data_type->expects($this->any())
       ->method('getValue')
       ->willReturnCallback(function ($v) {
         return "*$v";
       });
 
-    /** @var \Drupal\search_api\DataType\DataTypePluginManager|\PHPUnit_Framework_MockObject_MockObject $data_type_manager */
+    /** @var \Drupal\search_api\DataType\DataTypePluginManager|\PHPUnit\Framework\MockObject\MockObject $data_type_manager */
     $data_type_manager = $this->getMockBuilder('Drupal\search_api\DataType\DataTypePluginManager')
       ->disableOriginalConstructor()
       ->getMock();

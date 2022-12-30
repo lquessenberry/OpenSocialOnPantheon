@@ -89,4 +89,10 @@ settings:
   vote_result:
     handler: 'default:vote_result'
     handler_settings: {  }
+  queue_storage_entity:
+    handler: 'default:queue_storage_entity'
+    handler_settings: {  }
+  path_alias:
+    handler: 'default:path_alias'
+    handler_settings: {  }
 field_type: dynamic_entity_reference

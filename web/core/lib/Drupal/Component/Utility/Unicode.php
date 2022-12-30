@@ -88,13 +88,6 @@ EOD;
   const STATUS_ERROR = -1;
 
   /**
-   * Holds the multibyte capabilities of the current environment.
-   *
-   * @var int
-   */
-  protected static $status = 0;
-
-  /**
    * Gets the current status of unicode/multibyte support on this environment.
    *
    * @return int
@@ -107,28 +100,14 @@ EOD;
    *     An error occurred. No unicode support.
    */
   public static function getStatus() {
-    return static::$status;
-  }
+    switch (static::check()) {
+      case 'mb_strlen':
+        return Unicode::STATUS_SINGLEBYTE;
 
-  /**
-   * Sets the value for multibyte support status for the current environment.
-   *
-   * The following status keys are supported:
-   *   - \Drupal\Component\Utility\Unicode::STATUS_MULTIBYTE
-   *     Full unicode support using an extension.
-   *   - \Drupal\Component\Utility\Unicode::STATUS_SINGLEBYTE
-   *     Standard PHP (emulated) unicode support.
-   *   - \Drupal\Component\Utility\Unicode::STATUS_ERROR
-   *     An error occurred. No unicode support.
-   *
-   * @param int $status
-   *   The new status of multibyte support.
-   */
-  public static function setStatus($status) {
-    if (!in_array($status, [static::STATUS_SINGLEBYTE, static::STATUS_MULTIBYTE, static::STATUS_ERROR])) {
-      throw new \InvalidArgumentException('Invalid status value for unicode support.');
+      case '':
+        return Unicode::STATUS_MULTIBYTE;
     }
-    static::$status = $status;
+    return Unicode::STATUS_ERROR;
   }
 
   /**
@@ -143,38 +122,23 @@ EOD;
    *   Otherwise, an empty string.
    */
   public static function check() {
+    // Set appropriate configuration.
+    mb_internal_encoding('utf-8');
+    mb_language('uni');
+
     // Check for mbstring extension.
-    if (!function_exists('mb_strlen')) {
-      static::$status = static::STATUS_SINGLEBYTE;
+    if (!extension_loaded('mbstring')) {
       return 'mb_strlen';
     }
 
     // Check mbstring configuration.
     if (ini_get('mbstring.func_overload') != 0) {
-      static::$status = static::STATUS_ERROR;
       return 'mbstring.func_overload';
     }
     if (ini_get('mbstring.encoding_translation') != 0) {
-      static::$status = static::STATUS_ERROR;
       return 'mbstring.encoding_translation';
     }
-    // mbstring.http_input and mbstring.http_output are deprecated and empty by
-    // default in PHP 5.6.
-    if (version_compare(PHP_VERSION, '5.6.0') == -1) {
-      if (ini_get('mbstring.http_input') != 'pass') {
-        static::$status = static::STATUS_ERROR;
-        return 'mbstring.http_input';
-      }
-      if (ini_get('mbstring.http_output') != 'pass') {
-        static::$status = static::STATUS_ERROR;
-        return 'mbstring.http_output';
-      }
-    }
 
-    // Set appropriate configuration.
-    mb_internal_encoding('utf-8');
-    mb_language('uni');
-    static::$status = static::STATUS_MULTIBYTE;
     return '';
   }
 
@@ -224,17 +188,7 @@ EOD;
    *   Converted data or FALSE.
    */
   public static function convertToUtf8($data, $encoding) {
-    if (function_exists('iconv')) {
-      return @iconv($encoding, 'utf-8', $data);
-    }
-    elseif (function_exists('mb_convert_encoding')) {
-      return @mb_convert_encoding($data, 'utf-8', $encoding);
-    }
-    elseif (function_exists('recode_string')) {
-      return @recode_string($encoding . '..utf-8', $data);
-    }
-    // Cannot convert.
-    return FALSE;
+    return @iconv($encoding, 'utf-8', $data);
   }
 
   /**
@@ -272,71 +226,6 @@ EOD;
   }
 
   /**
-   * Counts the number of characters in a UTF-8 string.
-   *
-   * This is less than or equal to the byte count.
-   *
-   * @param string $text
-   *   The string to run the operation on.
-   *
-   * @return int
-   *   The length of the string.
-   */
-  public static function strlen($text) {
-    if (static::getStatus() == static::STATUS_MULTIBYTE) {
-      return mb_strlen($text);
-    }
-    else {
-      // Do not count UTF-8 continuation bytes.
-      return strlen(preg_replace("/[\x80-\xBF]/", '', $text));
-    }
-  }
-
-  /**
-   * Converts a UTF-8 string to uppercase.
-   *
-   * @param string $text
-   *   The string to run the operation on.
-   *
-   * @return string
-   *   The string in uppercase.
-   */
-  public static function strtoupper($text) {
-    if (static::getStatus() == static::STATUS_MULTIBYTE) {
-      return mb_strtoupper($text);
-    }
-    else {
-      // Use C-locale for ASCII-only uppercase.
-      $text = strtoupper($text);
-      // Case flip Latin-1 accented letters.
-      $text = preg_replace_callback('/\xC3[\xA0-\xB6\xB8-\xBE]/', '\Drupal\Component\Utility\Unicode::caseFlip', $text);
-      return $text;
-    }
-  }
-
-  /**
-   * Converts a UTF-8 string to lowercase.
-   *
-   * @param string $text
-   *   The string to run the operation on.
-   *
-   * @return string
-   *   The string in lowercase.
-   */
-  public static function strtolower($text) {
-    if (static::getStatus() == static::STATUS_MULTIBYTE) {
-      return mb_strtolower($text);
-    }
-    else {
-      // Use C-locale for ASCII-only lowercase.
-      $text = strtolower($text);
-      // Case flip Latin-1 accented letters.
-      $text = preg_replace_callback('/\xC3[\x80-\x96\x98-\x9E]/', '\Drupal\Component\Utility\Unicode::caseFlip', $text);
-      return $text;
-    }
-  }
-
-  /**
    * Capitalizes the first character of a UTF-8 string.
    *
    * @param string $text
@@ -346,7 +235,7 @@ EOD;
    *   The string with the first character as uppercase.
    */
   public static function ucfirst($text) {
-    return static::strtoupper(static::substr($text, 0, 1)) . static::substr($text, 1);
+    return mb_strtoupper(mb_substr($text, 0, 1)) . mb_substr($text, 1);
   }
 
   /**
@@ -362,7 +251,7 @@ EOD;
    */
   public static function lcfirst($text) {
     // Note: no mbstring equivalent!
-    return static::strtolower(static::substr($text, 0, 1)) . static::substr($text, 1);
+    return mb_strtolower(mb_substr($text, 0, 1)) . mb_substr($text, 1);
   }
 
   /**
@@ -379,112 +268,8 @@ EOD;
   public static function ucwords($text) {
     $regex = '/(^|[' . static::PREG_CLASS_WORD_BOUNDARY . '])([^' . static::PREG_CLASS_WORD_BOUNDARY . '])/u';
     return preg_replace_callback($regex, function (array $matches) {
-      return $matches[1] . Unicode::strtoupper($matches[2]);
+      return $matches[1] . mb_strtoupper($matches[2]);
     }, $text);
-  }
-
-  /**
-   * Cuts off a piece of a string based on character indices and counts.
-   *
-   * Follows the same behavior as PHP's own substr() function. Note that for
-   * cutting off a string at a known character/substring location, the usage of
-   * PHP's normal strpos/substr is safe and much faster.
-   *
-   * @param string $text
-   *   The input string.
-   * @param int $start
-   *   The position at which to start reading.
-   * @param int $length
-   *   The number of characters to read.
-   *
-   * @return string
-   *   The shortened string.
-   */
-  public static function substr($text, $start, $length = NULL) {
-    if (static::getStatus() == static::STATUS_MULTIBYTE) {
-      return $length === NULL ? mb_substr($text, $start) : mb_substr($text, $start, $length);
-    }
-    else {
-      $strlen = strlen($text);
-      // Find the starting byte offset.
-      $bytes = 0;
-      if ($start > 0) {
-        // Count all the characters except continuation bytes from the start
-        // until we have found $start characters or the end of the string.
-        $bytes = -1; $chars = -1;
-        while ($bytes < $strlen - 1 && $chars < $start) {
-          $bytes++;
-          $c = ord($text[$bytes]);
-          if ($c < 0x80 || $c >= 0xC0) {
-            $chars++;
-          }
-        }
-      }
-      elseif ($start < 0) {
-        // Count all the characters except continuation bytes from the end
-        // until we have found abs($start) characters.
-        $start = abs($start);
-        $bytes = $strlen; $chars = 0;
-        while ($bytes > 0 && $chars < $start) {
-          $bytes--;
-          $c = ord($text[$bytes]);
-          if ($c < 0x80 || $c >= 0xC0) {
-            $chars++;
-          }
-        }
-      }
-      $istart = $bytes;
-
-      // Find the ending byte offset.
-      if ($length === NULL) {
-        $iend = $strlen;
-      }
-      elseif ($length > 0) {
-        // Count all the characters except continuation bytes from the starting
-        // index until we have found $length characters or reached the end of
-        // the string, then backtrace one byte.
-        $iend = $istart - 1;
-        $chars = -1;
-        $last_real = FALSE;
-        while ($iend < $strlen - 1 && $chars < $length) {
-          $iend++;
-          $c = ord($text[$iend]);
-          $last_real = FALSE;
-          if ($c < 0x80 || $c >= 0xC0) {
-            $chars++;
-            $last_real = TRUE;
-          }
-        }
-        // Backtrace one byte if the last character we found was a real
-        // character and we don't need it.
-        if ($last_real && $chars >= $length) {
-          $iend--;
-        }
-      }
-      elseif ($length < 0) {
-        // Count all the characters except continuation bytes from the end
-        // until we have found abs($start) characters, then backtrace one byte.
-        $length = abs($length);
-        $iend = $strlen; $chars = 0;
-        while ($iend > 0 && $chars < $length) {
-          $iend--;
-          $c = ord($text[$iend]);
-          if ($c < 0x80 || $c >= 0xC0) {
-            $chars++;
-          }
-        }
-        // Backtrace one byte if we are not at the beginning of the string.
-        if ($iend > 0) {
-          $iend--;
-        }
-      }
-      else {
-        // $length == 0, return an empty string.
-        return '';
-      }
-
-      return substr($text, $istart, max(0, $iend - $istart + 1));
-    }
   }
 
   /**
@@ -526,15 +311,15 @@ EOD;
     $max_length = max($max_length, 0);
     $min_wordsafe_length = max($min_wordsafe_length, 0);
 
-    if (static::strlen($string) <= $max_length) {
+    if (mb_strlen($string) <= $max_length) {
       // No truncation needed, so don't add ellipsis, just return.
       return $string;
     }
 
     if ($add_ellipsis) {
       // Truncate ellipsis in case $max_length is small.
-      $ellipsis = static::substr('…', 0, $max_length);
-      $max_length -= static::strlen($ellipsis);
+      $ellipsis = mb_substr('…', 0, $max_length);
+      $max_length -= mb_strlen($ellipsis);
       $max_length = max($max_length, 0);
     }
 
@@ -553,11 +338,11 @@ EOD;
         $string = $matches[1];
       }
       else {
-        $string = static::substr($string, 0, $max_length);
+        $string = mb_substr($string, 0, $max_length);
       }
     }
     else {
-      $string = static::substr($string, 0, $max_length);
+      $string = mb_substr($string, 0, $max_length);
     }
 
     if ($add_ellipsis) {
@@ -583,7 +368,7 @@ EOD;
    *   $str2, and 0 if they are equal.
    */
   public static function strcasecmp($str1, $str2) {
-    return strcmp(static::strtoupper($str1), static::strtoupper($str2));
+    return strcmp(mb_strtoupper($str1), mb_strtoupper($str2));
   }
 
   /**
@@ -608,8 +393,14 @@ EOD;
    *
    * @return string
    *   The mime-encoded header.
+   *
+   * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use
+   *   \Symfony\Component\Mime\Header\UnstructuredHeader instead.
+   *
+   * @see https://www.drupal.org/node/3207439
    */
   public static function mimeHeaderEncode($string, $shorten = FALSE) {
+    @trigger_error('\Drupal\Component\Utility\Unicode::mimeHeaderEncode() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use \Symfony\Component\Mime\Header\UnstructuredHeader instead. See https://www.drupal.org/node/3207439', E_USER_DEPRECATED);
     if (preg_match('/[^\x20-\x7E]/', $string)) {
       // floor((75 - strlen("=?UTF-8?B??=")) * 0.75);
       $chunk_size = 47;
@@ -638,32 +429,25 @@ EOD;
    *
    * @return string
    *   The mime-decoded header.
+   *
+   * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use
+   *   iconv_mime_decode() instead.
+   *
+   * @see https://www.drupal.org/node/3207439
    */
   public static function mimeHeaderDecode($header) {
+    @trigger_error('\Drupal\Component\Utility\Unicode::mimeHeaderDecode() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use iconv_mime_decode() instead. See https://www.drupal.org/node/3207439', E_USER_DEPRECATED);
     $callback = function ($matches) {
-      $data = ($matches[2] == 'B') ? base64_decode($matches[3]) : str_replace('_', ' ', quoted_printable_decode($matches[3]));
+      $data = (strtolower($matches[2]) == 'b') ? base64_decode($matches[3]) : str_replace('_', ' ', quoted_printable_decode($matches[3]));
       if (strtolower($matches[1]) != 'utf-8') {
         $data = static::convertToUtf8($data, $matches[1]);
       }
       return $data;
     };
     // First step: encoded chunks followed by other encoded chunks (need to collapse whitespace)
-    $header = preg_replace_callback('/=\?([^?]+)\?(Q|B)\?([^?]+|\?(?!=))\?=\s+(?==\?)/', $callback, $header);
+    $header = preg_replace_callback('/=\?([^?]+)\?([Qq]|[Bb])\?([^?]+|\?(?!=))\?=\s+(?==\?)/', $callback, $header);
     // Second step: remaining chunks (do not collapse whitespace)
-    return preg_replace_callback('/=\?([^?]+)\?(Q|B)\?([^?]+|\?(?!=))\?=/', $callback, $header);
-  }
-
-  /**
-   * Flip U+C0-U+DE to U+E0-U+FD and back. Can be used as preg_replace callback.
-   *
-   * @param array $matches
-   *   An array of matches by preg_replace_callback().
-   *
-   * @return string
-   *   The flipped text.
-   */
-  public static function caseFlip($matches) {
-    return $matches[0][0] . chr(ord($matches[0][1]) ^ 32);
+    return preg_replace_callback('/=\?([^?]+)\?([Qq]|[Bb])\?([^?]+|\?(?!=))\?=/', $callback, $header);
   }
 
   /**
@@ -698,35 +482,6 @@ EOD;
     // containing invalid UTF-8 byte sequences. It does not reject character
     // codes above U+10FFFF (represented by 4 or more octets), though.
     return (preg_match('/^./us', $text) == 1);
-  }
-
-  /**
-   * Finds the position of the first occurrence of a string in another string.
-   *
-   * @param string $haystack
-   *   The string to search in.
-   * @param string $needle
-   *   The string to find in $haystack.
-   * @param int $offset
-   *   If specified, start the search at this number of characters from the
-   *   beginning (default 0).
-   *
-   * @return int|false
-   *   The position where $needle occurs in $haystack, always relative to the
-   *   beginning (independent of $offset), or FALSE if not found. Note that
-   *   a return value of 0 is not the same as FALSE.
-   */
-  public static function strpos($haystack, $needle, $offset = 0) {
-    if (static::getStatus() == static::STATUS_MULTIBYTE) {
-      return mb_strpos($haystack, $needle, $offset);
-    }
-    else {
-      // Remove Unicode continuation characters, to be compatible with
-      // Unicode::strlen() and Unicode::substr().
-      $haystack = preg_replace("/[\x80-\xBF]/", '', $haystack);
-      $needle = preg_replace("/[\x80-\xBF]/", '', $needle);
-      return strpos($haystack, $needle, $offset);
-    }
   }
 
 }

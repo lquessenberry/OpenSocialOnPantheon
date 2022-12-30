@@ -16,12 +16,16 @@ class MigrateUploadTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['language', 'menu_ui'];
+  protected static $modules = [
+    'language',
+    'content_translation',
+    'menu_ui',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('file');
@@ -40,8 +44,8 @@ class MigrateUploadTest extends MigrateDrupal6TestBase {
         'filemime' => 'text/plain',
         'created' => 1,
         'changed' => 1,
-        'status' => FILE_STATUS_PERMANENT,
       ]);
+      $file->setPermanent();
       $file->enforceIsNew();
       file_put_contents($file->getFileUri(), 'hello world');
 
@@ -60,34 +64,34 @@ class MigrateUploadTest extends MigrateDrupal6TestBase {
   }
 
   /**
-   * Test upload migration from Drupal 6 to Drupal 8.
+   * Tests upload migration from Drupal 6 to Drupal 8.
    */
   public function testUpload() {
-    $this->container->get('entity.manager')
+    $this->container->get('entity_type.manager')
       ->getStorage('node')
       ->resetCache([1, 2, 12]);
 
     $nodes = Node::loadMultiple([1, 2, 12]);
     $node = $nodes[1];
     $this->assertEquals('en', $node->langcode->value);
-    $this->assertIdentical(1, count($node->upload));
-    $this->assertIdentical('1', $node->upload[0]->target_id);
-    $this->assertIdentical('file 1-1-1', $node->upload[0]->description);
-    $this->assertIdentical(FALSE, $node->upload[0]->isDisplayed());
+    $this->assertCount(1, $node->upload);
+    $this->assertSame('1', $node->upload[0]->target_id);
+    $this->assertSame('file 1-1-1', $node->upload[0]->description);
+    $this->assertFalse($node->upload[0]->isDisplayed());
 
     $node = $nodes[2];
     $this->assertEquals('en', $node->langcode->value);
-    $this->assertIdentical(2, count($node->upload));
-    $this->assertIdentical('3', $node->upload[0]->target_id);
-    $this->assertIdentical('file 2-3-3', $node->upload[0]->description);
-    $this->assertIdentical(FALSE, $node->upload[0]->isDisplayed());
-    $this->assertIdentical('2', $node->upload[1]->target_id);
-    $this->assertIdentical(TRUE, $node->upload[1]->isDisplayed());
-    $this->assertIdentical('file 2-3-2', $node->upload[1]->description);
+    $this->assertCount(2, $node->upload);
+    $this->assertSame('3', $node->upload[0]->target_id);
+    $this->assertSame('file 2-3-3', $node->upload[0]->description);
+    $this->assertFalse($node->upload[0]->isDisplayed());
+    $this->assertSame('2', $node->upload[1]->target_id);
+    $this->assertTrue($node->upload[1]->isDisplayed());
+    $this->assertSame('file 2-3-2', $node->upload[1]->description);
 
     $node = $nodes[12];
     $this->assertEquals('zu', $node->langcode->value);
-    $this->assertEquals(1, count($node->upload));
+    $this->assertCount(1, $node->upload);
     $this->assertEquals('3', $node->upload[0]->target_id);
     $this->assertEquals('file 12-15-3', $node->upload[0]->description);
     $this->assertEquals(FALSE, $node->upload[0]->isDisplayed());

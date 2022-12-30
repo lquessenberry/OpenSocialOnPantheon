@@ -7,8 +7,8 @@ use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Url;
+use Drupal\file\FileInterface;
 use Drupal\image\Plugin\Field\FieldFormatter\ImageFormatterBase;
 use Drupal\responsive_image\Entity\ResponsiveImageStyle;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -29,14 +29,14 @@ use Drupal\Core\Utility\LinkGeneratorInterface;
  *   }
  * )
  */
-class ResponsiveImageFormatter extends ImageFormatterBase implements ContainerFactoryPluginInterface {
+class ResponsiveImageFormatter extends ImageFormatterBase {
 
   /**
    * @var \Drupal\Core\Entity\EntityStorageInterface
    */
   protected $responsiveImageStyleStorage;
 
-  /*
+  /**
    * The image style entity storage.
    *
    * @var \Drupal\Core\Entity\EntityStorageInterface
@@ -104,8 +104,8 @@ class ResponsiveImageFormatter extends ImageFormatterBase implements ContainerFa
       $configuration['label'],
       $configuration['view_mode'],
       $configuration['third_party_settings'],
-      $container->get('entity.manager')->getStorage('responsive_image_style'),
-      $container->get('entity.manager')->getStorage('image_style'),
+      $container->get('entity_type.manager')->getStorage('responsive_image_style'),
+      $container->get('entity_type.manager')->getStorage('image_style'),
       $container->get('link_generator'),
       $container->get('current_user')
     );
@@ -127,6 +127,7 @@ class ResponsiveImageFormatter extends ImageFormatterBase implements ContainerFa
   public function settingsForm(array $form, FormStateInterface $form_state) {
     $responsive_image_options = [];
     $responsive_image_styles = $this->responsiveImageStyleStorage->loadMultiple();
+    uasort($responsive_image_styles, '\Drupal\responsive_image\Entity\ResponsiveImageStyle::sort');
     if ($responsive_image_styles && !empty($responsive_image_styles)) {
       foreach ($responsive_image_styles as $machine_name => $responsive_image_style) {
         if ($responsive_image_style->hasImageStyleMappings()) {
@@ -205,7 +206,7 @@ class ResponsiveImageFormatter extends ImageFormatterBase implements ContainerFa
     if ($this->getSetting('image_link') == 'content') {
       $entity = $items->getEntity();
       if (!$entity->isNew()) {
-        $url = $entity->urlInfo();
+        $url = $entity->toUrl();
       }
     }
     elseif ($this->getSetting('image_link') == 'file') {
@@ -227,9 +228,10 @@ class ResponsiveImageFormatter extends ImageFormatterBase implements ContainerFa
     }
 
     foreach ($files as $delta => $file) {
+      assert($file instanceof FileInterface);
       // Link the <picture> element to the original file.
       if (isset($link_file)) {
-        $url = file_url_transform_relative(file_create_url($file->getFileUri()));
+        $url = $file->createFileUrl();
       }
       // Extract field item attributes for the theme function, and unset them
       // from the $item so that the field template does not re-render them.

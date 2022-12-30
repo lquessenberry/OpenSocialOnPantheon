@@ -27,7 +27,7 @@ class ProcessorProperty extends DataDefinition implements ProcessorPropertyInter
    * {@inheritdoc}
    */
   public function isList() {
-    return !empty($this->definition['is_list']) || parent::isList();
+    return (bool) ($this->definition['is_list'] ?? parent::isList());
   }
 
 }

@@ -6,7 +6,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
- * Class DataPolicySettingsForm.
+ * Settings form.
  *
  * @ingroup data_policy
  */
@@ -32,11 +32,12 @@ class DataPolicySettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('data_policy.data_policy');
 
-    $form['enforce_consent'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enforce consent'),
-      '#description' => $this->t('A user should give your consent on data policy when he creates an account.'),
-      '#default_value' => $config->get('enforce_consent'),
+    $form['consent_text'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Consent text'),
+      '#default_value' => $config->get('consent_text'),
+      '#description' => $this->t('Each line is a separate checkbox. Accordingly, in order to have several checkboxes, you need to add several lines. To insert an entity into a string, you need to use tokens according to a special template: [id:1] where 1 is the entity ID from the page "/admin/config/people/data-policy", if the checkbox must be required, then after the entity ID you need to insert the "*" character.'),
+      '#rows' => 5,
     ];
 
     return parent::buildForm($form, $form_state);
@@ -47,7 +48,7 @@ class DataPolicySettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->config('data_policy.data_policy')
-      ->set('enforce_consent', $form_state->getValue('enforce_consent'))
+      ->set('consent_text', $form_state->getValue('consent_text'))
       ->save();
 
     parent::submitForm($form, $form_state);

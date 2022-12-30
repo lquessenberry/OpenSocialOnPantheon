@@ -1,0 +1,17 @@
+services:
+  update_helper.logger:
+    class: Drupal\update_helper\UpdateLogger
+  update_helper.config_diff_transformer:
+    class: Drupal\update_helper\ConfigDiffTransformer
+  update_helper.config_differ:
+    class: Drupal\update_helper\ReversibleConfigDiffer
+    arguments: ['@string_translation', '@update_helper.config_diff_transformer']
+  update_helper.config_handler:
+    class: Drupal\update_helper\ConfigHandler
+    arguments: ['@config_update.config_list', '@config_update.config_update', '@update_helper.config_differ', '@update_helper.config_diff_transformer', '@module_handler', '@serialization.yaml', '@update_helper.config_exporter']
+  update_helper.updater:
+    class: Drupal\update_helper\Updater
+    arguments: ['@config.factory', '@module_installer', '@theme_installer', '@config_update.config_update', '@update_helper.config_handler', '@update_helper.logger', '@event_dispatcher', '@config.manager']
+  update_helper.config_exporter:
+    class: Drupal\update_helper\ConfigExporter
+    arguments: ['@config_update.extension_storage', '@config_update.extension_optional_storage', '@serialization.yaml']

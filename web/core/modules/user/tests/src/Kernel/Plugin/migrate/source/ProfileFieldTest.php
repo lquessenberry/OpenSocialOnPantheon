@@ -15,7 +15,7 @@ class ProfileFieldTest extends MigrateSqlSourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['user', 'migrate_drupal'];
+  protected static $modules = ['user', 'migrate_drupal'];
 
   /**
    * {@inheritdoc}
@@ -99,12 +99,12 @@ class ProfileFieldTest extends MigrateSqlSourceTestBase {
         'fid' => 4,
         'uid' => 1,
         'value' => 'yellow',
-      ]
+      ],
     ];
 
     // Expected options are:
-    //  for "checkbox" fields - array with NULL options
-    //  for "selection" fields - options in both keys and values
+    // - for "checkbox" fields - array with NULL options.
+    // - for "selection" fields - options in both keys and values.
     $expected_field_options = [
       '',
       '',
@@ -114,7 +114,7 @@ class ProfileFieldTest extends MigrateSqlSourceTestBase {
         'blue' => 'blue',
         'green' => 'green',
         'yellow' => 'yellow',
-      ]
+      ],
     ];
 
     $tests[0]['expected_data'] = $profile_fields;

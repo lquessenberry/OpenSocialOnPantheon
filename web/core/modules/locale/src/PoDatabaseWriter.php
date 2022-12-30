@@ -158,7 +158,7 @@ class PoDatabaseWriter implements PoWriterInterface {
    */
   public function setHeader(PoHeader $header) {
     $this->header = $header;
-    $locale_plurals = \Drupal::state()->get('locale.translation.plurals') ?: [];
+    $locale_plurals = \Drupal::state()->get('locale.translation.plurals', []);
 
     // Check for options.
     $options = $this->getOptions();
@@ -177,7 +177,7 @@ class PoDatabaseWriter implements PoWriterInterface {
       // Get and store the plural formula if available.
       $plural = $header->getPluralForms();
       if (isset($plural) && $p = $header->parsePluralForms($plural)) {
-        list($nplurals, $formula) = $p;
+        [$nplurals, $formula] = $p;
         \Drupal::service('locale.plural.formula')->setPluralFormula($langcode, $nplurals, $formula);
       }
     }
@@ -188,8 +188,8 @@ class PoDatabaseWriter implements PoWriterInterface {
    */
   public function writeItem(PoItem $item) {
     if ($item->isPlural()) {
-      $item->setSource(implode(LOCALE_PLURAL_DELIMITER, $item->getSource()));
-      $item->setTranslation(implode(LOCALE_PLURAL_DELIMITER, $item->getTranslation()));
+      $item->setSource(implode(PoItem::DELIMITER, $item->getSource()));
+      $item->setTranslation(implode(PoItem::DELIMITER, $item->getTranslation()));
     }
     $this->importString($item);
   }

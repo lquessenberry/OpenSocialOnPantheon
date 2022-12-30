@@ -2,7 +2,7 @@
 
 namespace Drupal\search_api\Plugin\views\field;
 
-use Drupal\Core\StringTranslation\PluralTranslatableMarkup;
+use Drupal\Component\Gettext\PoItem;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\Plugin\views\field\MultiItemsFieldHandlerInterface;
 use Drupal\views\Plugin\views\field\NumericField;
@@ -29,7 +29,7 @@ class SearchApiNumeric extends NumericField implements MultiItemsFieldHandlerInt
     // submitOptionsForm() method won't be called, which means the
     // "format_plural_string" option won't be saved correctly. Fix that here.
     if (isset($options['format_plural_values'])) {
-      $options['format_plural_string'] = implode(PluralTranslatableMarkup::DELIMITER, $options['format_plural_values']);
+      $options['format_plural_string'] = implode(PoItem::DELIMITER, $options['format_plural_values']);
     }
 
     parent::init($view, $display, $options);

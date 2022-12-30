@@ -123,7 +123,7 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
    * {@inheritdoc}
    */
   public function onChange($property_name, $notify = TRUE) {
-    /* @var \Drupal\dynamic_entity_reference\Plugin\DataType\DynamicEntityReference $entity_property */
+    /** @var \Drupal\dynamic_entity_reference\Plugin\DataType\DynamicEntityReference $entity_property */
     $entity_property = $this->get('entity');
     if ($property_name == 'target_type' && !$entity_property->getValue()) {
       $entity_property->getTargetDefinition()->setEntityTypeId($this->get('target_type')->getValue());
@@ -131,6 +131,13 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
     // Make sure that the target type and the target property stay in sync.
     elseif ($property_name == 'entity') {
       $this->writePropertyValue('target_type', $entity_property->getValue()->getEntityTypeId());
+    }
+    elseif ($property_name == 'target_id') {
+      // Just in case target_id is set before target_type then set it to empty
+      // string instead of NULL so that
+      // \Drupal\Core\Entity\Plugin\DataType\EntityReference::setValue
+      // doesn't throw "InvalidArgumentException: Value is not a valid entity".
+      $entity_property->getTargetDefinition()->setEntityTypeId($this->get('target_type')->getValue() ?: '');
     }
     parent::onChange($property_name, $notify);
   }
@@ -235,8 +242,14 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
     $options = array_filter(array_keys($labels[(string) t('Content', [], ['context' => 'Entity type group'])]), function ($entity_type_id) {
       return static::entityHasIntegerId($entity_type_id);
     });
-    $exclude_entity_types = $form_state->getValue(['settings', 'exclude_entity_types'], 0);
-    $entity_type_ids = $form_state->getValue(['settings', 'entity_type_ids'], []);
+    $exclude_entity_types = $form_state->getValue([
+      'settings',
+      'exclude_entity_types',
+    ], 0);
+    $entity_type_ids = $form_state->getValue([
+      'settings',
+      'entity_type_ids',
+    ], []);
     $diff = array_diff($options, $entity_type_ids);
     if ((!$exclude_entity_types && empty($entity_type_ids)) || ($exclude_entity_types && empty($diff))) {
       $form_state->setError($element, t('Select at least one entity type ID.'));
@@ -279,7 +292,7 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
   protected function targetTypeFieldSettingsForm(array $form, FormStateInterface $form_state, $target_type) {
     /** @var \Drupal\field\FieldConfigInterface $field */
     $field = $form_state->getFormObject()->getEntity();
-    $field_settings = $field->getSettings();
+    $field_settings = $field->getSettings() + self::defaultFieldSettings();
     /** @var \Drupal\dynamic_entity_reference\SelectionPluginManager $manager */
     $manager = \Drupal::service('plugin.manager.dynamic_entity_reference_selection');
     // Get all selection plugins for this entity type.
@@ -301,7 +314,11 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
     $form = [
       '#type' => 'container',
       '#process' => [[EntityReferenceItem::class, 'fieldSettingsAjaxProcess']],
-      '#element_validate' => [[DynamicEntityReferenceItem::class, 'fieldSettingsFormValidate']],
+      '#element_validate' => [[
+        DynamicEntityReferenceItem::class,
+        'fieldSettingsFormValidate',
+      ],
+      ],
     ];
     $form['handler'] = [
       '#type' => 'details',
@@ -429,10 +446,10 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
       // its actual id and target_id will be different, due to the new entity
       // marker.
       elseif (is_array($values) && array_key_exists('target_id', $values) && array_key_exists('target_type', $values) && isset($values['entity'])) {
-        /* @var \Drupal\dynamic_entity_reference\Plugin\DataType\DynamicEntityReference $entity_property */
+        /** @var \Drupal\dynamic_entity_reference\Plugin\DataType\DynamicEntityReference $entity_property */
         $entity_property = $this->get('entity');
         $entity_id = $entity_property->getTargetIdentifier();
-        /* @var \Drupal\Core\Entity\TypedData\EntityDataDefinitionInterface $target_definition */
+        /** @var \Drupal\Core\Entity\TypedData\EntityDataDefinitionInterface $target_definition */
         $target_definition = $entity_property->getTargetDefinition();
         $entity_type = $target_definition->getEntityTypeId();
         if (!$this->entity->isNew() && $values['target_id'] !== NULL && (($entity_id !== $values['target_id']) || ($entity_type !== $values['target_type']))) {
@@ -499,7 +516,9 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
     $settings = $field_definition->getSettings();
     foreach (static::getTargetTypes($settings) as $target_type) {
       $values['target_type'] = $target_type;
-      if ($referenceable = $manager->getSelectionHandler($field_definition, NULL, $target_type)->getReferenceableEntities()) {
+      // Select a random number of references between the last 50 referenceable
+      // entities created.
+      if ($referenceable = $manager->getSelectionHandler($field_definition, NULL, $target_type)->getReferenceableEntities(NULL, 'CONTAINS', 50)) {
         $group = array_rand($referenceable);
         $values['target_id'] = array_rand($referenceable[$group]);
         return $values;
@@ -529,7 +548,7 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
     // also covers the 'auto_create_bundle' setting, if any, because its value
     // is included in the 'target_bundles' list.
     $entity_type_manager = \Drupal::entityTypeManager();
-    $settings = $field_definition->getSettings();
+    $settings = $field_definition->getSettings() + self::defaultFieldSettings();
     foreach (static::getTargetTypes($settings) as $target_type) {
       $handler = $settings[$target_type]['handler_settings'];
       if (!empty($handler['target_bundles'])) {
@@ -570,7 +589,7 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
     $entity_type_manager = \Drupal::entityTypeManager();
     // Update the 'target_bundles' handler setting if a bundle config dependency
     // has been removed.
-    $settings = $field_definition->getSettings();
+    $settings = $field_definition->getSettings() + self::defaultFieldSettings();
     foreach (static::getTargetTypes($settings) as $target_type) {
       $bundles_changed = FALSE;
       $handler_settings = $settings[$target_type]['handler_settings'];
@@ -586,7 +605,7 @@ class DynamicEntityReferenceItem extends EntityReferenceItem {
                 // setting, disable the auto-creation feature completely.
                 $auto_create_bundle = !empty($handler_settings['auto_create_bundle']) ? $handler_settings['auto_create_bundle'] : FALSE;
                 if ($auto_create_bundle && $auto_create_bundle == $bundle->id()) {
-                  $handler_settings['auto_create'] = NULL;
+                  $handler_settings['auto_create'] = FALSE;
                   $handler_settings['auto_create_bundle'] = NULL;
                 }
 

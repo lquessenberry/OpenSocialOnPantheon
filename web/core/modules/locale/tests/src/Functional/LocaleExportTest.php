@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\locale\Functional;
 
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\BrowserTestBase;
 
 /**
@@ -16,7 +17,12 @@ class LocaleExportTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['locale'];
+  protected static $modules = ['locale'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user able to create languages and export translations.
@@ -26,50 +32,56 @@ class LocaleExportTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->adminUser = $this->drupalCreateUser(['administer languages', 'translate interface', 'access administration pages']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer languages',
+      'translate interface',
+      'access administration pages',
+    ]);
     $this->drupalLogin($this->adminUser);
 
     // Copy test po files to the translations directory.
-    file_unmanaged_copy(__DIR__ . '/../../tests/test.de.po', 'translations://', FILE_EXISTS_REPLACE);
-    file_unmanaged_copy(__DIR__ . '/../../tests/test.xx.po', 'translations://', FILE_EXISTS_REPLACE);
+    \Drupal::service('file_system')->copy(__DIR__ . '/../../../tests/test.de.po', 'translations://', FileSystemInterface::EXISTS_REPLACE);
+    \Drupal::service('file_system')->copy(__DIR__ . '/../../../tests/test.xx.po', 'translations://', FileSystemInterface::EXISTS_REPLACE);
   }
 
   /**
-   * Test exportation of translations.
+   * Tests exportation of translations.
    */
   public function testExportTranslation() {
+    $file_system = \Drupal::service('file_system');
     // First import some known translations.
     // This will also automatically add the 'fr' language.
-    $name = \Drupal::service('file_system')->tempnam('temporary://', "po_") . '.po';
+    $name = $file_system->tempnam('temporary://', "po_") . '.po';
     file_put_contents($name, $this->getPoFile());
-    $this->drupalPostForm('admin/config/regional/translate/import', [
+    $this->drupalGet('admin/config/regional/translate/import');
+    $this->submitForm([
       'langcode' => 'fr',
       'files[file]' => $name,
-    ], t('Import'));
-    drupal_unlink($name);
+    ], 'Import');
+    $file_system->unlink($name);
 
     // Get the French translations.
-    $this->drupalPostForm('admin/config/regional/translate/export', [
-      'langcode' => 'fr',
-    ], t('Export'));
+    $this->drupalGet('admin/config/regional/translate/export');
+    $this->submitForm(['langcode' => 'fr'], 'Export');
 
     // Ensure we have a translation file.
-    $this->assertRaw('# French translation of Drupal', 'Exported French translation file.');
+    $this->assertSession()->pageTextContains('# French translation of Drupal');
     // Ensure our imported translations exist in the file.
-    $this->assertRaw('msgstr "lundi"', 'French translations present in exported file.');
+    $this->assertSession()->pageTextContains('msgstr "lundi"');
 
     // Import some more French translations which will be marked as customized.
-    $name = \Drupal::service('file_system')->tempnam('temporary://', "po2_") . '.po';
+    $name = $file_system->tempnam('temporary://', "po2_") . '.po';
     file_put_contents($name, $this->getCustomPoFile());
-    $this->drupalPostForm('admin/config/regional/translate/import', [
+    $this->drupalGet('admin/config/regional/translate/import');
+    $this->submitForm([
       'langcode' => 'fr',
       'files[file]' => $name,
       'customized' => 1,
-    ], t('Import'));
-    drupal_unlink($name);
+    ], 'Import');
+    $file_system->unlink($name);
 
     // Create string without translation in the locales_source table.
     $this->container
@@ -79,38 +91,40 @@ class LocaleExportTest extends BrowserTestBase {
       ->save();
 
     // Export only customized French translations.
-    $this->drupalPostForm('admin/config/regional/translate/export', [
+    $this->drupalGet('admin/config/regional/translate/export');
+    $this->submitForm([
       'langcode' => 'fr',
       'content_options[not_customized]' => FALSE,
       'content_options[customized]' => TRUE,
       'content_options[not_translated]' => FALSE,
-    ], t('Export'));
+    ], 'Export');
 
     // Ensure we have a translation file.
-    $this->assertRaw('# French translation of Drupal', 'Exported French translation file with only customized strings.');
+    $this->assertSession()->pageTextContains('# French translation of Drupal');
     // Ensure the customized translations exist in the file.
-    $this->assertRaw('msgstr "janvier"', 'French custom translation present in exported file.');
+    $this->assertSession()->pageTextContains('msgstr "janvier"');
     // Ensure no untranslated strings exist in the file.
-    $this->assertNoRaw('msgid "February"', 'Untranslated string not present in exported file.');
+    $this->assertSession()->responseNotContains('msgid "February"');
 
     // Export only untranslated French translations.
-    $this->drupalPostForm('admin/config/regional/translate/export', [
+    $this->drupalGet('admin/config/regional/translate/export');
+    $this->submitForm([
       'langcode' => 'fr',
       'content_options[not_customized]' => FALSE,
       'content_options[customized]' => FALSE,
       'content_options[not_translated]' => TRUE,
-    ], t('Export'));
+    ], 'Export');
 
     // Ensure we have a translation file.
-    $this->assertRaw('# French translation of Drupal', 'Exported French translation file with only untranslated strings.');
+    $this->assertSession()->pageTextContains('# French translation of Drupal');
     // Ensure no customized translations exist in the file.
-    $this->assertNoRaw('msgstr "janvier"', 'French custom translation not present in exported file.');
+    $this->assertSession()->responseNotContains('msgstr "janvier"');
     // Ensure the untranslated strings exist in the file, and with right quotes.
-    $this->assertRaw($this->getUntranslatedString(), 'Empty string present in exported file.');
+    $this->assertSession()->responseContains($this->getUntranslatedString());
   }
 
   /**
-   * Test exportation of translation template file.
+   * Tests exportation of translation template file.
    */
   public function testExportTranslationTemplateFile() {
     // Load an admin page with JavaScript so _drupal_add_library() fires at
@@ -118,9 +132,10 @@ class LocaleExportTest extends BrowserTestBase {
     // the locales_source table gets populated with something.
     $this->drupalGet('admin/config/regional/language');
     // Get the translation template file.
-    $this->drupalPostForm('admin/config/regional/translate/export', [], t('Export'));
+    $this->drupalGet('admin/config/regional/translate/export');
+    $this->submitForm([], 'Export');
     // Ensure we have a translation file.
-    $this->assertRaw('# LANGUAGE translation of PROJECT', 'Exported translation template file.');
+    $this->assertSession()->pageTextContains('# LANGUAGE translation of PROJECT');
   }
 
   /**

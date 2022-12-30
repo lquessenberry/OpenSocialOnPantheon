@@ -1,17 +1,19 @@
 name: 'Social Search'
 description: 'Provide Search API configuration and Search Views.'
 type: module
-core: 8.x
+core_version_requirement: ^9
 dependencies:
+  - better_exposed_filters:better_exposed_filters
   - drupal:block
-  - group:group
   - drupal:node
-  - profile:profile
-  - search_api:search_api
-  - search_api_db:search_api_db
-  - social_group:social_group
-  - social_profile:social_profile
-  - drupal:system
   - drupal:user
   - drupal:views
+  - group:group
+  - profile:profile
+  - search_api:search_api
+  - search_api:search_api_db
+  - social:social_editor
+  - social:social_event
+  - social:social_group
+  - social:social_profile
 package: Social

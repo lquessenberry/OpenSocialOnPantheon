@@ -24,16 +24,26 @@ class OffCanvasRenderer extends DialogRenderer {
   protected $renderer;
 
   /**
+   * The position to render the off-canvas dialog.
+   *
+   * @var string
+   */
+  protected $position;
+
+  /**
    * Constructs a new OffCanvasRenderer.
    *
    * @param \Drupal\Core\Controller\TitleResolverInterface $title_resolver
    *   The title resolver.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
+   * @param string $position
+   *   (optional) The position to render the off-canvas dialog.
    */
-  public function __construct(TitleResolverInterface $title_resolver, RendererInterface $renderer) {
-    parent::__construct($title_resolver);
+  public function __construct(TitleResolverInterface $title_resolver, RendererInterface $renderer, $position = 'side') {
+    parent::__construct($title_resolver, $renderer);
     $this->renderer = $renderer;
+    $this->position = $position;
   }
 
   /**
@@ -50,12 +60,12 @@ class OffCanvasRenderer extends DialogRenderer {
     $response->setAttachments($main_content['#attached']);
 
     // If the main content doesn't provide a title, use the title resolver.
-    $title = isset($main_content['#title']) ? $main_content['#title'] : $this->titleResolver->getTitle($request, $route_match->getRouteObject());
+    $title = $main_content['#title'] ?? $this->titleResolver->getTitle($request, $route_match->getRouteObject());
 
     // Determine the title: use the title provided by the main content if any,
     // otherwise get it from the routing information.
     $options = $request->request->get('dialogOptions', []);
-    $response->addCommand(new OpenOffCanvasDialogCommand($title, $content, $options));
+    $response->addCommand(new OpenOffCanvasDialogCommand($title, $content, $options, NULL, $this->position));
     return $response;
   }
 

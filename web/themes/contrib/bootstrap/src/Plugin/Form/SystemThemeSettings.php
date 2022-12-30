@@ -3,6 +3,7 @@
 namespace Drupal\bootstrap\Plugin\Form;
 
 use Drupal\bootstrap\Bootstrap;
+use Drupal\bootstrap\Plugin\Setting\DeprecatedSettingInterface;
 use Drupal\bootstrap\Utility\Element;
 use Drupal\Core\Form\FormStateInterface;
 
@@ -30,6 +31,10 @@ class SystemThemeSettings extends FormBase implements FormInterface {
 
     // Iterate over all setting plugins and add them to the form.
     foreach ($theme->getSettingPlugin() as $setting) {
+      // Skip settings that shouldn't be created automatically.
+      if (!$setting->autoCreateFormElement()) {
+        continue;
+      }
       $setting->alterForm($form->getArray(), $form_state);
     }
   }
@@ -71,6 +76,7 @@ class SystemThemeSettings extends FormBase implements FormInterface {
       'general' => t('General'),
       'components' => t('Components'),
       'javascript' => t('JavaScript'),
+      'cdn' => t('CDN'),
       'advanced' => t('Advanced'),
     ];
     foreach ($groups as $group => $title) {
@@ -79,7 +85,65 @@ class SystemThemeSettings extends FormBase implements FormInterface {
         '#title' => $title,
         '#group' => 'bootstrap',
       ];
+
+      // Show a button to reset cached HTTP requests.
+      if ($group === 'advanced') {
+        $cache = \Drupal::keyValueExpirable('theme:' . $this->theme->getName() . ':http');
+        $count = count($cache->getAll());
+        $form[$group]['reset_http_request_cache'] = [
+          '#type' => 'item',
+          '#title' => $this->t('Cached HTTP requests: @count', ['@count' => $count]),
+          '#weight' => 100,
+          '#smart_description' => FALSE,
+          '#description' => $this->t('All external HTTP requests initiated by this theme are subject to caching. Cacheability is determined automatically based on a manually passed TTL value by the initiator or if there is a "max-age" response header present. These cached requests will persist through cache rebuilds and will only be requested again once they have expired. If you believe there is some request not being properly retrieved, you can manually reset this cache here.'),
+          '#description_display' => 'before',
+          '#prefix' => '<div id="reset-http-request-cache">',
+          '#suffix' => '</div>',
+        ];
+
+        $form[$group]['reset_http_request_cache']['submit'] = [
+          '#type' => 'submit',
+          '#value' => $this->t('Reset HTTP Request Cache'),
+          '#description' => $this->t('Note: this will not reset any cached CDN data; see "Advanced Cache" in the "CDN" section.'),
+          '#prefix' => '<div>',
+          '#suffix' => '</div>',
+          '#submit' => [
+            [get_class($this), 'submitResetHttpRequestCache'],
+          ],
+          '#ajax' => [
+            'callback' => [get_class($this), 'ajaxResetHttpRequestCache'],
+            'wrapper' => 'reset-http-request-cache',
+          ],
+        ];
+      }
     }
+  }
+
+  /**
+   * Submit callback for resetting the cached HTTP requests.
+   *
+   * @param array $form
+   *   Nested array of form elements that comprise the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public static function submitResetHttpRequestCache(array $form, FormStateInterface $form_state) {
+    $form_state->setRebuild();
+    $theme = SystemThemeSettings::getTheme(Element::create($form), $form_state);
+    $cache = \Drupal::keyValueExpirable('theme:' . $theme->getName() . ':http');
+    $cache->deleteAll();
+  }
+
+  /**
+   * AJAX callback for reloading the cached HTTP request markup.
+   *
+   * @param array $form
+   *   Nested array of form elements that comprise the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public static function ajaxResetHttpRequestCache(array $form, FormStateInterface $form_state) {
+    return $form['advanced']['reset_http_request_cache'];
   }
 
   /**
@@ -118,10 +182,17 @@ class SystemThemeSettings extends FormBase implements FormInterface {
     $cache_tags = [];
     $save = FALSE;
     $settings = $theme->settings();
+    $rebuild_cdn_assets = FALSE;
 
     // Iterate over all setting plugins and manually save them since core's
     // process is severely limiting and somewhat broken.
     foreach ($theme->getSettingPlugin() as $name => $setting) {
+      // Skip saving deprecated settings.
+      if ($setting instanceof DeprecatedSettingInterface) {
+        $form_state->unsetValue($name);
+        continue;
+      }
+
       // Allow the setting to participate in the form submission process.
       // Must call the "submitForm" method in case any setting actually uses it.
       // It should, in turn, invoke "submitFormElement", if the setting that
@@ -131,6 +202,12 @@ class SystemThemeSettings extends FormBase implements FormInterface {
       // Retrieve the submitted value.
       $value = $form_state->getValue($name);
 
+      // Trim any new lines and convert to simple new line breaks.
+      $definition = $setting->getPluginDefinition();
+      if (isset($definition['type']) && $definition['type'] === 'textarea' && is_string($value)) {
+        $value = implode("\n", array_filter(array_map('trim', preg_split("/\r\n|\n/", $value))));
+      }
+
       // Determine if the setting has a new value that overrides the original.
       // Ignore the schemas "setting" because it's handled by UpdateManager.
       if ($name !== 'schemas' && $settings->overridesValue($name, $value)) {
@@ -139,6 +216,11 @@ class SystemThemeSettings extends FormBase implements FormInterface {
 
         // Retrieve the cache tags for the setting.
         $cache_tags = array_unique(array_merge($setting->getCacheTags()));
+
+        // A CDN setting has changed, flag that CDN assets should be rebuilt.
+        if (strpos($name, 'cdn') === 0) {
+          $rebuild_cdn_assets = TRUE;
+        }
 
         // Flag the save.
         $save = TRUE;
@@ -150,6 +232,11 @@ class SystemThemeSettings extends FormBase implements FormInterface {
 
     // Save the settings, if needed.
     if ($save) {
+      // Remove any cached CDN assets so they can be rebuilt.
+      if ($rebuild_cdn_assets) {
+        $settings->clear('cdn_cache');
+      }
+
       $settings->save();
 
       // Invalidate necessary cache tags.

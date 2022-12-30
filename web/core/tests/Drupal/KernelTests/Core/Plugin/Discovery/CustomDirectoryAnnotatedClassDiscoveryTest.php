@@ -12,7 +12,7 @@ use Drupal\Core\Plugin\Discovery\AnnotatedClassDiscovery;
  */
 class CustomDirectoryAnnotatedClassDiscoveryTest extends DiscoveryTestBase {
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->expectedDefinitions = [
@@ -80,7 +80,7 @@ class CustomDirectoryAnnotatedClassDiscoveryTest extends DiscoveryTestBase {
       ],
     ];
 
-    $base_directory = \Drupal::root() . '/core/modules/system/tests/modules/plugin_test/src';
+    $base_directory = $this->root . '/core/modules/system/tests/modules/plugin_test/src';
     $namespaces = new \ArrayObject(['Drupal\plugin_test' => $base_directory]);
 
     $this->discovery = new AnnotatedClassDiscovery('', $namespaces);

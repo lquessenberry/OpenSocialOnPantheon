@@ -5,6 +5,7 @@
  * Enables semantically enriched output for Drupal sites in the form of RDFa.
  */
 
+use Drupal\Core\Url;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Template\Attribute;
 use Drupal\rdf\Entity\RdfMapping;
@@ -38,6 +39,7 @@ function rdf_help($route_name, RouteMatchInterface $route_match) {
  * into variables available to theme functions and templates. All Drupal core
  * themes are coded to be RDFa compatible.
  */
+
 /**
  * Returns the RDF mapping object associated with a bundle.
  *
@@ -111,17 +113,20 @@ function rdf_get_namespaces() {
   $namespaces = [];
   // In order to resolve duplicate namespaces by using the earliest defined
   // namespace, do not use \Drupal::moduleHandler()->invokeAll().
-  foreach (\Drupal::moduleHandler()->getImplementations('rdf_namespaces') as $module) {
-    $function = $module . '_rdf_namespaces';
-    foreach ($function() as $prefix => $namespace) {
-      if (array_key_exists($prefix, $namespaces) && $namespace !== $namespaces[$prefix]) {
-        throw new Exception(t('Tried to map @prefix to @namespace, but @prefix is already mapped to @orig_namespace.', ['@prefix' => $prefix, '@namespace' => $namespace, '@orig_namespace' => $namespaces[$prefix]]));
-      }
-      else {
-        $namespaces[$prefix] = $namespace;
+  \Drupal::moduleHandler()->invokeAllWith(
+    'rdf_namespaces',
+    function (callable $hook, string $module) use (&$namespaces) {
+      $namespacesFromHook = $hook();
+      foreach ($namespacesFromHook as $prefix => $namespace) {
+        if (array_key_exists($prefix, $namespaces) && $namespace !== $namespaces[$prefix]) {
+          throw new Exception("Tried to map '$prefix' to '$namespace', but '$prefix' is already mapped to '{$namespaces[$prefix]}'.");
+        }
+        else {
+          $namespaces[$prefix] = $namespace;
+        }
       }
     }
-  }
+  );
   return $namespaces;
 }
 
@@ -168,7 +173,7 @@ function rdf_rdfa_attributes($mapping, $data = NULL) {
   $attributes = [];
 
   // The type of mapping defaults to 'property'.
-  $type = isset($mapping['mapping_type']) ? $mapping['mapping_type'] : 'property';
+  $type = $mapping['mapping_type'] ?? 'property';
 
   switch ($type) {
     // The mapping expresses the relationship between two resources.
@@ -185,7 +190,7 @@ function rdf_rdfa_attributes($mapping, $data = NULL) {
         // Convert $data to a specific format as per the callback function.
         if (isset($data) && !empty($mapping['datatype_callback'])) {
           $callback = $mapping['datatype_callback']['callable'];
-          $arguments = isset($mapping['datatype_callback']['arguments']) ? $mapping['datatype_callback']['arguments'] : NULL;
+          $arguments = $mapping['datatype_callback']['arguments'] ?? NULL;
           $attributes['content'] = call_user_func($callback, $data, $arguments);
         }
         if (isset($mapping['datatype'])) {
@@ -235,12 +240,13 @@ function rdf_comment_storage_load($comments) {
       ->getPreparedFieldMapping('created');
     /** @var \Drupal\comment\CommentInterface $comment*/
     $comment->rdf_data['date'] = rdf_rdfa_attributes($created_mapping, $comment->get('created')->first()->toArray());
-    $entity = $comment->getCommentedEntity();
-    // The current function is a storage level hook, so avoid to bubble
-    // bubbleable metadata, because it can be outside of a render context.
-    $comment->rdf_data['entity_uri'] = $entity->toUrl()->toString(TRUE)->getGeneratedUrl();
-    if ($comment->hasParentComment()) {
-      $comment->rdf_data['pid_uri'] = $comment->getParentComment()->url();
+    if ($entity = $comment->getCommentedEntity()) {
+      // The current function is a storage level hook, so avoid to bubble
+      // bubbleable metadata, because it can be outside of a render context.
+      $comment->rdf_data['entity_uri'] = $entity->toUrl()->toString(TRUE)->getGeneratedUrl();
+    }
+    if ($parent = $comment->getParentComment()) {
+      $comment->rdf_data['pid_uri'] = $parent->toUrl()->toString(TRUE)->getGeneratedUrl();
     }
   }
 }
@@ -293,7 +299,6 @@ function _rdf_set_field_rel_attribute(&$variables) {
   }
 }
 
-
 /**
  * Implements hook_preprocess_HOOK() for node templates.
  */
@@ -323,13 +328,30 @@ function rdf_preprocess_node(&$variables) {
 
   // Adds RDFa markup for the date.
   $created_mapping = $mapping->getPreparedFieldMapping('created');
-  if (!empty($created_mapping) && $variables['display_submitted']) {
+  if (!empty($created_mapping)) {
     $date_attributes = rdf_rdfa_attributes($created_mapping, $variables['node']->get('created')->first()->toArray());
     $rdf_metadata = [
       '#theme' => 'rdf_metadata',
       '#metadata' => [$date_attributes],
     ];
-    $variables['metadata'] = \Drupal::service('renderer')->render($rdf_metadata);
+
+    // Depending on whether custom preprocessing is enabled, the 'created'
+    // field may appear in either of two different places, so check both of
+    // those places here.
+    // @see template_preprocess_node.
+    if (!empty($variables['display_submitted'])) {
+      // If custom preprocessing is enabled, then detect if the 'created'
+      // field is displayed by checking the 'display_submitted' variable.  In
+      // this case, for back-compatibility, put the metadata into a special
+      // variable.
+      $variables['metadata'] = \Drupal::service('renderer')->render($rdf_metadata);
+    }
+    elseif (isset($variables['elements']['created'])) {
+      // Otherwise, detect if the 'created' field is displayed by checking if
+      // it is present in the 'elements variable.  Put the metadata into
+      // title_suffix, along with other metadata added by this module.
+      $variables['title_suffix']['rdf_meta_created'] = $rdf_metadata;
+    }
   }
 
   // Adds RDFa markup annotating the number of comments a node has.
@@ -339,9 +361,7 @@ function rdf_preprocess_node(&$variables) {
       $fields = array_keys(\Drupal::service('comment.manager')->getFields('node'));
       $definitions = array_keys($variables['node']->getFieldDefinitions());
       $valid_fields = array_intersect($fields, $definitions);
-      $count = 0;
       foreach ($valid_fields as $field_name) {
-        $count += $variables['node']->get($field_name)->comment_count;
         // Adds RDFa markup for the comment count near the node title as
         // metadata.
         $comment_count_attributes = rdf_rdfa_attributes($comment_count_mapping, $variables['node']->get($field_name)->comment_count);
@@ -358,9 +378,9 @@ function rdf_preprocess_node(&$variables) {
  * Implements hook_preprocess_HOOK() for user templates.
  */
 function rdf_preprocess_user(&$variables) {
-  /** @var $account \Drupal\user\UserInterface */
+  /** @var \Drupal\user\UserInterface $account */
   $account = $variables['elements']['#user'];
-  $uri = $account->urlInfo();
+  $uri = $account->toUrl();
   $mapping = rdf_get_mapping('user', 'user');
   $bundle_mapping = $mapping->getPreparedBundleMapping();
 
@@ -368,7 +388,7 @@ function rdf_preprocess_user(&$variables) {
   // will automatically describe the user.
   if (!empty($bundle_mapping['types'])) {
     $variables['attributes']['typeof'] = $bundle_mapping['types'];
-    $variables['attributes']['about'] = $account->url();
+    $variables['attributes']['about'] = $account->toUrl()->toString();
   }
   // If we are on the user account page, add the relationship between the
   // sioc:UserAccount and the foaf:Person who holds the account.
@@ -380,7 +400,7 @@ function rdf_preprocess_user(&$variables) {
       $username_meta = [
         '#tag' => 'meta',
         '#attributes' => [
-          'about' => $account->url(),
+          'about' => $account->toUrl()->toString(),
           'property' => $name_mapping['properties'],
           'content' => $account->getDisplayName(),
           'lang' => '',
@@ -412,7 +432,7 @@ function rdf_preprocess_username(&$variables) {
   // a user profile URI for it (only a homepage which cannot be used as user
   // profile in RDF.)
   if ($variables['uid'] > 0) {
-    $variables['attributes']['about'] = \Drupal::url('entity.user.canonical', ['user' => $variables['uid']]);
+    $variables['attributes']['about'] = Url::fromRoute('entity.user.canonical', ['user' => $variables['uid']])->toString();
   }
 
   // Add RDF type of user.
@@ -454,7 +474,7 @@ function rdf_preprocess_comment(&$variables) {
     // the URI of the resource described within the HTML element, while the
     // typeof attribute indicates its RDF type (e.g., sioc:Post, foaf:Document,
     // and so on.)
-    $variables['attributes']['about'] = $comment->url();
+    $variables['attributes']['about'] = $comment->toUrl()->toString();
     $variables['attributes']['typeof'] = $bundle_mapping['types'];
   }
 
@@ -477,7 +497,7 @@ function rdf_preprocess_comment(&$variables) {
   }
   // Adds RDFa markup for the date of the comment.
   $created_mapping = $mapping->getPreparedFieldMapping('created');
-  if (!empty($created_mapping)) {
+  if (!empty($created_mapping) && isset($comment->rdf_data)) {
     // The comment date is precomputed as part of the rdf_data so that it can be
     // cached as part of the entity.
     $date_attributes = $comment->rdf_data['date'];
@@ -549,7 +569,7 @@ function rdf_preprocess_taxonomy_term(&$variables) {
   $term = $variables['term'];
   $mapping = rdf_get_mapping('taxonomy_term', $term->bundle());
   $bundle_mapping = $mapping->getPreparedBundleMapping();
-  $variables['attributes']['about'] = $term->url();
+  $variables['attributes']['about'] = $variables['url'];
   $variables['attributes']['typeof'] = empty($bundle_mapping['types']) ? NULL : $bundle_mapping['types'];
 
   // Add RDFa markup for the taxonomy term name as metadata, if present.

@@ -2,8 +2,9 @@
 
 namespace Drupal\Tests\taxonomy\Functional;
 
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
 use Drupal\Tests\BrowserTestBase;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
+use Drupal\Tests\taxonomy\Traits\TaxonomyTestTrait;
 
 /**
  * Provides common helper methods for Taxonomy module tests.
@@ -18,7 +19,7 @@ abstract class TaxonomyTestBase extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['taxonomy', 'block'];
+  protected static $modules = ['taxonomy', 'block'];
 
   /**
    * {@inheritdoc}

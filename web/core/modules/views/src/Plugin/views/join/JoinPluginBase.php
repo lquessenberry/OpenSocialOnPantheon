@@ -37,6 +37,30 @@ use Drupal\Core\Plugin\PluginBase;
  * Note that the default join type is a LEFT join when 'type' is not supplied in
  * the join plugin configuration.
  *
+ * If an SQL expression is needed for the first part of the left table join
+ * condition, 'left_formula' can be used instead of 'left_field'.
+ * For this SQL:
+ * @code
+ * LEFT JOIN {two} ON MAX(one.field_a) = two.field_b AND one.field_c = 'some_val'
+ * @endcode
+ * Use this configuration:
+ * @code
+ * $configuration = array(
+ *   'table' => 'two',
+ *   'field' => 'field_b',
+ *   'left_table' => 'one',
+ *   'left_formula' => 'MAX(one.field_a)',
+ *   'operator' => '=',
+ *   'extra' => array(
+ *     0 => array(
+ *       'left_field' => 'field_c',
+ *       'value' => 'some_val',
+ *     ),
+ *   ),
+ * );
+ * $join = Views::pluginManager('join')->createInstance('standard', $configuration);
+ * @endcode
+ *
  * For this SQL:
  * @code
  * INNER JOIN {two} ON one.field_a = two.field_b AND one.field_c = 'some_val'
@@ -157,6 +181,13 @@ class JoinPluginBase extends PluginBase implements JoinPluginInterface {
   public $leftField;
 
   /**
+   * A formula to be used instead of the left field.
+   *
+   * @var string
+   */
+  public $leftFormula;
+
+  /**
    * An array of extra conditions on the join.
    *
    * Each condition is either a string that's directly added, or an array of
@@ -226,7 +257,8 @@ class JoinPluginBase extends PluginBase implements JoinPluginInterface {
     // Merge in some default values.
     $configuration += [
       'type' => 'LEFT',
-      'extra_operator' => 'AND'
+      'extra_operator' => 'AND',
+      'operator' => '=',
     ];
     $this->configuration = $configuration;
 
@@ -235,8 +267,16 @@ class JoinPluginBase extends PluginBase implements JoinPluginInterface {
     }
 
     $this->leftTable = $configuration['left_table'];
-    $this->leftField = $configuration['left_field'];
+
+    if (!empty($configuration['left_field'])) {
+      $this->leftField = $configuration['left_field'];
+    }
+
     $this->field = $configuration['field'];
+
+    if (!empty($configuration['left_formula'])) {
+      $this->leftFormula = $configuration['left_formula'];
+    }
 
     if (!empty($configuration['extra'])) {
       $this->extra = $configuration['extra'];
@@ -263,7 +303,7 @@ class JoinPluginBase extends PluginBase implements JoinPluginInterface {
 
     if ($this->leftTable) {
       $left_table = $view_query->getTableInfo($this->leftTable);
-      $left_field = "$left_table[alias].$this->leftField";
+      $left_field = $this->leftFormula ?: "$left_table[alias].$this->leftField";
     }
     else {
       // This can be used if left_field is a formula or something. It should be used only *very* rarely.
@@ -271,7 +311,7 @@ class JoinPluginBase extends PluginBase implements JoinPluginInterface {
       $left_table = NULL;
     }
 
-    $condition = "$left_field = $table[alias].$this->field";
+    $condition = "$left_field " . $this->configuration['operator'] . " $table[alias].$this->field";
     $arguments = [];
 
     // Tack on the extra.
@@ -281,6 +321,7 @@ class JoinPluginBase extends PluginBase implements JoinPluginInterface {
 
     $select_query->addJoin($this->type, $right_table, $table['alias'], $condition, $arguments);
   }
+
   /**
    * Adds the extras to the join condition.
    *

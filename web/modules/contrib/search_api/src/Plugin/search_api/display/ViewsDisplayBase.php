@@ -62,7 +62,7 @@ abstract class ViewsDisplayBase extends DisplayPluginBase {
     // Recreating a link when a contextual filter is used in the display's path
     // is not possible. So instead we return NULL, which forces most
     // implementations to use the current request's path instead.
-    if (strpos($path, '%') !== FALSE) {
+    if ($path && strpos($path, '%') !== FALSE) {
       return NULL;
     }
 

@@ -19,7 +19,7 @@ class EntityRevisionsTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'system',
     'entity_test',
     'language',
@@ -29,14 +29,14 @@ class EntityRevisionsTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_mulrev');
   }
 
   /**
-   * Test getLoadedRevisionId() returns the correct ID throughout the process.
+   * Tests getLoadedRevisionId() returns the correct ID throughout the process.
    */
   public function testLoadedRevisionId() {
     // Create a basic EntityTestMulRev entity and save it.
@@ -224,7 +224,7 @@ class EntityRevisionsTest extends EntityKernelTestBase {
     // Check that no revision affecting Italian is available, given that no
     // Italian translation has been created yet.
     /** @var \Drupal\Core\Entity\ContentEntityStorageInterface $storage */
-    $storage = $this->entityManager->getStorage($entity->getEntityTypeId());
+    $storage = $this->entityTypeManager->getStorage($entity->getEntityTypeId());
     $this->assertNull($storage->getLatestTranslationAffectedRevisionId($entity->id(), 'it'));
     $this->assertEquals($pending_revision->getLoadedRevisionId(), $storage->getLatestRevisionId($entity->id()));
 
@@ -259,6 +259,34 @@ class EntityRevisionsTest extends EntityKernelTestBase {
     $this->assertTrue($it_revision->isLatestTranslationAffectedRevision());
     $this->assertFalse($en_revision->isLatestRevision());
     $this->assertTrue($en_revision->isLatestTranslationAffectedRevision());
+  }
+
+  /**
+   * Tests the automatic handling of the "revision_default" flag.
+   *
+   * @covers \Drupal\Core\Entity\ContentEntityStorageBase::doSave
+   */
+  public function testDefaultRevisionFlag() {
+    // Create a basic EntityTestMulRev entity and save it.
+    $entity = EntityTestMulRev::create();
+    $entity->save();
+    $this->assertTrue($entity->wasDefaultRevision());
+
+    // Create a new default revision.
+    $entity->setNewRevision(TRUE);
+    $entity->save();
+    $this->assertTrue($entity->wasDefaultRevision());
+
+    // Create a new non-default revision.
+    $entity->setNewRevision(TRUE);
+    $entity->isDefaultRevision(FALSE);
+    $entity->save();
+    $this->assertFalse($entity->wasDefaultRevision());
+
+    // Turn the previous non-default revision into a default revision.
+    $entity->isDefaultRevision(TRUE);
+    $entity->save();
+    $this->assertTrue($entity->wasDefaultRevision());
   }
 
 }

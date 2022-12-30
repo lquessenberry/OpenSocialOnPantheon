@@ -1,6 +1,6 @@
 # Raphaël: Cross-browser vector graphics the easy way.
 
-Visit the library website for more information: ~~[http://raphaeljs.com](http://raphaeljs.com/)~~ [http://dmitrybaranovskiy.github.io/raphael/](http://dmitrybaranovskiy.github.io/raphael/)
+Visit the library website for more information: ~~[http://raphaeljs.com](http://raphaeljs.com/)~~ [https://dmitrybaranovskiy.github.io/raphael/](https://dmitrybaranovskiy.github.io/raphael/)
 
 ## Quickstart guide
 
@@ -58,6 +58,7 @@ Something like running `python -m SimpleHTTPServer` in the `raphael` directory a
 * [backbone.raphael](https://github.com/tomasAlabes/backbone.raphael)
 * [mapael](https://github.com/neveldo/jQuery-Mapael)
 * [snap](https://github.com/adobe-webplatform/Snap.svg)
+* [react-raphael](https://github.com/liuhong1happy/react-raphael)
 
 
 ## Books

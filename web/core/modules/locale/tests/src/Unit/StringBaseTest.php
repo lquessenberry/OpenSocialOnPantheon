@@ -17,17 +17,18 @@ class StringBaseTest extends UnitTestCase {
    */
   public function testSaveWithoutStorage() {
     $string = new SourceString(['source' => 'test']);
-    $this->setExpectedException(StringStorageException::class, 'The string cannot be saved because its not bound to a storage: test');
+    $this->expectException(StringStorageException::class);
+    $this->expectExceptionMessage('The string cannot be saved because its not bound to a storage: test');
     $string->save();
   }
-
 
   /**
    * @covers ::delete
    */
   public function testDeleteWithoutStorage() {
     $string = new SourceString(['lid' => 1, 'source' => 'test']);
-    $this->setExpectedException(StringStorageException::class, 'The string cannot be deleted because its not bound to a storage: test');
+    $this->expectException(StringStorageException::class);
+    $this->expectExceptionMessage('The string cannot be deleted because its not bound to a storage: test');
     $string->delete();
   }
 

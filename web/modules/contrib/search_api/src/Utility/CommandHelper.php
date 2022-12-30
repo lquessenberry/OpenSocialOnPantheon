@@ -2,15 +2,22 @@
 
 namespace Drupal\search_api\Utility;
 
+use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
+use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\search_api\ConsoleException;
+use Drupal\search_api\Event\ReindexScheduledEvent;
+use Drupal\search_api\Event\SearchApiEvents;
 use Drupal\search_api\IndexBatchHelper;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\SearchApiException;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+
+// phpcs:disable DrupalPractice.General.ExceptionT.ExceptionT
 
 /**
  * Provides functionality to be used by CLI tools.
@@ -48,28 +55,45 @@ class CommandHelper implements LoggerAwareInterface {
   protected $moduleHandler;
 
   /**
+   * The event dispatcher.
+   *
+   * @var \Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher|null
+   */
+  protected $eventDispatcher;
+
+  /**
    * A callable for translating strings.
    *
    * @var callable
    */
-  protected $translationMethod;
+  protected $translationFunction;
 
   /**
-   * Constructs a new CommandHelper object.
+   * Constructs a CommandHelper object.
    *
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
-   * @param string $translationMethod
-   *   A callable for translating strings.
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   The event dispatcher.
+   * @param string|callable $translation_function
+   *   (optional) A callable for translating strings.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   *   Thrown if the "search_api_index" or "search_api_server" entity types'
+   *   storage handlers couldn't be loaded.
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   *   Thrown if the "search_api_index" or "search_api_server" entity types are
+   *   unknown.
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager, ModuleHandlerInterface $moduleHandler, $translationMethod = 'dt') {
-    $this->entityTypeManager = $entityTypeManager;
-    $this->indexStorage = $entityTypeManager->getStorage('search_api_index');
-    $this->serverStorage = $entityTypeManager->getStorage('search_api_server');
-    $this->moduleHandler = $moduleHandler;
-    $this->translationMethod = $translationMethod;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ModuleHandlerInterface $module_handler, EventDispatcherInterface $event_dispatcher, $translation_function = 'dt') {
+    $this->entityTypeManager = $entity_type_manager;
+    $this->indexStorage = $entity_type_manager->getStorage('search_api_index');
+    $this->serverStorage = $entity_type_manager->getStorage('search_api_server');
+    $this->moduleHandler = $module_handler;
+    $this->eventDispatcher = $event_dispatcher;
+    $this->translationFunction = $translation_function;
   }
 
   /**
@@ -88,6 +112,9 @@ class CommandHelper implements LoggerAwareInterface {
    *     tracked in the index.
    *   - status: Either "enabled" or "disabled".
    *   - limit: The number of items that are processed in a single cron run.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if an index has a server which couldn't be loaded.
    */
   public function indexListCommand() {
     $indexes = $this->loadIndexes();
@@ -137,6 +164,9 @@ class CommandHelper implements LoggerAwareInterface {
    *   - complete: a percentage of indexation.
    *   - indexed: The amount of indexed items.
    *   - total: The total amount of items.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set.
    */
   public function indexStatusCommand(array $indexId = NULL) {
     $indexes = $this->loadIndexes($indexId);
@@ -202,7 +232,7 @@ class CommandHelper implements LoggerAwareInterface {
    *   all indexes will be disabled.
    *
    * @throws \Drupal\search_api\ConsoleException
-   *   If no indexes are defined.
+   *   Thrown if no indexes could be loaded.
    */
   public function disableIndexCommand(array $index_ids = NULL) {
     if (!$this->getIndexCount()) {
@@ -236,10 +266,12 @@ class CommandHelper implements LoggerAwareInterface {
    *   index all items at once.
    *
    * @return bool
-   *   TRUE if any indexes could be loaded, FALSE otherwise.
+   *   TRUE if indexing for any index was queued, FALSE otherwise.
    *
    * @throws \Drupal\search_api\ConsoleException
    *   Thrown if an indexing batch process could not be created.
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set.
    */
   public function indexItemsToIndexCommand(array $indexIds = NULL, $limit = NULL, $batchSize = NULL) {
     $indexes = $this->loadIndexes($indexIds);
@@ -247,7 +279,7 @@ class CommandHelper implements LoggerAwareInterface {
       return FALSE;
     }
 
-    $batch_set = FALSE;
+    $batchSet = FALSE;
     foreach ($indexes as $index) {
       if (!$index->status() || $index->isReadOnly()) {
         continue;
@@ -262,7 +294,7 @@ class CommandHelper implements LoggerAwareInterface {
       else {
         $arguments = [
           '@remaining' => $remaining,
-          '@limit' => $limit ? $limit : $this->t('all'),
+          '@limit' => $limit ?: $this->t('all'),
           '@index' => $index->label(),
         ];
         $this->logger->info($this->t("Found @remaining items to index for @index. Indexing @limit items.", $arguments));
@@ -272,37 +304,40 @@ class CommandHelper implements LoggerAwareInterface {
       // to index all items.
       $current_limit = $limit ?: -1;
 
-      // Get the default batch size.
-      if (!$batchSize) {
+      // Get the batch size to use for this index (in case none was specified in
+      // the command).
+      $currentBatchSize = $batchSize;
+      if (!$currentBatchSize) {
         $cron_limit = $index->getOption('cron_limit');
-        $batchSize = $cron_limit ?: \Drupal::configFactory()
+        $currentBatchSize = $cron_limit ?: \Drupal::configFactory()
           ->get('search_api.settings')
           ->get('default_cron_limit');
       }
 
-      // Get the number items to index.
-      if (!isset($current_limit) || !is_int($current_limit += 0) || $current_limit <= 0) {
+      // Get the number of items to index.
+      $current_limit += 0;
+      if (!is_int($current_limit) || $current_limit <= 0) {
         $current_limit = $remaining;
       }
 
       $arguments = [
         '@index' => $index->label(),
         '@limit' => $current_limit,
-        '@batch_size' => $batchSize,
+        '@batch_size' => $currentBatchSize,
       ];
       $this->logger->info($this->t("Indexing a maximum number of @limit items (@batch_size items per batch run) for the index '@index'.", $arguments));
 
       // Create the batch.
       try {
-        IndexBatchHelper::create($index, $batchSize, $current_limit);
-        $batch_set = TRUE;
+        IndexBatchHelper::create($index, $currentBatchSize, $current_limit);
+        $batchSet = TRUE;
       }
       catch (SearchApiException $e) {
         throw new ConsoleException($this->t("Couldn't create a batch, please check the batch size and limit parameters."));
       }
     }
 
-    return $batch_set;
+    return $batchSet;
   }
 
   /**
@@ -316,6 +351,10 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @return bool
    *   TRUE if any index was affected, FALSE otherwise.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set, or some
+   *   other internal error occurred.
    */
   public function resetTrackerCommand(array $indexIds = NULL, array $entityTypes = []) {
     $indexes = $this->loadIndexes($indexIds);
@@ -336,7 +375,11 @@ class CommandHelper implements LoggerAwareInterface {
             $reindexed_datasources[] = $datasource->label();
           }
         }
-        $this->moduleHandler->invokeAll('search_api_index_reindex', [$index, FALSE]);
+        $description = 'This hook is deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0. Please use the "search_api.reindex_scheduled" event instead. See https://www.drupal.org/node/3059866';
+        $this->moduleHandler->invokeAllDeprecated($description, 'search_api_index_reindex', [$index, FALSE]);
+        $event_name = SearchApiEvents::REINDEX_SCHEDULED;
+        $event = new ReindexScheduledEvent($index, FALSE);
+        $this->eventDispatcher->dispatch($event, $event_name);
         $arguments = [
           '!index' => $index->label(),
           '!datasources' => implode(', ', $reindexed_datasources),
@@ -353,6 +396,31 @@ class CommandHelper implements LoggerAwareInterface {
   }
 
   /**
+   * Rebuilds the tracker for an index.
+   *
+   * @param string[]|null $indexIds
+   *   (optional) An array of index IDs, or NULL if we should reset the trackers
+   *   of all indexes.
+   *
+   * @return bool
+   *   TRUE if any index was affected, FALSE otherwise.
+   */
+  public function rebuildTrackerCommand(array $indexIds = NULL) {
+    $indexes = $this->loadIndexes($indexIds);
+    if (!$indexes) {
+      return FALSE;
+    }
+
+    foreach ($indexes as $index) {
+      if ($index->status()) {
+        $index->rebuildTracker();
+        $this->logger->info($this->t('The tracking information for search index %name will be rebuilt.', ['%name' => $index->label()]));
+      }
+    }
+    return TRUE;
+  }
+
+  /**
    * Deletes all items from one or more indexes.
    *
    * @param string[]|null $indexIds
@@ -361,6 +429,10 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @return bool
    *   TRUE when the clearing was successful, FALSE when no indexes were found.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set, or some
+   *   other internal error occurred.
    */
   public function clearIndexCommand(array $indexIds = NULL) {
     $indexes = $this->loadIndexes($indexIds);
@@ -393,6 +465,9 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @throws \Drupal\search_api\ConsoleException
    *   Thrown if searching failed for any reason.
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if no search query could be created for the given index, for
+   *   example because it is disabled or its server could not be loaded.
    */
   public function searchIndexCommand($indexId, $keyword = NULL) {
     $indexes = $this->loadIndexes([$indexId]);
@@ -442,10 +517,9 @@ class CommandHelper implements LoggerAwareInterface {
    *   - status: The enabled status of the server.
    *
    * @throws \Drupal\search_api\ConsoleException
-   *   Thrown if there aren't any servers yet.
+   *   Thrown if no servers could be loaded.
    */
   public function serverListCommand() {
-    /** @var \Drupal\search_api\ServerInterface[] $servers */
     $servers = $this->loadServers();
     if (count($servers) === 0) {
       throw new ConsoleException($this->t('There are no servers present.'));
@@ -471,14 +545,16 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @throws \Drupal\search_api\ConsoleException
    *   Thrown if the server couldn't be loaded.
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   Thrown if an internal error occurred when saving the server.
    */
   public function enableServerCommand($serverId) {
-    $server = $this->loadServers([$serverId]);
-    if (empty($server)) {
+    $servers = $this->loadServers([$serverId]);
+    if (empty($servers)) {
       throw new ConsoleException($this->t('The server could not be loaded.'));
     }
     /** @var \Drupal\search_api\ServerInterface $server */
-    $server = $this->reloadEntityOverrideFree(reset($server));
+    $server = $this->reloadEntityOverrideFree(reset($servers));
     $server->setStatus(TRUE)->save();
   }
 
@@ -490,14 +566,16 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @throws \Drupal\search_api\ConsoleException
    *   Thrown if the server couldn't be loaded.
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   Thrown if an internal error occurred when saving the server.
    */
   public function disableServerCommand($serverId) {
-    $server = $this->loadServers([$serverId]);
-    if (empty($server)) {
+    $servers = $this->loadServers([$serverId]);
+    if (empty($servers)) {
       throw new ConsoleException($this->t('The server could not be loaded.'));
     }
     /** @var \Drupal\search_api\ServerInterface $server */
-    $server = $this->reloadEntityOverrideFree(reset($server));
+    $server = $this->reloadEntityOverrideFree(reset($servers));
     $server->setStatus(FALSE)->save();
   }
 
@@ -509,14 +587,17 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @throws \Drupal\search_api\ConsoleException
    *   Thrown if the server couldn't be loaded.
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set, or some
+   *   other internal error occurred.
    */
   public function clearServerCommand($serverId) {
-    $server = $this->loadServers([$serverId]);
-    if (empty($server)) {
+    $servers = $this->loadServers([$serverId]);
+    if (empty($servers)) {
       throw new ConsoleException($this->t('The server could not be loaded.'));
     }
     /** @var \Drupal\search_api\ServerInterface $server */
-    $server = $this->reloadEntityOverrideFree(reset($server));
+    $server = $this->reloadEntityOverrideFree(reset($servers));
 
     foreach ($server->getIndexes() as $index) {
       $index->clear();
@@ -557,7 +638,7 @@ class CommandHelper implements LoggerAwareInterface {
       $index->save();
       $this->logger->info($this->t('Index @index has been set to use server @server and items have been queued for indexing.', ['@index' => $indexId, '@server' => $serverId]));
     }
-    catch (SearchApiException $e) {
+    catch (EntityStorageException $e) {
       $this->logger->warning($e->getMessage());
       $this->logger->warning($this->t('There was an error setting index @index to use server @server, or this index is already configured to use this server.', ['@index' => $indexId, '@server' => $serverId]));
     }
@@ -568,13 +649,14 @@ class CommandHelper implements LoggerAwareInterface {
    *
    * @param array|null $indexIds
    *   (optional) The IDs of the search indexes to return, or NULL to load all
-   *   indexes.
+   *   indexes. An array with a single NULL value is interpreted the same way as
+   *   passing NULL.
    *
    * @return \Drupal\search_api\IndexInterface[]
    *   An array of search indexes.
    */
-  protected function loadIndexes(array $indexIds = NULL) {
-    if (count($indexIds) === 1 && $indexIds === [NULL]) {
+  public function loadIndexes(array $indexIds = NULL) {
+    if ($indexIds === [NULL]) {
       $indexIds = NULL;
     }
     return $this->indexStorage->loadMultiple($indexIds);
@@ -590,7 +672,7 @@ class CommandHelper implements LoggerAwareInterface {
    * @return \Drupal\search_api\ServerInterface[]
    *   An array of search servers.
    */
-  protected function loadServers(array $serverIds = NULL) {
+  public function loadServers(array $serverIds = NULL) {
     return $this->serverStorage->loadMultiple($serverIds);
   }
 
@@ -600,7 +682,7 @@ class CommandHelper implements LoggerAwareInterface {
    * @return int
    *   The number of search indexes on this site.
    */
-  protected function getIndexCount() {
+  public function getIndexCount() {
     return count($this->loadIndexes());
   }
 
@@ -612,7 +694,7 @@ class CommandHelper implements LoggerAwareInterface {
    * @param bool $enable
    *   (optional) TRUE to enable, FALSE to disable the index.
    */
-  protected function setIndexState(IndexInterface $index, $enable = TRUE) {
+  public function setIndexState(IndexInterface $index, $enable = TRUE) {
     $state_label = $enable ? $this->t('enabled') : $this->t('disabled');
     $method = $enable ? 'enable' : 'disable';
 
@@ -640,10 +722,15 @@ class CommandHelper implements LoggerAwareInterface {
    *   The override-free version of the entity, or NULL if it couldn't be
    *   loaded.
    */
-  protected function reloadEntityOverrideFree(ConfigEntityInterface $entity) {
-    /** @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface $storage */
-    $storage = $this->entityTypeManager->getStorage($entity->getEntityTypeId());
-    return $storage->loadOverrideFree($entity->id());
+  public function reloadEntityOverrideFree(ConfigEntityInterface $entity) {
+    try {
+      /** @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface $storage */
+      $storage = $this->entityTypeManager->getStorage($entity->getEntityTypeId());
+      return $storage->loadOverrideFree($entity->id());
+    }
+    catch (InvalidPluginDefinitionException $e) {
+      return NULL;
+    }
   }
 
   /**
@@ -657,8 +744,8 @@ class CommandHelper implements LoggerAwareInterface {
    * @return string
    *   The translated message.
    */
-  protected function t($message, array $arguments = []) {
-    return call_user_func_array($this->translationMethod, [
+  public function t($message, array $arguments = []) {
+    return call_user_func_array($this->translationFunction, [
       $message,
       $arguments,
     ]);

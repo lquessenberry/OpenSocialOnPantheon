@@ -4,22 +4,32 @@ namespace Drupal\Tests\views\FunctionalJavascript\Plugin\views\Handler;
 
 use Drupal\Tests\SchemaCheckTestTrait;
 use Drupal\field\Entity\FieldConfig;
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\node\Entity\NodeType;
 use Drupal\views\Tests\ViewTestData;
 
 /**
- * Tests the field field handler UI.
+ * Tests the field handler UI.
  *
  * @group views
  */
-class FieldTest extends JavascriptTestBase {
+class FieldTest extends WebDriverTestBase {
   use SchemaCheckTestTrait;
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_ui', 'views_test_config'];
+  protected static $modules = [
+    'node',
+    'views',
+    'views_ui',
+    'views_test_config',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -38,10 +48,10 @@ class FieldTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    ViewTestData::createTestViews(get_class($this), ['views_test_config']);
+    ViewTestData::createTestViews(static::class, ['views_test_config']);
 
     // Disable automatic live preview to make the sequence of calls clearer.
     \Drupal::configFactory()->getEditable('views.settings')->set('ui.always_live_preview', FALSE)->save();
@@ -75,7 +85,7 @@ class FieldTest extends JavascriptTestBase {
     $web_assert->assertWaitOnAjaxRequest();
     $page->fillField('options[settings][trim_length]', '700');
     $apply_button = $page->find('css', '.views-ui-dialog button.button--primary');
-    $this->assertTrue(!empty($apply_button));
+    $this->assertNotEmpty($apply_button);
     $apply_button->press();
     $web_assert->assertWaitOnAjaxRequest();
 

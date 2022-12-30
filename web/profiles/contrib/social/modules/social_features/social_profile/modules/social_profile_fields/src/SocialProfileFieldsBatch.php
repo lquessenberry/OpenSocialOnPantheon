@@ -39,6 +39,15 @@ class SocialProfileFieldsBatch {
           // Empty the field.
           $profile->set($field_name, '');
         }
+        elseif ($field_name === 'locality') {
+          $profile->field_profile_address->locality = '';
+        }
+        elseif ($field_name === 'addressLine1') {
+          $profile->field_profile_address->address_line1 = '';
+        }
+        elseif ($field_name === 'postalCode') {
+          $profile->field_profile_address->postal_code = '';
+        }
       }
       // Save the profile.
       $results[] = $profile->save();
@@ -59,7 +68,7 @@ class SocialProfileFieldsBatch {
    * @param string $operations
    *   The operation performed.
    */
-  public function performFlushFinishedCallback($success, array $results, $operations) {
+  public static function performFlushFinishedCallback($success, array $results, $operations) {
     // The 'success' parameter means no fatal PHP errors were detected. All
     // other error management should be handled using 'results'.
     if ($success) {
@@ -83,7 +92,7 @@ class SocialProfileFieldsBatch {
       $message = t('Whoops... something went wrong!');
     }
 
-    drupal_set_message($message);
+    \Drupal::messenger()->addStatus($message);
   }
 
 }

@@ -2,8 +2,10 @@
 
 namespace Drupal\entity_reference_revisions\Plugin\Field\FieldType;
 
+use Drupal\Component\Utility\Random;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Entity\TranslatableRevisionableInterface;
 use Drupal\Core\Entity\TypedData\EntityDataDefinition;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
@@ -253,24 +255,55 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
     // If it is a new entity, parent will save it.
     parent::preSave();
 
+    $is_affected = TRUE;
     if (!$has_new) {
       // Create a new revision if it is a composite entity in a host with a new
       // revision.
 
       $host = $this->getEntity();
       $needs_save = $this->entity instanceof EntityNeedsSaveInterface && $this->entity->needsSave();
-      if (!$host->isNew() && $host->isNewRevision() && $this->entity && $this->entity->getEntityType()->get('entity_revision_parent_id_field')) {
-        $this->entity->setNewRevision();
-        if ($host->isDefaultRevision()) {
-          $this->entity->isDefaultRevision(TRUE);
+
+      // The item is considered to be affected if the field is either
+      // untranslatable or there are translation changes. This ensures that for
+      // translatable fields, a new revision of the referenced entity is only
+      // created for the affected translations and that the revision ID does not
+      // change on the unaffected translations. In turn, the host entity is not
+      // marked as affected for these translations.
+      $is_affected = !$this->getFieldDefinition()->isTranslatable() || ($host instanceof TranslatableRevisionableInterface && $host->hasTranslationChanges());
+      if ($is_affected && !$host->isNew() && $this->entity && $this->entity->getEntityType()->get('entity_revision_parent_id_field')) {
+        if ($host->isNewRevision()) {
+          $this->entity->setNewRevision();
+          $needs_save = TRUE;
         }
-        $needs_save = TRUE;
+        // Additionally ensure that the default revision state is kept in sync.
+        if ($this->entity && $host->isDefaultRevision() != $this->entity->isDefaultRevision()) {
+          $this->entity->isDefaultRevision($host->isDefaultRevision());
+          $needs_save = TRUE;
+        }
       }
       if ($needs_save) {
+
+        // Because ContentEntityBase::hasTranslationChanges() does not check for
+        // EntityReferenceRevisionsFieldItemList::hasAffectingChanges() on field
+        // items that are not translatable, hidden on translation forms and not
+        // in the default translation, this has to be handled here by setting
+        // setRevisionTranslationAffected on host translations that holds a
+        // reference that has been changed.
+        if ($is_affected && $host instanceof TranslatableRevisionableInterface) {
+          $languages = $host->getTranslationLanguages();
+          foreach ($languages as $langcode => $language) {
+            $translation = $host->getTranslation($langcode);
+            if ($this->entity->hasTranslation($langcode) && $this->entity->getTranslation($langcode)->hasTranslationChanges() && $this->target_revision_id != $this->entity->getRevisionId()) {
+              $translation->setRevisionTranslationAffected(TRUE);
+              $translation->setRevisionTranslationAffectedEnforced(TRUE);
+            }
+          }
+        }
+
         $this->entity->save();
       }
     }
-    if ($this->entity) {
+    if ($this->entity && $is_affected) {
       $this->target_revision_id = $this->entity->getRevisionId();
     }
   }
@@ -297,6 +330,22 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
       // If parent field name has changed then set it.
       if ($entity->get($parent_field_name)->value != $this->getFieldDefinition()->getName()) {
         $entity->set($parent_field_name, $this->getFieldDefinition()->getName());
+        $needs_save = TRUE;
+      }
+    }
+
+    // Keep in sync the translation languages between the parent and the child.
+    // For non translatable fields we have to do this in ::preSave but for
+    // translatable fields we have all the information we need in ::delete.
+    if (isset($parent_entity->original) && !$this->getFieldDefinition()->isTranslatable()) {
+      $langcodes = array_keys($parent_entity->getTranslationLanguages());
+      $original_langcodes = array_keys($parent_entity->original->getTranslationLanguages());
+      if ($removed_langcodes = array_diff($original_langcodes, $langcodes)) {
+        foreach ($removed_langcodes as $removed_langcode) {
+          if ($entity->hasTranslation($removed_langcode)  && $entity->getUntranslated()->language()->getId() != $removed_langcode) {
+            $entity->removeTranslation($removed_langcode);
+          }
+        }
         $needs_save = TRUE;
       }
     }
@@ -328,8 +377,11 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
    */
   public function deleteRevision() {
     $child = $this->entity;
-    if ($child->isDefaultRevision()) {
-      // Do not delete if it is the default revision.
+    // Return early, and do not delete the child revision, when the child
+    // revision is either:
+    // 1: Missing.
+    // 2: A default revision.
+    if (!$child || $child->isDefaultRevision()) {
       return;
     }
 
@@ -338,6 +390,7 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
     $all_revisions = \Drupal::entityQuery($host->getEntityTypeId())
       ->condition($field_name, $child->getRevisionId())
       ->allRevisions()
+      ->accessCheck(FALSE)
       ->execute();
 
     if (count($all_revisions) > 1) {
@@ -357,7 +410,10 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
     if ($this->entity && $this->entity->getEntityType()->get('entity_revision_parent_type_field') && $this->entity->getEntityType()->get('entity_revision_parent_id_field')) {
       // Only delete composite entities if the host field is not translatable.
       if (!$this->getFieldDefinition()->isTranslatable()) {
-        $this->entity->delete();
+        \Drupal::queue('entity_reference_revisions_orphan_purger')->createItem([
+          'entity_id' => $this->entity->id(),
+          'entity_type_id' => $this->entity->getEntityTypeId(),
+        ]);
       }
     }
   }
@@ -367,8 +423,8 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
    */
   public static function onDependencyRemoval(FieldDefinitionInterface $field_definition, array $dependencies) {
     $changed = FALSE;
-    $entity_manager = \Drupal::entityManager();
-    $target_entity_type = $entity_manager->getDefinition($field_definition->getFieldStorageDefinition()
+    $entity_type_manager = \Drupal::entityTypeManager();
+    $target_entity_type = $entity_type_manager->getDefinition($field_definition->getFieldStorageDefinition()
       ->getSetting('target_type'));
     $handler_settings = $field_definition->getSetting('handler_settings');
 
@@ -376,7 +432,7 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
     // has been removed.
     if (!empty($handler_settings['target_bundles'])) {
       if ($bundle_entity_type_id = $target_entity_type->getBundleEntityType()) {
-        if ($storage = $entity_manager->getStorage($bundle_entity_type_id)) {
+        if ($storage = $entity_type_manager->getStorage($bundle_entity_type_id)) {
           foreach ($storage->loadMultiple($handler_settings['target_bundles']) as $bundle) {
             if (isset($dependencies[$bundle->getConfigDependencyKey()][$bundle->getConfigDependencyName()])) {
               unset($handler_settings['target_bundles'][$bundle->id()]);
@@ -416,11 +472,6 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
     $selection_manager = \Drupal::service('plugin.manager.entity_reference_selection');
     $entity_manager = \Drupal::entityTypeManager();
 
-    // Bail if there are no referenceable entities.
-    if (!$selection_manager->getSelectionHandler($field_definition)->getReferenceableEntities()) {
-      return;
-    }
-
     // ERR field values are never cross referenced so we need to generate new
     // target entities. First, find the target entity type.
     $target_type_id = $field_definition->getFieldStorageDefinition()->getSetting('target_type');
@@ -430,7 +481,14 @@ class EntityReferenceRevisionsItem extends EntityReferenceItem implements Option
     // Determine referenceable bundles.
     $bundle_manager = \Drupal::service('entity_type.bundle.info');
     if (isset($handler_settings['target_bundles']) && is_array($handler_settings['target_bundles'])) {
-      $bundles = $handler_settings['target_bundles'];
+      if (empty($handler_settings['negate'])) {
+        $bundles = $handler_settings['target_bundles'];
+      }
+      else {
+        $bundles = array_filter($bundle_manager->getBundleInfo($target_type_id), function ($bundle) use ($handler_settings) {
+          return !in_array($bundle, $handler_settings['target_bundles'], TRUE);
+        });
+      }
     }
     else {
       $bundles = $bundle_manager->getBundleInfo($target_type_id);

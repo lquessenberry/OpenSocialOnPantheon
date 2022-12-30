@@ -13,11 +13,19 @@ system_test.main_content_handling:
   requirements:
     _access: 'TRUE'
 
-system_test.drupal_set_message:
-  path: '/system-test/drupal-set-message'
+system_test.messenger_service:
+  path: '/system-test/messenger-service'
   defaults:
-    _title: 'Set messages with drupal_set_message()'
-    _controller: '\Drupal\system_test\Controller\SystemTestController::drupalSetMessageTest'
+    _title: 'Set messages with Messenger service'
+    _controller: '\Drupal\system_test\Controller\SystemTestController::messengerServiceTest'
+  requirements:
+    _access: 'TRUE'
+
+system_test.status_messages_for_assertions:
+  path: '/system-test/status-messages-for-assertions'
+  defaults:
+    _title: 'Set various message to test status message assertion methods'
+    _controller: '\Drupal\system_test\Controller\SystemTestController::statusMessagesForAssertions'
   requirements:
     _access: 'TRUE'
 
@@ -131,9 +139,9 @@ system_test.permission_dependent_route_access:
     _permission: 'pet llamas'
 
 system_test.respond_response:
-  path: '/system-test/respond-reponse'
+  path: '/system-test/respond-response'
   defaults:
-    _controller: '\Drupal\system_test\Controller\SystemTestController::respondWithReponse'
+    _controller: '\Drupal\system_test\Controller\SystemTestController::respondWithResponse'
   requirements:
     _access: 'TRUE'
 
@@ -145,9 +153,9 @@ system_test.respond_public_response:
     _access: 'TRUE'
 
 system_test.respond_cacheable_response:
-  path: '/system-test/respond-cacheable-reponse'
+  path: '/system-test/respond-cacheable-response'
   defaults:
-    _controller: '\Drupal\system_test\Controller\SystemTestController::respondWithCacheableReponse'
+    _controller: '\Drupal\system_test\Controller\SystemTestController::respondWithCacheableResponse'
   requirements:
     _access: 'TRUE'
 
@@ -202,5 +210,12 @@ system_test.custom_cache_control:
   defaults:
     _title: 'Cacheable response with custom cache control'
     _controller: '\Drupal\system_test\Controller\SystemTestController::getCacheableResponseWithCustomCacheControl'
+  requirements:
+    _access: 'TRUE'
+
+system_test.install_profile:
+  path: '/system-test/get-install-profile'
+  defaults:
+    _controller: '\Drupal\system_test\Controller\SystemTestController::getInstallProfile'
   requirements:
     _access: 'TRUE'

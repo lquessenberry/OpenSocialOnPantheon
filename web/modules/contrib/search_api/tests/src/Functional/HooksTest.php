@@ -17,7 +17,7 @@ class HooksTest extends SearchApiBrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'rest',
     'search_api',
@@ -36,7 +36,7 @@ class HooksTest extends SearchApiBrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     // Create some nodes.
@@ -115,7 +115,6 @@ class HooksTest extends SearchApiBrowserTestBase {
     $this->assertEquals($expected, $processor_methods);
 
     // hook_search_api_index_items_alter() was invoked, this removed node:1.
-    // hook_search_api_query_TAG_alter() was invoked, this removed node:3.
     $this->assertSession()->pageTextContains('There are 2 items indexed on the server for this index.');
     $this->assertSession()->pageTextContains('Stormy');
 
@@ -141,6 +140,8 @@ class HooksTest extends SearchApiBrowserTestBase {
     $this->assertSession()->pageTextContains('Search id: views_page:search_api_test_view__page_1');
     // hook_search_api_query_alter() was invoked.
     $this->assertSession()->pageTextContains('Funky blue note');
+    // hook_search_api_query_TAG_alter() was invoked.
+    $this->assertSession()->pageTextContains('Freeland');
     // hook_search_api_results_alter() was invoked.
     $this->assertSession()->pageTextContains('Stepping into tomorrow');
     // hook_search_api_results_TAG_alter() was invoked.

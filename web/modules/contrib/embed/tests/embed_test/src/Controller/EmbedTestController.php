@@ -6,6 +6,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Render\HtmlResponse;
 use Drupal\editor\EditorInterface;
 use Drupal\embed\EmbedButtonInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -28,6 +29,16 @@ class EmbedTestController extends ControllerBase {
     }
 
     return $response;
+  }
+
+  /**
+   * Return CSRF token.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   CSRF token.
+   */
+  public function getCsrfToken() {
+    return new JsonResponse(\Drupal::csrfToken()->get('X-Drupal-EmbedPreview-CSRF-Token'));
   }
 
 }

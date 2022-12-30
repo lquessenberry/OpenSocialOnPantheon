@@ -2,6 +2,7 @@
 
 namespace Drupal\data_policy\Form;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -37,11 +38,18 @@ class DataPolicyRevisionRevertTranslationForm extends DataPolicyRevisionRevertFo
    *   The Data policy storage.
    * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
    *   The date formatter service.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The system time.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   The language manager.
    */
-  public function __construct(EntityStorageInterface $entity_storage, DateFormatterInterface $date_formatter, LanguageManagerInterface $language_manager) {
-    parent::__construct($entity_storage, $date_formatter);
+  public function __construct(
+    EntityStorageInterface $entity_storage,
+    DateFormatterInterface $date_formatter,
+    TimeInterface $time,
+    LanguageManagerInterface $language_manager
+  ) {
+    parent::__construct($entity_storage, $date_formatter, $time);
     $this->languageManager = $language_manager;
   }
 
@@ -50,8 +58,9 @@ class DataPolicyRevisionRevertTranslationForm extends DataPolicyRevisionRevertFo
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorage('data_policy'),
+      $container->get('entity_type.manager')->getStorage('data_policy'),
       $container->get('date.formatter'),
+      $container->get('datetime.time'),
       $container->get('language_manager')
     );
   }

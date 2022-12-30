@@ -2,16 +2,16 @@
 
 namespace Drush\Sql;
 
-use Drush\Log\LogLevel;
+use Drush\Drush;
 
 class SqlSqlite extends SqlBase
 {
-    public function command()
+    public function command(): string
     {
         return 'sqlite3';
     }
 
-    public function creds($hide_password = true)
+    public function creds($hide_password = true): string
     {
         // SQLite doesn't do user management, instead relying on the filesystem
         // for that. So the only info we really need is the path to the database
@@ -19,7 +19,7 @@ class SqlSqlite extends SqlBase
         return ' '  .  $this->getDbSpec()['database'];
     }
 
-    public function createdbSql($dbname, $quoted = false)
+    public function createdbSql($dbname, $quoted = false): string
     {
         return '';
     }
@@ -31,35 +31,32 @@ class SqlSqlite extends SqlBase
      *   Quote the database name. Mysql uses backticks to quote which can cause problems
      *   in a Windows shell. Set TRUE if the CREATE is not running on the bash command line.
      */
-    public function createdb($quoted = false)
+    public function createdb(bool $quoted = false): bool
     {
         $file = $this->getDbSpec()['database'];
         if (file_exists($file)) {
-            drush_log("SQLITE: Deleting existing database '$file'", LogLevel::DEBUG);
+            Drush::logger()->debug("SQLITE: Deleting existing database '$file'");
             drush_delete_dir($file, true);
         }
 
         // Make sure sqlite can create file
         $path = dirname($file);
-        drush_log("SQLITE: creating '$path' for creating '$file'", LogLevel::DEBUG);
-        drush_mkdir($path);
-        if (!file_exists($path)) {
-            drush_log("SQLITE: Cannot create $path", LogLevel::ERROR);
-            return false;
-        } else {
-            return true;
+        Drush::logger()->debug("SQLITE: creating '$path' for creating '$file'");
+        if (!drush_mkdir($path)) {
+            throw new \Exception("SQLITE: Cannot create $path");
         }
+        return file_exists($path);
     }
 
-    public function dbExists()
+    public function dbExists(): bool
     {
         return file_exists($this->getDbSpec()['database']);
     }
 
-    public function listTables()
+    public function listTables(): array
     {
         $return = $this->alwaysQuery('.tables');
-        $tables_raw = drush_shell_exec_output();
+        $tables_raw = explode(PHP_EOL, trim($this->getProcess()->getOutput()));
         // SQLite's '.tables' command always outputs the table names in a column
         // format, like this:
         // table_alpha    table_charlie    table_echo
@@ -78,7 +75,7 @@ class SqlSqlite extends SqlBase
         return $tables;
     }
 
-    public function drop($tables)
+    public function drop($tables): bool
     {
         $return = true;
         $sql = '';
@@ -93,7 +90,7 @@ class SqlSqlite extends SqlBase
         return $return;
     }
 
-    public function dumpCmd($table_selection)
+    public function dumpCmd($table_selection): string
     {
         // Dumping is usually not necessary in SQLite, since all database data
         // is stored in a single file which can be copied just
@@ -104,7 +101,7 @@ class SqlSqlite extends SqlBase
         // Postgres or MySQL equivalents. We may be able to fake some in the
         // future, but for now, let's just support simple dumps.
         $exec .= ' ".dump"';
-        if ($option = $this->getOption('extra-dump', $this->queryExtra)) {
+        if ($option = $this->getOption('extra-dump')) {
             $exec .= " $option";
         }
         return $exec;

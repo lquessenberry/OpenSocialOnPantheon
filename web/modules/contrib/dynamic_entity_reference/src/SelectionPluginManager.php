@@ -5,6 +5,7 @@ namespace Drupal\dynamic_entity_reference;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityReferenceSelection\SelectionPluginManager as CoreSelectionPluginManager;
 use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\dynamic_entity_reference\Plugin\Field\FieldType\DynamicEntityReferenceItem;
 
 /**
  * Plugin type manager for Dynamic Entity Reference Selection plugins.
@@ -21,11 +22,11 @@ class SelectionPluginManager extends CoreSelectionPluginManager {
     if ($target_type === NULL) {
       return parent::getSelectionHandler($field_definition, $entity);
     }
-    $settings = $field_definition->getSettings();
-    $options = [
+    $settings = $field_definition->getSettings() + DynamicEntityReferenceItem::defaultFieldSettings();
+    $options = $settings[$target_type]['handler_settings'] ?? [];
+    $options += [
       'target_type' => $target_type,
       'handler' => $settings[$target_type]['handler'],
-      'handler_settings' => $settings[$target_type]['handler_settings'],
       'entity' => $entity,
     ];
     return $this->getInstance($options);

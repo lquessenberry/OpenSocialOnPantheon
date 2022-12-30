@@ -5,14 +5,11 @@
  * This is the primary module file.
  */
 
-use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Render\Markup;
+use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Url;
 
 include_once __DIR__ . '/includes/helpers/utilities.inc';
-
-// Define permissions.
-define('SWIFTMAILER_ADMINISTER', 'swiftmailer_administer');
 
 // Define message formats.
 define('SWIFTMAILER_FORMAT_PLAIN', 'text/plain');
@@ -21,7 +18,6 @@ define('SWIFTMAILER_FORMAT_HTML', 'text/html');
 // Define transport types.
 define('SWIFTMAILER_TRANSPORT_SMTP', 'smtp');
 define('SWIFTMAILER_TRANSPORT_SENDMAIL', 'sendmail');
-define('SWIFTMAILER_TRANSPORT_NATIVE', 'native');
 define('SWIFTMAILER_TRANSPORT_SPOOL', 'spool');
 define('SWIFTMAILER_TRANSPORT_NULL', 'null');
 
@@ -32,13 +28,6 @@ define('SWIFTMAILER_HEADER_MAILBOX', 'mailbox');
 define('SWIFTMAILER_HEADER_DATE', 'date');
 define('SWIFTMAILER_HEADER_ID', 'ID');
 define('SWIFTMAILER_HEADER_PATH', 'path');
-
-// Define system variables defaults.
-define('SWIFTMAILER_VARIABLE_RESPECT_FORMAT_DEFAULT', FALSE);
-define('SWIFTMAILER_VARIABLE_CONVERT_MODE_DEFAULT', FALSE);
-define('SWIFTMAILER_VARIABLE_PATH_DEFAULT', '');
-define('SWIFTMAILER_VARIABLE_FORMAT_DEFAULT', 'text/plain');
-define('SWIFTMAILER_VARIABLE_CHARACTER_SET_DEFAULT', 'UTF-8');
 
 /**
  * Implements hook_mail().
@@ -66,6 +55,7 @@ function swiftmailer_theme($existing, $type, $theme, $path) {
     'swiftmailer' => [
       'variables' => [
         'message' => [],
+        'is_html' => FALSE,
       ],
       'mail theme' => TRUE,
     ],
@@ -77,9 +67,8 @@ function swiftmailer_theme($existing, $type, $theme, $path) {
  */
 function swiftmailer_theme_suggestions_swiftmailer(array $variables) {
   $suggestions = [];
-  $suggestions[] = 'swiftmailer';
   $suggestions[] = 'swiftmailer__' . $variables['message']['module'];
-  $suggestions[] = 'swiftmailer__' . $variables['message']['module'] . '__' . $variables['message']['key'];
+  $suggestions[] = 'swiftmailer__' . $variables['message']['module'] . '__' . strtr($variables['message']['key'], '-', '_');
   return $suggestions;
 }
 
@@ -91,9 +80,7 @@ function swiftmailer_theme_suggestions_swiftmailer(array $variables) {
  * @param array $variables
  *   An associative array containing:
  *   - message: An associative array containing the message array.
- *   - body: The processed body.
- *   - subject: The processed subject.
- *   - base_url: The base url for this site including scheme, without trailing slash.
+ *   - is_html: True if generating HTML output, false for plain text.
  */
 function template_preprocess_swiftmailer(&$variables) {
   $variables['base_url'] = $GLOBALS['base_url'];
@@ -111,7 +98,7 @@ function swiftmailer_help($route_name, RouteMatchInterface $route_match) {
     case 'swiftmailer.message_settings':
     case 'swiftmailer.test':
       $output = '';
-      $output .= '<p>' . t('The Swift Mailer module is designed to replace the default mail system that is shipped with Drupal. The initial configuration of this is done through the <a href=":mailsystem_settings">Mail System module</a>. Swift Mailer allows you to choose how e-mails should be sent. To read more about how this module works, please have a look at the <a href=":documentation">Swift Mailer documentation</a>.', [':mailsystem_settings' => Url::fromRoute('mailsystem.settings')->toString(), ':documentation' => 'http://swiftmailer.org/docs/introduction.html']) . '</p>';
+      $output .= '<p>' . t('The Swift Mailer module is designed to replace the default mail system that is shipped with Drupal. The initial configuration of this is done through the <a href=":mailsystem_settings">Mail System module</a>. Swift Mailer allows you to choose how e-mails should be sent. To read more about how this module works, please have a look at the <a href=":documentation">Swift Mailer documentation</a>.', [':mailsystem_settings' => Url::fromRoute('mailsystem.settings')->toString(), ':documentation' => 'https://swiftmailer.symfony.com/docs/introduction.html']) . '</p>';
       return $output;
   }
 }

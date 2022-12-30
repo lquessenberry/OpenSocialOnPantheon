@@ -11,10 +11,12 @@
 
 namespace Symfony\Component\Validator\Constraints;
 
-use Symfony\Component\Intl\Intl;
+use Symfony\Component\Intl\Currencies;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
+use Symfony\Component\Validator\Exception\LogicException;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
+use Symfony\Component\Validator\Exception\UnexpectedValueException;
 
 /**
  * Validates whether a value is a valid currency.
@@ -30,21 +32,24 @@ class CurrencyValidator extends ConstraintValidator
     public function validate($value, Constraint $constraint)
     {
         if (!$constraint instanceof Currency) {
-            throw new UnexpectedTypeException($constraint, __NAMESPACE__.'\Currency');
+            throw new UnexpectedTypeException($constraint, Currency::class);
         }
 
         if (null === $value || '' === $value) {
             return;
         }
 
-        if (!is_scalar($value) && !(\is_object($value) && method_exists($value, '__toString'))) {
-            throw new UnexpectedTypeException($value, 'string');
+        if (!\is_scalar($value) && !(\is_object($value) && method_exists($value, '__toString'))) {
+            throw new UnexpectedValueException($value, 'string');
+        }
+
+        if (!class_exists(Currencies::class)) {
+            throw new LogicException('The Intl component is required to use the Currency constraint. Try running "composer require symfony/intl".');
         }
 
         $value = (string) $value;
-        $currencies = Intl::getCurrencyBundle()->getCurrencyNames();
 
-        if (!isset($currencies[$value])) {
+        if (!Currencies::exists($value)) {
             $this->context->buildViolation($constraint->message)
                 ->setParameter('{{ value }}', $this->formatValue($value))
                 ->setCode(Currency::NO_SUCH_CURRENCY_ERROR)

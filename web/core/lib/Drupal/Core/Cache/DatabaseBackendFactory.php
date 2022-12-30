@@ -22,7 +22,7 @@ class DatabaseBackendFactory implements CacheFactoryInterface {
   protected $checksumProvider;
 
   /**
-   * The settings array.
+   * The site settings.
    *
    * @var \Drupal\Core\Site\Settings
    */
@@ -36,7 +36,7 @@ class DatabaseBackendFactory implements CacheFactoryInterface {
    * @param \Drupal\Core\Cache\CacheTagsChecksumInterface $checksum_provider
    *   The cache tags checksum provider.
    * @param \Drupal\Core\Site\Settings $settings
-   *   (optional) The settings array.
+   *   (optional) The site settings.
    *
    * @throws \BadMethodCallException
    */
@@ -74,7 +74,7 @@ class DatabaseBackendFactory implements CacheFactoryInterface {
     $max_rows_settings = $this->settings->get('database_cache_max_rows');
     // First, look for a cache bin specific setting.
     if (isset($max_rows_settings['bins'][$bin])) {
-      $max_rows  = $max_rows_settings['bins'][$bin];
+      $max_rows = $max_rows_settings['bins'][$bin];
     }
     // Second, use configured default backend.
     elseif (isset($max_rows_settings['default'])) {

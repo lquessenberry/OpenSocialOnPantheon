@@ -3,6 +3,7 @@
 namespace Drupal\editor\Form;
 
 use Drupal\Component\Utility\Bytes;
+use Drupal\Component\Utility\Environment;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\editor\Entity\Editor;
@@ -42,7 +43,7 @@ class EditorImageDialog extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorage('file')
+      $container->get('entity_type.manager')->getStorage('file')
     );
   }
 
@@ -56,6 +57,10 @@ class EditorImageDialog extends FormBase {
   /**
    * {@inheritdoc}
    *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
    * @param \Drupal\editor\Entity\Editor $editor
    *   The text editor to which this dialog corresponds.
    */
@@ -91,9 +96,8 @@ class EditorImageDialog extends FormBase {
     else {
       $max_dimensions = 0;
     }
-    $max_filesize = min(Bytes::toInt($image_upload['max_size']), file_upload_max_size());
-
-    $existing_file = isset($image_element['data-entity-uuid']) ? \Drupal::entityManager()->loadEntityByUuid('file', $image_element['data-entity-uuid']) : NULL;
+    $max_filesize = min(Bytes::toNumber($image_upload['max_size']), Environment::getUploadMaxSize());
+    $existing_file = isset($image_element['data-entity-uuid']) ? \Drupal::service('entity.repository')->loadEntityByUuid('file', $image_element['data-entity-uuid']) : NULL;
     $fid = $existing_file ? $existing_file->id() : NULL;
 
     $form['fid'] = [
@@ -112,7 +116,7 @@ class EditorImageDialog extends FormBase {
     $form['attributes']['src'] = [
       '#title' => $this->t('URL'),
       '#type' => 'textfield',
-      '#default_value' => isset($image_element['src']) ? $image_element['src'] : '',
+      '#default_value' => $image_element['src'] ?? '',
       '#maxlength' => 2048,
       '#required' => TRUE,
     ];
@@ -135,13 +139,13 @@ class EditorImageDialog extends FormBase {
     // an existing image (which means the src attribute is set) and its alt
     // attribute is empty, then we show that as two double quotes in the dialog.
     // @see https://www.drupal.org/node/2307647
-    $alt = isset($image_element['alt']) ? $image_element['alt'] : '';
+    $alt = $image_element['alt'] ?? '';
     if ($alt === '' && !empty($image_element['src'])) {
       $alt = '""';
     }
     $form['attributes']['alt'] = [
       '#title' => $this->t('Alternative text'),
-      '#placeholder' => $this->t('Short description for the visually impaired'),
+      '#description' => $this->t('Short description of the image used by screen readers and displayed when the image is not loaded. This is important for accessibility.'),
       '#type' => 'textfield',
       '#required' => TRUE,
       '#required_error' => $this->t('Alternative text is required.<br />(Only in rare cases should this be left empty. To create empty alternative text, enter <code>""</code> — two double quotes without any content).'),
@@ -206,11 +210,9 @@ class EditorImageDialog extends FormBase {
     // attributes and set data-entity-type to 'file'.
     $fid = $form_state->getValue(['fid', 0]);
     if (!empty($fid)) {
+      /** @var \Drupal\file\FileInterface $file */
       $file = $this->fileStorage->load($fid);
-      $file_url = file_create_url($file->getFileUri());
-      // Transform absolute image URLs to relative image URLs: prevent problems
-      // on multisite set-ups and prevent mixed content errors.
-      $file_url = file_url_transform_relative($file_url);
+      $file_url = $file->createFileUrl();
       $form_state->setValue(['attributes', 'src'], $file_url);
       $form_state->setValue(['attributes', 'data-entity-uuid'], $file->uuid());
       $form_state->setValue(['attributes', 'data-entity-type'], 'file');

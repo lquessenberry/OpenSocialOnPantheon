@@ -2,6 +2,10 @@
 
 namespace Drupal\Tests\Core\Ajax;
 
+use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\Core\Render\Renderer;
+use Drupal\Core\Ajax\AnnounceCommand;
+use Drupal\Core\Asset\AttachedAssets;
 use Drupal\Tests\UnitTestCase;
 use Drupal\Core\Ajax\AddCssCommand;
 use Drupal\Core\Ajax\AfterCommand;
@@ -76,6 +80,61 @@ class AjaxCommandsTest extends UnitTestCase {
     ];
 
     $this->assertEquals($expected, $command->render());
+  }
+
+  /**
+   * @covers \Drupal\Core\Ajax\AnnounceCommand
+   *
+   * @dataProvider announceCommandProvider
+   */
+  public function testAnnounceCommand($message, $priority, array $expected) {
+    if ($priority === NULL) {
+      $command = new AnnounceCommand($message);
+    }
+    else {
+      $command = new AnnounceCommand($message, $priority);
+    }
+
+    $expected_assets = new AttachedAssets();
+    $expected_assets->setLibraries(['core/drupal.announce']);
+
+    $this->assertEquals($expected_assets, $command->getAttachedAssets());
+    $this->assertSame($expected, $command->render());
+  }
+
+  /**
+   * Data provider for testAnnounceCommand().
+   */
+  public function announceCommandProvider() {
+    return [
+      'no priority' => [
+        'Things are going to change!',
+        NULL,
+        [
+          'command' => 'announce',
+          'text' => 'Things are going to change!',
+        ],
+      ],
+      'polite priority' => [
+        'Things are going to change!',
+        'polite',
+        [
+          'command' => 'announce',
+          'text' => 'Things are going to change!',
+          'priority' => AnnounceCommand::PRIORITY_POLITE,
+        ],
+
+      ],
+      'assertive priority' => [
+        'Important!',
+        'assertive',
+        [
+          'command' => 'announce',
+          'text' => 'Important!',
+          'priority' => AnnounceCommand::PRIORITY_ASSERTIVE,
+        ],
+      ],
+    ];
   }
 
   /**
@@ -294,6 +353,74 @@ class AjaxCommandsTest extends UnitTestCase {
    * @covers \Drupal\Core\Ajax\OpenDialogCommand
    */
   public function testOpenDialogCommand() {
+    $renderer = $this->getMockBuilder(Renderer::class)
+      ->disableOriginalConstructor()
+      ->setMethods(['renderPlain', 'renderRoot'])
+      ->getMock();
+
+    $container = new ContainerBuilder();
+    $container->set('renderer', $renderer);
+    \Drupal::setContainer($container);
+
+    $title = [
+      '#markup' => 'Title (in a render array)',
+      '#attached' => [
+        'library' => ['foo/bar'],
+        'drupalSettings' => [
+          'myModule' => [
+            'bar' => 'baz',
+          ],
+        ],
+      ],
+    ];
+    $content = [
+      '#markup' => '<p>Text!</p>',
+      '#attached' => [
+        'library' => ['bar/baz'],
+        'drupalSettings' => [
+          'myModule' => [
+            'foo' => 'bar',
+          ],
+          'anotherModule' => [],
+        ],
+      ],
+    ];
+    $renderer->expects($this->once())
+      ->method('renderPlain')
+      ->willReturn($title['#markup']);
+    $renderer->expects($this->once())
+      ->method('renderRoot')
+      ->willReturn($content['#markup']);
+    $command = new OpenDialogCommand('#some-dialog', $title, $content, [
+      'url' => FALSE,
+      'width' => 500,
+    ]);
+
+    $expected = [
+      'command' => 'openDialog',
+      'selector' => '#some-dialog',
+      'settings' => NULL,
+      'data' => '<p>Text!</p>',
+      'dialogOptions' => [
+        'url' => FALSE,
+        'width' => 500,
+        'title' => 'Title (in a render array)',
+        'modal' => FALSE,
+      ],
+    ];
+    $this->assertEquals($expected, $command->render());
+    $this->assertEquals([
+      'myModule' => [
+        'foo' => 'bar',
+        'bar' => 'baz',
+      ],
+      'anotherModule' => [],
+    ], $command->getAttachedAssets()->getSettings());
+    $this->assertEquals([
+      'foo/bar',
+      'bar/baz',
+    ], $command->getAttachedAssets()->getLibraries());
+
     $command = new OpenDialogCommand('#some-dialog', 'Title', '<p>Text!</p>', [
       'url' => FALSE,
       'width' => 500,
@@ -329,7 +456,7 @@ class AjaxCommandsTest extends UnitTestCase {
           'width' => 500,
         ],
       ])
-      ->setMethods(['getRenderedContent'])
+      ->onlyMethods(['getRenderedContent'])
       ->getMock();
 
     // This method calls the render service, which isn't available. We want it
@@ -428,7 +555,7 @@ class AjaxCommandsTest extends UnitTestCase {
    * @covers \Drupal\Core\Ajax\UpdateBuildIdCommand
    */
   public function testUpdateBuildIdCommand() {
-    $old = 'ThisStringisOld';
+    $old = 'ThisStringIsOld';
     $new = 'ThisStringIsNew';
     $command = new UpdateBuildIdCommand($old, $new);
     $expected = [

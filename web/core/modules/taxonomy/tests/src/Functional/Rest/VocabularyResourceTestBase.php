@@ -3,14 +3,14 @@
 namespace Drupal\Tests\taxonomy\Functional\Rest;
 
 use Drupal\taxonomy\Entity\Vocabulary;
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 
-abstract class VocabularyResourceTestBase extends EntityResourceTestBase {
+abstract class VocabularyResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['taxonomy'];
+  protected static $modules = ['taxonomy'];
 
   /**
    * {@inheritdoc}
@@ -54,7 +54,6 @@ abstract class VocabularyResourceTestBase extends EntityResourceTestBase {
       'dependencies' => [],
       'name' => 'Llama',
       'description' => NULL,
-      'hierarchy' => 0,
       'weight' => 0,
     ];
   }
@@ -64,16 +63,13 @@ abstract class VocabularyResourceTestBase extends EntityResourceTestBase {
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     if ($method === 'GET') {
       return "The following permissions are required: 'access taxonomy overview' OR 'administer taxonomy'.";
     }

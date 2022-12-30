@@ -26,7 +26,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 class DbCommandBaseTest extends KernelTestBase {
 
   /**
-   * Test specifying a database key.
+   * Tests specifying a database key.
    */
   public function testSpecifyDatabaseKey() {
     $command = new DbCommandBaseTester();
@@ -35,7 +35,7 @@ class DbCommandBaseTest extends KernelTestBase {
     Database::addConnectionInfo('magic_db', 'default', Database::getConnectionInfo('default')['default']);
 
     $command_tester->execute([
-      '--database' => 'magic_db'
+      '--database' => 'magic_db',
     ]);
     $this->assertEquals('magic_db', $command->getDatabaseConnection($command_tester->getInput())->getKey(),
        'Special db key is returned');
@@ -48,34 +48,32 @@ class DbCommandBaseTest extends KernelTestBase {
     $command = new DbCommandBaseTester();
     $command_tester = new CommandTester($command);
     $command_tester->execute([
-      '--database' => 'dne'
+      '--database' => 'dne',
     ]);
-    $this->setExpectedException(ConnectionNotDefinedException::class);
+    $this->expectException(ConnectionNotDefinedException::class);
     $command->getDatabaseConnection($command_tester->getInput());
   }
 
   /**
-   * Test supplying database connection as a url.
+   * Tests supplying database connection as a url.
    */
   public function testSpecifyDbUrl() {
-    $connection_info = Database::getConnectionInfo('default')['default'];
-
     $command = new DbCommandBaseTester();
     $command_tester = new CommandTester($command);
     $command_tester->execute([
-      '-db-url' => $connection_info['driver'] . '://' . $connection_info['username'] . ':' . $connection_info['password'] . '@' . $connection_info['host'] . '/' . $connection_info['database']
+      '-db-url' => Database::getConnectionInfoAsUrl(),
     ]);
     $this->assertEquals('db-tools', $command->getDatabaseConnection($command_tester->getInput())->getKey());
 
     Database::removeConnection('db-tools');
     $command_tester->execute([
-      '--database-url' => $connection_info['driver'] . '://' . $connection_info['username'] . ':' . $connection_info['password'] . '@' . $connection_info['host'] . '/' . $connection_info['database']
+      '--database-url' => Database::getConnectionInfoAsUrl(),
     ]);
     $this->assertEquals('db-tools', $command->getDatabaseConnection($command_tester->getInput())->getKey());
   }
 
   /**
-   * Test specifying a prefix for different connections.
+   * Tests specifying a prefix for different connections.
    */
   public function testPrefix() {
     if (Database::getConnection()->driver() == 'sqlite') {
@@ -91,18 +89,19 @@ class DbCommandBaseTest extends KernelTestBase {
     ]);
     $this->assertEquals('extra', $command->getDatabaseConnection($command_tester->getInput())->tablePrefix());
 
-    $connection_info = Database::getConnectionInfo('default')['default'];
     $command_tester->execute([
-      '-db-url' => $connection_info['driver'] . '://' . $connection_info['username'] . ':' . $connection_info['password'] . '@' . $connection_info['host'] . '/' . $connection_info['database'],
+      '-db-url' => Database::getConnectionInfoAsUrl(),
       '--prefix' => 'extra2',
     ]);
     $this->assertEquals('extra2', $command->getDatabaseConnection($command_tester->getInput())->tablePrefix());
 
     // This breaks simpletest cleanup.
+    // @code
     //    $command_tester->execute([
     //      '--prefix' => 'notsimpletest',
     //    ]);
     //    $this->assertEquals('notsimpletest', $command->getDatabaseConnection($command_tester->getInput())->tablePrefix());
+    // @endcode
   }
 
 }
@@ -132,6 +131,7 @@ class DbCommandBaseTester extends DbCommandBase {
    */
   protected function execute(InputInterface $input, OutputInterface $output) {
     // Empty implementation for testing.
+    return 0;
   }
 
 }

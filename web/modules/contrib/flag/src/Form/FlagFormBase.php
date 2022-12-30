@@ -5,8 +5,8 @@ namespace Drupal\flag\Form;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Utility\LinkGeneratorInterface;
 use Drupal\flag\ActionLink\ActionLinkPluginManager;
-use Drupal\flag\Entity\Flag;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -28,19 +28,31 @@ abstract class FlagFormBase extends EntityForm {
   /**
    * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
    */
   protected $bundleInfoService;
+
+  /**
+   * The link generator.
+   *
+   * @var \Drupal\Core\Utility\LinkGeneratorInterface
+   */
+  protected $linkGenerator;
 
   /**
    * Constructs a new form.
    *
    * @param \Drupal\flag\ActionLink\ActionLinkPluginManager $action_link_manager
    *   The link type plugin manager.
+   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $bundle_info_service
+   *   The bundle info service.
+   * @param \Drupal\Core\Utility\LinkGeneratorInterface $link_generator
+   *   The link generator service.
    */
-  public function __construct(ActionLinkPluginManager $action_link_manager, EntityTypeBundleInfoInterface $bundle_info_service) {
+  public function __construct(ActionLinkPluginManager $action_link_manager, EntityTypeBundleInfoInterface $bundle_info_service, LinkGeneratorInterface $link_generator) {
     $this->actionLinkManager = $action_link_manager;
     $this->bundleInfoService = $bundle_info_service;
+    $this->linkGenerator = $link_generator;
   }
 
   /**
@@ -49,7 +61,8 @@ abstract class FlagFormBase extends EntityForm {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('plugin.manager.flag.linktype'),
-      $container->get('entity_type.bundle.info')
+      $container->get('entity_type.bundle.info'),
+      $container->get('link_generator')
     );
   }
 
@@ -91,10 +104,10 @@ abstract class FlagFormBase extends EntityForm {
       '#type' => 'radios',
       '#title' => $this->t('Scope'),
       '#default_value' => $flag->isGlobal() ? 1 : 0,
-      '#options' => array(
-        0 => t('Personal'),
-        1 => t('Global'),
-      ),
+      '#options' => [
+        0 => $this->t('Personal'),
+        1 => $this->t('Global'),
+      ],
       '#weight' => -1,
     ];
 
@@ -161,7 +174,6 @@ abstract class FlagFormBase extends EntityForm {
     ];
 
     // Switch plugin type in case a different is chosen.
-
     $flag_type_plugin = $flag->getFlagTypePlugin();
     $flag_type_def = $flag_type_plugin->getPluginDefinition();
 
@@ -193,7 +205,7 @@ abstract class FlagFormBase extends EntityForm {
       '#type' => 'details',
       '#open' => TRUE,
       '#title' => $this->t('Display options'),
-      '#description' => $this->t('Flags are usually controlled through links that allow users to toggle their behavior. You can choose how users interact with flags by changing options here. It is legitimate to have none of the following checkboxes ticked, if, for some reason, you wish <a href="@placement-url">to place the the links on the page yourself</a>.', array('@placement-url' => 'http://drupal.org/node/295383')),
+      '#description' => $this->t('Flags are usually controlled through links that allow users to toggle their behavior. You can choose how users interact with flags by changing options here. It is legitimate to have none of the following checkboxes ticked, if, for some reason, you wish <a href="@placement-url">to place the the links on the page yourself</a>.', ['@placement-url' => 'http://drupal.org/node/295383']),
       '#tree' => FALSE,
       '#weight' => 20,
       '#prefix' => '<div id="link-type-settings-wrapper">',
@@ -304,14 +316,22 @@ abstract class FlagFormBase extends EntityForm {
     $flag->getLinkTypePlugin()->submitConfigurationForm($form, $form_state);
 
     $status = $flag->save();
-    $url = $flag->urlInfo();
+
+    $message_params = [
+      '%label' => $flag->label(),
+    ];
+    $logger_params = [
+      '%label' => $flag->label(),
+      'link' => $flag->toLink($this->t('Edit'), 'edit-form')->toString(),
+    ];
+
     if ($status == SAVED_UPDATED) {
-      drupal_set_message(t('Flag %label has been updated.', ['%label' => $flag->label()]));
-      $this->logger('flag')->notice('Flag %label has been updated.', ['%label' => $flag->label(), 'link' => $this->l($this->t('Edit'), $url)]);
+      $this->messenger()->addMessage($this->t('Flag %label has been updated.', $message_params));
+      $this->logger('flag')->notice('Flag %label has been updated.', $logger_params);
     }
     else {
-      drupal_set_message(t('Flag %label has been added.', ['%label' => $flag->label()]));
-      $this->logger('flag')->notice('Flag %label has been added.', ['%label' => $flag->label(), 'link' => $this->l($this->t('Edit'), $url)]);
+      $this->messenger()->addMessage($this->t('Flag %label has been added.', $message_params));
+      $this->logger('flag')->notice('Flag %label has been added.', $logger_params);
     }
 
     // We clear caches more vigorously if the flag was new.

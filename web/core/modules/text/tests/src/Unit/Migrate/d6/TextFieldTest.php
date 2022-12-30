@@ -8,10 +8,11 @@ use Drupal\Tests\UnitTestCase;
 use Drupal\text\Plugin\migrate\field\d6\TextField;
 use Prophecy\Argument;
 
+// cspell:ignore optionwidgets
+
 /**
  * @coversDefaultClass \Drupal\text\Plugin\migrate\field\d6\TextField
  * @group text
- * @group legacy
  */
 class TextFieldTest extends UnitTestCase {
 
@@ -28,12 +29,12 @@ class TextFieldTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->plugin = new TextField([], 'text', []);
 
     $migration = $this->prophesize(MigrationInterface::class);
 
-    // The plugin's processFieldValues() method will call
+    // The plugin's defineValueProcessPipeline() method will call
     // setProcessOfProperty() and return nothing. So, in order to examine the
     // process pipeline created by the plugin, we need to ensure that
     // getProcess() always returns the last input to setProcessOfProperty().
@@ -46,13 +47,13 @@ class TextFieldTest extends UnitTestCase {
   }
 
   /**
-   * @covers ::processFieldValues
+   * @covers ::defineValueProcessPipeline
    */
-  public function testProcessFilteredTextFieldValues() {
+  public function testFilteredTextValueProcessPipeline() {
     $field_info = [
       'widget_type' => 'text_textfield',
     ];
-    $this->plugin->processFieldValues($this->migration, 'body', $field_info);
+    $this->plugin->defineValueProcessPipeline($this->migration, 'body', $field_info);
 
     $process = $this->migration->getProcess();
     $this->assertSame('sub_process', $process['plugin']);
@@ -62,23 +63,23 @@ class TextFieldTest extends UnitTestCase {
     // Ensure that filter format IDs will be looked up in the filter format
     // migrations.
     $lookup = $process['process']['format'][2];
-    $this->assertSame('migration', $lookup['plugin']);
+    $this->assertSame('migration_lookup', $lookup['plugin']);
     $this->assertContains('d6_filter_format', $lookup['migration']);
     $this->assertContains('d7_filter_format', $lookup['migration']);
     $this->assertSame('format', $lookup['source']);
   }
 
   /**
-   * @covers ::processFieldValues
+   * @covers ::defineValueProcessPipeline
    */
-  public function testProcessBooleanTextImplicitValues() {
+  public function testBooleanTextImplicitValueProcessPipeline() {
     $info = [
       'widget_type' => 'optionwidgets_onoff',
       'global_settings' => [
         'allowed_values' => "foo\nbar",
-      ]
+      ],
     ];
-    $this->plugin->processFieldValues($this->migration, 'field', $info);
+    $this->plugin->defineValueProcessPipeline($this->migration, 'field', $info);
 
     $expected = [
       'value' => [
@@ -94,16 +95,16 @@ class TextFieldTest extends UnitTestCase {
   }
 
   /**
-   * @covers ::processFieldValues
+   * @covers ::defineValueProcessPipeline
    */
-  public function testProcessBooleanTextExplicitValues() {
+  public function testBooleanTextExplicitValueProcessPipeline() {
     $info = [
       'widget_type' => 'optionwidgets_onoff',
       'global_settings' => [
         'allowed_values' => "foo|Foo\nbaz|Baz",
-      ]
+      ],
     ];
-    $this->plugin->processFieldValues($this->migration, 'field', $info);
+    $this->plugin->defineValueProcessPipeline($this->migration, 'field', $info);
 
     $expected = [
       'value' => [

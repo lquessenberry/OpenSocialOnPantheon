@@ -1,0 +1,13 @@
+<?php
+
+use Drupal\Core\Database\Database;
+
+/**
+ * Add field throw_authenticated_404 to the schema.
+ */
+function r4032login_update_8001(&$sandbox) {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('r4032login.settings');
+  $config->set('throw_authenticated_404', FALSE);
+  $config->save(TRUE);
+}

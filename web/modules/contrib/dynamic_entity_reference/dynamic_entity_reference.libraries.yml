@@ -3,6 +3,5 @@ drupal.dynamic_entity_reference_widget:
   js:
     js/dynamic-entity-reference-widget.js: {}
   dependencies:
-    - core/jquery
     - core/drupal
     - core/drupal.form

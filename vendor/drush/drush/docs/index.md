@@ -1,29 +1,41 @@
-Drush is a command line shell and Unix scripting interface for Drupal. Drush core ships with lots of useful commands for interacting with code like modules/themes/profiles. Similarly, it runs update.php, executes sql queries and DB migrations, and misc utilities like run cron or clear cache. Drush can be extended by [3rd party commandfiles](https://www.drupal.org/project/project_module?f[2]=im_vid_3%3A4654).
+Drush is a command line shell and Unix scripting interface for Drupal. Drush core ships with lots of [useful commands](commands/all.md) and [generators](generators/all.md). Similarly, it runs update.php, executes SQL queries, runs content  migrations, and misc utilities like cron or cache rebuild. Drush can be extended by [3rd party commandfiles](https://www.drupal.org/project/project_module?f[2]=im_vid_3%3A4654).
 
-[![Latest Stable Version](https://poser.pugx.org/drush/drush/v/stable.png)](https://packagist.org/packages/drush/drush) [![Total Downloads](https://poser.pugx.org/drush/drush/downloads.png)](https://packagist.org/packages/drush/drush) [![Latest Unstable Version](https://poser.pugx.org/drush/drush/v/unstable.png)](https://packagist.org/packages/drush/drush) [![License](https://poser.pugx.org/drush/drush/license.png)](https://packagist.org/packages/drush/drush)
-
-!!! note
-
-    Go to the [Drush 8 docs](http://docs.drush.org/en/8.x) if you want prior version of Drush.
-
+[![Latest Stable Version](https://poser.pugx.org/drush/drush/v/stable.png)](https://packagist.org/packages/drush/drush) [![Total Downloads](https://poser.pugx.org/drush/drush/downloads.png)](https://packagist.org/packages/drush/drush) [![License](https://poser.pugx.org/drush/drush/license.png)](https://packagist.org/packages/drush/drush) <a href="https://circleci.com/gh/drush-ops/drush"><img src="https://circleci.com/gh/drush-ops/drush.svg?style=shield"></a> [![Twitter](https://img.shields.io/badge/Twitter-%40DrushCli-blue.svg)](https://twitter.com/intent/user?screen_name=DrushCli)
 
 Resources
 -----------
-* [Install documentation](http://docs.drush.org/en/master/install/)
-* [General documentation](http://docs.drush.org) 
-* [API Documentation](www.drush.org/api/master/)
-* [Drush Commands](http://drushcommands.com)
-* Subscribe [this atom feed](https://github.com/drush-ops/drush/releases.atom) to receive notification on new releases. Also, [Version eye](https://www.versioneye.com/).
-* [Drush packages available via Composer](https://packagist.org/?query=drush)
+* [Installing and Upgrading](install.md)
+* [Commands](commands/all.md) and [Generators](generators/all.md)
+* [API Documentation](https://www.drush.org/latest/api)
+* [Drush packages available via Composer](https://packagist.org/search/?type=drupal-drush)
 * [A list of modules that include Drush integration](https://www.drupal.org/project/project_module?f[2]=im_vid_3%3A4654&solrsort=ds_project_latest_release+desc)
-* Drush comes with a [full test suite](https://github.com/drush-ops/drush/blob/master/tests/README.md) powered by [PHPUnit](https://github.com/sebastianbergmann/phpunit). Each commit gets tested by the awesome [Travis.ci continuous integration service](https://travis-ci.org/drush-ops/drush).
+* Drush expects all participants to abide by the [Drupal Code of Conduct](https://www.drupal.org/dcoc).
+* Drush 8 is no longer recommended, but [here are its docs](https://docs.drush.org/en/8.x/install/).
 
 Support
 -----------
+* Post support requests to [Drupal Answers](http://drupal.stackexchange.com/questions/tagged/drush). Tag question with _drush_.
+* Report bugs and request features in the [GitHub Drush Issue Queue](https://github.com/drush-ops/drush/issues).
+* Use pull requests (PRs) to contribute to Drush. [Guidelines](contribute/CONTRIBUTING.md).
 
-Please take a moment to review the rest of the information in this file before
-pursuing one of the support options below.
+FAQ
+------
 
-* Post support requests to [Drupal Answers](http://drupal.stackexchange.com/questions/tagged/drush).
-* Bug reports and feature requests should be reported in the [GitHub Drush Issue Queue](https://github.com/drush-ops/drush/issues).
-* Use pull requests (PRs) to contribute to Drush.
+#### What does *Drush* stand for?
+A: The Drupal Shell.
+
+#### How do I pronounce Drush?
+Some people pronounce the *dru* with a long 'u' like Dr*u*pal. Fidelity points
+go to them, but they are in the minority. Most pronounce Drush so that it
+rhymes with hush, rush, flush, etc. This is the preferred pronunciation.
+
+Credits
+-----------
+
+* Maintained by [Moshe Weitzman](http://drupal.org/moshe) with much help from the folks listed at https://github.com/orgs/drush-ops/people.
+* Originally developed by [Arto Bendiken](http://bendiken.net) for Drupal 4.7.
+* Redesigned by [Franz Heinzmann](http://unbiskant.org) in May 2007 for Drupal 5.
+* Thanks to [JetBrains](https://www.jetbrains.com) for [supporting this project and open source software](https://www.jetbrains.com/buy/opensource/).
+
+![Drush Logo](drush_logo-black.png)
+[![PhpStorm Logo](misc/icon_PhpStorm.png)](https://www.jetbrains.com/phpstorm/)

@@ -5,7 +5,7 @@ namespace Drupal\flag\ActionLink;
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Link;
-use Drupal\Core\Url;
+use Drupal\Core\Routing\RedirectDestinationTrait;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Form\FormStateInterface;
@@ -32,6 +32,7 @@ abstract class ActionLinkTypeBase extends PluginBase implements ActionLinkTypePl
   protected $currentUser;
 
   use StringTranslationTrait;
+  use RedirectDestinationTrait;
 
   /**
    * Build a new link type instance and sets the configuration.
@@ -106,7 +107,8 @@ abstract class ActionLinkTypeBase extends PluginBase implements ActionLinkTypePl
         '#flaggable' => $entity,
         '#action' => $action,
         '#access' => $access->isAllowed(),
-        '#title' => $flag->getShortText($action),
+        // Use render array for title to allow limited markup in the link text.
+        '#title' => ['#markup' => $flag->getShortText($action)],
         '#attributes' => [
           'title' => $flag->getLongText($action),
         ],
@@ -152,14 +154,7 @@ abstract class ActionLinkTypeBase extends PluginBase implements ActionLinkTypePl
    *  A string containing a destination URL parameter.
    */
   protected function getDestination() {
-    $current_url = Url::fromRoute('<current>');
-    $route_params = $current_url->getRouteParameters();
-
-    if (isset($route_params['destination'])) {
-      return $route_params['destination'];
-    }
-
-    return $current_url->getInternalPath();
+    return $this->getRedirectDestination()->get();
   }
 
   /**

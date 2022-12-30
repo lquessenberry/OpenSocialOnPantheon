@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\gnode\Kernel;
 
+use Drupal\node\NodeInterface;
+
 /**
  * Tests the access records that are set for group nodes.
  *
@@ -83,7 +85,7 @@ class GroupNodeAccessRecordsTest extends GroupNodeAccessTestBase {
       ->create([
         'type' => 'a',
         'title' => $this->randomMachineName(),
-        'status' => NODE_NOT_PUBLISHED,
+        'status' => NodeInterface::NOT_PUBLISHED,
       ]);
     $node->save();
     $this->groupA1->addContent($node, 'group_node:a');

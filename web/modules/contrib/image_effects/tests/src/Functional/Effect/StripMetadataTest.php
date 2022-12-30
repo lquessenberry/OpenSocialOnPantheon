@@ -7,12 +7,12 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Strip metadata effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class StripMetadataTest extends ImageEffectsTestBase {
 
   /**
-   * Test effect on required toolkits.
+   * Strip metadata effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -23,16 +23,9 @@ class StripMetadataTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testStripMetadataEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Strip metadata effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testStripMetadataEffect() {
     // Add Strip metadata effect to the test image style.
     $effect = [
       'id' => 'image_effects_strip_metadata',
@@ -47,12 +40,12 @@ class StripMetadataTest extends ImageEffectsTestBase {
       ],
       // Test a JPEG image without EXIF data.
       [
-        'test_file' => $this->getTestImageCopyUri('/files/image-test.jpg', 'simpletest'),
+        'test_file' => $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.jpg'),
         'original_orientation' => NULL,
       ],
       // Test a non-EXIF image.
       [
-        'test_file' => $this->getTestImageCopyUri('/files/image-1.png', 'simpletest'),
+        'test_file' => $this->getTestImageCopyUri('core/tests/fixtures/files/image-1.png'),
         'original_orientation' => NULL,
       ],
     ];
@@ -64,14 +57,14 @@ class StripMetadataTest extends ImageEffectsTestBase {
 
       // Test source image EXIF data.
       $exif = @exif_read_data(\Drupal::service('file_system')->realpath($original_uri));
-      $this->assertEqual($data['original_orientation'], isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
+      $this->assertEquals($data['original_orientation'], isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
 
       // Process source image.
       $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
 
       // Check that ::applyEffect strips EXIF metadata.
       $exif = @exif_read_data(\Drupal::service('file_system')->realpath($derivative_uri));
-      $this->assertEqual(NULL, isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
+      $this->assertEquals(NULL, isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
     }
   }
 

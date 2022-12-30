@@ -18,12 +18,12 @@ class MigrateContactCategoryTest extends MigrateDrupal6TestBase {
    *
    * @var array
    */
-  public static $modules = ['contact'];
+  protected static $modules = ['contact'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->executeMigration('contact_category');
   }
@@ -41,15 +41,17 @@ class MigrateContactCategoryTest extends MigrateDrupal6TestBase {
    *   The expected reply message.
    * @param int $expected_weight
    *   The contact form's expected weight.
+   *
+   * @internal
    */
-  protected function assertEntity($id, $expected_label, array $expected_recipients, $expected_reply, $expected_weight) {
+  protected function assertEntity(string $id, string $expected_label, array $expected_recipients, string $expected_reply, int $expected_weight): void {
     /** @var \Drupal\contact\ContactFormInterface $entity */
     $entity = ContactForm::load($id);
-    $this->assertTrue($entity instanceof ContactFormInterface);
-    $this->assertIdentical($expected_label, $entity->label());
-    $this->assertIdentical($expected_recipients, $entity->getRecipients());
-    $this->assertIdentical($expected_reply, $entity->getReply());
-    $this->assertIdentical($expected_weight, $entity->getWeight());
+    $this->assertInstanceOf(ContactFormInterface::class, $entity);
+    $this->assertSame($expected_label, $entity->label());
+    $this->assertSame($expected_recipients, $entity->getRecipients());
+    $this->assertSame($expected_reply, $entity->getReply());
+    $this->assertSame($expected_weight, $entity->getWeight());
   }
 
   /**
@@ -58,7 +60,7 @@ class MigrateContactCategoryTest extends MigrateDrupal6TestBase {
   public function testContactCategory() {
     $this->assertEntity('website_feedback', 'Website feedback', ['admin@example.com'], '', 0);
     $this->assertEntity('some_other_category', 'Some other category', ['test@example.com'], 'Thanks for contacting us, we will reply ASAP!', 1);
-    $this->assertEntity('a_category_much_longer_than_thir', 'A category much longer than thirty two characters', ['fortyninechars@example.com'], '', 2);
+    $this->assertEntity('a_category_much_longer_than_th', 'A category much longer than thirty two characters', ['fortyninechars@example.com'], '', 2);
 
     // Test there are no duplicated roles.
     $contact_forms = [
@@ -77,7 +79,6 @@ class MigrateContactCategoryTest extends MigrateDrupal6TestBase {
     $this->executeMigration('contact_category');
 
     // Test there is a duplicate Website feedback form.
-    $contact_form = ContactForm::load('website_feedback1');
     $this->assertEntity('website_feedback1', 'Website feedback', ['admin@example.com'], '', 0);
   }
 

@@ -8,6 +8,7 @@
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file\Entity\File;
+use Drupal\node\NodeInterface;
 
 /**
  * Implements hook_form_FORM_ID_alter().
@@ -44,7 +45,54 @@ function social_comment_upload_form_comment_comment_form_after_build($form, Form
       unset($element['_weight']);
     }
   }
+
   return $form;
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function social_comment_upload_preprocess_comment(&$variables) {
+  // Alter comments in activity when social_comment_upload is enabled.
+  if (social_comment_upload_is_enabled()) {
+    $count_arr = [];
+    $comment = $variables['elements']['#comment'];
+
+    // For comments in activities we show the amount of attachments.
+    if ($variables['elements']['#view_mode'] === 'activity' ||
+      $variables['elements']['#view_mode'] === 'activity_comment') {
+      /** @var \Drupal\comment\Entity\Comment $comment */
+      if ($comment->hasField('field_comment_files')) {
+        foreach ($comment->field_comment_files as $value) {
+          if (isset($value->target_id)) {
+            $count_arr[] = $value->target_id;
+          }
+        }
+
+        // Add the amount of attachments to the comment.
+        if (!empty($count_arr)) {
+          $variables['comment_attachments_count'] = count($count_arr);
+        }
+      }
+
+      // In case when the comment has replies then we should display the count
+      // of replies for that comment.
+      if (($node = $comment->getCommentedEntity()) instanceof NodeInterface) {
+        $reply_count = \Drupal::entityQuery('comment')
+          ->condition('entity_type', $comment->getCommentedEntityTypeId())
+          ->condition('entity_id', $comment->getCommentedEntityId())
+          ->condition('pid', $comment->id())
+          ->count()
+          ->execute();
+
+        $variables['comment_count'] = $reply_count;
+        $variables['comment_url'] = $node->toUrl()->toString();
+      }
+
+      $more_button = $comment->toLink(t('Read more'))->toString();
+      $variables['more_link'] = $more_button;
+    }
+  }
 }
 
 /**
@@ -88,6 +136,8 @@ function social_comment_upload_comment_delete(EntityInterface $entity) {
  *
  * @param \Drupal\Core\Entity\EntityInterface $entity
  *   The comment for which attached files should be deleted.
+ *
+ * @throws \Drupal\Core\Entity\EntityStorageException
  */
 function _social_comment_upload_delete_comment_files(EntityInterface $entity) {
   // If this comment doesn't have any attached files we abort early.
@@ -95,11 +145,12 @@ function _social_comment_upload_delete_comment_files(EntityInterface $entity) {
     return;
   }
 
-  foreach ($entity->field_comment_files as $file_reference) {
-    // Try to load the actual file object.
-    $file = File::load($file_reference->target_id);
-    // Check if it's an actual file object.
-    if ($file instanceof File) {
+  // Extract all the file ids referred.
+  $file_ids = array_column($entity->get('field_comment_files')->getValue(), 'target_id');
+  // Try to load the actual file objects.
+  if ($files = File::loadMultiple($file_ids)) {
+    // Iterate and delete individual file objects.
+    foreach ($files as $file) {
       // Delete the file object.
       $file->delete();
     }

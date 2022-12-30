@@ -17,12 +17,12 @@ class CropCRUDTest extends CropUnitTestBase {
    *
    * @var array
    */
-  public static $modules = ['user', 'image', 'crop', 'file', 'system'];
+  protected static $modules = ['user', 'image', 'crop', 'file', 'system'];
 
   /**
    * Tests crop type save.
    */
-  public function testCropTypeSave() {
+  public function testCropTypeSave(): void {
     $values = [
       'id' => $this->randomMachineName(),
       'label' => $this->randomString(),
@@ -47,7 +47,7 @@ class CropCRUDTest extends CropUnitTestBase {
   /**
    * Tests crop save.
    */
-  public function testCropSave() {
+  public function testCropSave(): void {
     // Test file.
     $file = $this->getTestFile();
     $file->save();
@@ -117,7 +117,7 @@ class CropCRUDTest extends CropUnitTestBase {
   /**
    * Tests automatic removal of orphaned crops.
    */
-  public function testOrphanRemoval() {
+  public function testOrphanRemoval(): void {
     $this->installSchema('file', ['file_usage']);
     $file = $this->getTestFile();
     $file->save();

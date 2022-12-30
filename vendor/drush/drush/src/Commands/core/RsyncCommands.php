@@ -1,7 +1,10 @@
 <?php
+
 namespace Drush\Commands\core;
 
 use Consolidation\AnnotatedCommand\CommandData;
+use Consolidation\SiteProcess\ProcessBase;
+use Consolidation\SiteProcess\Util\Escape;
 use Drush\Commands\DrushCommands;
 use Drush\Drush;
 use Drush\Exceptions\UserAbortException;
@@ -38,8 +41,8 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
      * Rsync Drupal code or files to/from another server using ssh.
      *
      * @command core:rsync
-     * @param $source A site alias and optional path. See rsync documentation and example.site.yml.
-     * @param $target A site alias and optional path. See rsync documentation and example.site.yml.',
+     * @param $source A site alias and optional path. See rsync documentation and [Site aliases](../site-aliases.md).
+     * @param $target A site alias and optional path. See rsync documentation and [Site aliases](../site-aliases.md).
      * @param $extra Additional parameters after the ssh statement.
      * @optionset_ssh
      * @option exclude-paths List of paths to exclude, seperated by : (Unix-based systems) or ; (Windows).
@@ -48,7 +51,7 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
      * @usage drush rsync @dev @stage
      *   Rsync Drupal root from Drush alias dev to the alias stage.
      * @usage drush rsync ./ @stage:%files/img
-     *   Rsync all files in the current directory to the 'img' directory in the file storage folder on the Drush alias stage.
+     *   Rsync all files in the current directory to the <info>img</info>directory in the file storage folder on the Drush alias stage.
      * @usage drush rsync @dev @stage -- --exclude=*.sql --delete
      *   Rsync Drupal root from the Drush alias dev to the alias stage, excluding all .sql files and delete all files on the destination that are no longer on the source.
      * @usage drush rsync @dev @stage --ssh-options="-o StrictHostKeyChecking=no" -- --delete
@@ -56,40 +59,39 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
      * @aliases rsync,core-rsync
      * @topics docs:aliases
      */
-    public function rsync($source, $target, array $extra, $options = ['exclude-paths' => self::REQ, 'include-paths' => self::REQ, 'mode' => 'akz'])
+    public function rsync($source, $target, array $extra, $options = ['exclude-paths' => self::REQ, 'include-paths' => self::REQ, 'mode' => 'akz']): void
     {
         // Prompt for confirmation. This is destructive.
-        if (!\Drush\Drush::simulate()) {
-            $this->output()->writeln(dt("You will delete files in !target and replace with data from !source", ['!source' => $this->sourceEvaluatedPath->fullyQualifiedPathPreservingTrailingSlash(), '!target' => $this->targetEvaluatedPath->fullyQualifiedPath()]));
-            if (!$this->io()->confirm(dt('Do you want to continue?'))) {
+        if (!$this->getConfig()->simulate()) {
+            $replacements = ['!source' => $this->sourceEvaluatedPath->fullyQualifiedPathPreservingTrailingSlash(), '!target' => $this->targetEvaluatedPath->fullyQualifiedPath()];
+            if (!$this->io()->confirm(dt("Copy new and override existing files at !target. The source is !source?", $replacements))) {
                 throw new UserAbortException();
             }
         }
 
         $rsync_options = $this->rsyncOptions($options);
         $parameters = array_merge([$rsync_options], $extra);
-        $parameters[] = $this->sourceEvaluatedPath->fullyQualifiedPathPreservingTrailingSlash();
-        $parameters[] = $this->targetEvaluatedPath->fullyQualifiedPath();
+        $parameters[] = Escape::shellArg($this->sourceEvaluatedPath->fullyQualifiedPathPreservingTrailingSlash());
+        $parameters[] = Escape::shellArg($this->targetEvaluatedPath->fullyQualifiedPath());
 
-        $ssh_options = Drush::config()->get('ssh.options', '');
-        $exec = "rsync -e 'ssh $ssh_options'". ' '. implode(' ', array_filter($parameters));
-        $exec_result = drush_op_system($exec);
+        $ssh_options = $this->getConfig()->get('ssh.options', '');
+        $exec = "rsync -e 'ssh $ssh_options'" . ' ' . implode(' ', array_filter($parameters));
+        $process = $this->processManager()->shell($exec);
+        $process->run($process->showRealtime());
 
-        if ($exec_result == 0) {
-            drush_backend_set_result($this->targetEvaluatedPath->fullyQualifiedPath());
-        } else {
+        if (!$process->isSuccessful()) {
             throw new \Exception(dt("Could not rsync from !source to !dest", ['!source' => $this->sourceEvaluatedPath->fullyQualifiedPathPreservingTrailingSlash(), '!dest' => $this->targetEvaluatedPath->fullyQualifiedPath()]));
         }
     }
 
-    public function rsyncOptions($options)
+    public function rsyncOptions($options): string
     {
         $verbose = $paths = '';
         // Process --include-paths and --exclude-paths options the same way
         foreach (['include', 'exclude'] as $include_exclude) {
             // Get the option --include-paths or --exclude-paths and explode to an array of paths
             // that we will translate into an --include or --exclude option to pass to rsync
-            $inc_ex_path = explode(PATH_SEPARATOR, @$options[$include_exclude . '-paths']);
+            $inc_ex_path = explode(PATH_SEPARATOR, (string) @$options[$include_exclude . '-paths']);
             foreach ($inc_ex_path as $one_path_to_inc_ex) {
                 if (!empty($one_path_to_inc_ex)) {
                     $paths .= ' --' . $include_exclude . '="' . $one_path_to_inc_ex . '"';
@@ -97,7 +99,7 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
             }
         }
 
-        $mode = '-'. $options['mode'];
+        $mode = '-' . $options['mode'];
         if ($this->output()->isVerbose()) {
             $mode .= 'v';
             $verbose = ' --stats --progress';
@@ -116,9 +118,8 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
      * @hook command-event core:rsync
      * @param ConsoleCommandEvent $event
      * @throws \Exception
-     * @return void
      */
-    public function preCommandEvent(ConsoleCommandEvent $event)
+    public function preCommandEvent(ConsoleCommandEvent $event): void
     {
         $input = $event->getInput();
         $this->sourceEvaluatedPath = $this->injectAliasPathParameterOptions($input, 'source');
@@ -137,7 +138,7 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
         $evaluatedPath = HostPath::create($manager, $aliasName);
         $this->pathEvaluator->evaluate($evaluatedPath);
 
-        $aliasRecord = $evaluatedPath->getAliasRecord();
+        $aliasRecord = $evaluatedPath->getSiteAlias();
 
         // If the path is remote, then we will also inject the global
         // options into the alias config context so that we pick up
@@ -153,14 +154,13 @@ class RsyncCommands extends DrushCommands implements SiteAliasManagerAwareInterf
      * Validate that passed aliases are valid.
      *
      * @hook validate core-rsync
-     * @param \Consolidation\AnnotatedCommand\CommandData $commandData
+     * @param CommandData $commandData
      * @throws \Exception
-     * @return void
      */
-    public function validate(CommandData $commandData)
+    public function validate(CommandData $commandData): void
     {
         if ($this->sourceEvaluatedPath->isRemote() && $this->targetEvaluatedPath->isRemote()) {
-            $msg = dt("Cannot specify two remote aliases. Instead, use one of the following alternate options:\n\n    `drush {source} rsync @self {target}`\n    `drush {source} rsync @self {fulltarget}\n\nUse the second form if the site alias definitions are not available at {source}.", ['source' => $source, 'target' => $target, 'fulltarget' => $this->targetEvaluatedPath->fullyQualifiedPath()]);
+            $msg = dt("Cannot specify two remote aliases. Instead, use one of the following alternate options:\n\n    `drush {source} rsync @self {target}`\n    `drush {source} rsync @self {fulltarget}\n\nUse the second form if the site alias definitions are not available at {source}.", ['source' => $this->sourceEvaluatedPath->getSiteAlias()->name(), 'target' => $this->targetEvaluatedPath->getSiteAlias()->name(), 'fulltarget' => $this->targetEvaluatedPath->fullyQualifiedPath()]);
             throw new \Exception($msg);
         }
     }

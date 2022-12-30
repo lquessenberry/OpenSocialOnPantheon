@@ -2,9 +2,10 @@
 
 namespace Drupal\Tests\dblog\Kernel\Views;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\Tests\views\Kernel\ViewsKernelTestBase;
 use Drupal\views\Views;
@@ -25,7 +26,7 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['dblog', 'dblog_test_views', 'user'];
+  protected static $modules = ['dblog', 'dblog_test_views', 'user'];
 
   /**
    * {@inheritdoc}
@@ -35,13 +36,13 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp();
 
     $this->installEntitySchema('user');
     $this->installSchema('dblog', ['watchdog']);
 
-    ViewTestData::createTestViews(get_class($this), ['dblog_test_views']);
+    ViewTestData::createTestViews(static::class, ['dblog_test_views']);
   }
 
   /**
@@ -62,15 +63,17 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
       if (!isset($entry['variables'])) {
         continue;
       }
-      $this->assertEqual($view->style_plugin->getField($index, 'message'), SafeMarkup::format($entry['message'], $entry['variables']));
+      $message_vars = $entry['variables'];
+      unset($message_vars['link']);
+      $this->assertEquals(new FormattableMarkup($entry['message'], $message_vars), $view->style_plugin->getField($index, 'message'));
       $link_field = $view->style_plugin->getField($index, 'link');
       // The 3rd entry contains some unsafe markup that needs to get filtered.
       if ($index == 2) {
         // Make sure that unsafe link differs from the rendered link, so we know
         // that some filtering actually happened.
-        $this->assertNotEqual($link_field, $entry['variables']['link']);
+        $this->assertNotEquals($entry['variables']['link'], $link_field);
       }
-      $this->assertEqual($link_field, Xss::filterAdmin($entry['variables']['link']));
+      $this->assertEquals(Xss::filterAdmin($entry['variables']['link']), $link_field);
     }
 
     // Disable replacing variables and check that the tokens aren't replaced.
@@ -81,7 +84,7 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
     $view->initStyle();
     $view->field['message']->options['replace_variables'] = FALSE;
     foreach ($entries as $index => $entry) {
-      $this->assertEqual($view->style_plugin->getField($index, 'message'), $entry['message']);
+      $this->assertEquals($entry['message'], $view->style_plugin->getField($index, 'message'));
     }
   }
 
@@ -92,14 +95,14 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
     $view = Views::getView('dblog_integration_test');
     $view->setDisplay('page_1');
     // The uid relationship should now join to the {users_field_data} table.
-    $tables = array_keys($view->getBaseTables());
-    $this->assertTrue(in_array('users_field_data', $tables));
-    $this->assertFalse(in_array('users', $tables));
-    $this->assertTrue(in_array('watchdog', $tables));
+    $base_tables = $view->getBaseTables();
+    $this->assertArrayHasKey('users_field_data', $base_tables);
+    $this->assertArrayNotHasKey('users', $base_tables);
+    $this->assertArrayHasKey('watchdog', $base_tables);
   }
 
   /**
-   * Test views can be filtered by severity and log type.
+   * Tests views can be filtered by severity and log type.
    */
   public function testFiltering() {
     // Remove the watchdog entries added by the potential batch process.
@@ -177,12 +180,15 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
     // Setup a watchdog entry without tokens.
     $entries[] = [
       'message' => $this->randomMachineName(),
-      'variables' => ['link' => \Drupal::l('Link', new Url('<front>'))],
+      'variables' => ['link' => Link::fromTextAndUrl('Link', Url::fromRoute('<front>'))->toString()],
     ];
     // Setup a watchdog entry with one token.
     $entries[] = [
       'message' => '@token1',
-      'variables' => ['@token1' => $this->randomMachineName(), 'link' => \Drupal::l('Link', new Url('<front>'))],
+      'variables' => [
+        '@token1' => $this->randomMachineName(),
+        'link' => Link::fromTextAndUrl('Link', Url::fromRoute('<front>'))->toString(),
+      ],
     ];
     // Setup a watchdog entry with two tokens.
     $entries[] = [
@@ -193,7 +199,7 @@ class ViewsIntegrationTest extends ViewsKernelTestBase {
       'variables' => [
         '@token1' => $this->randomMachineName(),
         '@token2' => $this->randomMachineName(),
-        'link' => '<a href="' . \Drupal::url('<front>') . '"><object>Link</object></a>',
+        'link' => '<a href="' . Url::fromRoute('<front>')->toString() . '"><object>Link</object></a>',
       ],
     ];
     // Setup a watchdog entry with severity WARNING.

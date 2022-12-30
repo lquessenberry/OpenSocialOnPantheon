@@ -12,9 +12,11 @@ use Drupal\Core\TypedData\DataReferenceInterface;
 use Drupal\Core\TypedData\ListInterface;
 use Drupal\Core\TypedData\TranslatableInterface;
 use Drupal\Core\TypedData\TypedDataManagerInterface;
+use Drupal\search_api\LoggerTrait;
 use Drupal\search_api\Plugin\views\SearchApiHandlerTrait;
 use Drupal\search_api\Processor\ConfigurablePropertyInterface;
 use Drupal\search_api\Processor\ProcessorPropertyInterface;
+use Drupal\search_api\SearchApiException;
 use Drupal\search_api\Utility\FieldsHelperInterface;
 use Drupal\search_api\Utility\Utility;
 use Drupal\views\Plugin\views\field\MultiItemsFieldHandlerInterface;
@@ -33,6 +35,7 @@ use Drupal\views\ResultRow;
  */
 trait SearchApiFieldTrait {
 
+  use LoggerTrait;
   use SearchApiHandlerTrait;
 
   /**
@@ -106,15 +109,6 @@ trait SearchApiFieldTrait {
    * @see \Drupal\search_api\Plugin\views\field\SearchApiFieldTrait::extractProcessorProperty()
    */
   protected $propertyReplacements = [];
-
-  /**
-   * Cached array of index fields grouped by combined property path.
-   *
-   * @var \Drupal\search_api\Item\FieldInterface[][]|null
-   *
-   * @see \Drupal\search_api\Plugin\views\field\SearchApiFieldTrait::getFieldsForPropertyPath()
-   */
-  protected $fieldsByCombinedPropertyPath;
 
   /**
    * The fields helper.
@@ -337,8 +331,16 @@ trait SearchApiFieldTrait {
    */
   public function query() {
     $combined_property_path = $this->getCombinedPropertyPath();
-    $this->addRetrievedProperty($combined_property_path);
+    $field_id = NULL;
+    if (!empty($this->definition['search_api field'])) {
+      $field_id = $this->definition['search_api field'];
+    }
+    $this->addRetrievedProperty($combined_property_path, $field_id);
     if ($this->options['link_to_item']) {
+      // @todo We don't actually know which object we need, might be from this
+      //   property or any of its parents – depending where the closest entity
+      //   ancestor is. To be 100% accurate, we'd have to somehow already
+      //   determine the correct property here.
       $this->addRetrievedProperty("$combined_property_path:_object");
     }
   }
@@ -350,11 +352,15 @@ trait SearchApiFieldTrait {
    *   The combined property path of the property that should be retrieved.
    *   "_object" can be used as a property name to indicate the loaded object is
    *   required.
+   * @param string|null $field_id
+   *   (optional) The ID of the field corresponding to this property, if any.
    *
    * @return $this
    */
-  protected function addRetrievedProperty($combined_property_path) {
-    $this->getQuery()->addRetrievedProperty($combined_property_path);
+  protected function addRetrievedProperty($combined_property_path, $field_id = NULL) {
+    if ($field_id) {
+      $this->getQuery()->addRetrievedFieldValue($field_id);
+    }
 
     list($datasource_id, $property_path) = Utility::splitCombinedId($combined_property_path);
     $this->retrievedProperties[$datasource_id][$property_path] = $combined_property_path;
@@ -410,7 +416,7 @@ trait SearchApiFieldTrait {
   }
 
   /**
-   * Gets the value that's supposed to be rendered.
+   * Retrieves the value that's supposed to be rendered.
    *
    * This API exists so that other modules can easily set the values of the
    * field without having the need to change the render method as well.
@@ -423,14 +429,13 @@ trait SearchApiFieldTrait {
    * @param string $field
    *   Optional name of the field where the value is stored.
    *
+   * @return mixed
+   *   The field value to use.
+   *
    * @see \Drupal\views\Plugin\views\field\FieldHandlerInterface::getValue()
    */
   public function getValue(ResultRow $values, $field = NULL) {
-    if (isset($this->overriddenValues[$field])) {
-      return $this->overriddenValues[$field];
-    }
-
-    return parent::getValue($values, $field);
+    return $this->overriddenValues[$field] ?? parent::getValue($values, $field);
   }
 
   /**
@@ -447,7 +452,8 @@ trait SearchApiFieldTrait {
   public function preRender(&$values) {
     // We deal with the properties one by one, always loading the necessary
     // values for any nested properties coming afterwards.
-    foreach ($this->expandRequiredProperties() as $properties) {
+    foreach ($this->expandRequiredProperties() as $datasource_id => $properties) {
+      $datasource_id = $datasource_id ?: NULL;
       foreach ($properties as $property_path => $info) {
         $combined_property_path = $info['combined_property_path'];
         $dependents = $info['dependents'];
@@ -457,9 +463,9 @@ trait SearchApiFieldTrait {
           continue;
         }
 
-        $property_values = $this->getValuesToExtract($values, $combined_property_path, $dependents);
+        $property_values = $this->getValuesToExtract($values, $datasource_id, $property_path, $combined_property_path, $dependents);
         $this->extractPropertyValues($values, $combined_property_path, $property_values, $dependents);
-        $this->checkHighlighting($values, $combined_property_path);
+        $this->checkHighlighting($values, $datasource_id, $property_path, $combined_property_path);
       }
     }
   }
@@ -467,7 +473,7 @@ trait SearchApiFieldTrait {
   /**
    * Expands the properties to retrieve for this field.
    *
-   * The properties are taken from this object's $retrievedProperties property,
+   * The properties are taken from this object's $retrievedFieldValues property,
    * with all their ancestors also added to the array, with the ancestor
    * properties always ordered before their descendants.
    *
@@ -485,11 +491,27 @@ trait SearchApiFieldTrait {
    */
   protected function expandRequiredProperties() {
     $required_properties = [];
-    foreach ($this->retrievedProperties as $datasource_id => $properties) {
+    foreach ($this->retrievedProperties as $datasource_id => $property_paths) {
       if ($datasource_id === '') {
         $datasource_id = NULL;
       }
-      foreach ($properties as $property_path => $combined_property_path) {
+      try {
+        $index_properties = $this->getIndex()->getPropertyDefinitions($datasource_id);
+      }
+      catch (SearchApiException $e) {
+        $this->logException($e);
+        $index_properties = [];
+      }
+      foreach ($property_paths as $property_path => $combined_property_path) {
+        // In case the property is configurable, create a new, unique combined
+        // property path for this field so adding multiple fields based on the
+        // same property works correctly.
+        if (($index_properties[$property_path] ?? NULL) instanceof ConfigurablePropertyInterface
+            && !empty($this->definition['search_api field'])) {
+          $new_path = $combined_property_path . '|' . $this->definition['search_api field'];
+          $this->propertyReplacements[$combined_property_path] = $new_path;
+          $combined_property_path = $new_path;
+        }
         $paths_to_add = [NULL];
         $path_to_add = '';
         foreach (explode(':', $property_path) as $component) {
@@ -498,8 +520,12 @@ trait SearchApiFieldTrait {
         }
         foreach ($paths_to_add as $path_to_add) {
           if (!isset($required_properties[$datasource_id][$path_to_add])) {
+            $path = $this->createCombinedPropertyPath($datasource_id, $path_to_add);
+            if (isset($this->propertyReplacements[$path])) {
+              $path = $this->propertyReplacements[$path];
+            }
             $required_properties[$datasource_id][$path_to_add] = [
-              'combined_property_path' => $this->createCombinedPropertyPath($datasource_id, $path_to_add),
+              'combined_property_path' => $path,
               'dependents' => [],
             ];
           }
@@ -568,9 +594,13 @@ trait SearchApiFieldTrait {
    *
    * @param \Drupal\views\ResultRow[] $values
    *   The Views result rows from which property values should be extracted.
+   * @param string|null $datasource_id
+   *   The datasource ID of the property to extract (or NULL for datasource-
+   *   independent properties).
+   * @param string $property_path
+   *   The property path of the property to extract.
    * @param string $combined_property_path
-   *   The combined property path of the property to extract. Or NULL to extract
-   *   the result item.
+   *   The combined property path of the property to extract.
    * @param string[] $dependents
    *   The actually required properties (as combined property paths) that
    *   depend on this property.
@@ -579,9 +609,7 @@ trait SearchApiFieldTrait {
    *   The values of the property for each result row, keyed by result row
    *   index.
    */
-  protected function getValuesToExtract(array $values, $combined_property_path, array $dependents) {
-    list ($datasource_id, $property_path) = Utility::splitCombinedId($combined_property_path);
-
+  protected function getValuesToExtract(array $values, $datasource_id, $property_path, $combined_property_path, array $dependents) {
     // Determine the path of the parent property, and the property key to
     // take from it for this property.
     list($parent_path, $name) = Utility::splitPropertyPath($property_path);
@@ -613,9 +641,9 @@ trait SearchApiFieldTrait {
         continue;
       }
 
-      // Then, make sure we even need this property for the current row.
-      // (Will not be the case if all required properties that depend on
-      // this property were already set on the row previously.)
+      // Then, make sure we even need this property for the current row. (Will
+      // not be the case if all required properties that depend on this property
+      // were already set on the row previously.)
       $required = FALSE;
       foreach ($dependents as $dependent) {
         if (!isset($row->$dependent)) {
@@ -653,7 +681,7 @@ trait SearchApiFieldTrait {
         if ($property instanceof ProcessorPropertyInterface) {
           // Determine whether this property is required.
           $is_required = in_array($combined_property_path, $dependents);
-          $this->extractProcessorProperty($property, $row, $combined_property_path, $is_required);
+          $this->extractProcessorProperty($property, $row, $datasource_id, $property_path, $combined_property_path, $is_required);
           continue;
         }
 
@@ -687,7 +715,9 @@ trait SearchApiFieldTrait {
                   ->getDefinition($entity_type_id);
                 if ($entity_type->isStaticallyCacheable()) {
                   $entity_id = $typed_data->getTargetIdentifier();
-                  $entities_to_load[$entity_type_id][$entity_id] = $entity_id;
+                  if ($entity_id) {
+                    $entities_to_load[$entity_type_id][$entity_id] = $entity_id;
+                  }
                 }
               }
             }
@@ -702,7 +732,8 @@ trait SearchApiFieldTrait {
       }
     }
 
-    // Multi-load all entities we encountered before.
+    // Multi-load all entities we encountered before (to get them into the
+    // static cache).
     foreach ($entities_to_load as $entity_type_id => $ids) {
       $this->getEntityTypeManager()
         ->getStorage($entity_type_id)
@@ -719,20 +750,23 @@ trait SearchApiFieldTrait {
    *   The property definition.
    * @param \Drupal\views\ResultRow $row
    *   The Views result row.
+   * @param string|null $datasource_id
+   *   The datasource ID of the property to extract (or NULL for datasource-
+   *   independent properties).
+   * @param string $property_path
+   *   The property path of the property to extract.
    * @param string $combined_property_path
    *   The combined property path of the property to set.
    * @param bool $is_required
    *   TRUE if the property is directly required, FALSE if it should only be
    *   extracted because some child/ancestor properties are required.
    */
-  protected function extractProcessorProperty(ProcessorPropertyInterface $property, ResultRow $row, $combined_property_path, $is_required) {
+  protected function extractProcessorProperty(ProcessorPropertyInterface $property, ResultRow $row, $datasource_id, $property_path, $combined_property_path, $is_required) {
     $index = $this->getIndex();
     $processor = $index->getProcessor($property->getProcessorId());
     if (!$processor) {
       return;
     }
-
-    list($datasource_id, $property_path) = Utility::splitCombinedId($combined_property_path);
 
     // We need to call the processor's addFieldValues() method in order to get
     // the field value. We do this using a clone of the search item so as to
@@ -746,14 +780,6 @@ trait SearchApiFieldTrait {
           && !empty($property_fields[$this->definition['search_api field']])) {
         $field_id = $this->definition['search_api field'];
         $dummy_field = $property_fields[$field_id];
-        // In case this field is also configurable, create a new, unique
-        // combined property path for this field so adding multiple fields based
-        // on the same property works correctly.
-        if ($property instanceof ConfigurablePropertyInterface) {
-          $new_path = $combined_property_path . '|' . $field_id;
-          $this->propertyReplacements[$combined_property_path] = $new_path;
-          $combined_property_path = $new_path;
-        }
       }
       else {
         $dummy_field = reset($property_fields);
@@ -887,10 +913,15 @@ trait SearchApiFieldTrait {
    * @param \Drupal\views\ResultRow[] $values
    *   The Views result rows for which highlighted field values should be added
    *   where applicable and possible.
+   * @param string|null $datasource_id
+   *   The datasource ID of the property to extract (or NULL for datasource-
+   *   independent properties).
+   * @param string $property_path
+   *   The property path of the property to extract.
    * @param string $combined_property_path
    *   The combined property path of the property for which to add data.
    */
-  protected function checkHighlighting(array $values, $combined_property_path) {
+  protected function checkHighlighting(array $values, $datasource_id, $property_path, $combined_property_path) {
     // If using highlighting data wasn't enabled, we can skip all of this
     // anyways.
     if (empty($this->options['use_highlighting'])) {
@@ -899,13 +930,10 @@ trait SearchApiFieldTrait {
 
     // Since (currently) only fields can be highlighted, not arbitrary
     // properties, we needn't even bother if there are no matching fields.
-    $fields = $this->getFieldsForPropertyPath($combined_property_path);
+    $fields = $this->getFieldsHelper()
+      ->filterForPropertyPath($this->getIndex()->getFields(), $datasource_id, $property_path);
     if (!$fields) {
       return;
-    }
-
-    if (!empty($this->propertyReplacements[$combined_property_path])) {
-      $combined_property_path = $this->propertyReplacements[$combined_property_path];
     }
 
     foreach ($values as $row) {
@@ -928,27 +956,6 @@ trait SearchApiFieldTrait {
         $row->$combined_property_path = $values;
       }
     }
-  }
-
-  /**
-   * Retrieves all of the index's fields that match the given property path.
-   *
-   * @param string $combined_property_path
-   *   The combined property path to look for.
-   *
-   * @return \Drupal\search_api\Item\FieldInterface[]
-   *   All index fields with the given combined property path, keyed by field
-   *   ID.
-   */
-  protected function getFieldsForPropertyPath($combined_property_path) {
-    if (!isset($this->fieldsByCombinedPropertyPath)) {
-      $this->fieldsByCombinedPropertyPath = [];
-      foreach ($this->getIndex()->getFields() as $field_id => $field) {
-        $this->fieldsByCombinedPropertyPath[$field->getCombinedPropertyPath()][$field_id] = $field;
-      }
-    }
-    $this->fieldsByCombinedPropertyPath += [$combined_property_path => []];
-    return $this->fieldsByCombinedPropertyPath[$combined_property_path];
   }
 
   /**
@@ -1253,7 +1260,7 @@ trait SearchApiFieldTrait {
    *   (optional) The type of sanitization needed. If not provided,
    *   \Drupal\Component\Utility\Html::escape() is used.
    *
-   * @return \Drupal\views\Render\ViewsRenderPipelineMarkup
+   * @return \Drupal\Component\Render\MarkupInterface
    *   Returns the safe value.
    *
    * @see \Drupal\views\Plugin\views\HandlerBase::sanitizeValue()
@@ -1281,13 +1288,19 @@ trait SearchApiFieldTrait {
   protected function getItemUrl(ResultRow $row, $i) {
     $this->valueIndex = $i;
     if ($entity = $this->getEntity($row)) {
-      return $entity->toUrl('canonical');
+      if ($entity->hasLinkTemplate('canonical')) {
+        return $entity->toUrl('canonical');
+      }
     }
 
     if (!empty($row->_relationship_objects[NULL][0])) {
-      return $this->getIndex()
-        ->getDatasource($row->search_api_datasource)
-        ->getItemUrl($row->_relationship_objects[NULL][0]);
+      try {
+        return $this->getIndex()
+          ->getDatasource($row->search_api_datasource)
+          ->getItemUrl($row->_relationship_objects[NULL][0]);
+      }
+      catch (SearchApiException $e) {
+      }
     }
 
     return NULL;

@@ -2,7 +2,7 @@
 
 namespace Drupal\Core\EventSubscriber;
 
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -14,18 +14,18 @@ class ResponseGeneratorSubscriber implements EventSubscriberInterface {
   /**
    * Sets extra X-Generator header on successful responses.
    *
-   * @param \Symfony\Component\HttpKernel\Event\FilterResponseEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ResponseEvent $event
    *   The event to process.
    */
-  public function onRespond(FilterResponseEvent $event) {
-    if (!$event->isMasterRequest()) {
+  public function onRespond(ResponseEvent $event) {
+    if (!$event->isMainRequest()) {
       return;
     }
 
     $response = $event->getResponse();
 
     // Set the generator in the HTTP header.
-    list($version) = explode('.', \Drupal::VERSION, 2);
+    [$version] = explode('.', \Drupal::VERSION, 2);
     $response->headers->set('X-Generator', 'Drupal ' . $version . ' (https://www.drupal.org)');
   }
 

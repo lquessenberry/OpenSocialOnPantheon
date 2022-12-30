@@ -21,7 +21,15 @@ class RowEntityRenderersTest extends ViewsKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['field', 'filter', 'text', 'node', 'user', 'language', 'views_test_language'];
+  protected static $modules = [
+    'field',
+    'filter',
+    'text',
+    'node',
+    'user',
+    'language',
+    'views_test_language',
+  ];
 
   /**
    * Views used by this test.
@@ -62,18 +70,25 @@ class RowEntityRenderersTest extends ViewsKernelTestBase {
   protected $testIds;
 
   /**
+   * @var array
+   */
+  protected $values;
+
+  /**
+   * @var array
+   */
+  protected $ids;
+
+  /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp();
 
     $this->installEntitySchema('node');
     $this->installEntitySchema('user');
     $this->installSchema('node', ['node_access']);
     $this->installConfig(['node', 'language']);
-
-    // The entity.node.canonical route must exist when nodes are rendered.
-    $this->container->get('router.builder')->rebuild();
 
     $this->langcodes = [\Drupal::languageManager()->getDefaultLanguage()->getId()];
     for ($i = 0; $i < 2; $i++) {
@@ -94,7 +109,7 @@ class RowEntityRenderersTest extends ViewsKernelTestBase {
 
     $this->values = [];
     $this->ids = [];
-    $controller = \Drupal::entityManager()->getStorage('node');
+    $controller = \Drupal::entityTypeManager()->getStorage('node');
     $langcode_index = 0;
 
     for ($i = 0; $i < count($this->langcodes); $i++) {
@@ -236,13 +251,10 @@ class RowEntityRenderersTest extends ViewsKernelTestBase {
    *   An array of expected title translation values, one for each result row.
    * @param string $message
    *   (optional) A message to display with the assertion.
-   * @param string $group
-   *   (optional) The group this message is in.
    *
-   * @return bool
-   *   TRUE if the assertion succeeded, FALSE otherwise.
+   * @internal
    */
-  protected function assertTranslations($display, $renderer_id, array $expected, $message = '', $group = 'Other') {
+  protected function assertTranslations(string $display, string $renderer_id, array $expected, string $message = ''): void {
     $view = Views::getView('test_entity_row_renderers');
     $view->storage->invalidateCaches();
     $view->setDisplay($display);
@@ -265,7 +277,7 @@ class RowEntityRenderersTest extends ViewsKernelTestBase {
       }
     }
 
-    return $this->assertTrue($result, $message, $group);
+    $this->assertTrue($result, $message);
   }
 
 }

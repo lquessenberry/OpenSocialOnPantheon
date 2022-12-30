@@ -1,10 +1,10 @@
 <?php
+
 namespace Drush\Command;
 
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-
 use Drush\Preflight\LegacyPreflight;
 
 class GlobalOptionsEventListener implements EventSubscriberInterface
@@ -12,7 +12,7 @@ class GlobalOptionsEventListener implements EventSubscriberInterface
     /**
      * @{@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         // Register our 'setGlobalOptions' command to run prior to
         // command dispatch.
@@ -26,7 +26,7 @@ class GlobalOptionsEventListener implements EventSubscriberInterface
      *
      * @param ConsoleCommandEvent $event
      */
-    public function setGlobalOptions(ConsoleCommandEvent $event)
+    public function setGlobalOptions(ConsoleCommandEvent $event): void
     {
         /* @var Input $input */
         $input = $event->getInput();
@@ -34,8 +34,5 @@ class GlobalOptionsEventListener implements EventSubscriberInterface
 
         // TODO: We need a good strategy for managing global options.
         // $simulate = $input->getOption('simulate');
-
-        // Set up legacy contexts (deprecated)
-        LegacyPreflight::setGlobalOptionContexts($input, $output);
     }
 }

@@ -12,7 +12,7 @@ use Drupal\Core\Session\AccountInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Defines the access control handler for the user entity type.
+ * Defines the access control handler for the menu link content entity type.
  */
 class MenuLinkContentAccessControlHandler extends EntityAccessControlHandler implements EntityHandlerInterface {
 
@@ -72,7 +72,11 @@ class MenuLinkContentAccessControlHandler extends EntityAccessControlHandler imp
         }
 
       case 'delete':
-        return AccessResult::allowedIf(!$entity->isNew() && $account->hasPermission('administer menu'))->cachePerPermissions()->addCacheableDependency($entity);
+        return AccessResult::allowedIfHasPermission($account, 'administer menu')
+          ->andIf(AccessResult::allowedIf(!$entity->isNew())->addCacheableDependency($entity));
+
+      default:
+        return parent::checkAccess($entity, $operation, $account);
     }
   }
 

@@ -4,9 +4,14 @@ namespace Drupal\KernelTests\Core\Theme;
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\Template\TwigEnvironment;
 use Drupal\Core\Template\TwigPhpStorageCache;
 use Drupal\KernelTests\KernelTestBase;
+use Symfony\Component\DependencyInjection\Definition;
+use Twig\Environment;
+use Twig\Error\LoaderError;
 
 /**
  * Tests the twig environment.
@@ -21,7 +26,7 @@ class TwigEnvironmentTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['system'];
+  protected static $modules = ['system'];
 
   /**
    * Tests inline templates.
@@ -31,8 +36,8 @@ class TwigEnvironmentTest extends KernelTestBase {
     $renderer = $this->container->get('renderer');
     /** @var \Drupal\Core\Template\TwigEnvironment $environment */
     $environment = \Drupal::service('twig');
-    $this->assertEqual($environment->renderInline('test-no-context'), 'test-no-context');
-    $this->assertEqual($environment->renderInline('test-with-context {{ llama }}', ['llama' => 'muuh']), 'test-with-context muuh');
+    $this->assertEquals('test-no-context', $environment->renderInline('test-no-context'));
+    $this->assertEquals('test-with-context muuh', $environment->renderInline('test-with-context {{ llama }}', ['llama' => 'muuh']));
 
     $element = [];
     $unsafe_string = '<script>alert(\'Danger! High voltage!\');</script>';
@@ -41,7 +46,7 @@ class TwigEnvironmentTest extends KernelTestBase {
       '#template' => 'test-with-context <label>{{ unsafe_content }}</label>',
       '#context' => ['unsafe_content' => $unsafe_string],
     ];
-    $this->assertEqual($renderer->renderRoot($element), 'test-with-context <label>' . Html::escape($unsafe_string) . '</label>');
+    $this->assertEquals('test-with-context <label>' . Html::escape($unsafe_string) . '</label>', $renderer->renderRoot($element));
 
     // Enable twig_auto_reload and twig_debug.
     $settings = Settings::getAll();
@@ -60,8 +65,8 @@ class TwigEnvironmentTest extends KernelTestBase {
     ];
     $element_copy = $element;
     // Render it twice so that twig caching is triggered.
-    $this->assertEqual($renderer->renderRoot($element), 'test-with-context muuh');
-    $this->assertEqual($renderer->renderRoot($element_copy), 'test-with-context muuh');
+    $this->assertEquals('test-with-context muuh', $renderer->renderRoot($element));
+    $this->assertEquals('test-with-context muuh', $renderer->renderRoot($element_copy));
 
     // Tests caching of inline templates with long content to ensure the
     // generated cache key can be used as a filename.
@@ -81,8 +86,8 @@ class TwigEnvironmentTest extends KernelTestBase {
     $element_copy = $element;
 
     // Render it twice so that twig caching is triggered.
-    $this->assertEqual($renderer->renderRoot($element), $expected);
-    $this->assertEqual($renderer->renderRoot($element_copy), $expected);
+    $this->assertEquals($expected, $renderer->renderRoot($element));
+    $this->assertEquals($expected, $renderer->renderRoot($element_copy));
 
     $name = '{# inline_template_start #}' . $element['test']['#template'];
     $prefix = $environment->getTwigCachePrefix();
@@ -90,7 +95,7 @@ class TwigEnvironmentTest extends KernelTestBase {
     $cache = $environment->getCache();
     $class = $environment->getTemplateClass($name);
     $expected = $prefix . '_inline-template_' . substr(Crypt::hashBase64($class), 0, TwigPhpStorageCache::SUFFIX_SUBSTRING_LENGTH);
-    $this->assertEqual($expected, $cache->generateKey($name, $class));
+    $this->assertEquals($expected, $cache->generateKey($name, $class));
   }
 
   /**
@@ -104,9 +109,38 @@ class TwigEnvironmentTest extends KernelTestBase {
       $environment->loadTemplate('this-template-does-not-exist.html.twig')->render([]);
       $this->fail('Did not throw an exception as expected.');
     }
-    catch (\Twig_Error_Loader $e) {
-      $this->assertTrue(strpos($e->getMessage(), 'Template "this-template-does-not-exist.html.twig" is not defined') === 0);
+    catch (LoaderError $e) {
+      $this->assertStringStartsWith('Template "this-template-does-not-exist.html.twig" is not defined', $e->getMessage());
     }
+  }
+
+  /**
+   * Ensures that templates resolve to the same class name and cache file.
+   */
+  public function testTemplateClassname() {
+    /** @var \Drupal\Core\Template\TwigEnvironment $environment */
+    $environment = \Drupal::service('twig');
+
+    // Test using an include template path.
+    $name_include = 'container.html.twig';
+    $class_include = $environment->getTemplateClass($name_include);
+    $key_include = $environment->getCache()->generateKey($name_include, $class_include);
+
+    // Test using a namespaced template path.
+    $name_namespaced = '@system/container.html.twig';
+    $class_namespaced = $environment->getTemplateClass($name_namespaced);
+    $key_namespaced = $environment->getCache()->generateKey($name_namespaced, $class_namespaced);
+
+    // Test using a direct filesystem template path.
+    $name_direct = 'core/modules/system/templates/container.html.twig';
+    $class_direct = $environment->getTemplateClass($name_direct);
+    $key_direct = $environment->getCache()->generateKey($name_direct, $class_direct);
+
+    // All three should be equal for both cases.
+    $this->assertEquals($class_include, $class_namespaced);
+    $this->assertEquals($class_namespaced, $class_direct);
+    $this->assertEquals($key_include, $key_namespaced);
+    $this->assertEquals($key_namespaced, $key_direct);
   }
 
   /**
@@ -117,6 +151,7 @@ class TwigEnvironmentTest extends KernelTestBase {
     // Note: Later we refetch the twig service in order to bypass its internal
     // static cache.
     $environment = \Drupal::service('twig');
+    $template_path = 'core/modules/system/templates/container.html.twig';
 
     // A template basename greater than the constant
     // TwigPhpStorageCache::SUFFIX_SUBSTRING_LENGTH should get truncated.
@@ -132,15 +167,125 @@ class TwigEnvironmentTest extends KernelTestBase {
     $expected = strlen($prefix) + 2 + 2 * TwigPhpStorageCache::SUFFIX_SUBSTRING_LENGTH;
     $this->assertEquals($expected, strlen($key));
 
-    $original_filename = $environment->getCacheFilename('core/modules/system/templates/container.html.twig');
-    \Drupal::getContainer()->set('twig', NULL);
-
+    $cache = $environment->getCache();
+    $class = $environment->getTemplateClass($template_path);
+    $original_filename = $cache->generateKey($template_path, $class);
     \Drupal::service('module_installer')->install(['twig_extension_test']);
+
     $environment = \Drupal::service('twig');
-    $new_extension_filename = $environment->getCacheFilename('core/modules/system/templates/container.html.twig');
+    $cache = $environment->getCache();
+    $class = $environment->getTemplateClass($template_path);
+    $new_extension_filename = $cache->generateKey($template_path, $class);
     \Drupal::getContainer()->set('twig', NULL);
 
-    $this->assertNotEqual($new_extension_filename, $original_filename);
+    $this->assertNotEquals($original_filename, $new_extension_filename);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function register(ContainerBuilder $container) {
+    parent::register($container);
+
+    $definition = new Definition('Twig\Loader\FilesystemLoader', [[sys_get_temp_dir()]]);
+    $definition->setPublic(TRUE);
+    $container->setDefinition('twig_loader__file_system', $definition)
+      ->addTag('twig.loader');
+  }
+
+  /**
+   * Tests template invalidation.
+   */
+  public function testTemplateInvalidation() {
+    $template_before = <<<TWIG
+<div>Hello before</div>
+TWIG;
+    $template_after = <<<TWIG
+<div>Hello after</div>
+TWIG;
+
+    $tempfile = tempnam(sys_get_temp_dir(), '__METHOD__') . '.html.twig';
+    file_put_contents($tempfile, $template_before);
+
+    /** @var \Drupal\Core\Template\TwigEnvironment $environment */
+    $environment = \Drupal::service('twig');
+
+    $output = $environment->load(basename($tempfile))->render();
+    $this->assertEquals($template_before, $output);
+
+    file_put_contents($tempfile, $template_after);
+    $output = $environment->load(basename($tempfile))->render();
+    $this->assertEquals($template_before, $output);
+
+    $environment->invalidate();
+    // Manually change $templateClassPrefix to force a different template
+    // classname, as the other class is still loaded. This wouldn't be a problem
+    // on a real site where you reload the page.
+    $reflection = new \ReflectionClass(Environment::class);
+    $property_reflection = $reflection->getProperty('templateClassPrefix');
+    $property_reflection->setAccessible(TRUE);
+    $property_reflection->setValue($environment, 'otherPrefix');
+
+    $output = $environment->load(basename($tempfile))->render();
+    $this->assertEquals($template_after, $output);
+  }
+
+  /**
+   * Test twig file prefix change.
+   */
+  public function testTwigFilePrefixChange() {
+    /** @var \Drupal\Core\Template\TwigEnvironment $environment */
+    $environment = \Drupal::service('twig');
+    $cache_prefixes = [];
+    $cache_filenames = [];
+
+    // Assume this is the service container of webserver A.
+    $container_a = $this->container;
+
+    $template_name = 'core/modules/system/templates/container.html.twig';
+
+    // Request 1 handled by webserver A.
+    $cache_prefixes[] = \Drupal::state()->get(TwigEnvironment::CACHE_PREFIX_METADATA_KEY)['twig_cache_prefix'];
+    $cache_filenames[] = $environment->getCache()->generateKey($template_name, $environment->getTemplateClass($template_name));
+
+    // Assume this is the service container of webserver B.
+    // Assume that the files on the webserver B have a different mtime than
+    // webserver A.
+    touch('core/lib/Drupal/Core/Template/TwigExtension.php');
+    clearstatcache(TRUE, 'core/lib/Drupal/Core/Template/TwigExtension.php');
+    $container_b = \Drupal::service('kernel')->rebuildContainer();
+
+    // Request 2 handled by webserver B.
+    \Drupal::setContainer($container_b);
+    $environment = \Drupal::service('twig');
+    $cache_prefixes[] = \Drupal::state()->get(TwigEnvironment::CACHE_PREFIX_METADATA_KEY)['twig_cache_prefix'];
+    $cache_filenames[] = $environment->getCache()->generateKey($template_name, $environment->getTemplateClass($template_name));
+
+    // Request 3 handled by webserver A.
+    \Drupal::setContainer($container_a);
+    $container = \Drupal::getContainer();
+    // Emulate twig service reconstruct on new request.
+    $container->set('twig', NULL);
+    $environment = $container->get('twig');
+    $cache_prefixes[] = \Drupal::state()->get(TwigEnvironment::CACHE_PREFIX_METADATA_KEY)['twig_cache_prefix'];
+    $cache_filenames[] = $environment->getCache()->generateKey($template_name, $environment->getTemplateClass($template_name));
+
+    // Request 4 handled by webserver B.
+    \Drupal::setContainer($container_b);
+    $container = \Drupal::getContainer();
+    // Emulate twig service reconstruct on new request.
+    $container->set('twig', NULL);
+    $environment = $container->get('twig');
+    $cache_prefixes[] = \Drupal::state()->get(TwigEnvironment::CACHE_PREFIX_METADATA_KEY)['twig_cache_prefix'];
+    $cache_filenames[] = $environment->getCache()->generateKey($template_name, $environment->getTemplateClass($template_name));
+
+    // The cache prefix should not have been changed, as this is stored in
+    // state and thus shared between all (web)servers.
+    $this->assertEquals(count(array_unique($cache_prefixes)), 1);
+
+    // This also applies to twig's file cache resulting in an unlimited growth
+    // of the cache storage directory.
+    $this->assertEquals(count(array_unique($cache_filenames)), 1);
   }
 
 }

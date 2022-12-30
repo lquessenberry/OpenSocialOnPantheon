@@ -1,6 +1,8 @@
 <?php
+
 namespace Drush\Commands\help;
 
+use Symfony\Component\Console\Application;
 use Consolidation\AnnotatedCommand\Help\HelpDocument;
 use Consolidation\OutputFormatters\FormatterManager;
 use Consolidation\OutputFormatters\Options\FormatterOptions;
@@ -11,8 +13,8 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Descriptor\JsonDescriptor;
 use Symfony\Component\Console\Descriptor\XmlDescriptor;
 use Symfony\Component\Console\Helper\Table;
-use Symfony\Component\Console\Helper\TableCell;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Terminal;
 
 class ListCommands extends DrushCommands
 {
@@ -79,9 +81,8 @@ class ListCommands extends DrushCommands
     /**
      * @param $namespaced
      * @param $application
-     * @return \DOMDocument
      */
-    public function buildDom($namespaced, $application)
+    public function buildDom($namespaced, $application): \DOMDocument
     {
         $dom = new \DOMDocument('1.0', 'UTF-8');
         $rootXml = $dom->createElement('symfony');
@@ -118,13 +119,7 @@ class ListCommands extends DrushCommands
         return $dom;
     }
 
-    /**
-     * @param \Symfony\Component\Console\Application $application
-     * @param array $namespaced
-     * @param OutputInterface $output
-     * @param string $preamble
-     */
-    public static function renderListCLI($application, $namespaced, $output, $preamble)
+    public static function renderListCLI(Application $application, array $namespaced, OutputInterface $output, string $preamble): void
     {
         $output->writeln($application->getHelp());
         $output->writeln('');
@@ -153,32 +148,23 @@ class ListCommands extends DrushCommands
             }
         }
         $formatterManager = new FormatterManager();
-        list($terminalWidth,) = $application->getTerminalDimensions();
         $opts = [
             FormatterOptions::INCLUDE_FIELD_LABELS => false,
             FormatterOptions::TABLE_STYLE => 'compact',
-            FormatterOptions::TERMINAL_WIDTH => $terminalWidth,
+            FormatterOptions::TERMINAL_WIDTH => self::getTerminalWidth(),
         ];
         $formatterOptions = new FormatterOptions([], $opts);
 
         $formatterManager->write($output, 'table', new RowsOfFields($rows), $formatterOptions);
     }
 
-    public function getTerminalWidth()
+    public static function getTerminalWidth(): int
     {
-        // From \Consolidation\AnnotatedCommand\Options\PrepareTerminalWidthOption::getTerminalWidth
-        $application = Drush::getApplication();
-        $dimensions = $application->getTerminalDimensions();
-        if ($dimensions[0] == null) {
-            return 0;
-        }
-        return $dimensions[0];
+        $term = new Terminal();
+        return $term->getWidth();
     }
 
-    /**
-     * @param array $namespaced
-     */
-    public function renderListRaw($namespaced)
+    public function renderListRaw(array $namespaced): void
     {
         $table = new Table($this->output());
         $table->setStyle('compact');
@@ -192,22 +178,21 @@ class ListCommands extends DrushCommands
 
     /**
      * @param Command[] $all
-     * @param string $separator
      *
-     * @return array
+     * @return Command[]
      */
-    public static function categorize($all, $separator = ':')
+    public static function categorize(array $all, string $separator = ':'): array
     {
         foreach ($all as $key => $command) {
-            $hidden = method_exists($command, 'getAnnotationData') && $command->getAnnotationData()->has('hidden');
-            if (!in_array($key, $command->getAliases()) && !$hidden) {
+            if (!in_array($key, $command->getAliases()) && !$command->isHidden()) {
                 $parts = explode($separator, $key);
-                $namespace = count($parts) >= 2 ? array_shift($parts) : '_global';
+                $namespace = array_shift($parts);
                 $namespaced[$namespace][$key] = $command;
             }
         }
 
         // Avoid solo namespaces.
+        $namespaced['_global'] = [];
         foreach ($namespaced as $namespace => $commands) {
             if (count($commands) == 1) {
                 $namespaced['_global'] += $commands;
@@ -216,6 +201,11 @@ class ListCommands extends DrushCommands
         }
 
         ksort($namespaced);
+
+        // Sort inside namespaces.
+        foreach ($namespaced as $key => &$items) {
+            ksort($items);
+        }
         return $namespaced;
     }
 }

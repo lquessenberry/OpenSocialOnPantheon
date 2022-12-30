@@ -7,12 +7,12 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Invert effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class InvertTest extends ImageEffectsTestBase {
 
   /**
-   * Test effect on required toolkits.
+   * Invert effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -23,16 +23,9 @@ class InvertTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testInvertEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Invert effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testInvertEffect() {
     // Add Invert effect to the test image style.
     $effect = [
       'id' => 'image_effects_invert',
@@ -40,7 +33,7 @@ class InvertTest extends ImageEffectsTestBase {
     $this->addEffectToTestStyle($effect);
 
     // Test on the PNG test image.
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     // Expected colors after negate.
     $colors = [

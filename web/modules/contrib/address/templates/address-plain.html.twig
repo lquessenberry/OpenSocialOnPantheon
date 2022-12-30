@@ -24,10 +24,14 @@
  *   - country: The country.
  *     - country.code: Country code.
  *     - country.name: Country name.
+ *   - address: An object that implements \Drupal\address\AddressInterface
+ *     representing the address to be rendered. Only public methods can be used.
+ *   - view_mode: View mode of the entity being rendered that this address field
+ *     is attached to. For example, "teaser" or "full".
  *
  * if a subdivision (dependent_locality, locality, administrative_area) was
  * entered, the array will always have a code. If it's a predefined subdivision,
- * it will also have a name. The code is always prefered.
+ * it will also have a name. The code is always preferred.
  *
  * @ingroup themeable
  */

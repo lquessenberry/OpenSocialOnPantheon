@@ -15,7 +15,7 @@ class ParagraphsServiceProvider extends ServiceProviderBase {
   /**
    * {@inheritdoc}
    */
-  public function alter(ContainerBuilder $container) {
+  public function register(ContainerBuilder $container) {
     $modules = $container->getParameter('container.modules');
     // Check for installed Replicate module.
     if (isset($modules['replicate']) ) {
@@ -25,7 +25,16 @@ class ParagraphsServiceProvider extends ServiceProviderBase {
         [new Reference('replicate.replicator')]
       );
       $service_definition->addTag('event_subscriber');
+      $service_definition->setPublic(TRUE);
       $container->setDefinition('replicate.event_subscriber.paragraphs', $service_definition);
+    }
+    // Check for installed Migrate module.
+    if (isset($modules['migrate']) ) {
+      // Add a Migration plugins alterer service.
+      $service_definition = new Definition('Drupal\paragraphs\MigrationPluginsAlterer');
+      $service_definition->addArgument(new Reference('logger.factory'));
+      $service_definition->setPublic(TRUE);
+      $container->setDefinition('paragraphs.migration_plugins_alterer', $service_definition);
     }
   }
 }

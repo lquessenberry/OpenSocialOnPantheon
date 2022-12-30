@@ -2,14 +2,14 @@
 
 namespace Drupal\FunctionalJavascriptTests\Core;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Tests for the machine name field.
  *
  * @group field
  */
-class MachineNameTest extends JavascriptTestBase {
+class MachineNameTest extends WebDriverTestBase {
 
   /**
    * Required modules.
@@ -19,12 +19,17 @@ class MachineNameTest extends JavascriptTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'form_test'];
+  protected static $modules = ['node', 'form_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     $account = $this->drupalCreateUser([
@@ -59,7 +64,6 @@ class MachineNameTest extends JavascriptTestBase {
 
     // Get page and session.
     $page = $this->getSession()->getPage();
-    $assert_session = $this->assertSession();
 
     // Get elements from the page.
     $title_1 = $page->findField('machine_name_1_label');
@@ -69,11 +73,16 @@ class MachineNameTest extends JavascriptTestBase {
     $machine_name_2_wrapper = $machine_name_2_field->getParent();
     $machine_name_1_value = $page->find('css', '#edit-machine-name-1-label-machine-name-suffix .machine-name-value');
     $machine_name_2_value = $page->find('css', '#edit-machine-name-2-label-machine-name-suffix .machine-name-value');
+    $machine_name_3_value = $page->find('css', '#edit-machine-name-3-label-machine-name-suffix .machine-name-value');
     $button_1 = $page->find('css', '#edit-machine-name-1-label-machine-name-suffix button.link');
 
-    // Assert both fields are initialized correctly.
+    // Assert all fields are initialized correctly.
     $this->assertNotEmpty($machine_name_1_value, 'Machine name field 1 must be initialized');
     $this->assertNotEmpty($machine_name_2_value, 'Machine name field 2 must be initialized');
+    $this->assertNotEmpty($machine_name_3_value, 'Machine name field 3 must be initialized');
+
+    // Assert that a machine name based on a default value is initialized.
+    $this->assertJsCondition('jQuery("#edit-machine-name-3-label-machine-name-suffix .machine-name-value").html() == "yet_another_machine_name"');
 
     // Field must be present for the rest of the test to work.
     if (empty($machine_name_1_value)) {
@@ -111,6 +120,36 @@ class MachineNameTest extends JavascriptTestBase {
 
     // Validate if the element contains the correct value.
     $this->assertEquals($test_values[1]['expected'], $machine_name_1_field->getValue(), 'The ID field value must be equal to the php generated machine name');
+
+    $assert = $this->assertSession();
+    $this->drupalGet('/form-test/form-test-machine-name-validation');
+
+    // Test errors after with no AJAX.
+    $assert->buttonExists('Save')->press();
+    $assert->pageTextContains('Machine-readable name field is required.');
+    // Ensure only the first machine name field has an error.
+    $this->assertTrue($assert->fieldExists('id')->hasClass('error'));
+    $this->assertFalse($assert->fieldExists('id2')->hasClass('error'));
+
+    // Test a successful submit after using AJAX.
+    $assert->fieldExists('Name')->setValue('test 1');
+    $assert->fieldExists('id')->setValue('test_1');
+    $assert->selectExists('snack')->selectOption('apple');
+    $assert->assertWaitOnAjaxRequest();
+    $assert->buttonExists('Save')->press();
+    $assert->pageTextContains('The form_test_machine_name_validation_form form has been submitted successfully.');
+
+    // Test errors after using AJAX.
+    $assert->fieldExists('Name')->setValue('duplicate');
+    $this->assertJsCondition('document.forms[0].id.value === "duplicate"');
+    $assert->fieldExists('id2')->setValue('duplicate2');
+    $assert->selectExists('snack')->selectOption('potato');
+    $assert->assertWaitOnAjaxRequest();
+    $assert->buttonExists('Save')->press();
+    $assert->pageTextContains('The machine-readable name is already in use. It must be unique.');
+    // Ensure both machine name fields both have errors.
+    $this->assertTrue($assert->fieldExists('id')->hasClass('error'));
+    $this->assertTrue($assert->fieldExists('id2')->hasClass('error'));
   }
 
 }

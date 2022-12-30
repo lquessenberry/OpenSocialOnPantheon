@@ -39,7 +39,7 @@ class TrustedRedirectResponseTest extends UnitTestCase {
 
     $redirect_response = new TrustedRedirectResponse('/example');
 
-    $this->setExpectedException(\InvalidArgumentException::class);
+    $this->expectException(\InvalidArgumentException::class);
     $redirect_response->setTargetUrl('http://evil-url.com/example');
   }
 
@@ -61,7 +61,7 @@ class TrustedRedirectResponseTest extends UnitTestCase {
     $trusted_redirect_response = TrustedRedirectResponse::createFromRedirectResponse($redirect_response);
 
     // The trusted redirect response is always a CacheableResponseInterface instance.
-    $this->assertTrue($trusted_redirect_response instanceof CacheableResponseInterface);
+    $this->assertInstanceOf(CacheableResponseInterface::class, $trusted_redirect_response);
 
     // But it is only actually cacheable (non-zero max-age) if the redirect
     // response passed to TrustedRedirectResponse::createFromRedirectResponse()

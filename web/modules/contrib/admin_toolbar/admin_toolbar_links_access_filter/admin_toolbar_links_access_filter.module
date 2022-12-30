@@ -6,7 +6,6 @@
  */
 
 use Drupal\Core\Session\AccountInterface;
-use Drupal\Core\Url;
 use Drupal\user\Entity\Role;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -59,8 +58,14 @@ function admin_toolbar_links_access_filter_preprocess_menu(&$variables) {
  * Hides links from admin menu, if user doesn't have access rights.
  */
 function admin_toolbar_links_access_filter_filter_non_accessible_links(array &$items) {
-  foreach ($items as $route => &$item) {
-    $route_name = $route;
+  if (Drupal::currentUser()->id() == 1) {
+    // Admin can access everything.
+    return;
+  }
+
+  $access_manager = \Drupal::accessManager();
+  foreach ($items as $menu_id => &$item) {
+    $route_name = NULL;
     $route_params = [];
     if (!empty($item['original_link'])) {
       /** @var \Drupal\Core\Menu\MenuLinkBase $original_link */
@@ -72,17 +77,27 @@ function admin_toolbar_links_access_filter_filter_non_accessible_links(array &$i
       $route_name = $original_link->getRouteName();
       $route_params = $original_link->getRouteParameters();
     }
+    elseif (!empty($item['url'])) {
+      /** @var \Drupal\Core\Url $url */
+      $url = $item['url'];
+      if ($url->isExternal()) {
+        // Do not filter external URL at all.
+        continue;
+      }
+      $route_name = $url->getRouteName();
+      $route_params = $url->getRouteParameters();
+    }
 
     // Check, if user has access rights to the route.
-    if (!\Drupal::accessManager()->checkNamedRoute($route_name, $route_params)) {
-      unset($items[$route]);
+    if (!$access_manager->checkNamedRoute($route_name, $route_params)) {
+      unset($items[$menu_id]);
     }
     else {
-      if (!empty($items[$route]['below'])) {
+      if (!empty($items[$menu_id]['below'])) {
         // Recursively call this function for the child items.
-        admin_toolbar_links_access_filter_filter_non_accessible_links($items[$route]['below']);
+        admin_toolbar_links_access_filter_filter_non_accessible_links($items[$menu_id]['below']);
       }
-      if (empty($items[$route]['below']) && \Drupal::moduleHandler()->moduleExists('admin_toolbar')) {
+      if (empty($items[$menu_id]['below'])) {
 
         // Every child item has been cleared out.
         // Now check, if the given route represents an overview page only,
@@ -90,50 +105,18 @@ function admin_toolbar_links_access_filter_filter_non_accessible_links(array &$i
         // unset this item, as there aren't any children left.
         // This assumption is only valid, when the admin_toolbar module is
         // installed because otherwise we won't have child items at all.
-        if (admin_toolbar_links_access_filter_is_overview_page($route)) {
-          unset($items[$route]);
+        if (admin_toolbar_links_access_filter_is_overview_page($route_name)) {
+          unset($items[$menu_id]);
+        }
+        // If there are no sub-items and the parent does not have a link, then
+        // it is safe to remove it.
+        elseif ($route_name === '<nolink>') {
+          unset($items[$menu_id]);
         }
         else {
           // Let's remove the expanded flag.
-          $items[$route]['is_expanded'] = FALSE;
+          $items[$menu_id]['is_expanded'] = FALSE;
         }
-      }
-    }
-  }
-}
-
-/**
- * Implements template_preprocess_admin_block_content().
- */
-function admin_toolbar_links_access_filter_admin_block_content(&$variables) {
-  if (!admin_toolbar_links_access_filter_user_has_admin_role($variables['user'])) {
-    foreach ($variables['content'] as $key => &$item) {
-      if (isset($item['url']) && $item['url'] instanceof Url) {
-        /* @var \Drupal\Core\Url $url */
-        $url = $item['url'];
-        if ($url->access()) {
-          continue;
-        }
-        unset($variables['content'][$key]);
-      }
-
-      // The key is structured in the form: "ID title route",
-      // concatenated with spaces.
-      $key_parts = explode(' ', $key);
-      $route = end($key_parts);
-
-      // Special handling for Views pages, as they are not defined
-      // system routes.
-      // @TODO check the permission for Views + find a generic way for similar
-      // cases. Best way would be to get the link entity somehow to properly
-      // check permissions.
-      if (strpos($route, 'views_view:') === 0) {
-        continue;
-      }
-
-      // Check, if user has access rights to the route.
-      if (!\Drupal::accessManager()->checkNamedRoute($route)) {
-        unset($variables['content'][$key]);
       }
     }
   }
@@ -155,7 +138,7 @@ function admin_toolbar_links_access_filter_admin_block_content(&$variables) {
  *   FALSE otherwise.
  */
 function admin_toolbar_links_access_filter_is_overview_page($route_name) {
-  // @var \Drupal\Core\Routing\RouteProviderInterface $route_provider.
+  /** @var \Drupal\Core\Routing\RouteProviderInterface $route_provider. */
   $route_provider = \Drupal::service('router.route_provider');
   $overview_page_controllers = [
     '\Drupal\system\Controller\AdminController::index',

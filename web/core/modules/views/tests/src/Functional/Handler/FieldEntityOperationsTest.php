@@ -26,10 +26,15 @@ class FieldEntityOperationsTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'language', 'views_ui'];
+  protected static $modules = ['node', 'language', 'views_ui'];
 
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp($import_test_views, $modules);
 
     // Create Article content type.
     $this->drupalCreateContentType(['type' => 'article', 'name' => 'Article']);
@@ -39,8 +44,8 @@ class FieldEntityOperationsTest extends ViewTestBase {
    * Tests entity operations field.
    */
   public function testEntityOperations() {
-    // Add languages and refresh the container so the entity manager will have
-    // fresh data.
+    // Add languages and refresh the container so the entity type manager will
+    // have fresh data.
     ConfigurableLanguage::createFromLangcode('hu')->save();
     ConfigurableLanguage::createFromLangcode('es')->save();
     $this->rebuildContainer();
@@ -61,37 +66,41 @@ class FieldEntityOperationsTest extends ViewTestBase {
       $entities[$i] = $entity;
     }
 
-    $admin_user = $this->drupalCreateUser(['access administration pages', 'administer nodes', 'bypass node access']);
-    $this->drupalLogin($this->rootUser);
+    $admin_user = $this->drupalCreateUser([
+      'access administration pages',
+      'administer nodes',
+      'bypass node access',
+      'administer views',
+    ]);
+    $this->drupalLogin($admin_user);
     $this->drupalGet('test-entity-operations');
-    /** @var $entity \Drupal\entity_test\Entity\EntityTest */
+    /** @var \Drupal\entity_test\Entity\EntityTest $entity */
     foreach ($entities as $entity) {
       /** @var \Drupal\Core\Language\LanguageInterface $language */
       foreach ($entity->getTranslationLanguages() as $language) {
         $entity = $entity->getTranslation($language->getId());
-        $operations = \Drupal::entityManager()->getListBuilder('node')->getOperations($entity);
-        $this->assertTrue(count($operations) > 0, 'There are operations.');
+        $operations = \Drupal::service('entity_type.manager')->getListBuilder('node')->getOperations($entity);
+        $this->assertNotEmpty($operations);
         foreach ($operations as $operation) {
           $expected_destination = Url::fromUri('internal:/test-entity-operations')->toString();
           // Update destination property of the URL as generating it in the
           // test would by default point to the frontpage.
           $operation['url']->setOption('query', ['destination' => $expected_destination]);
-          $result = $this->xpath('//ul[contains(@class, dropbutton)]/li/a[@href=:path and text()=:title]', [':path' => $operation['url']->toString(), ':title' => (string) $operation['title']]);
-          $this->assertEqual(count($result), 1, t('Found entity @operation link with destination parameter.', ['@operation' => $operation['title']]));
+          $this->assertSession()->elementsCount('xpath', "//ul[contains(@class, dropbutton)]/li/a[@href='{$operation['url']->toString()}' and text()='{$operation['title']}']", 1);
           // Entities which were created in Hungarian should link to the Hungarian
           // edit form, others to the English one (which has no path prefix here).
           $base_path = \Drupal::request()->getBasePath();
           $parts = explode('/', str_replace($base_path, '', $operation['url']->toString()));
           $expected_prefix = ($language->getId() != 'en' ? $language->getId() : 'node');
-          $this->assertEqual($parts[1], $expected_prefix, 'Entity operation links to the correct language for the entity.');
+          $this->assertEquals($expected_prefix, $parts[1], 'Entity operation links to the correct language for the entity.');
         }
       }
     }
 
     // Test that we can't enable click sorting on the operation field.
     $this->drupalGet('admin/structure/views/nojs/display/test_entity_operations/page_2/style_options');
-    $this->assertField('style_options[info][title][sortable]');
-    $this->assertNoField('style_options[info][operations][sortable]');
+    $this->assertSession()->fieldExists('style_options[info][title][sortable]');
+    $this->assertSession()->fieldNotExists('style_options[info][operations][sortable]');
   }
 
 }

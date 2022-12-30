@@ -71,14 +71,14 @@ class AdvancedSettingsForm extends ConfigFormBase {
     if (!empty($options)) {
       $form['extenders'] = [
         '#type' => 'details',
+        '#title' => $this->t('Display extenders'),
         '#open' => TRUE,
       ];
       $form['extenders']['display_extenders'] = [
-        '#title' => $this->t('Display extenders'),
         '#default_value' => array_filter($config->get('display_extenders')),
         '#options' => $options,
         '#type' => 'checkboxes',
-        '#description' => $this->t('Select extensions of the views interface.')
+        '#description' => $this->t('Select extensions of the views interface.'),
       ];
     }
 
@@ -103,7 +103,7 @@ class AdvancedSettingsForm extends ConfigFormBase {
    */
   public function cacheSubmit() {
     views_invalidate_cache();
-    drupal_set_message($this->t('The cache has been cleared.'));
+    $this->messenger()->addStatus($this->t('The cache has been cleared.'));
   }
 
 }

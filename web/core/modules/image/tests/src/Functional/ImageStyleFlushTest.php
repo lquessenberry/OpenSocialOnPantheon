@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\image\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\Tests\TestFileCreationTrait;
 
@@ -18,6 +19,11 @@ class ImageStyleFlushTest extends ImageFieldTestBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Given an image style and a wrapper, generate an image.
    */
   public function createSampleImage($style, $wrapper) {
@@ -29,7 +35,7 @@ class ImageStyleFlushTest extends ImageFieldTestBase {
     }
 
     // Make sure we have an image in our wrapper testing file directory.
-    $source_uri = file_unmanaged_copy($file->uri, $wrapper . '://');
+    $source_uri = \Drupal::service('file_system')->copy($file->uri, $wrapper . '://');
     // Build the derivative image.
     $derivative_uri = $style->buildUri($source_uri);
     $derivative = $style->createDerivative($source_uri, $derivative_uri);
@@ -41,7 +47,11 @@ class ImageStyleFlushTest extends ImageFieldTestBase {
    * Count the number of images currently created for a style in a wrapper.
    */
   public function getImageCount($style, $wrapper) {
-    return count(file_scan_directory($wrapper . '://styles/' . $style->id(), '/.*/'));
+    $count = 0;
+    if (is_dir($wrapper . '://styles/' . $style->id())) {
+      $count = count(\Drupal::service('file_system')->scanDirectory($wrapper . '://styles/' . $style->id(), '/.*/'));
+    }
+    return $count;
   }
 
   /**
@@ -70,14 +80,16 @@ class ImageStyleFlushTest extends ImageFieldTestBase {
       'name' => $style_name,
       'label' => $style_label,
     ];
-    $this->drupalPostForm('admin/config/media/image-styles/add', $edit, t('Create new style'));
+    $this->drupalGet('admin/config/media/image-styles/add');
+    $this->submitForm($edit, 'Create new style');
 
     // Add each sample effect to the style.
     foreach ($effect_edits as $effect => $edit) {
       // Add the effect.
-      $this->drupalPostForm($style_path, ['new' => $effect], t('Add'));
+      $this->drupalGet($style_path);
+      $this->submitForm(['new' => $effect], 'Add');
       if (!empty($edit)) {
-        $this->drupalPostForm(NULL, $edit, t('Add effect'));
+        $this->submitForm($edit, 'Add effect');
       }
     }
 
@@ -88,11 +100,11 @@ class ImageStyleFlushTest extends ImageFieldTestBase {
     $image_path = $this->createSampleImage($style, 'public');
     // Expecting to find 2 images, one is the sample.png image shown in
     // image style preview.
-    $this->assertEqual($this->getImageCount($style, 'public'), 2, format_string('Image style %style image %file successfully generated.', ['%style' => $style->label(), '%file' => $image_path]));
+    $this->assertEquals(2, $this->getImageCount($style, 'public'), new FormattableMarkup('Image style %style image %file successfully generated.', ['%style' => $style->label(), '%file' => $image_path]));
 
     // Create an image for the 'private' wrapper.
     $image_path = $this->createSampleImage($style, 'private');
-    $this->assertEqual($this->getImageCount($style, 'private'), 1, format_string('Image style %style image %file successfully generated.', ['%style' => $style->label(), '%file' => $image_path]));
+    $this->assertEquals(1, $this->getImageCount($style, 'private'), new FormattableMarkup('Image style %style image %file successfully generated.', ['%style' => $style->label(), '%file' => $image_path]));
 
     // Remove the 'image_scale' effect and updates the style, which in turn
     // forces an image style flush.
@@ -101,16 +113,18 @@ class ImageStyleFlushTest extends ImageFieldTestBase {
     foreach ($style->getEffects() as $uuid => $effect) {
       $uuids[$effect->getPluginId()] = $uuid;
     }
-    $this->drupalPostForm($style_path . '/effects/' . $uuids['image_scale'] . '/delete', [], t('Delete'));
-    $this->assertResponse(200);
-    $this->drupalPostForm($style_path, [], t('Update style'));
-    $this->assertResponse(200);
+    $this->drupalGet($style_path . '/effects/' . $uuids['image_scale'] . '/delete');
+    $this->submitForm([], 'Delete');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->drupalGet($style_path);
+    $this->submitForm([], 'Save');
+    $this->assertSession()->statusCodeEquals(200);
 
     // Post flush, expected 1 image in the 'public' wrapper (sample.png).
-    $this->assertEqual($this->getImageCount($style, 'public'), 1, format_string('Image style %style flushed correctly for %wrapper wrapper.', ['%style' => $style->label(), '%wrapper' => 'public']));
+    $this->assertEquals(1, $this->getImageCount($style, 'public'), new FormattableMarkup('Image style %style flushed correctly for %wrapper wrapper.', ['%style' => $style->label(), '%wrapper' => 'public']));
 
     // Post flush, expected no image in the 'private' wrapper.
-    $this->assertEqual($this->getImageCount($style, 'private'), 0, format_string('Image style %style flushed correctly for %wrapper wrapper.', ['%style' => $style->label(), '%wrapper' => 'private']));
+    $this->assertEquals(0, $this->getImageCount($style, 'private'), new FormattableMarkup('Image style %style flushed correctly for %wrapper wrapper.', ['%style' => $style->label(), '%wrapper' => 'private']));
   }
 
 }

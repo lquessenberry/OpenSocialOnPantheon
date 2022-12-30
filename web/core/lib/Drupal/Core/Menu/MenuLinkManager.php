@@ -38,7 +38,7 @@ class MenuLinkManager implements MenuLinkManagerInterface {
     // or other safe source this may be a TranslatableMarkup object.
     'title' => '',
     // The description. If this came from a YAML definition or other safe source
-    // this may be be a TranslatableMarkup object.
+    // this may be a TranslatableMarkup object.
     'description' => '',
     // The plugin ID of the parent link (or NULL for a top-level link).
     'parent' => '',
@@ -92,7 +92,6 @@ class MenuLinkManager implements MenuLinkManagerInterface {
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
-
 
   /**
    * Constructs a \Drupal\Core\Menu\MenuLinkManager object.

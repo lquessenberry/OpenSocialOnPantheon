@@ -3,12 +3,14 @@
 namespace Drupal\Tests;
 
 use Drupal\Core\Extension\ExtensionDiscovery;
+use PHPUnit\Util\Test;
+use PHPUnit\Framework\SkippedTestError;
 
 /**
  * Allows test classes to require Drupal modules as dependencies.
  *
- * This trait is assumed to be on a subclass of \PHPUnit_Framework_TestCase, and
- * overrides \PHPUnit_Framework_TestCase::checkRequirements(). This allows the
+ * This trait is assumed to be on a subclass of \PHPUnit\Framework\TestCase, and
+ * overrides \PHPUnit\Framework\TestCase::checkRequirements(). This allows the
  * test to be marked as skipped before any kernel boot processes have happened.
  */
 trait TestRequirementsTrait {
@@ -19,26 +21,40 @@ trait TestRequirementsTrait {
    * @return string
    */
   protected static function getDrupalRoot() {
-    return dirname(dirname(substr(__DIR__, 0, -strlen(__NAMESPACE__))));
+    return dirname(substr(__DIR__, 0, -strlen(__NAMESPACE__)), 2);
   }
 
   /**
    * Check module requirements for the Drupal use case.
    *
    * This method is assumed to override
-   * \PHPUnit_Framework_TestCase::checkRequirements().
+   * \PHPUnit\Framework\TestCase::checkRequirements().
    *
-   * @throws \PHPUnit_Framework_SkippedTestError
+   * @throws \PHPUnit\Framework\SkippedTestError
    *   Thrown when the requirements are not met, and this test should be
    *   skipped. Callers should not catch this exception.
    */
   protected function checkRequirements() {
-    parent::checkRequirements();
+    if (!$this->getName(FALSE) || !method_exists($this, $this->getName(FALSE))) {
+      return;
+    }
+
+    $missingRequirements = Test::getMissingRequirements(
+      static::class,
+      $this->getName(FALSE)
+    );
+
+    if (!empty($missingRequirements)) {
+      $this->markTestSkipped(implode(PHP_EOL, $missingRequirements));
+    }
 
     $root = static::getDrupalRoot();
 
     // Check if required dependencies exist.
-    $annotations = $this->getAnnotations();
+    $annotations = Test::parseTestMethodAnnotations(
+      static::class,
+      $this->getName()
+    );
     if (!empty($annotations['class']['requires'])) {
       $this->checkModuleRequirements($root, $annotations['class']['requires']);
     }
@@ -59,14 +75,11 @@ trait TestRequirementsTrait {
    * @param string[] $annotations
    *   A list of requires annotations from either a method or class annotation.
    *
-   * @throws \PHPUnit_Framework_SkippedTestError
+   * @throws \PHPUnit\Framework\SkippedTestError
    *   Thrown when the requirements are not met, and this test should be
    *   skipped. Callers should not catch this exception.
    */
   private function checkModuleRequirements($root, array $annotations) {
-    // drupal_valid_ua() might not be loaded.
-    require_once $root . '/core/includes/bootstrap.inc';
-
     // Make a list of required modules.
     $required_modules = [];
     foreach ($annotations as $requirement) {
@@ -83,7 +96,7 @@ trait TestRequirementsTrait {
       $list = array_keys($discovery->scan('module'));
       $not_available = array_diff($required_modules, $list);
       if (!empty($not_available)) {
-        throw new \PHPUnit_Framework_SkippedTestError('Required modules: ' . implode(', ', $not_available));
+        throw new SkippedTestError('Required modules: ' . implode(', ', $not_available));
       }
     }
   }

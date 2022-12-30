@@ -2,134 +2,175 @@
 
 namespace Embed;
 
-use Embed\Adapters\AdapterInterface;
+use Embed\Adapters\Adapter;
+use Embed\Http\CurlDispatcher;
+use Embed\Http\DispatcherInterface;
+use Embed\Http\Url;
 
-class Embed
+abstract class Embed
 {
+    /**
+     * @var array
+     */
+    public static $default_config = [
+        'custom_adapters_namespace' => null,
+        'min_image_width' => 1,
+        'min_image_height' => 1,
+        'choose_bigger_image' => false,
+        'images_blacklist' => [],
+        'url_blacklist' => [
+            '?&ns_campaign=*',
+            '?&ns_source=*',
+            '?&utm_campaign=*',
+            '?&utm_medium=*',
+            '?&utm_source=*',
+        ],
+        'follow_canonical' => true,
+
+        'html' => [
+            'max_images' => -1,
+            'external_images' => false
+        ],
+
+        'oembed' => [
+            'parameters' => [],
+            'embedly_key' => null,
+            'iframely_key' => null,
+        ],
+
+        'google' => [
+            'key' => null,
+        ],
+
+        'soundcloud' => [
+            'key' => null,
+        ],
+
+        'facebook' => [
+            'key' => null,
+            'events_fields' => 'id,cover,description,end_time,name,owner,place,start_time,timezone',
+            'videos_fields' => 'id,description,embed_html',
+        ]
+    ];
+
     /**
      * Gets the info from an url.
      *
-     * @param string|Request $request The url or a request with the url
-     * @param array          $config  Options passed to the adapter
+     * @param Url|string $url
+     * @param array|null $config
+     * @param DispatcherInterface|null $dispatcher
      *
-     * @throws Exceptions\InvalidUrlException If the urls is not valid
-     * @throws \InvalidArgumentException      If any config argument is not valid
-     *
-     * @return AdapterInterface
+     * @return Adapter
      */
-    public static function create($request, array $config = array())
+    public static function create($url, array $config = null, DispatcherInterface $dispatcher = null)
     {
-        $request = self::getRequest($request, isset($config['resolver']) ? $config['resolver'] : null);
+        if (!($url instanceof Url)) {
+            $url = Url::create($url);
+        }
 
-        //Use custom adapter
-        if (!empty($config['adapter']['class'])) {
-            if (($info = self::executeAdapter($config['adapter']['class'], $request, $config))) {
+        if ($config === null) {
+            $config = self::$default_config;
+        } else {
+            $config += self::$default_config;
+        }
+
+        if ($dispatcher === null) {
+            $dispatcher = new CurlDispatcher();
+        }
+
+        $info = self::process($url, $config, $dispatcher);
+
+        if ($info->getConfig('follow_canonical') === false) {
+            return $info;
+        }
+
+        // Repeat the process if:
+        // - The canonical url is different
+        // - No embed code has found
+        $from = preg_replace('|^(\w+://)|', '', rtrim((string)$info->getResponse()->getUrl(), '/'));
+        $to = preg_replace('|^(\w+://)|', '', rtrim($info->url, '/'));
+
+        if ($from !== $to && empty($info->code)) {
+            //accept new result if valid
+            try {
+                return self::process(Url::create($info->url), $config, $dispatcher);
+            } catch (\Exception $e) {
                 return $info;
             }
         }
 
+        return $info;
+    }
+
+    /**
+     * Process the url.
+     *
+     * @param Url $url
+     * @param array   $config
+     * @param DispatcherInterface   $dispatcher
+     *
+     * @throws Exceptions\InvalidUrlException If the urls is not valid
+     *
+     * @return Adapter
+     */
+    private static function process(Url $url, array $config, DispatcherInterface $dispatcher)
+    {
+        $response = $dispatcher->dispatch($url);
+
         //If is a file use File Adapter
-        if (($info = self::executeAdapter('Embed\Adapters\File', $request, $config))) {
-            return $info;
+        $adapter = self::getClass('File', $config);
+
+        if ($adapter::check($response)) {
+            return new $adapter($response, $config, $dispatcher);
         }
 
         //Search the adapter using the domain
-        $adapter = 'Embed\\Adapters\\'.$request->getClassNameForDomain();
+        $adapter = self::getClass($response->getUrl()->getClassNameForDomain(), $config);
 
-        if (class_exists($adapter) && ($info = self::executeAdapter($adapter, $request, $config))) {
-            return $info;
+        if (class_exists($adapter) && $adapter::check($response)) {
+            return new $adapter($response, $config, $dispatcher);
         }
 
-        //Use the standard webpage adapter
-        if (($info = self::executeAdapter('Embed\Adapters\Webpage', $request, $config))) {
-            return $info;
+        //Use the default webpage adapter
+        $adapter = self::getClass('Webpage', $config);
+
+        if ($adapter::check($response)) {
+            return new $adapter($response, $config, $dispatcher);
         }
 
-        $error = $request->getError();
-
-        if (empty($error)) {
-            throw new Exceptions\InvalidUrlException(sprintf("The url '%s' returns the http code %s", $request->getUrl(), $request->getHttpCode()));
+        if ($response->getError() === null) {
+            $exception = new Exceptions\InvalidUrlException(sprintf("Invalid url '%s' (Status code %s)", (string) $url, $response->getStatusCode()));
+        } else {
+            $exception = new Exceptions\InvalidUrlException($response->getError());
         }
 
-        throw new Exceptions\InvalidUrlException(sprintf("The url '%s' returns the following error: %s", $request->getUrl(), $error));
+        $exception->setResponse($response);
+
+        throw $exception;
     }
 
     /**
-     * Gets the info from a source (list of urls).
+     * Returns a class name using the custom_adapters_namespace
      *
-     * @param string|Request $request The url or a request with the source url
-     * @param null|array     $config  Options passed to the adapter
+     * @param string $name
+     * @param array $config
      *
-     * @return false|Sources\SourceInterface
+     * @return  string
      */
-    public static function createSource($request, array $config = null)
+    private static function getClass($name, array $config)
     {
-        $request = self::getRequest($request, $config);
+        if (!empty($config['custom_adapters_namespace'])) {
+            $namespaces = (array) $config['custom_adapters_namespace'];
 
-        if (!$request->isValid()) {
-            return false;
-        }
+            foreach ($namespaces as $namespace) {
+                $class = $namespace.$name;
 
-        //If is a xml feed (rss/atom)
-        if (Sources\Feed::check($request)) {
-            $sources = new Sources\Feed($request);
-
-            if ($sources->isValid()) {
-                return $sources;
+                if (class_exists($class)) {
+                    return $class;
+                }
             }
         }
 
-        return false;
-    }
-
-    /**
-     * Execute an adapter.
-     *
-     * @param string     $adapter Adapter class name
-     * @param Request    $request
-     * @param null|array $config
-     *
-     * @throws \InvalidArgumentException If the adapter class in not AdapterInterface
-     *
-     * @return false|AdapterInterface
-     */
-    private static function executeAdapter($adapter, Request $request, array $config = null)
-    {
-        if (!in_array('Embed\\Adapters\\AdapterInterface', class_implements($adapter))) {
-            throw new \InvalidArgumentException("The class '$adapter' must implements 'Embed\\Adapters\\AdapterInterface'");
-        }
-
-        if (call_user_func([$adapter, 'check'], $request)) {
-            return new $adapter($request, $config);
-        }
-
-        return false;
-    }
-
-    /**
-     * Init a request.
-     *
-     * @param string|Request $request The url or a request with the url
-     * @param null|array     $config  Options passed to the adapter
-     *
-     * @throws \InvalidArgumentException If the class in not Embed\Request instance
-     *
-     * @return Request
-     */
-    private static function getRequest($request, array $config = null)
-    {
-        if (is_string($request)) {
-            return new Request(
-                $request,
-                isset($config['class']) ? $config['class'] : null,
-                isset($config['config']) ? $config['config'] : []
-            );
-        }
-
-        if (!($request instanceof Request)) {
-            throw new \InvalidArgumentException('Embed::create only accepts instances of Embed\\Request or strings');
-        }
-
-        return $request;
+        return 'Embed\\Adapters\\'.$name;
     }
 }

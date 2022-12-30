@@ -14,7 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @CropEntityProvider(
  *   entity_type = "media",
  *   label = @Translation("Media"),
- *   description = @Translation("Provides crop integration for Media.")
+ *   description = @Translation("Provides crop integration for media.")
  * )
  */
 class Media extends EntityProviderBase implements ContainerFactoryPluginInterface {
@@ -59,11 +59,9 @@ class Media extends EntityProviderBase implements ContainerFactoryPluginInterfac
    * {@inheritdoc}
    */
   public function uri(EntityInterface $entity) {
-
     $bundle_entity_type = $entity->getEntityType()->getBundleEntityType();
     /** @var \Drupal\Core\Config\Entity\ConfigEntityBase $entity_type */
     $entity_type = $this->entityTypeManager->getStorage($bundle_entity_type)->load($entity->bundle());
-
     $image_field = $entity_type->getThirdPartySetting('crop', 'image_field');
 
     if ($entity->{$image_field}->first()->isEmpty()) {

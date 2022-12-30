@@ -7,6 +7,8 @@ use Drupal\migrate\Plugin\MigrateIdMapInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\Tests\BrowserTestBase;
 
+// cspell:ignore destid
+
 /**
  * Tests the 'download' process plugin.
  *
@@ -17,7 +19,12 @@ class DownloadFunctionalTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['migrate', 'file'];
+  protected static $modules = ['migrate', 'file'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests that an exception is thrown bu migration continues with the next row.
@@ -41,7 +48,7 @@ class DownloadFunctionalTest extends BrowserTestBase {
         'uri' => [
           'plugin' => 'download',
           'source' => ['url', 'uri'],
-        ]
+        ],
       ],
       'destination' => [
         'plugin' => 'entity:file',
@@ -54,7 +61,7 @@ class DownloadFunctionalTest extends BrowserTestBase {
     $result = $executable->import();
 
     // Check that the migration has completed.
-    $this->assertEquals($result, MigrationInterface::RESULT_COMPLETED);
+    $this->assertEquals(MigrationInterface::RESULT_COMPLETED, $result);
 
     /** @var \Drupal\migrate\Plugin\MigrateIdMapInterface $id_map_plugin */
     $id_map_plugin = $migration->getIdMap();
@@ -65,10 +72,15 @@ class DownloadFunctionalTest extends BrowserTestBase {
     $this->assertNull($map_row['destid1']);
 
     // Check that a message with the thrown exception has been logged.
-    $messages = $id_map_plugin->getMessageIterator(['url' => $invalid_url])->fetchAll();
+    $messages = $id_map_plugin->getMessages(['url' => $invalid_url])->fetchAll();
     $this->assertCount(1, $messages);
     $message = reset($messages);
-    $this->assertEquals("Cannot read from non-readable stream ($invalid_url)", $message->message);
+
+    // Assert critical parts of the error message, but not the exact message,
+    // since it depends on Guzzle's internal implementation of PSR-7.
+    $id = $migration->getPluginId();
+    $this->assertStringContainsString("$id:uri:download:", $message->message);
+    $this->assertStringContainsString($invalid_url, $message->message);
     $this->assertEquals(MigrationInterface::MESSAGE_ERROR, $message->level);
 
     // Check that the second row was migrated successfully.

@@ -18,12 +18,17 @@ class TourCacheTagsTest extends PageCacheTagsTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['tour', 'tour_test'];
+  protected static $modules = ['tour', 'tour_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     // Give anonymous users permission to view nodes, so that we can verify the
@@ -54,7 +59,6 @@ class TourCacheTagsTest extends PageCacheTagsTestBase {
     $this->verifyPageCache($url, 'HIT', $expected_tags);
 
     // Verify that after modifying the tour, there is a cache miss.
-    $this->pass('Test modification of tour.', 'Debug');
     Tour::load('tour-test')->save();
     $this->verifyPageCache($url, 'MISS');
 
@@ -62,7 +66,6 @@ class TourCacheTagsTest extends PageCacheTagsTestBase {
     $this->verifyPageCache($url, 'HIT', $expected_tags);
 
     // Verify that after deleting the tour, there is a cache miss.
-    $this->pass('Test deletion of tour.', 'Debug');
     Tour::load('tour-test')->delete();
     $this->verifyPageCache($url, 'MISS');
 

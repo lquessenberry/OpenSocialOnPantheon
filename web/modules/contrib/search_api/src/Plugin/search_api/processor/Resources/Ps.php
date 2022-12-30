@@ -11,6 +11,7 @@ class Ps implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{0028}\x{005B}\x{007B}\x{0F3A}\x{0F3C}\x{169B}\x{201A}' .
       '\x{201E}\x{2045}\x{207D}\x{208D}\x{2308}\x{230A}\x{2329}' .
@@ -23,6 +24,7 @@ class Ps implements UnicodeCharacterPropertyInterface {
       '\x{FE17}\x{FE35}\x{FE37}\x{FE39}\x{FE3B}\x{FE3D}\x{FE3F}' .
       '\x{FE41}\x{FE43}\x{FE47}\x{FE59}\x{FE5B}\x{FE5D}\x{FF08}' .
       '\x{FF3B}\x{FF5B}\x{FF5F}\x{FF62}';
+    // phpcs:enable
   }
 
 }

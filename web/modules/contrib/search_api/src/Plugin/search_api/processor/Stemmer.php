@@ -3,6 +3,7 @@
 namespace Drupal\search_api\Plugin\search_api\processor;
 
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Plugin\search_api\processor\Resources\Porter2;
 use Drupal\search_api\Processor\FieldsProcessorPluginBase;
 use Drupal\search_api\Query\QueryInterface;
@@ -49,13 +50,27 @@ class Stemmer extends FieldsProcessorPluginBase {
   /**
    * {@inheritdoc}
    */
+  public static function supportsIndex(IndexInterface $index): bool {
+    $languages = \Drupal::languageManager()->getLanguages();
+    // Make processor available only if English is one of the site languages.
+    foreach ($languages as $language) {
+      if (substr($language->getId(), 0, 2) === 'en') {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildConfigurationForm($form, $form_state);
 
     $description = $this->t('If the <a href="http://snowball.tartarus.org/algorithms/english/stemmer.html">algorithm</a> does not stem words in your dataset in the desired way, you can enter specific exceptions in the form of WORD=STEM, where "WORD" is the original word in the text and "STEM" is the resulting stem. List each exception on a separate line.');
 
     // Convert the keyed array into a config format (word=stem)
-    $default_value = http_build_query($this->configuration['exceptions'], NULL, "\n");
+    $default_value = http_build_query($this->configuration['exceptions'], '', "\n");
 
     $form['exceptions'] = [
       '#type' => 'textarea',

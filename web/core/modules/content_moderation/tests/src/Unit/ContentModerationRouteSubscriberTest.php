@@ -3,7 +3,7 @@
 namespace Drupal\Tests\content_moderation\Unit;
 
 use Drupal\content_moderation\Routing\ContentModerationRouteSubscriber;
-use Drupal\Core\Entity\Entity;
+use Drupal\Core\Entity\EntityBase;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\RouteBuildEvent;
@@ -28,7 +28,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     /** @var \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager */
     $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
     $this->routeSubscriber = new ContentModerationRouteSubscriber($entity_type_manager);
@@ -36,7 +36,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
   }
 
   /**
-   * Creates the entity manager mock returning entity type objects.
+   * Creates the entity type manager mock returning entity type objects.
    */
   protected function setupEntityTypes() {
     $definition = $this->createMock(EntityTypeInterface::class);
@@ -78,7 +78,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Entity parameter on an entity form' => [
         [
-          '_entity_form' => 'entity_test_rev.edit'
+          '_entity_form' => 'entity_test_rev.edit',
         ],
         [
           'entity_test_rev' => [
@@ -94,7 +94,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Entity form with no operation' => [
         [
-          '_entity_form' => 'entity_test_rev'
+          '_entity_form' => 'entity_test_rev',
         ],
         [
           'entity_test_rev' => [
@@ -110,7 +110,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Non-moderated entity form' => [
         [
-          '_entity_form' => 'entity_test_mulrev'
+          '_entity_form' => 'entity_test_mulrev',
         ],
         [
           'entity_test_mulrev' => [
@@ -120,7 +120,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Multiple entity parameters on an entity form' => [
         [
-          '_entity_form' => 'entity_test_rev.edit'
+          '_entity_form' => 'entity_test_rev.edit',
         ],
         [
           'entity_test_rev' => [
@@ -142,7 +142,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Overridden load_latest_revision flag does not change' => [
         [
-          '_entity_form' => 'entity_test_rev.edit'
+          '_entity_form' => 'entity_test_rev.edit',
         ],
         [
           'entity_test_rev' => [
@@ -153,7 +153,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Non-revisionable entity type will not change' => [
         [
-          '_entity_form' => 'entity_test.edit'
+          '_entity_form' => 'entity_test.edit',
         ],
         [
           'entity_test' => [
@@ -165,7 +165,7 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
       ],
       'Overridden load_latest_revision flag does not change with multiple parameters' => [
         [
-          '_entity_form' => 'entity_test_rev.edit'
+          '_entity_form' => 'entity_test_rev.edit',
         ],
         [
           'entity_test_rev' => [
@@ -184,6 +184,28 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
           'node' => [
             'type' => 'entity:node',
             'load_latest_revision' => FALSE,
+          ],
+        ],
+      ],
+      'Parameter without type is unchanged' => [
+        [
+          '_entity_form' => 'entity_test_rev.edit',
+        ],
+        [
+          'entity_test_rev' => [
+            'type' => 'entity:entity_test_rev',
+          ],
+          'unrelated_param' => [
+            'foo' => 'bar',
+          ],
+        ],
+        [
+          'entity_test_rev' => [
+            'type' => 'entity:entity_test_rev',
+            'load_latest_revision' => TRUE,
+          ],
+          'unrelated_param' => [
+            'foo' => 'bar',
           ],
         ],
       ],
@@ -223,5 +245,5 @@ class ContentModerationRouteSubscriberTest extends UnitTestCase {
 /**
  * A concrete entity.
  */
-class SimpleTestEntity extends Entity {
+class SimpleTestEntity extends EntityBase {
 }

@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\Core\Config\Entity;
 
+use Drupal\Core\Config\TypedConfigManagerInterface;
+use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Tests\UnitTestCase;
 use Drupal\Core\Config\Entity\ConfigEntityType;
 use Drupal\Core\Config\Entity\Exception\ConfigEntityStorageClassException;
@@ -11,6 +13,23 @@ use Drupal\Core\Config\Entity\Exception\ConfigEntityStorageClassException;
  * @group Config
  */
 class ConfigEntityTypeTest extends UnitTestCase {
+
+  /**
+   * The mocked typed config manager.
+   *
+   * @var \Drupal\Core\Config\TypedConfigManagerInterface|\PHPUnit\Framework\MockObject\MockObject
+   */
+  protected $typedConfigManager;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    $this->typedConfigManager = $this->createMock(TypedConfigManagerInterface::class);
+    $container = new ContainerBuilder();
+    $container->set('config.typed', $this->typedConfigManager);
+    \Drupal::setContainer($container);
+  }
 
   /**
    * Sets up a ConfigEntityType object for a given set of values.
@@ -43,10 +62,8 @@ class ConfigEntityTypeTest extends UnitTestCase {
       'config_prefix' => $this->randomMachineName(59),
     ];
     $config_entity = $this->setUpConfigEntityType($definition);
-    $this->setExpectedException(
-      '\Drupal\Core\Config\ConfigPrefixLengthException',
-      "The configuration file name prefix {$definition['provider']}.{$definition['config_prefix']} exceeds the maximum character limit of " . ConfigEntityType::PREFIX_LENGTH
-    );
+    $this->expectException('\Drupal\Core\Config\ConfigPrefixLengthException');
+    $this->expectExceptionMessage("The configuration file name prefix {$definition['provider']}.{$definition['config_prefix']} exceeds the maximum character limit of " . ConfigEntityType::PREFIX_LENGTH);
     $this->assertEmpty($config_entity->getConfigPrefix());
   }
 
@@ -82,10 +99,11 @@ class ConfigEntityTypeTest extends UnitTestCase {
    * @covers ::__construct
    */
   public function testConstructBadStorage() {
-    $this->setExpectedException(ConfigEntityStorageClassException::class, '\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage is not \Drupal\Core\Config\Entity\ConfigEntityStorage or it does not extend it');
+    $this->expectException(ConfigEntityStorageClassException::class);
+    $this->expectExceptionMessage('\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage is not \Drupal\Core\Config\Entity\ConfigEntityStorage or it does not extend it');
     new ConfigEntityType([
       'id' => 'example_config_entity_type',
-      'handlers' => ['storage' => '\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage']
+      'handlers' => ['storage' => '\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage'],
     ]);
   }
 
@@ -94,7 +112,8 @@ class ConfigEntityTypeTest extends UnitTestCase {
    */
   public function testSetStorageClass() {
     $config_entity = $this->setUpConfigEntityType([]);
-    $this->setExpectedException(ConfigEntityStorageClassException::class, '\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage is not \Drupal\Core\Config\Entity\ConfigEntityStorage or it does not extend it');
+    $this->expectException(ConfigEntityStorageClassException::class);
+    $this->expectExceptionMessage('\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage is not \Drupal\Core\Config\Entity\ConfigEntityStorage or it does not extend it');
     $config_entity->setStorageClass('\Drupal\Core\Entity\KeyValueStore\KeyValueEntityStorage');
   }
 
@@ -138,11 +157,6 @@ class ConfigEntityTypeTest extends UnitTestCase {
   public function providerGetPropertiesToExport() {
     $data = [];
     $data[] = [
-      [],
-      NULL,
-    ];
-
-    $data[] = [
       [
         'config_export' => [
           'id',
@@ -175,6 +189,16 @@ class ConfigEntityTypeTest extends UnitTestCase {
       ],
     ];
     return $data;
+  }
+
+  /**
+   * @covers ::getPropertiesToExport
+   */
+  public function testGetPropertiesToExportNoFallback() {
+    $config_entity_type = new ConfigEntityType([
+      'id' => 'example_config_entity_type',
+    ]);
+    $this->assertNull($config_entity_type->getPropertiesToExport());
   }
 
 }

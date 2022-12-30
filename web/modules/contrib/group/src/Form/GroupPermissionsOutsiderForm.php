@@ -71,10 +71,9 @@ class GroupPermissionsOutsiderForm extends GroupPermissionsTypeSpecificForm {
    * {@inheritdoc}
    */
   protected function getGroupRoles() {
-    $group_role_ids = $this->groupRoleSynchronizer
-      ->getGroupRoleIdsByGroupType($this->groupType->id());
-    return $this->entityTypeManager->getStorage('group_role')
-      ->loadMultiple($group_role_ids);;
+    /** @var \Drupal\group\Entity\Storage\GroupRoleStorageInterface $storage */
+    $storage = $this->entityTypeManager->getStorage('group_role');
+    return $storage->loadSynchronizedByGroupTypes([$this->groupType->id()]);
   }
 
 }

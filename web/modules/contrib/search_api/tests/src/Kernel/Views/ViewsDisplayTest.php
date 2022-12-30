@@ -2,40 +2,46 @@
 
 namespace Drupal\Tests\search_api\Kernel\Views;
 
+use Drupal\Core\Theme\ActiveTheme;
+use Drupal\Core\Theme\ThemeManagerInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\search_api\Utility\Utility;
+use Drupal\Tests\block\Traits\BlockCreationTrait;
 
 /**
- * Tests whether Views pages correctly create search display plugins.
+ * Tests whether search display plugins for Views work correctly.
  *
  * @group search_api
  */
 class ViewsDisplayTest extends KernelTestBase {
 
+  use BlockCreationTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
+    'block',
+    'entity_test',
     'field',
+    'rest',
     'search_api',
     'search_api_db',
+    'search_api_test',
     'search_api_test_db',
     'search_api_test_example_content',
     'search_api_test_views',
-    'search_api_test',
-    'user',
-    'system',
-    'entity_test',
-    'text',
-    'views',
-    'rest',
     'serialization',
+    'system',
+    'text',
+    'user',
+    'views',
   ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_mulrev_changed');
@@ -93,6 +99,38 @@ class ViewsDisplayTest extends KernelTestBase {
     $this->assertContains('search_api', $dependencies['module']);
     $this->assertContains('search_api.index.database_search_index', $dependencies['config']);
     $this->assertContains('views.view.search_api_test_view', $dependencies['config']);
+  }
+
+  /**
+   * Tests whether block displays' "rendered in current request" work correctly.
+   */
+  public function testBlockRenderedInCurrentRequest() {
+    $this->installConfig('search_api_test_views');
+    \Drupal::service('theme_installer')->install(['stable9']);
+    \Drupal::service('theme_installer')->install(['claro']);
+
+    $block = $this->placeBlock('views_block:search_api_test_block_view-block_1', [
+      'theme' => 'stable9',
+    ]);
+    $this->assertTrue($block->status());
+
+    /** @var \Drupal\search_api\Plugin\search_api\display\ViewsBlock $display */
+    $display = $this->container
+      ->get('plugin.manager.search_api.display')
+      ->createInstance('views_block:search_api_test_block_view__block_1');
+    $this->assertEquals('views_block:search_api_test_block_view__block_1', $display->getPluginId());
+
+    $theme = $this->createMock(ActiveTheme::class);
+    $theme->method('getName')->willReturn('claro', 'stable9');
+    $theme_manager = $this->createMock(ThemeManagerInterface::class);
+    $theme_manager->method('getActiveTheme')->willReturn($theme);
+    $display->setThemeManager($theme_manager);
+
+    // In the first call, active theme will be reported as "claro", so block
+    // would not be rendered; in the second call, with theme "stable9", it
+    // should be.
+    $this->assertFalse($display->isRenderedInCurrentRequest());
+    $this->assertTrue($display->isRenderedInCurrentRequest());
   }
 
 }

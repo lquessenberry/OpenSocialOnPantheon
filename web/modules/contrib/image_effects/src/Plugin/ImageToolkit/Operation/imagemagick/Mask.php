@@ -24,16 +24,16 @@ class Mask extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    if ($this->getToolkit()->getPackage() === 'graphicsmagick') {
+    if ($this->getToolkit()->getExecManager()->getPackage() === 'graphicsmagick') {
       // GraphicsMagick does not support this operation, return early.
       // @todo implement a GraphicsMagick solution if possible.
       return FALSE;
     }
 
     // Mask image local path.
-    $local_path = $arguments['mask_image']->getToolkit()->getSourceLocalPath();
+    $local_path = $arguments['mask_image']->getToolkit()->ensureSourceLocalPath();
     if ($local_path !== '') {
-      $image_path = $this->getToolkit()->escapeShellArg($local_path);
+      $image_path = $this->escapeArgument($local_path);
     }
     else {
       $source_path = $arguments['mask_image']->getToolkit()->getSource();
@@ -53,7 +53,7 @@ class Mask extends ImagemagickImageToolkitOperationBase {
     // Prepare argument.
     $op = "-gravity None {$image_path} -geometry {$w}x{$h}!{$x}{$y} -alpha Off -compose CopyOpacity -composite -gravity none -background transparent -compose src-over -extent {$this->getToolkit()->getWidth()}x{$this->getToolkit()->getHeight()}";
 
-    $this->getToolkit()->addArgument($op);
+    $this->addArgument($op);
     return TRUE;
   }
 

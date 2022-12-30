@@ -67,11 +67,23 @@ interface UnsavedConfigurationInterface {
 
   /**
    * Saves the changes represented by this object permanently.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   *   Thrown if the "search_api_index" storage handler couldn't be loaded.
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   *   Thrown if the "search_api_index" entity type doesn't exist.
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   Thrown if saving the index failed.
+   * @throws \Drupal\Core\TempStore\TempStoreException
+   *   Thrown when a lock for the temp storage could not be acquired.
    */
   public function savePermanent();
 
   /**
    * Discards the changes represented by this object.
+   *
+   * @throws \Drupal\Core\TempStore\TempStoreException
+   *   Thrown when a lock for the temp storage could not be acquired.
    */
   public function discardChanges();
 

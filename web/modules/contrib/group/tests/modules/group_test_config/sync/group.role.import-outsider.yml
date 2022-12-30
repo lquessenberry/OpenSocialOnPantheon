@@ -1,0 +1,15 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - group.type.import
+id: import-outsider
+label: Outsider
+weight: -101
+internal: true
+audience: outsider
+group_type: import
+permissions_ui: true
+permissions:
+  - 'join group'
+  - 'view group'

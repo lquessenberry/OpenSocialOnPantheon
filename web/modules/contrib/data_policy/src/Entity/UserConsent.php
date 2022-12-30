@@ -6,6 +6,7 @@ use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\user\UserInterface;
 
 /**
@@ -160,12 +161,16 @@ class UserConsent extends ContentEntityBase implements UserConsentInterface {
     $fields['data_policy_revision_id'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('Data policy revision ID'))
       ->setReadOnly(TRUE)
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED)
       ->setSetting('unsigned', TRUE);
 
     $fields['state'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('State of consent'))
       ->setReadOnly(TRUE)
       ->setSetting('unsigned', TRUE);
+
+    $fields['required'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(t('Required'));
 
     $fields['status'] = BaseFieldDefinition::create('boolean')
       ->setLabel(t('Publishing status'))
@@ -182,6 +187,21 @@ class UserConsent extends ContentEntityBase implements UserConsentInterface {
       ->setDescription(t('The time that the entity was last edited.'));
 
     return $fields;
+  }
+
+  /**
+   * Override of the default label() function to return a human-friendly name.
+   *
+   * @return \Drupal\Component\Render\MarkupInterface|string
+   *   Return user display name.
+   */
+  public function label() {
+    $user = $this->getOwner();
+    if ($user && $user->getDisplayName()) {
+      return $user->getDisplayName();
+    }
+
+    return '';
   }
 
 }

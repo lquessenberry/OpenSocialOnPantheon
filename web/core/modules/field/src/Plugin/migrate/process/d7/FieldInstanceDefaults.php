@@ -17,7 +17,7 @@ class FieldInstanceDefaults extends ProcessPluginBase {
    * {@inheritdoc}
    */
   public function transform($value, MigrateExecutableInterface $migrate_executable, Row $row, $destination_property) {
-    list($default_value, $widget_settings) = $value;
+    [$default_value, $widget_settings] = $value;
     $widget_type = $widget_settings['type'];
     $default_value = $default_value ?: [];
 
@@ -28,17 +28,12 @@ class FieldInstanceDefaults extends ProcessPluginBase {
       unset($default_value[0]['email']);
     }
 
-    $default = [];
-
-    foreach ($default_value as $item) {
-      switch ($widget_type) {
-        // Add special processing here if needed.
-        default:
-          $default[] = $item;
-      }
+    if ($widget_type == 'link_field' && $default_value) {
+      $default_value[0]['uri'] = $default_value[0]['url'];
+      $default_value[0]['options'] = ['attributes' => []];
+      unset($default_value[0]['url']);
     }
-
-    return $default;
+    return $default_value;
   }
 
 }

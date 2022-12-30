@@ -3,6 +3,7 @@
 namespace Drupal\Tests\group\Kernel;
 
 use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Render\BubbleableMetadata;
 
 /**
@@ -31,10 +32,10 @@ class GroupTokenReplaceTest extends GroupTokenReplaceKernelTestBase {
     $tests['[group:id]'] = $group->id();
     $tests['[group:type]'] = 'default';
     $tests['[group:type-name]'] = 'Default label';
-    $tests['[group:title]'] = $group->label();
+    $tests['[group:title]'] = Html::escape($group->label());
     $tests['[group:langcode]'] = $group->language()->getId();
-    $tests['[group:url]'] = $group->url('canonical', $url_options);
-    $tests['[group:edit-url]'] = $group->url('edit-form', $url_options);
+    $tests['[group:url]'] = $group->toUrl('canonical', $url_options)->toString();
+    $tests['[group:edit-url]'] = $group->toUrl('edit-form', $url_options)->toString();
     $tests['[group:author]'] = $account->getAccountName();
     $tests['[group:author:uid]'] = $group->getOwnerId();
     $tests['[group:author:name]'] = $account->getAccountName();
@@ -49,7 +50,6 @@ class GroupTokenReplaceTest extends GroupTokenReplaceKernelTestBase {
     $metadata_tests['[group:type-name]'] = $base_bubbleable_metadata;
     $metadata_tests['[group:title]'] = $base_bubbleable_metadata;
     $metadata_tests['[group:langcode]'] = $base_bubbleable_metadata;
-    $metadata_tests['[group:url]'] = $base_bubbleable_metadata;
     $metadata_tests['[group:edit-url]'] = $base_bubbleable_metadata;
     $bubbleable_metadata = clone $base_bubbleable_metadata;
     $metadata_tests['[group:author]'] = $bubbleable_metadata->addCacheTags($account->getCacheTags());
@@ -58,6 +58,7 @@ class GroupTokenReplaceTest extends GroupTokenReplaceKernelTestBase {
     $bubbleable_metadata = clone $base_bubbleable_metadata;
     $metadata_tests['[group:created:since]'] = $bubbleable_metadata->setCacheMaxAge(0);
     $metadata_tests['[group:changed:since]'] = $bubbleable_metadata;
+    $metadata_tests['[group:url]'] = $bubbleable_metadata;
 
     // Test to make sure that we generated something for each token.
     $this->assertFalse(in_array(0, array_map('strlen', $tests)), 'No empty tokens generated.');

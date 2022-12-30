@@ -1,8 +1,8 @@
 <?php
+
 namespace Drush\Drupal\Commands\sql;
 
 use Consolidation\AnnotatedCommand\CommandData;
-use Drupal\Core\Database\Database;
 use Drush\Commands\DrushCommands;
 use Drush\Drush;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,7 +33,7 @@ class SanitizeCommentsCommands extends DrushCommands implements SanitizePluginIn
      *
      * @inheritdoc
      */
-    public function sanitize($result, CommandData $commandData)
+    public function sanitize($result, CommandData $commandData): void
     {
         if ($this->applies()) {
             //Update anon.
@@ -48,8 +48,8 @@ class SanitizeCommentsCommands extends DrushCommands implements SanitizePluginIn
 
             // Update auth.
             $this->database->update('comment_field_data')
-              ->expression('name', "CONCAT('User', `uid`)")
-              ->expression('mail', "CONCAT('user+', `uid`, '@example.com')")
+              ->expression('name', "CONCAT('User', uid)")
+              ->expression('mail', "CONCAT('user+', uid, '@example.com')")
               ->fields(['homepage' => 'http://example.com'])
               ->condition('uid', 1, '>=')
               ->execute();
@@ -62,7 +62,7 @@ class SanitizeCommentsCommands extends DrushCommands implements SanitizePluginIn
      *
      * @inheritdoc
      */
-    public function messages(&$messages, InputInterface $input)
+    public function messages(&$messages, InputInterface $input): void
     {
         if ($this->applies()) {
             $messages[] = dt('Remove comment display names and emails.');

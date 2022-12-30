@@ -10,21 +10,27 @@ use Drupal\Tests\BrowserTestBase;
  * @group system
  */
 class IndexPhpTest extends BrowserTestBase {
-  protected function setUp() {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
   }
 
   /**
-   * Test index.php handling.
+   * Tests index.php handling.
    */
   public function testIndexPhpHandling() {
     $index_php = $GLOBALS['base_url'] . '/index.php';
 
     $this->drupalGet($index_php, ['external' => TRUE]);
-    $this->assertResponse(200, 'Make sure index.php returns a valid page.');
+    $this->assertSession()->statusCodeEquals(200);
 
     $this->drupalGet($index_php . '/user', ['external' => TRUE]);
-    $this->assertResponse(200, 'Make sure index.php/user returns a valid page.');
+    $this->assertSession()->statusCodeEquals(200);
   }
 
 }

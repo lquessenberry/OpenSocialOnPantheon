@@ -70,13 +70,14 @@ class ImageEffectsPxPerc extends FormElement {
     ];
 
     // Determine UoM and value.
-    if (strpos($element['#default_value'], '%') !== FALSE) {
+    $default_value = $element['#default_value'] ?? '';
+    if (strpos($default_value, '%') !== FALSE) {
       $uom = 'perc';
-      $val = str_replace('%', '', $element['#default_value']);
+      $val = str_replace('%', '', $default_value);
     }
     else {
       $uom = 'px';
-      $val = $element['#default_value'];
+      $val = $default_value;
     }
 
     // Form elements.

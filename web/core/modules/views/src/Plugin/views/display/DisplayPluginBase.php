@@ -4,7 +4,8 @@ namespace Drupal\views\Plugin\views\display;
 
 use Drupal\Component\Plugin\DependentPluginInterface;
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Cache\CacheableDependencyInterface;
@@ -12,6 +13,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Plugin\PluginDependencyTrait;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\views\Form\ViewsForm;
 use Drupal\views\Plugin\views\area\AreaPluginBase;
@@ -361,9 +363,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
    * {@inheritdoc}
    */
   public function acceptAttachments() {
-    // To be able to accept attachments this display have to be able to use
-    // attachments but at the same time, you cannot attach a display to itself.
-    if (!$this->usesAttachments() || ($this->definition['id'] == $this->view->current_display)) {
+    if (!$this->usesAttachments()) {
       return FALSE;
     }
 
@@ -439,7 +439,6 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     // If the display cannot use a pager, then we cannot default it.
     if (!$this->usesPager()) {
       unset($sections['pager']);
-      unset($sections['items_per_page']);
     }
 
     foreach ($this->extenders as $extender) {
@@ -806,7 +805,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     // Query plugins allow specifying a specific query class per base table.
     if ($type == 'query') {
       $views_data = Views::viewsData()->get($this->view->storage->get('base_table'));
-      $name = isset($views_data['table']['base']['query_id']) ? $views_data['table']['base']['query_id'] : 'views_query';
+      $name = $views_data['table']['base']['query_id'] ?? 'views_query';
     }
     else {
       $name = $options['type'];
@@ -962,7 +961,6 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     return $this->dependencies;
   }
 
-
   /**
    * {@inheritdoc}
    */
@@ -1022,25 +1020,25 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     }
 
     if (!empty($class)) {
-      $text = SafeMarkup::format('<span>@text</span>', ['@text' => $text]);
+      $text = new FormattableMarkup('<span>@text</span>', ['@text' => $text]);
     }
 
     if (empty($title)) {
       $title = $text;
     }
 
-    return \Drupal::l($text, new Url('views_ui.form_display', [
+    return Link::fromTextAndUrl($text, Url::fromRoute('views_ui.form_display', [
         'js' => 'nojs',
         'view' => $this->view->storage->id(),
         'display_id' => $this->display['id'],
-        'type' => $section
+        'type' => $section,
       ], [
         'attributes' => [
           'class' => ['views-ajax-link', $class],
           'title' => $title,
-          'id' => Html::getUniqueId('views-' . $this->display['id'] . '-' . $section)
-        ]
-    ]));
+          'id' => Html::getUniqueId('views-' . $this->display['id'] . '-' . $section),
+        ],
+    ]))->toString();
   }
 
   /**
@@ -1405,6 +1403,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#size' => 64,
         ];
         break;
+
       case 'display_title':
         $form['#title'] .= $this->t('The name and the description of this display');
         $form['display_title'] = [
@@ -1418,6 +1417,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('display_description'),
         ];
         break;
+
       case 'display_comment':
         $form['#title'] .= $this->t('Administrative comment');
         $form['display_comment'] = [
@@ -1427,6 +1427,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('display_comment'),
         ];
         break;
+
       case 'title':
         $form['#title'] .= $this->t('The title of this view');
         $form['title'] = [
@@ -1437,6 +1438,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#maxlength' => 255,
         ];
         break;
+
       case 'css_class':
         $form['#title'] .= $this->t('CSS class');
         $form['css_class'] = [
@@ -1446,6 +1448,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('css_class'),
         ];
         break;
+
       case 'use_ajax':
         $form['#title'] .= $this->t('AJAX');
         $form['use_ajax'] = [
@@ -1455,6 +1458,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('use_ajax') ? 1 : 0,
         ];
         break;
+
       case 'hide_attachment_summary':
         $form['#title'] .= $this->t('Hide attachments when displaying a contextual filter summary');
         $form['hide_attachment_summary'] = [
@@ -1463,6 +1467,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('hide_attachment_summary') ? 1 : 0,
         ];
         break;
+
       case 'show_admin_links':
         $form['#title'] .= $this->t('Show contextual links on this view.');
         $form['show_admin_links'] = [
@@ -1471,6 +1476,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('show_admin_links'),
         ];
         break;
+
       case 'use_more':
         $form['#title'] .= $this->t('Add a more link to the bottom of the display.');
         $form['use_more'] = [
@@ -1502,6 +1508,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           ],
         ];
         break;
+
       case 'group_by':
         $form['#title'] .= $this->t('Allow grouping and aggregation (calculation) of fields.');
         $form['group_by'] = [
@@ -1511,6 +1518,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('group_by'),
         ];
         break;
+
       case 'access':
         $form['#title'] .= $this->t('Access restrictions');
         $form['access'] = [
@@ -1538,6 +1546,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
         }
 
         break;
+
       case 'access_options':
         $plugin = $this->getPlugin('access');
         $form['#title'] .= $this->t('Access options');
@@ -1548,6 +1557,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $plugin->buildOptionsForm($form['access_options'], $form_state);
         }
         break;
+
       case 'cache':
         $form['#title'] .= $this->t('Caching');
         $form['cache'] = [
@@ -1574,6 +1584,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           ];
         }
         break;
+
       case 'cache_options':
         $plugin = $this->getPlugin('cache');
         $form['#title'] .= $this->t('Caching options');
@@ -1584,6 +1595,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $plugin->buildOptionsForm($form['cache_options'], $form_state);
         }
         break;
+
       case 'query':
         $query_options = $this->getOption('query');
         $plugin_name = $query_options['type'];
@@ -1605,6 +1617,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $this->view->query->buildOptionsForm($form['query']['options'], $form_state);
         }
         break;
+
       case 'rendering_language':
         $form['#title'] .= $this->t('Rendering language');
         if (\Drupal::languageManager()->isMultilingual() && $this->isBaseTableTranslatable()) {
@@ -1621,6 +1634,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $form['rendering_language']['#markup'] = $this->t('The view is not based on a translatable entity type or the site is not multilingual.');
         }
         break;
+
       case 'style':
         $form['#title'] .= $this->t('How should this view be styled');
         $style_plugin = $this->getPlugin('style');
@@ -1647,6 +1661,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
         }
 
         break;
+
       case 'style_options':
         $form['#title'] .= $this->t('Style options');
         $style = TRUE;
@@ -1670,6 +1685,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $plugin->buildOptionsForm($form[$section], $form_state);
         }
         break;
+
       case 'row':
         $form['#title'] .= $this->t('How should each row in this view be styled');
         $row_plugin_instance = $this->getPlugin('row');
@@ -1695,6 +1711,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
         }
 
         break;
+
       case 'link_display':
         $form['#title'] .= $this->t('Which display to use for path');
         $options = [FALSE => $this->t('None'), 'custom_url' => $this->t('Custom URL')];
@@ -1758,6 +1775,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           ],
         ];
         break;
+
       case 'exposed_block':
         $form['#title'] .= $this->t('Put the exposed form in a block');
         $form['description'] = [
@@ -1769,6 +1787,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           '#default_value' => $this->getOption('exposed_block') ? 1 : 0,
         ];
         break;
+
       case 'exposed_form':
         $form['#title'] .= $this->t('Exposed Form');
         $form['exposed_form'] = [
@@ -1795,6 +1814,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           ];
         }
         break;
+
       case 'exposed_form_options':
         $plugin = $this->getPlugin('exposed_form');
         $form['#title'] .= $this->t('Exposed form options');
@@ -1805,6 +1825,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $plugin->buildOptionsForm($form['exposed_form_options'], $form_state);
         }
         break;
+
       case 'pager':
         $form['#title'] .= $this->t('Select pager');
         $form['pager'] = [
@@ -1832,6 +1853,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
         }
 
         break;
+
       case 'pager_options':
         $plugin = $this->getPlugin('pager');
         $form['#title'] .= $this->t('Pager options');
@@ -1860,16 +1882,18 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $form_state->setError($form['display_title'], $this->t('Display title may not be empty.'));
         }
         break;
+
       case 'css_class':
         $css_class = $form_state->getValue('css_class');
         if (preg_match('/[^a-zA-Z0-9-_ ]/', $css_class)) {
           $form_state->setError($form['css_class'], $this->t('CSS classes must be alphanumeric or dashes only.'));
         }
         break;
+
       case 'display_id':
         if ($form_state->getValue('display_id')) {
           if (preg_match('/[^a-z0-9_]/', $form_state->getValue('display_id'))) {
-            $form_state->setError($form['display_id'], $this->t('Display name must be letters, numbers, or underscores only.'));
+            $form_state->setError($form['display_id'], $this->t('Display machine name must contain only lowercase letters, numbers, or underscores.'));
           }
 
           foreach ($this->view->displayHandlers as $id => $display) {
@@ -1879,6 +1903,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           }
         }
         break;
+
       case 'query':
         if ($this->view->query) {
           $this->view->query->validateOptionsForm($form['query'], $form_state);
@@ -1918,10 +1943,12 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
           $this->display['new_id'] = $form_state->getValue('display_id');
         }
         break;
+
       case 'display_title':
         $this->display['display_title'] = $form_state->getValue('display_title');
         $this->setOption('display_description', $form_state->getValue('display_description'));
         break;
+
       case 'query':
         $plugin = $this->getPlugin('query');
         if ($plugin) {
@@ -1939,15 +1966,18 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
       case 'group_by':
         $this->setOption($section, $form_state->getValue($section));
         break;
+
       case 'rendering_language':
         $this->setOption('rendering_language', $form_state->getValue('rendering_language'));
         break;
+
       case 'use_ajax':
       case 'hide_attachment_summary':
       case 'show_admin_links':
       case 'exposed_block':
         $this->setOption($section, (bool) $form_state->getValue($section));
         break;
+
       case 'use_more':
         $this->setOption($section, intval($form_state->getValue($section)));
         $this->setOption('use_more_always', intval($form_state->getValue('use_more_always')));
@@ -2071,38 +2101,65 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
    * {@inheritdoc}
    */
   public function renderMoreLink() {
-    if ($this->isMoreEnabled() && ($this->useMoreAlways() || (!empty($this->view->pager) && $this->view->pager->hasMoreRecords()))) {
-      // If the user has supplied a custom "More" link path, replace any
-      // argument tokens and use that for the URL.
-      if ($this->getOption('link_display') == 'custom_url' && $override_path = $this->getOption('link_url')) {
-        $tokens = $this->getArgumentsTokens();
-        $path = $this->viewsTokenReplace($override_path, $tokens);
-        // @todo Views should expect and store a leading /. See:
-        //   https://www.drupal.org/node/2423913
-        $url = Url::fromUserInput('/' . $path);
-      }
-      // Otherwise, use the URL for the display.
-      else {
-        $url = $this->view->getUrl(NULL, $this->display['id']);
-      }
+    $hasMoreRecords = !empty($this->view->pager) && $this->view->pager->hasMoreRecords();
+    if ($this->isMoreEnabled() && ($this->useMoreAlways() || $hasMoreRecords)) {
+      $url = $this->getMoreUrl();
 
-      // If a URL is available (either from the display or a custom path),
-      // render the "More" link.
-      if ($url) {
-        $url_options = [];
-        if (!empty($this->view->exposed_raw_input)) {
-          $url_options['query'] = $this->view->exposed_raw_input;
-        }
-        $url->setOptions($url_options);
-
-        return [
-          '#type' => 'more_link',
-          '#url' => $url,
-          '#title' => $this->useMoreText(),
-          '#view' => $this->view,
-        ];
-      }
+      return [
+        '#type' => 'more_link',
+        '#url' => $url,
+        '#title' => $this->useMoreText(),
+        '#view' => $this->view,
+      ];
     }
+  }
+
+  /**
+   * Get the more URL for this view.
+   *
+   * Uses the custom URL if there is one, otherwise the display path.
+   *
+   * @return \Drupal\Core\Url
+   *   The more link as Url object.
+   */
+  protected function getMoreUrl() {
+    $path = $this->getOption('link_url');
+
+    // Return the display URL if there is no custom url.
+    if ($this->getOption('link_display') !== 'custom_url' || empty($path)) {
+      return $this->view->getUrl(NULL, $this->display['id']);
+    }
+
+    $parts = UrlHelper::parse($path);
+    $options = $parts;
+    $tokens = $this->getArgumentsTokens();
+
+    // If there are no tokens there is nothing else to do.
+    if (!empty($tokens)) {
+      $parts['path'] = $this->viewsTokenReplace($parts['path'], $tokens);
+      $parts['fragment'] = $this->viewsTokenReplace($parts['fragment'], $tokens);
+
+      // Handle query parameters where the key is part of an array.
+      // For example, f[0] for facets.
+      array_walk_recursive($parts['query'], function (&$value) use ($tokens) {
+        $value = $this->viewsTokenReplace($value, $tokens);
+      });
+      $options = $parts;
+    }
+
+    $path = $options['path'];
+    unset($options['path']);
+
+    // Create url.
+    // @todo Views should expect and store a leading /. See:
+    //   https://www.drupal.org/node/2423913
+    $url = UrlHelper::isExternal($path) ? Url::fromUri($path, $options) : Url::fromUserInput('/' . ltrim($path, '/'), $options);
+
+    // Merge the exposed query parameters.
+    if (!empty($this->view->exposed_raw_input)) {
+      $url->mergeOptions(['query' => $this->view->exposed_raw_input]);
+    }
+    return $url;
   }
 
   /**
@@ -2128,6 +2185,15 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public static function trustedCallbacks() {
+    $callbacks = parent::trustedCallbacks();
+    $callbacks[] = 'elementPreRender';
+    return $callbacks;
+  }
+
+  /**
    * Applies the cacheability of the current display to the given render array.
    *
    * @param array $element
@@ -2138,27 +2204,11 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     $cache = $this->getPlugin('cache');
 
     (new CacheableMetadata())
-      ->setCacheTags(Cache::mergeTags($this->view->getCacheTags(), isset($this->display['cache_metadata']['tags']) ? $this->display['cache_metadata']['tags'] : []))
-      ->setCacheContexts(isset($this->display['cache_metadata']['contexts']) ? $this->display['cache_metadata']['contexts'] : [])
-      ->setCacheMaxAge(Cache::mergeMaxAges($cache->getCacheMaxAge(), isset($this->display['cache_metadata']['max-age']) ? $this->display['cache_metadata']['max-age'] : Cache::PERMANENT))
+      ->setCacheTags(Cache::mergeTags($this->view->getCacheTags(), $this->display['cache_metadata']['tags'] ?? []))
+      ->setCacheContexts($this->display['cache_metadata']['contexts'] ?? [])
+      ->setCacheMaxAge(Cache::mergeMaxAges($cache->getCacheMaxAge(), $this->display['cache_metadata']['max-age'] ?? Cache::PERMANENT))
       ->merge(CacheableMetadata::createFromRenderArray($element))
       ->applyTo($element);
-  }
-
-  /**
-   * Applies the cacheability of the current display to the given render array.
-   *
-   * @param array $element
-   *   The render array with updated cacheability metadata.
-   *
-   * @deprecated in Drupal 8.4.0, will be removed before Drupal 9.0. Use
-   *   DisplayPluginBase::applyDisplayCacheabilityMetadata instead.
-   *
-   * @see \Drupal\views\Plugin\views\display\DisplayPluginBase::applyDisplayCacheabilityMetadata()
-   */
-  protected function applyDisplayCachablityMetadata(array &$element) {
-    @trigger_error('The DisplayPluginBase::applyDisplayCachablityMetadata method is deprecated since version 8.4 and will be removed in 9.0. Use DisplayPluginBase::applyDisplayCacheabilityMetadata instead.', E_USER_DEPRECATED);
-    $this->applyDisplayCacheabilityMetadata($element);
   }
 
   /**
@@ -2181,7 +2231,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     $element['#feed_icons'] = !empty($view->feedIcons) ? $view->feedIcons : [];
 
     if ($view->display_handler->renderPager()) {
-      $exposed_input = isset($view->exposed_raw_input) ? $view->exposed_raw_input : NULL;
+      $exposed_input = $view->exposed_raw_input ?? NULL;
       $element['#pager'] = $view->renderPager($exposed_input);
     }
 
@@ -2359,6 +2409,12 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
       // Places like \Drupal\views\ViewExecutable::setCurrentPage() set up an
       // additional cache context.
       $this->view->element['#cache']['keys'] = array_merge(['views', 'display', $this->view->element['#name'], $this->view->element['#display_id']], $this->view->element['#cache']['keys']);
+
+      // Add arguments to the cache key.
+      if ($args) {
+        $this->view->element['#cache']['keys'][] = 'args';
+        $this->view->element['#cache']['keys'][] = implode(',', $args);
+      }
     }
     else {
       // Remove the cache keys, to ensure render caching is not triggered. We
@@ -2463,7 +2519,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
     // Check for missing relationships.
     $relationships = array_keys($this->getHandlers('relationship'));
     foreach (ViewExecutable::getHandlerTypes() as $type => $handler_type_info) {
-      foreach ($this->getHandlers($type) as $handler_id => $handler) {
+      foreach ($this->getHandlers($type) as $handler) {
         if (!empty($handler->options['relationship']) && $handler->options['relationship'] != 'none' && !in_array($handler->options['relationship'], $relationships)) {
           $errors[] = $this->t('The %handler_type %handler uses a relationship that has been removed.', ['%handler_type' => $handler_type_info['lstitle'], '%handler' => $handler->adminLabel()]);
         }
@@ -2477,6 +2533,14 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
         if (!empty($result) && is_array($result)) {
           $errors = array_merge($errors, $result);
         }
+      }
+    }
+
+    // Validate extenders.
+    foreach ($this->extenders as $extender) {
+      $result = $extender->validate();
+      if (!empty($result) && is_array($result)) {
+        $errors = array_merge($errors, $result);
       }
     }
 
@@ -2502,7 +2566,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
             }
           }
           else {
-            if ($id != $key && $identifier == $handler->options['expose']['identifier']) {
+            if ($id != $key && isset($handler->options['expose']['identifier']) && $identifier == $handler->options['expose']['identifier']) {
               return FALSE;
             }
           }
@@ -2587,7 +2651,7 @@ abstract class DisplayPluginBase extends PluginBase implements DisplayPluginInte
   public function getPagerText() {
     return [
       'items per page title' => $this->t('Items to display'),
-      'items per page description' => $this->t('Enter 0 for no limit.')
+      'items per page description' => $this->t('Enter 0 for no limit.'),
     ];
   }
 

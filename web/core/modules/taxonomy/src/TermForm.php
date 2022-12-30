@@ -3,6 +3,7 @@
 namespace Drupal\taxonomy;
 
 use Drupal\Core\Entity\ContentEntityForm;
+use Drupal\Core\Entity\EntityConstraintViolationListInterface;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -17,18 +18,24 @@ class TermForm extends ContentEntityForm {
    */
   public function form(array $form, FormStateInterface $form_state) {
     $term = $this->entity;
-    $vocab_storage = $this->entityManager->getStorage('taxonomy_vocabulary');
-    $taxonomy_storage = $this->entityManager->getStorage('taxonomy_term');
+    $vocab_storage = $this->entityTypeManager->getStorage('taxonomy_vocabulary');
+    /** @var \Drupal\taxonomy\TermStorageInterface $taxonomy_storage */
+    $taxonomy_storage = $this->entityTypeManager->getStorage('taxonomy_term');
     $vocabulary = $vocab_storage->load($term->bundle());
 
-    $parent = array_keys($taxonomy_storage->loadParents($term->id()));
+    $parent = [];
+    // Get the parent directly from the term as
+    // \Drupal\taxonomy\TermStorageInterface::loadParents() excludes the root.
+    foreach ($term->get('parent') as $item) {
+      $parent[] = (int) $item->target_id;
+    }
     $form_state->set(['taxonomy', 'parent'], $parent);
     $form_state->set(['taxonomy', 'vocabulary'], $vocabulary);
 
     $form['relations'] = [
       '#type' => 'details',
       '#title' => $this->t('Relations'),
-      '#open' => $vocabulary->getHierarchy() == VocabularyInterface::HIERARCHY_MULTIPLE,
+      '#open' => $taxonomy_storage->getVocabularyHierarchyType($vocabulary->id()) == VocabularyInterface::HIERARCHY_MULTIPLE,
       '#weight' => 10,
     ];
 
@@ -40,7 +47,6 @@ class TermForm extends ContentEntityForm {
     if (!$this->config('taxonomy.settings')->get('override_selector')) {
       $exclude = [];
       if (!$term->isNew()) {
-        $parent = array_keys($taxonomy_storage->loadParents($term->id()));
         $children = $taxonomy_storage->loadTree($vocabulary->id(), $term->id());
 
         // A term can't be the child of itself, nor of its children.
@@ -61,15 +67,19 @@ class TermForm extends ContentEntityForm {
           $options[$item->tid] = str_repeat('-', $item->depth) . $item->name;
         }
       }
-
-      $form['relations']['parent'] = [
-        '#type' => 'select',
-        '#title' => $this->t('Parent terms'),
-        '#options' => $options,
-        '#default_value' => $parent,
-        '#multiple' => TRUE,
-      ];
     }
+    else {
+      $options = ['<' . $this->t('root') . '>'];
+      $parent = [0];
+    }
+
+    $form['relations']['parent'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Parent terms'),
+      '#options' => $options,
+      '#default_value' => $parent,
+      '#multiple' => TRUE,
+    ];
 
     $form['relations']['weight'] = [
       '#type' => 'textfield',
@@ -96,6 +106,37 @@ class TermForm extends ContentEntityForm {
   /**
    * {@inheritdoc}
    */
+  protected function actions(array $form, FormStateInterface $form_state) {
+    $element = parent::actions($form, $form_state);
+    if (!$this->getRequest()->query->has('destination')) {
+      $element['overview'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Save and go to list'),
+        '#weight' => 20,
+        '#submit' => array_merge($element['submit']['#submit'], ['::overview']),
+      ];
+    }
+
+    return $element;
+  }
+
+  /**
+   * Form submission handler for the 'overview' action.
+   *
+   * @param array[] $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public function overview(array $form, FormStateInterface $form_state): void {
+    $vocabulary = $this->entityTypeManager->getStorage('taxonomy_vocabulary')
+      ->load($form_state->getValue('vid'));
+    $form_state->setRedirectUrl($vocabulary->toUrl('overview-form'));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     parent::validateForm($form, $form_state);
 
@@ -115,9 +156,34 @@ class TermForm extends ContentEntityForm {
     $term->setName(trim($term->getName()));
 
     // Assign parents with proper delta values starting from 0.
-    $term->parent = array_keys($form_state->getValue('parent'));
+    $term->parent = array_values($form_state->getValue('parent'));
 
     return $term;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getEditedFieldNames(FormStateInterface $form_state) {
+    return array_merge(['parent', 'weight'], parent::getEditedFieldNames($form_state));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function flagViolations(EntityConstraintViolationListInterface $violations, array $form, FormStateInterface $form_state) {
+    // Manually flag violations of fields not handled by the form display. This
+    // is necessary as entity form displays only flag violations for fields
+    // contained in the display.
+    // @see ::form()
+    foreach ($violations->getByField('parent') as $violation) {
+      $form_state->setErrorByName('parent', $violation->getMessage());
+    }
+    foreach ($violations->getByField('weight') as $violation) {
+      $form_state->setErrorByName('weight', $violation->getMessage());
+    }
+
+    parent::flagViolations($violations, $form, $form_state);
   }
 
   /**
@@ -128,38 +194,24 @@ class TermForm extends ContentEntityForm {
 
     $result = $term->save();
 
-    $edit_link = $term->link($this->t('Edit'), 'edit-form');
-    $view_link = $term->link($term->getName());
+    $edit_link = $term->toLink($this->t('Edit'), 'edit-form')->toString();
+    $view_link = $term->toLink()->toString();
     switch ($result) {
       case SAVED_NEW:
-        drupal_set_message($this->t('Created new term %term.', ['%term' => $view_link]));
+        $this->messenger()->addStatus($this->t('Created new term %term.', ['%term' => $view_link]));
         $this->logger('taxonomy')->notice('Created new term %term.', ['%term' => $term->getName(), 'link' => $edit_link]);
         break;
+
       case SAVED_UPDATED:
-        drupal_set_message($this->t('Updated term %term.', ['%term' => $view_link]));
+        $this->messenger()->addStatus($this->t('Updated term %term.', ['%term' => $view_link]));
         $this->logger('taxonomy')->notice('Updated term %term.', ['%term' => $term->getName(), 'link' => $edit_link]);
         break;
     }
 
     $current_parent_count = count($form_state->getValue('parent'));
-    $previous_parent_count = count($form_state->get(['taxonomy', 'parent']));
     // Root doesn't count if it's the only parent.
     if ($current_parent_count == 1 && $form_state->hasValue(['parent', 0])) {
-      $current_parent_count = 0;
       $form_state->setValue('parent', []);
-    }
-
-    // If the number of parents has been reduced to one or none, do a check on the
-    // parents of every term in the vocabulary value.
-    $vocabulary = $form_state->get(['taxonomy', 'vocabulary']);
-    if ($current_parent_count < $previous_parent_count && $current_parent_count < 2) {
-      taxonomy_check_vocabulary_hierarchy($vocabulary, $form_state->getValues());
-    }
-    // If we've increased the number of parents and this is a single or flat
-    // hierarchy, update the vocabulary immediately.
-    elseif ($current_parent_count > $previous_parent_count && $vocabulary->getHierarchy() != VocabularyInterface::HIERARCHY_MULTIPLE) {
-      $vocabulary->setHierarchy($current_parent_count == 1 ? VocabularyInterface::HIERARCHY_SINGLE : VocabularyInterface::HIERARCHY_MULTIPLE);
-      $vocabulary->save();
     }
 
     $form_state->setValue('tid', $term->id());

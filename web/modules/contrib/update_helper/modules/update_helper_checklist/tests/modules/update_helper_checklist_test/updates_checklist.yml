@@ -1,0 +1,18 @@
+v8.x-1.0:
+    '#title': 'Update to version v8.x-1.0'
+    '#description': '<h3>These are the new features for this release:</h3>'
+    update_helper_checklist_test_update_8001:
+        '#title': 'Configuration update.'
+        '#description': '<p>Configuration is successfully updated.</p>'
+        '#description_failed': '<p><strong>Update of configuration has failed.</strong><p>'
+    update_helper_checklist_test_update_8002:
+        '#title': 'Configuration update.'
+        '#description': '<p>Configuration is successfully updated.</p>'
+        '#description_failed': '<p><strong>Update of configuration has failed.</strong><p>'
+v8.x-1.1:
+    '#title': 'Update to version v8.x-1.1'
+    '#description': '<h3>These are the new features for this release:</h3>'
+    update_helper_checklist_test_update_8003:
+        '#title': 'Configuration update.'
+        '#description': '<p>Configuration is successfully updated.</p>'
+        '#description_failed': '<p><strong>Update of configuration has failed.</strong><p>'

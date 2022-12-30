@@ -20,7 +20,7 @@ use Symfony\Component\ExpressionLanguage\Expression;
 
 abstract class AbstractConfigurator
 {
-    const FACTORY = 'unknown';
+    public const FACTORY = 'unknown';
 
     /** @internal */
     protected $definition;
@@ -28,10 +28,23 @@ abstract class AbstractConfigurator
     public function __call($method, $args)
     {
         if (method_exists($this, 'set'.$method)) {
-            return \call_user_func_array(array($this, 'set'.$method), $args);
+            return $this->{'set'.$method}(...$args);
         }
 
-        throw new \BadMethodCallException(sprintf('Call to undefined method %s::%s()', \get_class($this), $method));
+        throw new \BadMethodCallException(sprintf('Call to undefined method "%s::%s()".', static::class, $method));
+    }
+
+    /**
+     * @return array
+     */
+    public function __sleep()
+    {
+        throw new \BadMethodCallException('Cannot serialize '.__CLASS__);
+    }
+
+    public function __wakeup()
+    {
+        throw new \BadMethodCallException('Cannot unserialize '.__CLASS__);
     }
 
     /**
@@ -69,7 +82,7 @@ abstract class AbstractConfigurator
 
         switch (true) {
             case null === $value:
-            case is_scalar($value):
+            case \is_scalar($value):
                 return $value;
 
             case $value instanceof ArgumentInterface:

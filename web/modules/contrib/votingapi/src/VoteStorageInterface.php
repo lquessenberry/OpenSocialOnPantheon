@@ -10,55 +10,73 @@ use Drupal\Core\Entity\EntityStorageInterface;
 interface VoteStorageInterface extends EntityStorageInterface {
 
   /**
-   * Get votes for a user
+   * Gets votes for a user.
    *
-   * @param $uid
+   * @param int $uid
+   *   User ID.
    * @param string $vote_type_id
+   *   The vote type ID.
    * @param string $entity_type_id
+   *   The entity type ID.
    * @param int $entity_id
+   *   The entity ID.
    * @param string $vote_source
    *   The vote source, only used if $uid == 0.
    *
    * @return mixed
+   *   Returns the user votes.
    */
-  function getUserVotes($uid, $vote_type_id = NULL, $entity_type_id = NULL, $entity_id = NULL, $vote_source = NULL);
+  public function getUserVotes($uid, $vote_type_id = NULL, $entity_type_id = NULL, $entity_id = NULL, $vote_source = NULL);
 
   /**
-   * Delete votes for a user
+   * Deletes votes for a user.
    *
-   * @param $uid
+   * @param int $uid
+   *   The User ID.
    * @param string $vote_type_id
+   *   The vote type ID.
    * @param string $entity_type_id
+   *   The entity type ID.
    * @param int $entity_id
+   *   The entity ID.
    * @param string $vote_source
    *   The vote source, only used if $uid == 0.
    *
-   * @return mixed
+   * @return bool
+   *   TRUE if the votes were deleted.
    */
-  function deleteUserVotes($uid, $vote_type_id = NULL, $entity_type_id = NULL, $entity_id = NULL, $vote_source = NULL);
+  public function deleteUserVotes($uid, $vote_type_id = NULL, $entity_type_id = NULL, $entity_id = NULL, $vote_source = NULL);
 
   /**
-   * The default vote source.
+   * Returns the default vote source.
    *
    * @param string $vote_source
+   *   The vote source.
    *
    * @return string
    *   The $vote_source parameter or, if it is NULL, the default vote source.
    */
-  static function defaultVoteSource($vote_source = NULL);
+  public static function defaultVoteSource($vote_source = NULL);
 
   /**
-   * Get votes since a determined moment
+   * Gets votes since a determined moment.
    *
    * @return mixed
+   *   Returns the votes since last cron run.
    */
-  function getVotesSinceMoment();
+  public function getVotesSinceMoment();
 
   /**
-   * @param $entity_type_id
-   * @param $entity_id
+   * Delets votes for deleted entity everywhere in the database.
    *
-   * @return boolean
+   * @param string $entity_type_id
+   *   The entity type ID.
+   * @param int $entity_id
+   *   The entity ID.
+   *
+   * @return bool
+   *   TRUE if the votes were deleted.
    */
-  function deleteVotesForDeletedEntity($entity_type_id, $entity_id);
+  public function deleteVotesForDeletedEntity($entity_type_id, $entity_id);
+
 }

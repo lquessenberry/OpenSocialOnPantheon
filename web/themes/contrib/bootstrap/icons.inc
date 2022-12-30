@@ -13,7 +13,7 @@ use Drupal\bootstrap\Bootstrap;
 function bootstrap_icon_providers() {
   $providers['bootstrap'] = [
     'title' => t('Bootstrap'),
-    'url' => 'https://getbootstrap.com/docs/3.3/components/#glyphicons',
+    'url' => 'https://getbootstrap.com/docs/3.4/components/#glyphicons',
   ];
   return $providers;
 }

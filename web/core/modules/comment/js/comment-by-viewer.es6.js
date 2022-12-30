@@ -14,9 +14,12 @@
       const currentUserID = parseInt(drupalSettings.user.uid, 10);
       $('[data-comment-user-id]')
         .filter(function () {
-          return parseInt(this.getAttribute('data-comment-user-id'), 10) === currentUserID;
+          return (
+            parseInt(this.getAttribute('data-comment-user-id'), 10) ===
+            currentUserID
+          );
         })
         .addClass('by-viewer');
     },
   };
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

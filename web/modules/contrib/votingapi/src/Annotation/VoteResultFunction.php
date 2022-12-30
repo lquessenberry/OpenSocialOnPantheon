@@ -7,7 +7,7 @@ use Drupal\Component\Annotation\Plugin;
 /**
  * Defines a voting result annotation object.
  *
- * Plugin Namespace: Plugin\votingapi\VoteResultFunction
+ * Plugin Namespace: Plugin\votingapi\VoteResultFunction.
  *
  * For a working example, see
  * \Drupal\votingapi\Plugin\VoteResultFunction\Sum
@@ -32,18 +32,18 @@ class VoteResultFunction extends Plugin {
   /**
    * The human-readable name of the voting result.
    *
-   * @ingroup plugin_translatable
-   *
    * @var \Drupal\Core\Annotation\Translation
+   *
+   * @ingroup plugin_translatable
    */
   public $label;
 
   /**
    * A brief description of the voting result.
    *
-   * @ingroup plugin_translatable
+   * @var \Drupal\Core\Annotation\Translation
    *
-   * @var \Drupal\Core\Annotation\Translation (optional)
+   * @ingroup plugin_translatable
    */
   public $description = '';
 

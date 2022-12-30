@@ -47,7 +47,15 @@ class SearchApiDate extends Date {
   }
 
   /**
-   * {@inheritdoc}
+   * Defines the operators supported by this filter.
+   *
+   * @return array[]
+   *   An associative array of operators, keyed by operator ID, with information
+   *   about that operator:
+   *   - title: The full title of the operator (translated).
+   *   - short: The short title of the operator (translated).
+   *   - method: The method to call for this operator in query().
+   *   - values: The number of values that this operator expects/needs.
    */
   public function operators() {
     $operators = parent::operators();
@@ -63,29 +71,9 @@ class SearchApiDate extends Date {
       return TRUE;
     }
 
-    // Unfortunately, this is necessary due to a bug in our parent filter. See
-    // #2704077.
-    if (!empty($this->options['expose']['identifier'])) {
-      $value = &$input[$this->options['expose']['identifier']];
-      if (!is_array($value)) {
-        $value = [
-          'value' => $value,
-        ];
-      }
-      $value += [
-        'min' => '',
-        'max' => '',
-      ];
-    }
-
-    // Store this because it will get overwritten by the grandparent, and the
-    // parent doesn't always restore it correctly.
-    $type = $this->value['type'];
     $return = parent::acceptExposedInput($input);
 
     if (!$return) {
-      // If the parent returns FALSE, it doesn't restore the "type" key.
-      $this->value['type'] = $type;
       // Override for the "(not) empty" operators.
       $operators = $this->operators();
       if ($operators[$this->operator]['values'] == 0) {
@@ -107,7 +95,7 @@ class SearchApiDate extends Date {
     }
     else {
       $a = intval(strtotime($this->value['min'], 0));
-      $b = intval(strtotime($this->value['max'], 0));
+      $b = intval(strtotime($this->value['max'] . ' +1 day', 0)) - 1;
     }
     $real_field = $this->realField;
     $operator = strtoupper($this->operator);
@@ -116,11 +104,14 @@ class SearchApiDate extends Date {
   }
 
   /**
-   * {@inheritdoc}
+   * Filters by a simple operator (=, !=, >, etc.).
+   *
+   * @param string $field
+   *   The views field.
    */
   protected function opSimple($field) {
     $value = intval(strtotime($this->value['value'], 0));
-    if (!empty($this->value['type']) && $this->value['type'] == 'offset') {
+    if (($this->value['type'] ?? '') == 'offset') {
       $time = $this->getTimeService()->getRequestTime();
       $value = strtotime($this->value['value'], $time);
     }

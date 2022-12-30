@@ -5,6 +5,7 @@ namespace Drupal\social_profile_fields;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryOverrideInterface;
 use Drupal\Core\Config\StorageInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Class SocialProfileFieldsConfigOverride.
@@ -15,6 +16,8 @@ use Drupal\Core\Config\StorageInterface;
  */
 class SocialProfileFieldsOverride implements ConfigFactoryOverrideInterface {
 
+  use StringTranslationTrait;
+
   /**
    * Returns config overrides.
    */
@@ -24,9 +27,7 @@ class SocialProfileFieldsOverride implements ConfigFactoryOverrideInterface {
 
     // Add field_group and field_comment_files.
     $config_name = 'core.entity_form_display.profile.profile.default';
-    if (in_array($config_name, $names)) {
-      $config = $config_factory->getEditable($config_name);
-
+    if (in_array($config_name, $names, TRUE)) {
       // Add the nick name field to the profile.
       $overrides[$config_name]['content']['field_profile_nick_name'] = [
         'weight' => 0,
@@ -40,32 +41,67 @@ class SocialProfileFieldsOverride implements ConfigFactoryOverrideInterface {
       ];
 
       // If there is a profile names and image field_group we move the field.
-      $third_party = $config->get('third_party_settings');
+      $third_party = $config_factory->getEditable($config_name)
+        ->get('third_party_settings');
       if (isset($third_party['field_group']['group_profile_names_image'])) {
-        $third_party['field_group']['group_profile_names_image']['children'][] = 'field_profile_nick_name';
-
-        // We use the entire children array because a deep merge on a numerical
-        // key array doesn't work.
-        $children = $third_party['field_group']['group_profile_names_image']['children'];
-        $children[] = 'field_profile_nick_name';
-        $overrides[$config_name]['third_party_settings']['field_group']['group_profile_names_image']['children'] = $children;
+        $overrides[$config_name]['third_party_settings']['field_group']['group_profile_names_image']['children']['field_profile_nick_name'] = 'field_profile_nick_name';
       }
     }
 
     // Add field_group and field_comment_files.
-    $config_name = 'search_api.index.social_users';
+    $config_names = [
+      'search_api.index.social_all',
+      'search_api.index.social_users',
+    ];
 
-    if (in_array($config_name, $names)) {
-      $field_settings['field_profile_nick_name'] = [
-        'label' => 'Nickname',
-        'datasource_id' => 'entity:profile',
-        'property_path' => 'field_profile_nick_name',
-        'type' => 'text',
-        'dependencies' => [
-          'config' => 'field.storage.profile.field_profile_nick_name',
-        ],
-      ];
-      $overrides[$config_name]['field_settings'] = $field_settings;
+    foreach ($config_names as $config_name) {
+      if (in_array($config_name, $names, TRUE)) {
+
+        // Add the config overrides (deeply merged) needed to add the field.
+        $overrides[$config_name] = [
+          'dependencies' => [
+            'config' => [
+              'field.storage.profile.field_profile_nick_name' => 'field.storage.profile.field_profile_nick_name',
+            ],
+          ],
+          'field_settings' => [
+            'field_profile_nick_name' => [
+              'label' => $this->t('Nickname'),
+              'datasource_id' => 'entity:profile',
+              'property_path' => 'field_profile_nick_name',
+              'type' => 'text',
+              'dependencies' => [
+                'config' => [
+                  'field.storage.profile.field_profile_nick_name',
+                ],
+              ],
+            ],
+          ],
+        ];
+
+        // Configure the relevant processors for our field.
+        $processor_settings = $config_factory->getEditable($config_name)
+          ->get('processor_settings');
+        // In some scenarios (e.g. site install) this setting may not exist and
+        // be a NULL value.
+        if (empty($processor_settings)) {
+          $processor_settings = [];
+        }
+        $enabled_processors = array_intersect(
+        // We want to configure the following processors if they're enabled.
+          ['ignorecase', 'tokenizer', 'transliteration'],
+          array_keys($processor_settings)
+        );
+
+        foreach ($enabled_processors as $processor) {
+          // If this processor has not specified specific fields then our field
+          // is already automatically included.
+          if (!isset($processor_settings[$processor]['fields'])) {
+            continue;
+          }
+          $overrides[$config_name]['processor_settings'][$processor]['fields']['field_profile_nick_name'] = 'field_profile_nick_name';
+        }
+      }
     }
 
     return $overrides;

@@ -58,7 +58,7 @@ interface LanguageManagerInterface {
    *   LanguageInterface::TYPE_INTERFACE, or NULL to reset all language types.
    *   Defaults to NULL.
    *
-   * @return \Drupal\Core\Language\LanguageManagerInterface
+   * @return $this
    *   The language manager that has been reset.
    */
   public function reset($type = NULL);
@@ -99,7 +99,7 @@ interface LanguageManagerInterface {
    * @param string $langcode
    *   The language code.
    *
-   * @return \Drupal\core\Language\LanguageInterface|null
+   * @return \Drupal\Core\Language\LanguageInterface|null
    *   A fully-populated language object or NULL.
    */
   public function getLanguage($langcode);
@@ -171,8 +171,11 @@ interface LanguageManagerInterface {
    * @param \Drupal\Core\Url $url
    *   The URL the switch links will be relative to.
    *
-   * @return array
-   *   A keyed array of links ready to be themed.
+   * @return object|null
+   *   An object with the following keys:
+   *   - links: An array of links indexed by the language ID
+   *   - method_id: The language negotiation method ID
+   *   or NULL if there are no language switch links.
    */
   public function getLanguageSwitchLinks($type, Url $url);
 

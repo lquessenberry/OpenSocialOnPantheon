@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\image\Functional;
 
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\file\Entity\File;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\Tests\BrowserTestBase;
@@ -24,7 +25,27 @@ class FileMoveTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['image'];
+  protected static $modules = ['image'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * The file repository service.
+   *
+   * @var \Drupal\file\FileRepository
+   */
+  protected $fileRepository;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->fileRepository = $this->container->get('file.repository');
+  }
 
   /**
    * Tests moving a randomly generated image.
@@ -41,18 +62,18 @@ class FileMoveTest extends BrowserTestBase {
     $style->createDerivative($original_uri, $derivative_uri);
 
     // Check if derivative image exists.
-    $this->assertTrue(file_exists($derivative_uri), 'Make sure derivative image is generated successfully.');
+    $this->assertFileExists($derivative_uri);
 
     // Clone the object so we don't have to worry about the function changing
     // our reference copy.
     $desired_filepath = 'public://' . $this->randomMachineName();
-    $result = file_move(clone $file, $desired_filepath, FILE_EXISTS_ERROR);
+    $result = $this->fileRepository->move(clone $file, $desired_filepath, FileSystemInterface::EXISTS_ERROR);
 
     // Check if image has been moved.
-    $this->assertTrue(file_exists($result->getFileUri()), 'Make sure image is moved successfully.');
+    $this->assertFileExists($result->getFileUri());
 
     // Check if derivative image has been flushed.
-    $this->assertFalse(file_exists($derivative_uri), 'Make sure derivative image has been flushed.');
+    $this->assertFileDoesNotExist($derivative_uri);
   }
 
 }

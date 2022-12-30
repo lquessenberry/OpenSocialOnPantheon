@@ -1,7 +1,7 @@
 name: 'Social Download Count'
 description: 'Tracks file downloads for Drupal private core file fields for Open Social.'
 type: module
-core: 8.x
+core_version_requirement: ^9
 dependencies:
-  - download_count:download_count
+  - social:download_count
 package: Social

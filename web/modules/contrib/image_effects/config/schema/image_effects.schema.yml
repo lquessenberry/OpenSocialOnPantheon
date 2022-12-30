@@ -223,6 +223,39 @@ image.effect.image_effects_opacity:
       type: integer
       label: 'Opacity % of the source image'
 
+image.effect.image_effects_pixelate:
+  type: mapping
+  label: 'Pixelate the image'
+  mapping:
+    size:
+      type: integer
+      label: 'Size of the pixels'
+
+image.effect.image_effects_relative_crop:
+  type: mapping
+  label: 'Relative crop'
+  mapping:
+    width:
+      type: integer
+      label: 'Ratio width'
+    height:
+      type: integer
+      label: 'Ratio height'
+    anchor:
+      type: mapping
+      label: 'Anchor'
+      mapping:
+        width:
+          type: string
+          label: 'Width anchor'
+          constraints:
+            AllowedValues: ['left', 'center', 'right']
+        height:
+          type: string
+          label: 'Height anchor'
+          constraints:
+            AllowedValues: ['top', 'center', 'bottom']
+
 image.effect.image_effects_resize_percentage:
   type: mapping
   label: 'Resize based on percentage'
@@ -233,6 +266,45 @@ image.effect.image_effects_resize_percentage:
     height:
       type: string
       label: 'Height in px or %'
+
+image.effect.image_effects_rotate:
+  type: mapping
+  label: 'Image rotate'
+  mapping:
+    degrees:
+      type: integer
+      label: 'Rotation angle'
+    background_color:
+      label: 'Background color'
+      type: color_hex
+    fallback_transparency_color:
+      label: 'Fallback color for full transparency, when image or toolkit do not support it'
+      type: color_hex
+    method:
+      type: string
+      label: 'Determine how the rotation angle is calculated'
+      constraints:
+        AllowedValues: ['exact', 'pseudorandom', 'random']
+
+image.effect.image_effects_scale_and_smart_crop:
+  type: mapping
+  label: 'Similar to Scale and Crop, but preserves the portion of the image with the most entropy.'
+  mapping:
+    width:
+      type: string
+      label: 'Width in px or %'
+    height:
+      type: string
+      label: 'Height in px or %'
+    upscale:
+      type: boolean
+      label: 'Upscale'
+    simulate:
+      type: boolean
+      label: 'Simulate'
+    algorithm:
+      type: string
+      label: 'Calculation algorithm'
 
 image.effect.image_effects_set_canvas:
   type: mapping
@@ -285,6 +357,26 @@ image.effect.image_effects_set_transparent_color:
     transparent_color:
       type: string
       label: 'RGB color'
+
+image.effect.image_effects_smart_crop:
+  type: mapping
+  label: 'Similar to Crop, but preserves the portion of the image with the most entropy.'
+  mapping:
+    width:
+      type: string
+      label: 'Width in px or %'
+    height:
+      type: string
+      label: 'Height in px or %'
+    square:
+      type: boolean
+      label: 'Make width/height the same if one dimension is not specified'
+    simulate:
+      type: boolean
+      label: 'Simulate'
+    algorithm:
+      type: string
+      label: 'Calculation algorithm'
 
 # The strip metadata effect has no settings.
 image.effect.image_effects_strip_metadata:
@@ -476,3 +568,17 @@ image.effect.image_effects_interlace:
     type:
       type: string
       label: 'Type'
+
+image.effect.image_effects_aspect_switcher:
+  type: mapping
+  label: 'Allows to choose image styles to apply based on orientation (portrait or landscape)'
+  mapping:
+    landscape_image_style:
+      type: string
+      label: 'Image style machine_name for landscape orientation'
+    portrait_image_style:
+      type: string
+      label: 'Image style machine_name for portrait orientation'
+    ratio_adjustment:
+      type: float
+      label: 'This allows you to bend the rules for how different the proportions need to be to trigger the switch'

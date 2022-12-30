@@ -5,7 +5,6 @@
  * Helper module for the Field API tests.
  *
  * The module defines
- * - an entity type (field_test.entity.inc)
  * - a field type and its formatters and widgets (field_test.field.inc)
  * - a field storage backend (field_test.storage.inc)
  *
@@ -50,20 +49,21 @@ require_once __DIR__ . '/field_test.field.inc';
  *   $mem = field_test_memorize();
  *
  *   // make sure hook_field_storage_config_create() is invoked correctly
- *   assertEqual(count($mem['field_test_field_storage_config_create']), 1);
- *   assertEqual($mem['field_test_field_storage_config_create'][0], array($field));
+ *   assertEquals(1, count($mem['field_test_field_storage_config_create']));
+ *   assertEquals(array($field), $mem['field_test_field_storage_config_create'][0]);
  * @endcode
  *
  * @param $key
  *   The key under which to store to $value, or NULL as described above.
  * @param $value
  *   A value to store for $key.
+ *
  * @return
  *   An array mapping each $key to an array of each $value passed in
  *   for that key.
  */
 function field_test_memorize($key = NULL, $value = NULL) {
-  $memorize = &drupal_static(__FUNCTION__, NULL);
+  static $memorize;
 
   if (!isset($key)) {
     $return = $memorize;
@@ -98,49 +98,49 @@ function field_test_entity_display_build_alter(&$output, $context) {
 }
 
 /**
- * Implements hook_field_widget_form_alter().
+ * Implements hook_field_widget_single_element_form_alter().
  */
-function field_test_field_widget_form_alter(&$element, FormStateInterface $form_state, $context) {
+function field_test_field_widget_single_element_form_alter(&$element, FormStateInterface $form_state, $context) {
   // Set a message if this is for the form displayed to set default value for
   // the field.
   if ($context['default']) {
-    drupal_set_message('From hook_field_widget_form_alter(): Default form is true.');
+    \Drupal::messenger()
+      ->addStatus('From hook_field_widget_single_element_form_alter(): Default form is true.');
   }
 }
 
 /**
- * Implements hook_field_widget_multivalue_form_alter().
+ * Implements hook_field_widget_complete_form_alter().
  */
-function field_test_field_widget_multivalue_form_alter(array &$elements, FormStateInterface $form_state, array $context) {
-  _field_test_alter_widget("hook_field_widget_multivalue_form_alter", $elements, $form_state, $context);
+function field_test_field_widget_complete_form_alter(array &$field_widget_complete_form, FormStateInterface $form_state, array $context) {
+  _field_test_alter_widget("hook_field_widget_complete_form_alter", $field_widget_complete_form, $form_state, $context);
 }
 
 /**
- * Implements hook_field_widget_multivalue_WIDGET_TYPE_form_alter().
+ * Implements hook_field_widget_complete_WIDGET_TYPE_form_alter().
  */
-function field_test_field_widget_multivalue_test_field_widget_multiple_form_alter(array &$elements, FormStateInterface $form_state, array $context) {
-  _field_test_alter_widget("hook_field_widget_multivalue_WIDGET_TYPE_form_alter", $elements, $form_state, $context);
+function field_test_field_widget_complete_test_field_widget_multiple_form_alter(array &$field_widget_complete_form, FormStateInterface $form_state, array $context) {
+  _field_test_alter_widget("hook_field_widget_complete_WIDGET_TYPE_form_alter", $field_widget_complete_form, $form_state, $context);
 }
 
 /**
- * Implements hook_field_widget_multivalue_WIDGET_TYPE_form_alter().
+ * Implements hook_field_widget_complete_WIDGET_TYPE_form_alter().
  */
-function field_test_field_widget_multivalue_test_field_widget_multiple_single_value_form_alter(array &$elements, FormStateInterface $form_state, array $context) {
-  _field_test_alter_widget("hook_field_widget_multivalue_WIDGET_TYPE_form_alter", $elements, $form_state, $context);
+function field_test_field_widget_complete_test_field_widget_multiple_single_value_form_alter(array &$field_widget_complete_form, FormStateInterface $form_state, array $context) {
+  _field_test_alter_widget("hook_field_widget_complete_WIDGET_TYPE_form_alter", $field_widget_complete_form, $form_state, $context);
 }
-
 
 /**
  * Sets up alterations for widget alter tests.
  *
  * @see \Drupal\field\Tests\FormTest::widgetAlterTest()
  */
-function _field_test_alter_widget($hook, array &$elements, FormStateInterface $form_state, array $context) {
-
+function _field_test_alter_widget($hook, array &$field_widget_complete_form, FormStateInterface $form_state, array $context) {
+  $elements = &$field_widget_complete_form['widget'];
   // Set a message if this is for the form displayed to set default value for
   // the field.
   if ($context['default']) {
-    drupal_set_message("From $hook(): Default form is true.");
+    \Drupal::messenger()->addStatus("From $hook(): Default form is true.");
   }
   $alter_info = \Drupal::state()->get("field_test.widget_alter_test");
   $name = $context['items']->getFieldDefinition()->getName();
@@ -160,9 +160,8 @@ function _field_test_alter_widget($hook, array &$elements, FormStateInterface $f
 function field_test_query_efq_table_prefixing_test_alter(&$query) {
   // Add an additional join onto the entity base table. This will cause an
   // exception if the EFQ does not properly prefix the base table.
-  $query->join('entity_test', 'et2', '%alias.id = entity_test.id');
+  $query->join('entity_test', 'et2', '[%alias].[id] = [entity_test].[id]');
 }
-
 
 /**
  * Implements hook_query_TAG_alter() for tag 'efq_metadata_test'.
@@ -170,8 +169,7 @@ function field_test_query_efq_table_prefixing_test_alter(&$query) {
  * @see \Drupal\system\Tests\Entity\EntityQueryTest::testMetaData()
  */
 function field_test_query_efq_metadata_test_alter(&$query) {
-  global $efq_test_metadata;
-  $efq_test_metadata = $query->getMetadata('foo');
+  field_test_memorize(__FUNCTION__, $query->getMetadata('foo'));
 }
 
 /**

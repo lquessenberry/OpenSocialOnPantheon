@@ -1,5 +1,6 @@
 langcode: en
 status: true
+dependencies: {  }
 name: Item
 type: item
 description: ''

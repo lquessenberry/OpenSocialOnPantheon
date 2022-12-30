@@ -17,6 +17,8 @@ field.widget.settings.block_field_default:
       label: 'Settings'
       sequence:
         type: string
+    configuration_form:
+      type: string
 
 field.storage_settings.block_field:
   type: mapping
@@ -24,11 +26,39 @@ field.storage_settings.block_field:
 
 field.field_settings.block_field:
   type: mapping
-  label: 'Block field settings'
+  label: 'Block Field field settings'
+  mapping:
+    selection:
+      type: string
+      label: 'Selection method'
+    selection_settings:
+      type: block_field_selection.[%parent.selection]
+      label: 'Block Field selection plugin settings'
+
+block_field_selection:
+  type: mapping
+  label: 'Block field selection handler settings'
+
+block_field_selection.*:
+  type: block_field_selection
+
+block_field_selection.blocks:
+  type: block_field_selection
+  label: 'Blocks(default) selection handler settings'
   mapping:
     plugin_ids:
       type: sequence
       label: 'Plugin ids'
+      sequence:
+        type: string
+
+block_field_selection.categories:
+  type: block_field_selection
+  label: 'Categories selection handler settings'
+  mapping:
+    categories:
+      type: sequence
+      label: 'Categories'
       sequence:
         type: string
 
@@ -43,4 +73,4 @@ field.value.block_field:
       type: sequence
       label: 'Settings'
       sequence:
-        type: stringd
+        type: string

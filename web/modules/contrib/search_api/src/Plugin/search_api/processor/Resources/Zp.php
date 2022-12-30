@@ -11,8 +11,10 @@ class Zp implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{2029}';
+    // phpcs:enable
   }
 
 }

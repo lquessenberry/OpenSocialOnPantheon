@@ -34,7 +34,7 @@ class CustomDataTypesTest extends KernelTestBase {
    *
    * @var string[]
    */
-  public static $modules = [
+  protected static $modules = [
     'field',
     'search_api',
     'search_api_db',
@@ -56,11 +56,10 @@ class CustomDataTypesTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->installSchema('search_api', ['search_api_item']);
-    $this->installSchema('system', ['router']);
     $this->installSchema('user', ['users_data']);
     $this->installEntitySchema('entity_test_mulrev_changed');
     $this->installEntitySchema('search_api_task');
@@ -161,7 +160,7 @@ class CustomDataTypesTest extends KernelTestBase {
     $processed_type = $name_field->getType();
 
     $this->assertEquals($original_value, $processed_value, 'The processed value matches the original value');
-    $this->assertEquals('integer', $processed_type, 'The processed type matches the fallback type.');
+    $this->assertEquals('string', $processed_type, 'The processed type matches the fallback type.');
 
     // Reset the fields on the item and change to the data altering data type.
     $item->setFieldsExtracted(FALSE);

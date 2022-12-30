@@ -19,19 +19,24 @@ class CorsIntegrationTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system', 'test_page_test', 'page_cache'];
+  protected static $modules = ['system', 'test_page_test', 'page_cache'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   public function testCrossSiteRequest() {
     // Test default parameters.
     $cors_config = $this->container->getParameter('cors.config');
-    $this->assertSame(FALSE, $cors_config['enabled']);
+    $this->assertFalse($cors_config['enabled']);
     $this->assertSame([], $cors_config['allowedHeaders']);
     $this->assertSame([], $cors_config['allowedMethods']);
     $this->assertSame(['*'], $cors_config['allowedOrigins']);
 
-    $this->assertSame(FALSE, $cors_config['exposedHeaders']);
-    $this->assertSame(FALSE, $cors_config['maxAge']);
-    $this->assertSame(FALSE, $cors_config['supportsCredentials']);
+    $this->assertFalse($cors_config['exposedHeaders']);
+    $this->assertFalse($cors_config['maxAge']);
+    $this->assertFalse($cors_config['supportsCredentials']);
 
     // Enable CORS with the default options.
     $cors_config['enabled'] = TRUE;
@@ -83,7 +88,7 @@ class CorsIntegrationTest extends BrowserTestBase {
     $response = $httpClient->request('POST', $url->setAbsolute()->toString(), [
       'headers' => [
         'Origin' => $origin,
-      ]
+      ],
     ]);
     $this->assertEquals(200, $response->getStatusCode());
   }

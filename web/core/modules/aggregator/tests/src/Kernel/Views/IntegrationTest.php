@@ -4,6 +4,7 @@ namespace Drupal\Tests\aggregator\Kernel\Views;
 
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Render\RenderContext;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\Tests\views\Kernel\ViewsKernelTestBase;
 use Drupal\views\Views;
@@ -13,6 +14,7 @@ use Drupal\views\Tests\ViewTestData;
  * Tests basic integration of views data from the aggregator module.
  *
  * @group aggregator
+ * @group legacy
  */
 class IntegrationTest extends ViewsKernelTestBase {
 
@@ -21,7 +23,14 @@ class IntegrationTest extends ViewsKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['aggregator', 'aggregator_test_views', 'system', 'field', 'options', 'user'];
+  protected static $modules = [
+    'aggregator',
+    'aggregator_test_views',
+    'system',
+    'field',
+    'options',
+    'user',
+  ];
 
   /**
    * Views used by this test.
@@ -47,16 +56,17 @@ class IntegrationTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp();
 
+    $this->installConfig(['aggregator']);
     $this->installEntitySchema('aggregator_item');
     $this->installEntitySchema('aggregator_feed');
 
-    ViewTestData::createTestViews(get_class($this), ['aggregator_test_views']);
+    ViewTestData::createTestViews(static::class, ['aggregator_test_views']);
 
-    $this->itemStorage = $this->container->get('entity.manager')->getStorage('aggregator_item');
-    $this->feedStorage = $this->container->get('entity.manager')->getStorage('aggregator_feed');
+    $this->itemStorage = $this->container->get('entity_type.manager')->getStorage('aggregator_item');
+    $this->feedStorage = $this->container->get('entity_type.manager')->getStorage('aggregator_feed');
   }
 
   /**
@@ -83,7 +93,7 @@ class IntegrationTest extends ViewsKernelTestBase {
       $values['timestamp'] = mt_rand(REQUEST_TIME - 10, REQUEST_TIME + 10);
       $values['title'] = $this->randomMachineName();
       $values['description'] = $this->randomMachineName();
-      // Add a image to ensure that the sanitizing can be tested below.
+      // Add an image to ensure that the sanitizing can be tested below.
       $values['author'] = $this->randomMachineName() . '<img src="http://example.com/example.png" \>"';
       $values['link'] = 'https://www.drupal.org/node/' . mt_rand(1000, 10000);
       $values['guid'] = $this->randomString();
@@ -111,23 +121,23 @@ class IntegrationTest extends ViewsKernelTestBase {
     // Ensure that the rendering of the linked title works as expected.
     foreach ($view->result as $row) {
       $iid = $view->field['iid']->getValue($row);
-      $expected_link = \Drupal::l($items[$iid]->getTitle(), Url::fromUri($items[$iid]->getLink(), ['absolute' => TRUE]));
+      $expected_link = Link::fromTextAndUrl($items[$iid]->getTitle(), Url::fromUri($items[$iid]->getLink(), ['absolute' => TRUE]))->toString();
       $output = $renderer->executeInRenderContext(new RenderContext(), function () use ($view, $row) {
         return $view->field['title']->advancedRender($row);
       });
-      $this->assertEqual($output, $expected_link->getGeneratedLink(), 'Ensure the right link is generated');
+      $this->assertEquals($expected_link->getGeneratedLink(), $output, 'Ensure the right link is generated');
 
       $expected_author = Xss::filter($items[$iid]->getAuthor(), _aggregator_allowed_tags());
       $output = $renderer->executeInRenderContext(new RenderContext(), function () use ($view, $row) {
         return $view->field['author']->advancedRender($row);
       });
-      $this->assertEqual($output, $expected_author, 'Ensure the author got filtered');
+      $this->assertEquals($expected_author, $output, 'Ensure the author got filtered');
 
       $expected_description = Xss::filter($items[$iid]->getDescription(), _aggregator_allowed_tags());
       $output = $renderer->executeInRenderContext(new RenderContext(), function () use ($view, $row) {
         return $view->field['description']->advancedRender($row);
       });
-      $this->assertEqual($output, $expected_description, 'Ensure the author got filtered');
+      $this->assertEquals($expected_description, $output, 'Ensure the author got filtered');
     }
   }
 

@@ -1,13 +1,12 @@
 name: Activity Creator
 type: module
 description: Creates Activity Entities.
-core: 8.x
+core_version_requirement: ^9
 package: Custom
 dependencies:
   - drupal:block_content
   - drupal:comment
   - dynamic_entity_reference:dynamic_entity_reference
-  - drupal:field
   - drupal:file
   - group:group
   - drupal:menu_link_content
@@ -15,9 +14,6 @@ dependencies:
   - drupal:node
   - drupal:options
   - profile:profile
-  - social_event:social_event
-  - social_group:social_group
-  - social_post:social_post
   - drupal:taxonomy
-  - drupal:text
   - drupal:user
+  - social:social_editor

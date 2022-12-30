@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Task\Development;
 
 use Robo\Task\BaseTask;
@@ -506,7 +507,7 @@ class GenerateMarkdownDoc extends BaseTask implements BuilderAwareInterface
 
         $methods = array_filter($methods);
 
-        $doc .= implode("\n", $methods)."\n";
+        $doc .= implode("\n", $methods) . "\n";
 
         return $doc;
     }
@@ -672,10 +673,11 @@ class GenerateMarkdownDoc extends BaseTask implements BuilderAwareInterface
     protected function documentParam(\ReflectionParameter $param)
     {
         $text = "";
-        if ($param->isArray()) {
+        $paramType = $param->getType();
+        if (($paramType != null) && ($paramType->getName() == 'array')) {
             $text .= 'array ';
         }
-        if ($param->isCallable()) {
+        if (($paramType != null) && ($paramType->getName() == 'callable')) {
             $text .= 'callable ';
         }
         $text .= '$' . $param->name;

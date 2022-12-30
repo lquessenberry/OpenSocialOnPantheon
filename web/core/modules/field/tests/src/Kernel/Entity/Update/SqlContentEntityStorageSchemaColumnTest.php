@@ -7,6 +7,7 @@ use Drupal\entity_test\Entity\EntityTestRev;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\Tests\system\Functional\Entity\Traits\EntityDefinitionTestTrait;
 
 /**
  * Tests that schema changes in fields with data are detected during updates.
@@ -15,10 +16,12 @@ use Drupal\KernelTests\KernelTestBase;
  */
 class SqlContentEntityStorageSchemaColumnTest extends KernelTestBase {
 
+  use EntityDefinitionTestTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_test', 'field', 'text', 'user'];
+  protected static $modules = ['entity_test', 'field', 'text', 'user'];
 
   /**
    * The created entity.
@@ -42,9 +45,23 @@ class SqlContentEntityStorageSchemaColumnTest extends KernelTestBase {
   protected $fieldStorage;
 
   /**
+   * The entity definition update manager.
+   *
+   * @var \Drupal\Core\Entity\EntityDefinitionUpdateManagerInterface
+   */
+  protected $entityDefinitionUpdateManager;
+
+  /**
+   * The state object.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
+  /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_rev');
@@ -87,13 +104,10 @@ class SqlContentEntityStorageSchemaColumnTest extends KernelTestBase {
 
     // Now attempt to run automatic updates. An exception should be thrown
     // since there is data in the table.
-    try {
-      \Drupal::service('entity.definition_update_manager')->applyUpdates();
-      $this->fail('Failed to detect a schema change in a field with data.');
-    }
-    catch (FieldStorageDefinitionUpdateForbiddenException $e) {
-      $this->pass('Detected a schema change in a field with data.');
-    }
+    $this->expectException(FieldStorageDefinitionUpdateForbiddenException::class);
+    $entity_definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+    $field_storage_definition = $entity_definition_update_manager->getFieldStorageDefinition('test', 'entity_test_rev');
+    $entity_definition_update_manager->updateFieldStorageDefinition($field_storage_definition);
   }
 
 }

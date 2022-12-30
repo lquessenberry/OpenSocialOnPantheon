@@ -25,28 +25,6 @@ interface VocabularyInterface extends ConfigEntityInterface {
   const HIERARCHY_MULTIPLE = 2;
 
   /**
-   * Returns the vocabulary hierarchy.
-   *
-   * @return int
-   *   The vocabulary hierarchy.
-   */
-  public function getHierarchy();
-
-  /**
-   * Sets the vocabulary hierarchy.
-   *
-   * @param int $hierarchy
-   *   The hierarchy type of vocabulary.
-   *   Possible values:
-   *    - VocabularyInterface::HIERARCHY_DISABLED: No parents.
-   *    - VocabularyInterface::HIERARCHY_SINGLE: Single parent.
-   *    - VocabularyInterface::HIERARCHY_MULTIPLE: Multiple parents.
-   *
-   * @return $this
-   */
-  public function setHierarchy($hierarchy);
-
-  /**
    * Returns the vocabulary description.
    *
    * @return string

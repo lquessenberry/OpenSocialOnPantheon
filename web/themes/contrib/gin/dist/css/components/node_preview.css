@@ -1,0 +1,111 @@
+.node-preview-container {
+  font-size: .79rem;
+  z-index: 501;
+  /* on top of the Drupal world */
+  position: sticky;
+  top: 0;
+  width: 100%;
+  padding: 0;
+  background: rgba(255, 255, 255, .98);
+  border-bottom: 1px solid var(--colorGinLayerBorder);
+}
+
+@supports ((-webkit-backdrop-filter: blur()) or (backdrop-filter: blur())) {
+  .node-preview-container {
+    opacity: .999;
+    /* Fix Chrome issue with mask */
+    background: rgba(255, 255, 255, .8);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+  }
+}
+
+.gin--dark-mode .node-preview-container {
+  background: rgba(27, 27, 29, .98);
+}
+
+@supports ((-webkit-backdrop-filter: blur()) or (backdrop-filter: blur())) {
+  .gin--dark-mode .node-preview-container {
+    background: rgba(22, 22, 23, .9);
+  }
+}
+
+.gin--high-contrast-mode .node-preview-container {
+  background: var(--colorGinAppBackground);
+  -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+}
+
+.node-preview-container .node-preview-backlink,
+.node-preview-container .node-preview-form-select label {
+  color: var(--colorGinTextLight);
+}
+
+.node-preview-container .node-preview-backlink {
+  position: relative;
+  text-decoration: none;
+}
+
+[dir="ltr"] .node-preview-container .node-preview-backlink {
+  padding-left: 2em;
+}
+
+[dir="rtl"] .node-preview-container .node-preview-backlink {
+  padding-right: 2em;
+}
+
+.node-preview-container .node-preview-backlink::before {
+  content: "";
+  display: inline-block;
+  position: absolute;
+  top: 50%;
+  width: var(--iconGinSecondaryToolbar);
+  height: var(--iconGinSecondaryToolbar);
+  transform: translateY(-50%);
+  background-color: var(--colorGinIcons);
+  -webkit-mask-image: url("../../media/sprite.svg#backtosite-view");
+          mask-image: url("../../media/sprite.svg#backtosite-view");
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-position: center center;
+          mask-position: center center;
+}
+
+[dir="ltr"] .node-preview-container .node-preview-backlink::before {
+  left: 0;
+}
+
+[dir="rtl"] .node-preview-container .node-preview-backlink::before {
+  right: 0;
+}
+
+.node-preview-container .node-preview-form-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: auto;
+  padding: 1rem 0;
+}
+
+@media (min-width: 1024px) {
+  .node-preview-container .node-preview-form-select {
+    padding: 1.25rem 0;
+  }
+}
+
+[dir="ltr"] .node-preview-container .node-preview-form-select label {
+  padding-right: .5em;
+}
+
+[dir="rtl"] .node-preview-container .node-preview-form-select label {
+  padding-left: .5em;
+}
+
+.node-preview-container .js-hide {
+  display: none;
+}
+
+.node-preview-container ~ .gin-secondary-toolbar--frontend {
+  display: none;
+}
+

@@ -1,0 +1,111 @@
+<?php
+
+/**
+ * @file
+ * Tests for exif_orientation.module.
+ */
+
+class ExifOrientationTest extends DrupalWebTestCase {
+  private $admin;
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Exif Orientation',
+      'description' => 'Tests automatic image orientation.',
+      'group' => 'Exif Orientation',
+    );
+  }
+
+  public function setUp() {
+    $modules = array('image', 'exif_orientation');
+    parent::setUp($modules);
+
+    // Set to high quality because we don't want encoding artifacts.
+    variable_set('image_jpeg_quality', 98);
+
+    // Code from UserPictureTestCase:
+
+    // Enable user pictures.
+    variable_set('user_pictures', 1);
+
+    // Test if directories specified in settings exist in filesystem.
+    $file_dir = 'public://';
+    $file_check = file_prepare_directory($file_dir, FILE_CREATE_DIRECTORY);
+
+    $picture_dir = variable_get('user_picture_path', 'pictures');
+    $picture_path = $file_dir . $picture_dir;
+
+    $pic_check = file_prepare_directory($picture_path, FILE_CREATE_DIRECTORY);
+    $this->_directory_test = is_writable($picture_path);
+    $this->assertTrue($this->_directory_test, "The directory $picture_path doesn't exist or is not writable. Further tests won't be made.");
+  }
+
+  /**
+   * Test auto rotation of uploaded user profile pictures.
+   */
+  public function testUserPicture() {
+    // No user picture style or dimensions.
+    variable_set('user_picture_style', '');
+    variable_set('user_picture_dimensions', '');
+    $user1 = $this->drupalCreateUser();
+    $this->saveUserPicture($user1);
+    $this->assertImageIsRotated($user1->picture->uri);
+
+    // Applied user picture style.
+    variable_set('user_picture_style', 'medium');
+    variable_set('user_picture_dimensions', '');
+    $user2 = $this->drupalCreateUser();
+    $this->saveUserPicture($user2);
+    $this->assertImageIsRotated($user2->picture->uri);
+
+    // Defined picture dimensions.
+    variable_set('user_picture_style', '');
+    variable_set('user_picture_dimensions', '50x50');
+    $user3 = $this->drupalCreateUser();
+    $this->saveUserPicture($user3);
+    $this->assertImageIsRotated($user3->picture->uri);
+
+    // Defined picture style and dimensions.
+    variable_set('user_picture_style', 'medium');
+    variable_set('user_picture_dimensions', '50x50');
+    $user4 = $this->drupalCreateUser();
+    $this->saveUserPicture($user4);
+    $this->assertImageIsRotated($user4->picture->uri);
+  }
+
+  /**
+   * Uploads a user picture.
+   */
+  private function saveUserPicture(&$account) {
+    $this->drupalLogin($account);
+    $edit = array('files[picture_upload]' => drupal_realpath(drupal_get_path('module', 'exif_orientation') . '/tests/rotate90cw.jpg'));
+    $this->drupalPost('user/' . $account->uid . '/edit', $edit, t('Save'));
+    $account = user_load($account->uid, TRUE);
+    $this->assertTrue(isset($account->picture) && isset($account->picture->uri), 'The picture has been uploaded successfully.');
+  }
+
+  /**
+   * Verify that an image is landscape and has a red top left corner.
+   */
+  private function assertImageIsRotated($uri) {
+    $uri = drupal_realpath($uri);
+
+    $img = image_load($uri);
+    $this->assertTrue(is_object($img), 'Image data is available.');
+
+    // Test the aspect ratio.
+    $this->assertTrue($img->info['width'] > $img->info['height'], 'The image format is landscape.');
+
+    // Verify the rotation by color inspection.
+    $rgb = imagecolorat($img->resource, 10, 10);
+    $r = ($rgb >> 16) & 0xFF;
+    $g = ($rgb >> 8) & 0xFF;
+    $b = $rgb & 0xFF;
+    // The top left corner should be red.
+    $this->assertTrue(abs($r - 255) < 5, 'Red color component is close to 255.');
+    $this->assertTrue($g < 5, 'Green color component is close to 0.');
+    $this->assertTrue($b < 5, 'Blue color component is close to 0.');
+  }
+
+}
+

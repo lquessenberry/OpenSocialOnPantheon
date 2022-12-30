@@ -103,13 +103,13 @@ abstract class GroupPermissionsForm extends FormBase {
 
     // Create a list of group permissions ordered by their provider and section.
     foreach ($this->groupPermissionHandler->getPermissionsByGroupType($this->getGroupType()) as $permission_name => $permission) {
-      $by_provider_and_section[$permission['provider']][$permission['section']][$permission_name] = $permission;
+      $by_provider_and_section[$permission['provider']][$permission['section_id']][$permission_name] = $permission;
     }
 
-    // Always put the 'General' section at the top if provided.
+    // Always put the 'general' section at the top if provided.
     foreach ($by_provider_and_section as $provider => $sections) {
-      if (isset($sections['General'])) {
-        $by_provider_and_section[$provider] = ['General' => $sections['General']] + $sections;
+      if (isset($sections['general'])) {
+        $by_provider_and_section[$provider] = ['general' => $sections['general']] + $sections;
       }
     }
 
@@ -182,10 +182,7 @@ abstract class GroupPermissionsForm extends FormBase {
         ]
       ];
 
-      foreach ($sections as $section => $permissions) {
-        // Create a clean section ID.
-        $section_id = $provider . '-' . preg_replace('/[^a-z0-9_]+/', '_', strtolower($section));
-
+      foreach ($sections as $section_id => $permissions) {
         // Start each section with a full width row containing the section name.
         $form['permissions'][$section_id] = [
           [
@@ -194,7 +191,7 @@ abstract class GroupPermissionsForm extends FormBase {
               'class' => ['section'],
               'id' => 'section-' . $section_id,
             ],
-            '#markup' => $section,
+            '#markup' => reset($permissions)['section'],
           ]
         ];
 
@@ -285,7 +282,7 @@ abstract class GroupPermissionsForm extends FormBase {
       $group_role->changePermissions($permissions)->trustData()->save();
     }
 
-    drupal_set_message($this->t('The changes have been saved.'));
+    $this->messenger()->addStatus($this->t('The changes have been saved.'));
   }
 
 }

@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\Core\Extension;
 
+use Drupal\Component\FileCache\FileCacheFactory;
 use Drupal\Core\Extension\Extension;
 use Drupal\Core\Extension\ExtensionDiscovery;
 use Drupal\Tests\UnitTestCase;
@@ -46,7 +47,7 @@ class ExtensionDiscoveryTest extends UnitTestCase {
       }
       if ($type === 'profile') {
         // Set profile directories for discovery of the other extension types.
-        $extension_discovery->setProfileDirectories(['myprofile' => 'profiles/myprofile']);
+        $extension_discovery->setProfileDirectories(['my_profile' => 'profiles/my_profile']);
       }
     }
 
@@ -64,9 +65,55 @@ class ExtensionDiscoveryTest extends UnitTestCase {
   }
 
   /**
+   * Tests changing extension discovery file cache objects to arrays.
+   *
+   * @covers ::scan
+   * @runInSeparateProcess
+   */
+  public function testExtensionDiscoveryCache() {
+    // Set up an extension object in the cache to mimic site prior to changing
+    // \Drupal\Core\Extension\ExtensionDiscovery::scanDirectory() to cache an
+    // array instead of an object. Note we cannot use the VFS file system
+    // because FileCache does not support stream wrappers.
+    $extension = new Extension($this->root, 'module', 'core/modules/user/user.info.yml', 'user.module');
+    $extension->subpath = 'modules/user';
+    $extension->origin = 'core';
+    // Undo \Drupal\Tests\UnitTestCase::setUp() so FileCache works.
+    FileCacheFactory::setConfiguration([]);
+    $file_cache = FileCacheFactory::get('extension_discovery');
+    $file_cache->set($this->root . '/core/modules/user/user.info.yml', $extension);
+
+    // Create an ExtensionDiscovery object to test.
+    $extension_discovery = new ExtensionDiscovery($this->root, TRUE, [], 'sites/default');
+    $modules = $extension_discovery->scan('module', FALSE);
+    $this->assertArrayHasKey('user', $modules);
+    $this->assertEquals((array) $extension, (array) $modules['user']);
+    $this->assertNotSame($extension, $modules['user']);
+    // FileCache item should now be an array.
+    $this->assertSame([
+      'type' => 'module',
+      'pathname' => 'core/modules/user/user.info.yml',
+      'filename' => 'user.module',
+      'subpath' => 'modules/user',
+    ], $file_cache->get($this->root . '/core/modules/user/user.info.yml'));
+  }
+
+  /**
+   * Tests finding modules that have a trailing comment on the type property.
+   *
+   * @covers ::scan
+   */
+  public function testExtensionDiscoveryTypeComment(): void {
+    $extension_discovery = new ExtensionDiscovery($this->root, TRUE, [], 'sites/default');
+    $modules = $extension_discovery->scan('module', TRUE);
+    $this->assertArrayHasKey('module_info_type_comment', $modules);
+  }
+
+  /**
    * Adds example files to the filesystem structure.
    *
    * @param array $filesystem_structure
+   *   An associative array where each key represents a directory.
    *
    * @return string[][]
    *   Format: $[$type][$name] = $yml_file
@@ -84,15 +131,15 @@ class ExtensionDiscoveryTest extends UnitTestCase {
       'sites/default/profiles/minimal/minimal.info.yml' => [
         'type' => 'profile',
       ],
-      'profiles/myprofile/myprofile.info.yml' => [
+      'profiles/my_profile/my_profile.info.yml' => [
         'type' => 'profile',
       ],
-      'profiles/myprofile/modules/myprofile_nested_module/myprofile_nested_module.info.yml' => [],
-      'profiles/otherprofile/otherprofile.info.yml' => [
+      'profiles/my_profile/modules/my_profile_nested_module/my_profile_nested_module.info.yml' => [],
+      'profiles/other_profile/other_profile.info.yml' => [
         'type' => 'profile',
       ],
       'core/modules/user/user.info.yml' => [],
-      'profiles/otherprofile/modules/otherprofile_nested_module/otherprofile_nested_module.info.yml' => [],
+      'profiles/other_profile/modules/other_profile_nested_module/other_profile_nested_module.info.yml' => [],
       'core/modules/system/system.info.yml' => [],
       'core/themes/seven/seven.info.yml' => [
         'type' => 'theme',
@@ -132,16 +179,18 @@ class ExtensionDiscoveryTest extends UnitTestCase {
       $this->addFileToFilesystemStructure($filesystem_structure, $pieces, $content);
     }
 
-    unset($files_by_type_and_name_expected['module']['otherprofile_nested_module']);
+    unset($files_by_type_and_name_expected['module']['other_profile_nested_module']);
 
     return $files_by_type_and_name_expected;
   }
 
   /**
    * @param array $filesystem_structure
+   *   An associative array where each key represents a directory.
    * @param string[] $pieces
    *   Fragments of the file path.
    * @param string $content
+   *   The contents of the file.
    */
   protected function addFileToFilesystemStructure(array &$filesystem_structure, array $pieces, $content) {
     $piece = array_shift($pieces);

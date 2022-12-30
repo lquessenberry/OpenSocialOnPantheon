@@ -94,11 +94,15 @@ class AggregatedFields extends ProcessorPluginBase {
           break;
 
         case 'max':
-          $values = [max($values)];
+          if ($values) {
+            $values = [max($values)];
+          }
           break;
 
         case 'min':
-          $values = [min($values)];
+          if ($values) {
+            $values = [min($values)];
+          }
           break;
 
         case 'first':
@@ -106,9 +110,18 @@ class AggregatedFields extends ProcessorPluginBase {
             $values = [reset($values)];
           }
           break;
+
         case 'last':
           if ($values) {
             $values = [end($values)];
+          }
+          break;
+
+        case 'first_char':
+          $first_value = reset($values);
+          $values = [];
+          if ($first_value) {
+            $values[] = mb_strtoupper(mb_substr($first_value, 0, 1));
           }
           break;
       }

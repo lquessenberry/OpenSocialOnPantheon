@@ -29,7 +29,7 @@ class UncacheableEntityAccessControlHandlerTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $module_handler = $this->prophesize(ModuleHandlerInterface::class);
@@ -89,11 +89,12 @@ class UncacheableEntityAccessControlHandlerTest extends UnitTestCase {
     $admin_user = $this->buildMockUser(5, 'administer green_entity');
     $data[] = [$entity->reveal(), 'view', $admin_user->reveal(), TRUE];
     $data[] = [$entity->reveal(), 'update', $admin_user->reveal(), TRUE];
+    $data[] = [$entity->reveal(), 'duplicate', $admin_user->reveal(), TRUE];
     $data[] = [$entity->reveal(), 'delete', $admin_user->reveal(), TRUE];
 
-    // View, update, delete permissions, entity without an owner.
+    // View, update, duplicate, delete permissions, entity without an owner.
     $second_entity = $this->buildMockEntity($entity_type->reveal());
-    foreach (['view', 'update', 'delete'] as $operation) {
+    foreach (['view', 'update', 'duplicate', 'delete'] as $operation) {
       $first_user = $this->buildMockUser(6, $operation . ' green_entity');
       $second_user = $this->buildMockUser(7, 'access content');
 
@@ -101,8 +102,8 @@ class UncacheableEntityAccessControlHandlerTest extends UnitTestCase {
       $data[] = [$second_entity->reveal(), $operation, $second_user->reveal(), FALSE];
     }
 
-    // View, update, delete permissions.
-    foreach (['view', 'update', 'delete'] as $operation) {
+    // View, update, duplicate, delete permissions.
+    foreach (['view', 'update', 'duplicate', 'delete'] as $operation) {
       // Owner, non-owner, user with "any" permission.
       $first_user = $this->buildMockUser(6, $operation . ' own green_entity');
       $second_user = $this->buildMockUser(7, $operation . ' own green_entity');

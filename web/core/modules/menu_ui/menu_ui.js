@@ -10,21 +10,20 @@
     attach: function attach(context) {
       $(context).find('.menu-link-form').drupalSetSummary(function (context) {
         var $context = $(context);
+
         if ($context.find('.js-form-item-menu-enabled input').is(':checked')) {
-          return Drupal.checkPlain($context.find('.js-form-item-menu-title input').val());
+          return Drupal.checkPlain($context.find('.js-form-item-menu-title input')[0].value);
         }
 
         return Drupal.t('Not in menu');
       });
     }
   };
-
   Drupal.behaviors.menuUiLinkAutomaticTitle = {
     attach: function attach(context) {
       var $context = $(context);
       $context.find('.menu-link-form').each(function () {
         var $this = $(this);
-
         var $checkbox = $this.find('.js-form-item-menu-enabled input');
         var $linkTitle = $context.find('.js-form-item-menu-title input');
         var $title = $this.closest('form').find('.js-form-item-title-0-value input');
@@ -33,31 +32,30 @@
           return;
         }
 
-        if ($checkbox.is(':checked') && $linkTitle.val().length) {
+        if ($checkbox.is(':checked') && $linkTitle[0].value.length) {
           $linkTitle.data('menuLinkAutomaticTitleOverridden', true);
         }
 
         $linkTitle.on('keyup', function () {
           $linkTitle.data('menuLinkAutomaticTitleOverridden', true);
         });
-
         $checkbox.on('change', function () {
           if ($checkbox.is(':checked')) {
             if (!$linkTitle.data('menuLinkAutomaticTitleOverridden')) {
-              $linkTitle.val($title.val());
+              $linkTitle[0].value = $title[0].value;
             }
           } else {
-            $linkTitle.val('');
+            $linkTitle[0].value = '';
             $linkTitle.removeData('menuLinkAutomaticTitleOverridden');
           }
+
           $checkbox.closest('.vertical-tabs-pane').trigger('summaryUpdated');
           $checkbox.trigger('formUpdated');
         });
-
         $title.on('keyup', function () {
           if (!$linkTitle.data('menuLinkAutomaticTitleOverridden') && $checkbox.is(':checked')) {
-            $linkTitle.val($title.val());
-            $linkTitle.val($title.val()).trigger('formUpdated');
+            $linkTitle[0].value = $title[0].value;
+            $linkTitle.trigger('formUpdated');
           }
         });
       });

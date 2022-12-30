@@ -1,0 +1,45 @@
+{
+  "extends": "stylelint-config-standard",
+  "plugins": [],
+  "rules": {
+    "at-rule-empty-line-before": null,
+    "at-rule-no-unknown": [true, {
+      "ignoreAtRules": [
+        "content",
+        "else",
+        "function",
+        "for",
+        "if",
+        "each",
+        "include",
+        "mixin",
+        "return"
+      ]
+    }],
+    "comment-empty-line-before": null,
+    "function-linear-gradient-no-nonstandard-direction": null,
+    "function-name-case": null,
+    "function-whitespace-after": null,
+    "no-descending-specificity": null,
+    "no-duplicate-selectors": null,
+    "no-unknown-animations": true,
+    "media-feature-name-no-unknown": [true, {
+      "ignoreMediaFeatureNames": [
+        "prefers-reduced-motion",
+        "min--moz-device-pixel-ratio"
+      ]
+    }],
+    "number-leading-zero": "always",
+    "property-no-unknown": null,
+    "rule-empty-line-before": null,
+    "selector-list-comma-newline-after": null,
+    "selector-pseudo-element-colon-notation": null,
+    "shorthand-property-no-redundant-values": null,
+    "unit-allowed-list": ["deg", "em", "ex", "ms", "rem", "%", "s", "px", "vw", "vh"]
+  },
+  "ignoreFiles": [
+    "assets/vendor/**/*.css",
+    "tests/Drupal/Tests/Core/Asset/css_test_files/**/*.css"
+  ]
+}
+

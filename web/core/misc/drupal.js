@@ -5,9 +5,12 @@
 * @preserve
 **/
 
-window.Drupal = { behaviors: {}, locale: {} };
+window.Drupal = {
+  behaviors: {},
+  locale: {}
+};
 
-(function (Drupal, drupalSettings, drupalTranslations) {
+(function (Drupal, drupalSettings, drupalTranslations, console, Proxy, Reflect) {
   Drupal.throwError = function (error) {
     setTimeout(function () {
       throw error;
@@ -18,7 +21,6 @@ window.Drupal = { behaviors: {}, locale: {} };
     context = context || document;
     settings = settings || drupalSettings;
     var behaviors = Drupal.behaviors;
-
     Object.keys(behaviors || {}).forEach(function (i) {
       if (typeof behaviors[i].attach === 'function') {
         try {
@@ -35,7 +37,6 @@ window.Drupal = { behaviors: {}, locale: {} };
     settings = settings || drupalSettings;
     trigger = trigger || 'unload';
     var behaviors = Drupal.behaviors;
-
     Object.keys(behaviors || {}).forEach(function (i) {
       if (typeof behaviors[i].detach === 'function') {
         try {
@@ -54,7 +55,6 @@ window.Drupal = { behaviors: {}, locale: {} };
 
   Drupal.formatString = function (str, args) {
     var processedArgs = {};
-
     Object.keys(args || {}).forEach(function (key) {
       switch (key.charAt(0)) {
         case '@':
@@ -70,7 +70,6 @@ window.Drupal = { behaviors: {}, locale: {} };
           break;
       }
     });
-
     return Drupal.stringReplace(str, processedArgs, null);
   };
 
@@ -81,7 +80,6 @@ window.Drupal = { behaviors: {}, locale: {} };
 
     if (!Array.isArray(keys)) {
       keys = Object.keys(args || {});
-
       keys.sort(function (a, b) {
         return a.length - b.length;
       });
@@ -114,6 +112,7 @@ window.Drupal = { behaviors: {}, locale: {} };
     if (args) {
       str = Drupal.formatString(str, args);
     }
+
     return str;
   };
 
@@ -129,33 +128,33 @@ window.Drupal = { behaviors: {}, locale: {} };
     } catch (e) {}
 
     urlParsingNode.setAttribute('href', url);
-
     return urlParsingNode.cloneNode(false).href;
   };
 
   Drupal.url.isLocal = function (url) {
     var absoluteUrl = Drupal.url.toAbsolute(url);
-    var protocol = location.protocol;
+    var protocol = window.location.protocol;
 
     if (protocol === 'http:' && absoluteUrl.indexOf('https:') === 0) {
       protocol = 'https:';
     }
-    var baseUrl = protocol + '//' + location.host + drupalSettings.path.baseUrl.slice(0, -1);
+
+    var baseUrl = "".concat(protocol, "//").concat(window.location.host).concat(drupalSettings.path.baseUrl.slice(0, -1));
 
     try {
       absoluteUrl = decodeURIComponent(absoluteUrl);
     } catch (e) {}
+
     try {
       baseUrl = decodeURIComponent(baseUrl);
     } catch (e) {}
 
-    return absoluteUrl === baseUrl || absoluteUrl.indexOf(baseUrl + '/') === 0;
+    return absoluteUrl === baseUrl || absoluteUrl.indexOf("".concat(baseUrl, "/")) === 0;
   };
 
   Drupal.formatPlural = function (count, singular, plural, args, options) {
     args = args || {};
     args['@count'] = count;
-
     var pluralDelimiter = drupalSettings.pluralDelimiter;
     var translations = Drupal.t(singular + pluralDelimiter + plural, args, options).split(pluralDelimiter);
     var index = 0;
@@ -173,12 +172,46 @@ window.Drupal = { behaviors: {}, locale: {} };
     return window.encodeURIComponent(item).replace(/%2F/g, '/');
   };
 
+  Drupal.deprecationError = function (_ref) {
+    var message = _ref.message;
+
+    if (drupalSettings.suppressDeprecationErrors === false && typeof console !== 'undefined' && console.warn) {
+      console.warn("[Deprecation] ".concat(message));
+    }
+  };
+
+  Drupal.deprecatedProperty = function (_ref2) {
+    var target = _ref2.target,
+        deprecatedProperty = _ref2.deprecatedProperty,
+        message = _ref2.message;
+
+    if (!Proxy || !Reflect) {
+      return target;
+    }
+
+    return new Proxy(target, {
+      get: function get(target, key) {
+        if (key === deprecatedProperty) {
+          Drupal.deprecationError({
+            message: message
+          });
+        }
+
+        for (var _len = arguments.length, rest = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+          rest[_key - 2] = arguments[_key];
+        }
+
+        return Reflect.get.apply(Reflect, [target, key].concat(rest));
+      }
+    });
+  };
+
   Drupal.theme = function (func) {
     if (func in Drupal.theme) {
       var _Drupal$theme;
 
-      for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-        args[_key - 1] = arguments[_key];
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
       }
 
       return (_Drupal$theme = Drupal.theme)[func].apply(_Drupal$theme, args);
@@ -186,6 +219,6 @@ window.Drupal = { behaviors: {}, locale: {} };
   };
 
   Drupal.theme.placeholder = function (str) {
-    return '<em class="placeholder">' + Drupal.checkPlain(str) + '</em>';
+    return "<em class=\"placeholder\">".concat(Drupal.checkPlain(str), "</em>");
   };
-})(Drupal, window.drupalSettings, window.drupalTranslations);
+})(Drupal, window.drupalSettings, window.drupalTranslations, window.console, window.Proxy, window.Reflect);

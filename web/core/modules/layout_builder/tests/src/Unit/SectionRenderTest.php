@@ -15,6 +15,7 @@ use Drupal\Core\Layout\LayoutPluginManagerInterface;
 use Drupal\Core\Plugin\Context\ContextHandlerInterface;
 use Drupal\Core\Plugin\Context\ContextRepositoryInterface;
 use Drupal\Core\Plugin\ContextAwarePluginInterface;
+use Drupal\Core\Render\PreviewFallbackInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\layout_builder\EventSubscriber\BlockComponentRenderArray;
 use Drupal\layout_builder\Section;
@@ -66,7 +67,7 @@ class SectionRenderTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $layout_plugin_manager = $this->prophesize(LayoutPluginManagerInterface::class);
@@ -100,6 +101,7 @@ class SectionRenderTest extends UnitTestCase {
    */
   public function testToRenderArray() {
     $block_content = ['#markup' => 'The block content.'];
+    $placeholder_label = 'Placeholder Label';
     $render_array = [
       '#theme' => 'block',
       '#weight' => 0,
@@ -115,7 +117,7 @@ class SectionRenderTest extends UnitTestCase {
       ],
     ];
 
-    $block = $this->prophesize(BlockPluginInterface::class);
+    $block = $this->prophesize(BlockPluginInterface::class)->willImplement(PreviewFallbackInterface::class);
     $this->blockManager->createInstance('block_plugin_id', ['id' => 'block_plugin_id'])->willReturn($block->reveal());
 
     $access_result = AccessResult::allowed();
@@ -128,6 +130,7 @@ class SectionRenderTest extends UnitTestCase {
     $block->getBaseId()->willReturn('block_plugin_id');
     $block->getDerivativeId()->willReturn(NULL);
     $block->getConfiguration()->willReturn([]);
+    $block->getPreviewFallbackString()->willReturn($placeholder_label);
 
     $section = [
       new SectionComponent('some_uuid', 'content', ['id' => 'block_plugin_id']),
@@ -178,6 +181,7 @@ class SectionRenderTest extends UnitTestCase {
    */
   public function testToRenderArrayPreview() {
     $block_content = ['#markup' => 'The block content.'];
+    $placeholder_label = 'Placeholder Label';
     $render_array = [
       '#theme' => 'block',
       '#weight' => 0,
@@ -186,13 +190,16 @@ class SectionRenderTest extends UnitTestCase {
       '#base_plugin_id' => 'block_plugin_id',
       '#derivative_plugin_id' => NULL,
       'content' => $block_content,
+      '#attributes' => [
+        'data-layout-content-preview-placeholder-label' => $placeholder_label,
+      ],
       '#cache' => [
         'contexts' => [],
         'tags' => [],
         'max-age' => 0,
       ],
     ];
-    $block = $this->prophesize(BlockPluginInterface::class);
+    $block = $this->prophesize(BlockPluginInterface::class)->willImplement(PreviewFallbackInterface::class);
     $this->blockManager->createInstance('block_plugin_id', ['id' => 'block_plugin_id'])->willReturn($block->reveal());
 
     $block->access($this->account->reveal(), TRUE)->shouldNotBeCalled();
@@ -204,6 +211,7 @@ class SectionRenderTest extends UnitTestCase {
     $block->getPluginId()->willReturn('block_plugin_id');
     $block->getBaseId()->willReturn('block_plugin_id');
     $block->getDerivativeId()->willReturn(NULL);
+    $block->getPreviewFallbackString()->willReturn($placeholder_label);
 
     $section = [
       new SectionComponent('some_uuid', 'content', ['id' => 'block_plugin_id']),
@@ -231,6 +239,8 @@ class SectionRenderTest extends UnitTestCase {
    * @covers ::toRenderArray
    */
   public function testContextAwareBlock() {
+    $block_content = ['#markup' => 'The block content.'];
+    $placeholder_label = 'Placeholder Label';
     $render_array = [
       '#theme' => 'block',
       '#weight' => 0,
@@ -238,7 +248,7 @@ class SectionRenderTest extends UnitTestCase {
       '#plugin_id' => 'block_plugin_id',
       '#base_plugin_id' => 'block_plugin_id',
       '#derivative_plugin_id' => NULL,
-      'content' => [],
+      'content' => $block_content,
       '#cache' => [
         'contexts' => [],
         'tags' => [],
@@ -246,12 +256,14 @@ class SectionRenderTest extends UnitTestCase {
       ],
     ];
 
-    $block = $this->prophesize(BlockPluginInterface::class)->willImplement(ContextAwarePluginInterface::class);
+    $block = $this->prophesize(BlockPluginInterface::class)
+      ->willImplement(ContextAwarePluginInterface::class)
+      ->willImplement(PreviewFallbackInterface::class);
     $this->blockManager->createInstance('block_plugin_id', ['id' => 'block_plugin_id'])->willReturn($block->reveal());
 
     $access_result = AccessResult::allowed();
     $block->access($this->account->reveal(), TRUE)->willReturn($access_result);
-    $block->build()->willReturn([]);
+    $block->build()->willReturn($block_content);
     $block->getCacheContexts()->willReturn([]);
     $block->getCacheTags()->willReturn([]);
     $block->getCacheMaxAge()->willReturn(Cache::PERMANENT);
@@ -260,6 +272,7 @@ class SectionRenderTest extends UnitTestCase {
     $block->getBaseId()->willReturn('block_plugin_id');
     $block->getDerivativeId()->willReturn(NULL);
     $block->getConfiguration()->willReturn([]);
+    $block->getPreviewFallbackString()->willReturn($placeholder_label);
 
     $section = [
       new SectionComponent('some_uuid', 'content', ['id' => 'block_plugin_id']),
@@ -277,7 +290,8 @@ class SectionRenderTest extends UnitTestCase {
    * @covers ::toRenderArray
    */
   public function testToRenderArrayMissingPluginId() {
-    $this->setExpectedException(PluginException::class, 'No plugin ID specified for component with "some_uuid" UUID');
+    $this->expectException(PluginException::class);
+    $this->expectExceptionMessage('No plugin ID specified for component with "some_uuid" UUID');
     (new Section('layout_onecol', [], [new SectionComponent('some_uuid', 'content')]))->toRenderArray();
   }
 

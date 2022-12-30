@@ -14,12 +14,12 @@ class ClassyTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system', 'twig_theme_test'];
+  protected static $modules = ['system', 'twig_theme_test'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     // Use the classy theme.
@@ -34,11 +34,11 @@ class ClassyTest extends KernelTestBase {
   }
 
   /**
-   * Test the classy theme.
+   * Tests the classy theme.
    */
   public function testClassyTheme() {
-    drupal_set_message('An error occurred', 'error');
-    drupal_set_message('But then something nice happened');
+    \Drupal::messenger()->addError('An error occurred');
+    \Drupal::messenger()->addStatus('But then something nice happened');
     $messages = [
       '#type' => 'status_messages',
     ];

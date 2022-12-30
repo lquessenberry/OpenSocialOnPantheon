@@ -31,8 +31,16 @@ following contexts:
   Step-definitions that are specific to Drupal messages that get displayed
   (notice, warning, and error).
 
+*RandomContext*
+  Contains transforms that allow for use of placeholders such as `<?title>` that will be replaced with a random string
+  when the scenario is run: `Given I am viewing an "Article" with the title "<?title>"`
+
+
 *DrushContext*
   Allows steps to directly call drush commands.
+
+*BatchContext*
+  Steps for creating batch items and ensuring a batch is finished processing.
 
 Custom Contexts
 ---------------

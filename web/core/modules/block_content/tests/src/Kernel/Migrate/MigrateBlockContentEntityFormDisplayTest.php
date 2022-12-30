@@ -15,13 +15,14 @@ class MigrateBlockContentEntityFormDisplayTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['block', 'block_content', 'filter', 'text'];
+  protected static $modules = ['block', 'block_content', 'filter', 'text'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
+    $this->installEntitySchema('block_content');
     $this->installConfig(static::$modules);
     $this->executeMigrations([
       'block_content_type',
@@ -37,10 +38,12 @@ class MigrateBlockContentEntityFormDisplayTest extends MigrateDrupal7TestBase {
    *   The entity ID.
    * @param string $component_id
    *   The ID of the form component.
+   *
+   * @internal
    */
-  protected function assertDisplay($id, $component_id) {
+  protected function assertDisplay(string $id, string $component_id): void {
     $component = EntityFormDisplay::load($id)->getComponent($component_id);
-    $this->assertInternalType('array', $component);
+    $this->assertIsArray($component);
     $this->assertSame('text_textarea_with_summary', $component['type']);
   }
 

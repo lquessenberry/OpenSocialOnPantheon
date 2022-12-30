@@ -50,13 +50,6 @@ class MenuLinkDefaultForm implements MenuLinkFormInterface, ContainerInjectionIn
   protected $moduleHandler;
 
   /**
-   * The module data from system_get_info().
-   *
-   * @var array
-   */
-  protected $moduleData;
-
-  /**
    * Constructs a new \Drupal\Core\Menu\Form\MenuLinkDefaultForm.
    *
    * @param \Drupal\Core\Menu\MenuLinkManagerInterface $menu_link_manager
@@ -129,8 +122,8 @@ class MenuLinkDefaultForm implements MenuLinkFormInterface, ContainerInjectionIn
 
     $form['expanded'] = [
       '#type' => 'checkbox',
-      '#title' => t('Show as expanded'),
-      '#description' => $this->t('If selected and this menu link has children, the menu will always appear expanded.'),
+      '#title' => $this->t('Show as expanded'),
+      '#description' => $this->t('If selected and this menu link has children, the menu will always appear expanded. This option may be overridden for the entire menu tree when placing a menu block.'),
       '#default_value' => $this->menuLink->isExpanded(),
     ];
 
@@ -165,7 +158,7 @@ class MenuLinkDefaultForm implements MenuLinkFormInterface, ContainerInjectionIn
     $new_definition['enabled'] = $form_state->getValue('enabled') ? 1 : 0;
     $new_definition['weight'] = (int) $form_state->getValue('weight');
     $new_definition['expanded'] = $form_state->getValue('expanded') ? 1 : 0;
-    list($menu_name, $parent) = explode(':', $form_state->getValue('menu_parent'), 2);
+    [$menu_name, $parent] = explode(':', $form_state->getValue('menu_parent'), 2);
     if (!empty($menu_name)) {
       $new_definition['menu_name'] = $menu_name;
     }

@@ -3,6 +3,7 @@
 namespace Drupal\Tests\views_ui\Unit;
 
 use Drupal\Core\Language\LanguageInterface;
+use Drupal\Core\TempStore\Lock;
 use Drupal\Tests\UnitTestCase;
 use Drupal\views\Entity\View;
 use Drupal\views_ui\ViewUI;
@@ -43,7 +44,10 @@ class ViewUIObjectTest extends UnitTestCase {
       }
     }
 
-    $storage = $this->getMock('Drupal\views\Entity\View', $interface_methods, [[], 'view']);
+    $storage = $this->getMockBuilder('Drupal\views\Entity\View')
+      ->onlyMethods($interface_methods)
+      ->setConstructorArgs([[], 'view'])
+      ->getMock();
     $executable = $this->getMockBuilder('Drupal\views\ViewExecutable')
       ->disableOriginalConstructor()
       ->setConstructorArgs([$storage])
@@ -70,13 +74,15 @@ class ViewUIObjectTest extends UnitTestCase {
    * Tests the isLocked method.
    */
   public function testIsLocked() {
-    $storage = $this->getMock('Drupal\views\Entity\View', [], [[], 'view']);
+    $storage = $this->getMockBuilder('Drupal\views\Entity\View')
+      ->setConstructorArgs([[], 'view'])
+      ->getMock();
     $executable = $this->getMockBuilder('Drupal\views\ViewExecutable')
       ->disableOriginalConstructor()
       ->setConstructorArgs([$storage])
       ->getMock();
     $storage->set('executable', $executable);
-    $account = $this->getMock('Drupal\Core\Session\AccountInterface');
+    $account = $this->createMock('Drupal\Core\Session\AccountInterface');
     $account->expects($this->exactly(2))
       ->method('id')
       ->will($this->returnValue(1));
@@ -91,21 +97,16 @@ class ViewUIObjectTest extends UnitTestCase {
     $this->assertFalse($view_ui->isLocked());
 
     // Set the lock object with a different owner than the mocked account above.
-    $lock = (object) [
-      'owner' => 2,
-      'data' => [],
-      'updated' => (int) $_SERVER['REQUEST_TIME'],
-    ];
-    $view_ui->lock = $lock;
+    $lock = new Lock(2, (int) $_SERVER['REQUEST_TIME']);
+    $view_ui->setLock($lock);
     $this->assertTrue($view_ui->isLocked());
 
     // Set a different lock object with the same object as the mocked account.
-    $lock = (object) [
-      'owner' => 1,
-      'data' => [],
-      'updated' => (int) $_SERVER['REQUEST_TIME'],
-    ];
-    $view_ui->lock = $lock;
+    $lock = new Lock(1, (int) $_SERVER['REQUEST_TIME']);
+    $view_ui->setLock($lock);
+    $this->assertFalse($view_ui->isLocked());
+
+    $view_ui->unsetLock(NULL);
     $this->assertFalse($view_ui->isLocked());
   }
 
@@ -132,7 +133,7 @@ class ViewUIObjectTest extends UnitTestCase {
     $serialized = serialize($view_ui);
 
     // Make sure the ViewExecutable class is not found in the serialized string.
-    $this->assertSame(strpos($serialized, '"Drupal\views\ViewExecutable"'), FALSE);
+    $this->assertStringNotContainsString('"Drupal\views\ViewExecutable"', $serialized);
 
     $unserialized = unserialize($serialized);
     $this->assertInstanceOf('Drupal\views_ui\ViewUI', $unserialized);

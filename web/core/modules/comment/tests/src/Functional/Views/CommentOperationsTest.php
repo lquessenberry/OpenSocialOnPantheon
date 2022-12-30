@@ -17,17 +17,22 @@ class CommentOperationsTest extends CommentTestBase {
   public static $testViews = ['test_comment_operations'];
 
   /**
-   * Test the operations field plugin.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * Tests the operations field plugin.
    */
   public function testCommentOperations() {
     $admin_account = $this->drupalCreateUser(['administer comments']);
     $this->drupalLogin($admin_account);
     $this->drupalGet('test-comment-operations');
-    $this->assertResponse(200);
-    $operation = $this->cssSelect('.views-field-operations li.edit a');
-    $this->assertEqual(count($operation), 1, 'Found edit operation for comment.');
-    $operation = $this->cssSelect('.views-field-operations li.delete a');
-    $this->assertEqual(count($operation), 1, 'Found delete operation for comment.');
+    $this->assertSession()->statusCodeEquals(200);
+    // Assert Edit operation is present.
+    $this->assertSession()->elementsCount('xpath', '//td[contains(@class, "views-field-operations")]//li/a[text() = "Edit"]', 1);
+    // Assert Delete operation is present.
+    $this->assertSession()->elementsCount('xpath', '//td[contains(@class, "views-field-operations")]//li/a[text() = "Delete"]', 1);
   }
 
 }

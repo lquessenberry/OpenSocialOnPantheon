@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\mailsystem\Form\AdminForm.
- */
 
 namespace Drupal\mailsystem\Form;
 
@@ -22,16 +18,22 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class AdminForm extends ConfigFormBase {
 
   /**
+   * The mail manager.
+   *
    * @var \Drupal\Core\Mail\MailManagerInterface
    */
   protected $mailManager;
 
   /**
+   * The module handler.
+   *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
+   * The theme handler.
+   *
    * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
@@ -70,7 +72,7 @@ class AdminForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormID() {
+  public function getFormId() {
     return 'mailsystem_admin_form';
   }
 
@@ -78,7 +80,7 @@ class AdminForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   protected function getEditableConfigNames() {
-    return array('mailsystem.settings');
+    return ['mailsystem.settings'];
   }
 
   /**
@@ -87,104 +89,104 @@ class AdminForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('mailsystem.settings');
 
-    $arguments = array(
+    $arguments = [
       ':interface' => Url::fromUri('https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Mail!MailInterface.php/interface/MailInterface/8')->toString(),
       '@interface' => '\Drupal\Core\Mail\MailInterface',
       ':format' => Url::fromUri('https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Mail!MailInterface.php/function/MailInterface%3A%3Aformat/8')->toString(),
       '@format' => 'format()',
       ':mail' => Url::fromUri('https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Mail!MailInterface.php/function/MailInterface%3A%3Amail/8')->toString(),
       '@mail' => 'mail()',
-    );
+    ];
 
     // Default mail system.
-    $form['mailsystem'] = array(
+    $form['mailsystem'] = [
       '#type' => 'details',
       '#title' => $this->t('Default Mail System'),
       '#open' => TRUE,
       '#tree' => TRUE,
-    );
+    ];
 
     // Default formatter plugin.
-    $form['mailsystem']['default_formatter'] = array(
+    $form['mailsystem']['default_formatter'] = [
       '#type' => 'select',
       '#title' => $this->t('Formatter'),
       '#description' => $this->t('Select the standard plugin for formatting an email before sending it. This plugin implements <a href=":interface">@interface</a> and in special the <a href=":format">@format</a> function.', $arguments),
       '#options' => $this->getOptions(),
       '#default_value' => $config->get('defaults.formatter'),
-    );
+    ];
 
     // Default sender plugin.
-    $form['mailsystem']['default_sender'] = array(
+    $form['mailsystem']['default_sender'] = [
       '#type' => 'select',
       '#title' => $this->t('Sender'),
       '#description' => $this->t('Select the standard plugin for sending an email after formatting it. This plugin implements <a href=":interface">@interface</a> and in special the <a href=":mail">@mail</a> function.', $arguments),
       '#options' => $this->getOptions(),
       '#default_value' => $config->get('defaults.sender'),
-    );
+    ];
 
     // Default theme for formatting emails.
-    $form['mailsystem']['default_theme'] = array(
+    $form['mailsystem']['default_theme'] = [
       '#type' => 'select',
       '#title' => $this->t('Theme to render the emails'),
       '#description' => $this->t('Select the theme that will be used to render emails which are configured for this. This can be either the current theme, the default theme, the domain theme or any active theme.'),
       '#options' => $this->getThemesList(),
       '#default_value' => $config->get('theme'),
-    );
+    ];
 
     // Fieldset for custom module configuration.
-    $form['custom'] = array(
+    $form['custom'] = [
       '#type' => 'details',
       '#title' => $this->t('Module-specific configuration'),
       '#open' => TRUE,
       '#tree' => TRUE,
-    );
+    ];
 
     // Configuration for a new module.
-    $form['custom']['custom_module'] = array(
+    $form['custom']['custom_module'] = [
       '#type' => 'select',
       '#title' => $this->t('Module'),
       '#options' => $this->getModulesList(),
       '#empty_option' => $this->t('- Select -'),
-    );
-    $form['custom']['custom_module_key'] = array(
+    ];
+    $form['custom']['custom_module_key'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Key'),
       '#description' => $this->t('The key is used to identify specific mails if the module sends more than one. Leave empty to use the configuration for all mails sent by the selected module.'),
       '#default_value' => '',
-    );
-    $form['custom']['custom_formatter'] = array(
+    ];
+    $form['custom']['custom_formatter'] = [
       '#type' => 'select',
       '#title' => $this->t('Formatter plugin'),
       '#options' => $this->getOptions(),
       '#empty_option' => $this->t('- Default -'),
-    );
-    $form['custom']['custom_sender'] = array(
+    ];
+    $form['custom']['custom_sender'] = [
       '#type' => 'select',
       '#title' => $this->t('Sender plugin'),
       '#options' => $this->getOptions(),
       '#empty_option' => $this->t('- Default -'),
-    );
+    ];
 
-    $form['custom']['add'] = array(
+    $form['custom']['add'] = [
       '#type' => 'submit',
       '#value' => $this->t('Add'),
       '#validate' => ['::validateAdd'],
       '#submit' => ['::submitAdd'],
       '#button_type' => 'primary',
-    );
+    ];
 
     // Show and change all custom configurations.
-    $form['custom']['modules'] = array(
+    $form['custom']['modules'] = [
       '#type' => 'table',
-      '#header' => array(
+      '#header' => [
         'module' => $this->t('Module'),
         'key' => $this->t('Key'),
         'formatter' => $this->t('Formatter'),
         'sender' => $this->t('Sender'),
         'remove' => $this->t('Remove'),
-      ),
+      ],
       '#empty' => $this->t('No specific configuration yet.'),
-    );
+    ];
 
     // Get all configured modules and show them in a list.
     $modules = $config->get(MailsystemManager::MAILSYSTEM_MODULES_CONFIG) ?: [];
@@ -195,31 +197,31 @@ class AdminForm extends ConfigFormBase {
 
           $module_key = $module . '.' . $key;
 
-          $row = array(
+          $row = [
             'module' => ['#markup' => $this->moduleHandler->getName($module)],
-            'key' => ['#markup' => $key == 'none' ? t('All') : $key],
-          );
+            'key' => ['#markup' => $key == 'none' ? $this->t('All') : $key],
+          ];
 
-          $row['formatter'] = array(
+          $row['formatter'] = [
             '#type' => 'select',
             '#title' => $this->t('Formatter'),
             '#title_display' => 'hidden',
             '#options' => $this->getOptions(),
             '#empty_option' => $this->t('- Default -'),
             '#default_value' => isset($settings['formatter']) ? $settings['formatter'] : '',
-          );
-          $row['sender'] = array(
+          ];
+          $row['sender'] = [
             '#type' => 'select',
             '#title' => $this->t('Sender'),
             '#title_display' => 'hidden',
             '#options' => $this->getOptions(),
             '#empty_option' => $this->t('- Default -'),
             '#default_value' => isset($settings['sender']) ? $settings['sender'] : '',
-          );
-          $row['remove'] = array(
+          ];
+          $row['remove'] = [
             '#type' => 'checkbox',
             '#default_value' => $module_key,
-          );
+          ];
           $form['custom']['modules'][$module_key] = $row;
         }
       }
@@ -263,8 +265,11 @@ class AdminForm extends ConfigFormBase {
     // formatting.
     //
     // The configuration entries can be:
-    // modules.module.key.type -> Plugin for a special mail and send/format plugin
-    // modules.module.none.type     -> Global plugin for the send/format plugin
+    // * modules.module.key.type
+    // plugin for a special mail and send/format plugin.
+    //
+    // * modules.module.none.type
+    // global plugin for the send/format plugin.
     $prefix = $this->getModuleKeyConfigPrefix($module, $key);
 
     $config = $this->config('mailsystem.settings');
@@ -277,7 +282,7 @@ class AdminForm extends ConfigFormBase {
     }
     $config->save();
 
-    drupal_set_message($this->t('The configuration has been added.'));
+    $this->messenger()->addMessage($this->t('The configuration has been added.'));
   }
 
   /**
@@ -324,7 +329,7 @@ class AdminForm extends ConfigFormBase {
    *   List of mail plugin labels, keyed by ID.
    */
   protected function getOptions() {
-    $list = array();
+    $list = [];
 
     // Append all MailPlugins.
     foreach ($this->mailManager->getDefinitions() as $definition) {
@@ -340,10 +345,10 @@ class AdminForm extends ConfigFormBase {
    *   List of theme options.
    */
   protected function getThemesList() {
-    $theme_options = array(
+    $theme_options = [
       'current' => $this->t('Current'),
-      'default' => $this->t('Default')
-    );
+      'default' => $this->t('Default'),
+    ];
     if ($this->moduleHandler->moduleExists('domain_theme')) {
       $theme_options['domain'] = $this->t('Domain Theme');
     }
@@ -362,15 +367,20 @@ class AdminForm extends ConfigFormBase {
    *
    * @return string[]
    *   List of modules, keyed by the machine name.
-   *
    */
   protected function getModulesList() {
     $list = [];
-    foreach ($this->moduleHandler->getImplementations('mail') as $module) {
-      $list[$module] = $this->moduleHandler->getName($module);
+    if (method_exists($this->moduleHandler, 'invokeAllWIth')) {
+      $this->moduleHandler->invokeAllWith('mail', function (callable $hook, string $module) use (&$list) {
+        $list[$module] = $this->moduleHandler->getName($module);
+      });
+    }
+    else {
+      foreach ($this->moduleHandler->getImplementations('mail') as $module) {
+        $list[$module] = $this->moduleHandler->getName($module);
+      }
     }
     asort($list);
-
     return $list;
   }
 

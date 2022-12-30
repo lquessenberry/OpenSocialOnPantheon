@@ -9,8 +9,13 @@ namespace Drupal\Tests\views_ui\Functional;
  */
 class DuplicateTest extends UITestBase {
 
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->placeBlock('page_title_block');
   }
@@ -31,13 +36,14 @@ class DuplicateTest extends UITestBase {
     $view['id'] = strtolower($this->randomMachineName(128));
 
     // Duplicate view.
-    $this->drupalPostForm('admin/structure/views/view/' . $random_view['id'] . '/duplicate', $view, t('Duplicate'));
+    $this->drupalGet('admin/structure/views/view/' . $random_view['id'] . '/duplicate');
+    $this->submitForm($view, 'Duplicate');
 
     // Assert that the page url is correct.
-    $this->assertUrl('admin/structure/views/view/' . $view['id'], [], 'Make sure the view saving was successful and the browser got redirected to the edit page.');
+    $this->assertSession()->addressEquals('admin/structure/views/view/' . $view['id']);
 
     // Assert that the page title is correctly displayed.
-    $this->assertText($view['label']);
+    $this->assertSession()->pageTextContains($view['label']);
   }
 
 }

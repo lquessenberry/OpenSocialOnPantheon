@@ -2,7 +2,6 @@
 
 namespace Drupal\field_group\Plugin\field_group\FieldGroupFormatter;
 
-use Drupal;
 use Drupal\Component\Utility\Html;
 use Drupal\field_group\FieldGroupFormatterBase;
 
@@ -28,29 +27,51 @@ class AccordionItem extends FieldGroupFormatterBase {
   /**
    * {@inheritdoc}
    */
-  public function preRender(&$element, $rendering_object) {
-    parent::preRender($element, $rendering_object);
+  public function process(&$element, $processed_object) {
 
-    $element += array(
+    // Keep using preRender parent for BC.
+    parent::preRender($element, $processed_object);
+
+    $element += [
       '#type' => 'field_group_accordion_item',
-      '#open' => $this->getSetting('formatter') == 'open' ? TRUE : FALSE,
-      '#description' => $this->getSetting('description'),
-      '#title' => Drupal::translation()->translate($this->getLabel()),
-    );
+      '#effect' => $this->getSetting('effect'),
+      '#title' => $this->getLabel(),
+      // Prevent \Drupal\content_translation\ContentTranslationHandler::addTranslatabilityClue()
+      // from adding an incorrect suffix to the field group title.
+      '#multilingual' => TRUE,
+    ];
 
     if ($this->getSetting('id')) {
-      $element['#id'] = Html::getId($this->getSetting('id'));
+      $element['#id'] = Html::getUniqueId($this->getSetting('id'));
     }
 
     $classes = $this->getClasses();
     if (!empty($classes)) {
-      $element += array('#attributes' => array('class' => $classes));
+      $element += ['#attributes' => ['class' => $classes]];
     }
 
     if ($this->getSetting('required_fields')) {
       $element['#attached']['library'][] = 'field_group/formatter.details';
     }
 
+    if ($this->getSetting('formatter') == 'open') {
+        $element['#open'] = TRUE;
+    }
+
+    foreach ($element as $key => $value) {
+      if (is_array($value) && !empty($value['#children_errors'])) {
+        $element['#open'] = TRUE;
+      }
+    }
+
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function preRender(&$element, $rendering_object) {
+    parent::preRender($element, $rendering_object);
+    $this->process($element, $rendering_object);
   }
 
   /**
@@ -60,21 +81,21 @@ class AccordionItem extends FieldGroupFormatterBase {
 
     $form = parent::settingsForm();
 
-    $form['formatter'] = array(
+    $form['formatter'] = [
       '#title' => $this->t('Default state'),
       '#type' => 'select',
       '#options' => array_combine($this->pluginDefinition['format_types'], $this->pluginDefinition['format_types']),
       '#default_value' => $this->getSetting('formatter'),
       '#weight' => -4,
-    );
+    ];
 
     if ($this->context == 'form') {
-      $form['required_fields'] = array(
+      $form['required_fields'] = [
         '#type' => 'checkbox',
         '#title' => $this->t('Mark group as required if it contains required fields.'),
         '#default_value' => $this->getSetting('required_fields'),
         '#weight' => 2,
-      );
+      ];
     }
 
     return $form;
@@ -85,7 +106,7 @@ class AccordionItem extends FieldGroupFormatterBase {
    */
   public function settingsSummary() {
 
-    $summary = array();
+    $summary = [];
 
     if ($this->getSetting('required_fields')) {
       $summary[] = $this->t('Mark as required');
@@ -93,7 +114,7 @@ class AccordionItem extends FieldGroupFormatterBase {
 
     if ($this->getSetting('description')) {
       $summary[] = $this->t('Description : @description',
-        array('@description' => $this->getSetting('description'))
+        ['@description' => $this->getSetting('description')]
       );
     }
 
@@ -104,10 +125,10 @@ class AccordionItem extends FieldGroupFormatterBase {
    * {@inheritdoc}
    */
   public static function defaultContextSettings($context) {
-    $defaults = array(
+    $defaults = [
       'formatter' => 'closed',
       'description' => '',
-    ) + parent::defaultSettings($context);
+    ] + parent::defaultSettings($context);
 
     if ($context == 'form') {
       $defaults['required_fields'] = 1;

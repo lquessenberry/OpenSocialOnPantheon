@@ -5,8 +5,15 @@ namespace Drupal\comment\Plugin\migrate\source\d6;
 use Drupal\migrate\Row;
 use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 
+// cspell:ignore vancode
+
 /**
  * Drupal 6 comment source from database.
+ *
+ * For available configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
  *
  * @MigrateSource(
  *   id = "d6_comment",
@@ -24,8 +31,8 @@ class Comment extends DrupalSqlBase {
       'comment', 'hostname', 'timestamp', 'status', 'thread', 'name',
       'mail', 'homepage', 'format',
     ]);
-    $query->innerJoin('node', 'n', 'c.nid = n.nid');
-    $query->fields('n', ['type']);
+    $query->innerJoin('node', 'n', '[c].[nid] = [n].[nid]');
+    $query->fields('n', ['type', 'language']);
     $query->orderBy('c.timestamp');
     return $query;
   }
@@ -34,20 +41,38 @@ class Comment extends DrupalSqlBase {
    * {@inheritdoc}
    */
   public function prepareRow(Row $row) {
-    return parent::prepareRow($this->prepareComment($row));
+    // In D6, status=0 means published, while in D8 means the opposite.
+    $row->setSourceProperty('status', !$row->getSourceProperty('status'));
+
+    // If node did not have a language, use site default language as a fallback.
+    if (!$row->getSourceProperty('language')) {
+      $language_default = $this->variableGet('language_default', NULL);
+      $language = $language_default ? $language_default->language : 'en';
+      $row->setSourceProperty('language', $language);
+    }
+    return parent::prepareRow($row);
   }
 
   /**
-   * This is a backward compatibility layer for the deprecated migrate source
-   * plugins d6_comment_variable and d6_comment_variable_per_comment_type.
+   * Provides a BC layer for deprecated sources.
    *
    * @param \Drupal\migrate\Row $row
    *   The row from the source to process.
+   *
    * @return \Drupal\migrate\Row
    *   The row object.
-   * @deprecated in Drupal 8.4.x, to be removed before Drupal 9.0.x.
+   *
+   * @throws \Exception
+   *   Passing a Row with a frozen source to this method will trigger an
+   *   \Exception when attempting to set the source properties.
+   *
+   * @deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. No direct
+   *   replacement is provided.
+   *
+   * @see https://www.drupal.org/node/3221964
    */
   protected function prepareComment(Row $row) {
+    @trigger_error(__METHOD__ . '() is deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. No direct replacement is provided. See https://www.drupal.org/node/3221964', E_USER_DEPRECATED);
     if ($this->variableGet('comment_subject_field_' . $row->getSourceProperty('type'), 1)) {
       // Comment subject visible.
       $row->setSourceProperty('field_name', 'comment');
@@ -61,6 +86,13 @@ class Comment extends DrupalSqlBase {
     // In D6, status=0 means published, while in D8 means the opposite.
     // See https://www.drupal.org/node/237636.
     $row->setSourceProperty('status', !$row->getSourceProperty('status'));
+
+    // If node did not have a language, use site default language as a fallback.
+    if (!$row->getSourceProperty('language')) {
+      $language_default = $this->variableGet('language_default', NULL);
+      $language = $language_default ? $language_default->language : 'en';
+      $row->setSourceProperty('language', $language);
+    }
     return $row;
   }
 
@@ -84,6 +116,7 @@ class Comment extends DrupalSqlBase {
       'mail' => $this->t("The comment author's email address from the comment form, if user is anonymous, and the 'Anonymous users may/must leave their contact information' setting is turned on."),
       'homepage' => $this->t("The comment author's home page address from the comment form, if user is anonymous, and the 'Anonymous users may/must leave their contact information' setting is turned on."),
       'type' => $this->t("The {node}.type to which this comment is a reply."),
+      'language' => $this->t("The {node}.language to which this comment is a reply. Site default language is used as a fallback if node does not have a language."),
     ];
   }
 

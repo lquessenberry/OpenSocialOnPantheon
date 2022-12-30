@@ -38,7 +38,7 @@ class HtmlTag extends RenderElement {
    * @see http://www.w3.org/TR/html5/syntax.html#syntax-start-tag
    * @see http://www.w3.org/TR/html5/syntax.html#void-elements
    */
-  static protected $voidElements = [
+  protected static $voidElements = [
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
     'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr',
     'rect', 'circle', 'polygon', 'ellipse', 'stop', 'use', 'path',
@@ -48,7 +48,7 @@ class HtmlTag extends RenderElement {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#pre_render' => [
         [$class, 'preRenderConditionalComments'],
@@ -95,8 +95,15 @@ class HtmlTag extends RenderElement {
     // Construct all other elements.
     else {
       $open_tag .= '>';
-      $markup = $element['#value'] instanceof MarkupInterface ? $element['#value'] : Xss::filterAdmin($element['#value']);
-      $element['#markup'] = Markup::create($markup);
+      if ($element['#value'] === NULL) {
+        $element['#markup'] = '';
+      }
+      elseif ($element['#value'] instanceof MarkupInterface) {
+        $element['#markup'] = $element['#value'];
+      }
+      else {
+        $element['#markup'] = Markup::create(Xss::filterAdmin($element['#value']));
+      }
     }
     $prefix = isset($element['#prefix']) ? $element['#prefix'] . $open_tag : $open_tag;
     $suffix = isset($element['#suffix']) ? $close_tag . $element['#suffix'] : $close_tag;
@@ -139,7 +146,7 @@ class HtmlTag extends RenderElement {
    *   added to '#prefix' and '#suffix'.
    */
   public static function preRenderConditionalComments($element) {
-    $browsers = isset($element['#browsers']) ? $element['#browsers'] : [];
+    $browsers = $element['#browsers'] ?? [];
     $browsers += [
       'IE' => TRUE,
       '!IE' => TRUE,
@@ -149,6 +156,8 @@ class HtmlTag extends RenderElement {
     if ($browsers['IE'] === TRUE && $browsers['!IE']) {
       return $element;
     }
+
+    @trigger_error('Support for IE Conditional Comments is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. See https://www.drupal.org/node/3102997', E_USER_DEPRECATED);
 
     // Determine the conditional comment expression for Internet Explorer to
     // evaluate.
@@ -170,13 +179,13 @@ class HtmlTag extends RenderElement {
     // technique. See http://wikipedia.org/wiki/Conditional_comment
     // for details.
 
-    // Ensure what we are dealing with is safe.
-    // This would be done later anyway in drupal_render().
-    $prefix = isset($element['#prefix']) ? $element['#prefix'] : '';
+    // Ensure what we are dealing with is safe. This would be done later anyway
+    // in \Drupal::service('renderer')->render().
+    $prefix = $element['#prefix'] ?? '';
     if ($prefix && !($prefix instanceof MarkupInterface)) {
       $prefix = Xss::filterAdmin($prefix);
     }
-    $suffix = isset($element['#suffix']) ? $element['#suffix'] : '';
+    $suffix = $element['#suffix'] ?? '';
     if ($suffix && !($suffix instanceof MarkupInterface)) {
       $suffix = Xss::filterAdmin($suffix);
     }

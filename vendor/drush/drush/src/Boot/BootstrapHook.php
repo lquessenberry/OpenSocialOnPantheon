@@ -8,7 +8,7 @@ use Consolidation\AnnotatedCommand\AnnotationData;
 
 /**
  * The BootstrapHook is installed as an init hook that runs before
- * all commands. If there is a `@bootstrap` annotation, then we will
+ * all commands. If there is a `@bootstrap` annotation/attribute, then we will
  * bootstrap Drupal to the requested phase.
  */
 class BootstrapHook implements InitializeHookInterface
@@ -20,11 +20,15 @@ class BootstrapHook implements InitializeHookInterface
         $this->bootstrapManager = $bootstrapManager;
     }
 
-    public function initialize(InputInterface $input, AnnotationData $annotationData)
+    public function initialize(InputInterface $input, AnnotationData $annotationData): void
     {
-        // Get the @bootstrap annotation. If there isn't one, then assume NONE.
+        // Get the @bootstrap annotation/attribute. If there isn't one, then assume NONE.
         $phase_long = $annotationData->get('bootstrap', 'none');
-        $phase = current(explode(' ', $phase_long));
+        if (is_int($phase_long)) {
+            $phase = DrupalBootLevels::getPhaseName($phase_long);
+        } else {
+            $phase = current(explode(' ', $phase_long));
+        }
         $bootstrap_successful = $this->bootstrapManager->bootstrapToPhase($phase, $annotationData);
 
         if (!$bootstrap_successful) {

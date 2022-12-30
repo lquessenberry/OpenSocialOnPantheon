@@ -5,6 +5,12 @@
  * Code required only when comparing available updates to existing data.
  */
 
+use Drupal\Core\Extension\ExtensionVersion;
+use Drupal\update\ProjectRelease;
+use Drupal\update\UpdateFetcherInterface;
+use Drupal\update\UpdateManagerInterface;
+use Drupal\update\ProjectCoreCompatibility;
+
 /**
  * Determines version and type information for currently installed projects.
  *
@@ -14,7 +20,7 @@
  *
  * @param $projects
  *   Array of project information from
- *   \Drupal\Update\UpdateManager::getProjects().
+ *   \Drupal\update\UpdateManager::getProjects().
  */
 function update_process_project_info(&$projects) {
   foreach ($projects as $key => $project) {
@@ -36,10 +42,9 @@ function update_process_project_info(&$projects) {
       if (preg_match('/^(\d+\.x-)?(\d+)\..*$/', $info['version'], $matches)) {
         $info['major'] = $matches[2];
       }
-      elseif (!isset($info['major'])) {
+      else {
         // This would only happen for version strings that don't follow the
-        // drupal.org convention. We let contribs define "major" in their
-        // .info.yml in this case, and only if that's missing would we hit this.
+        // drupal.org convention.
         $info['major'] = -1;
       }
     }
@@ -76,9 +81,10 @@ function update_process_project_info(&$projects) {
  *   An array of installed projects with current update status information.
  *
  * @see update_get_available()
- * @see \Drupal\Update\UpdateManager::getProjects()
+ * @see \Drupal\update\UpdateManager::getProjects()
  * @see update_process_project_info()
  * @see \Drupal\update\UpdateManagerInterface::projectStorage()
+ * @see \Drupal\update\ProjectCoreCompatibility::setReleaseMessage()
  */
 function update_calculate_project_data($available) {
   // Retrieve the projects from storage, if present.
@@ -90,12 +96,35 @@ function update_calculate_project_data($available) {
   }
   $projects = \Drupal::service('update.manager')->getProjects();
   update_process_project_info($projects);
+  if (isset($projects['drupal']) && !empty($available['drupal'])) {
+    // Calculate core status first so that it is complete before
+    // \Drupal\update\ProjectCoreCompatibility::setReleaseMessage() is called
+    // for each module below.
+    update_calculate_project_update_status($projects['drupal'], $available['drupal']);
+    if (isset($available['drupal']['releases'])) {
+      $project_core_compatibility = new ProjectCoreCompatibility($projects['drupal'], $available['drupal']['releases']);
+    }
+  }
+
   foreach ($projects as $project => $project_info) {
     if (isset($available[$project])) {
+      if ($project === 'drupal') {
+        continue;
+      }
       update_calculate_project_update_status($projects[$project], $available[$project]);
+      // Inject the list of compatible core versions to show administrator(s)
+      // which versions of core a given available update can be installed with.
+      // Since individual releases of a project can be compatible with different
+      // versions of core, and even multiple major versions of core (for
+      // example, 8.9.x and 9.0.x), this list will hopefully help
+      // administrator(s) know which available updates they can upgrade a given
+      // project to.
+      if (isset($project_core_compatibility)) {
+        $project_core_compatibility->setReleaseMessage($projects[$project]);
+      }
     }
     else {
-      $projects[$project]['status'] = UPDATE_UNKNOWN;
+      $projects[$project]['status'] = UpdateFetcherInterface::UNKNOWN;
       $projects[$project]['reason'] = t('No available releases found');
     }
   }
@@ -119,12 +148,14 @@ function update_calculate_project_data($available) {
  * with an error and the next project is considered.
  *
  * If the project itself is valid, the function decides what major release
- * series to consider. The project defines what the currently supported major
- * versions are for each version of core, so the first step is to make sure the
- * current version is still supported. If so, that's the target version. If the
- * current version is unsupported, the project maintainer's recommended major
- * version is used. There's also a check to make sure that this function never
- * recommends an earlier release than the currently installed major version.
+ * series to consider. The project defines its currently supported branches in
+ * its Drupal.org for the project, so the first step is to make sure the
+ * development branch of the current version is still supported. If so, then the
+ * major version of the current version is used. If the current version is not
+ * in a supported branch, the next supported branch is used to determine the
+ * major version to use. There's also a check to make sure that this function
+ * never recommends an earlier release than the currently installed major
+ * version.
  *
  * Given a target major version, the available releases are scanned looking for
  * the specific release to recommend (avoiding beta releases and development
@@ -165,6 +196,9 @@ function update_calculate_project_data($available) {
  * version (e.g., 5.x-1.5-beta1, 5.x-1.5-beta2, and 5.x-1.5). Development
  * snapshots for a given major version are always listed last.
  *
+ * NOTE: This function *must* set a value for $project_data['status'] before
+ * returning, or the rest of the Update Manager will break in unexpected ways.
+ *
  * @param $project_data
  *   An array containing information about a specific project.
  * @param $available
@@ -182,7 +216,7 @@ function update_calculate_project_update_status(&$project_data, $available) {
   if (isset($available['project_status'])) {
     switch ($available['project_status']) {
       case 'insecure':
-        $project_data['status'] = UPDATE_NOT_SECURE;
+        $project_data['status'] = UpdateManagerInterface::NOT_SECURE;
         if (empty($project_data['extra'])) {
           $project_data['extra'] = [];
         }
@@ -191,9 +225,10 @@ function update_calculate_project_update_status(&$project_data, $available) {
           'data' => t('This project has been labeled insecure by the Drupal security team, and is no longer available for download. Immediately disabling everything included by this project is strongly recommended!'),
         ];
         break;
+
       case 'unpublished':
       case 'revoked':
-        $project_data['status'] = UPDATE_REVOKED;
+        $project_data['status'] = UpdateManagerInterface::REVOKED;
         if (empty($project_data['extra'])) {
           $project_data['extra'] = [];
         }
@@ -202,8 +237,9 @@ function update_calculate_project_update_status(&$project_data, $available) {
           'data' => t('This project has been revoked, and is no longer available for download. Disabling everything included by this project is strongly recommended!'),
         ];
         break;
+
       case 'unsupported':
-        $project_data['status'] = UPDATE_NOT_SUPPORTED;
+        $project_data['status'] = UpdateManagerInterface::NOT_SUPPORTED;
         if (empty($project_data['extra'])) {
           $project_data['extra'] = [];
         }
@@ -212,8 +248,9 @@ function update_calculate_project_update_status(&$project_data, $available) {
           'data' => t('This project is no longer supported, and is no longer available for download. Disabling everything included by this project is strongly recommended!'),
         ];
         break;
+
       case 'not-fetched':
-        $project_data['status'] = UPDATE_NOT_FETCHED;
+        $project_data['status'] = UpdateFetcherInterface::NOT_FETCHED;
         $project_data['reason'] = t('Failed to get available update data.');
         break;
 
@@ -232,35 +269,60 @@ function update_calculate_project_update_status(&$project_data, $available) {
   }
 
   // Figure out the target major version.
-  $existing_major = $project_data['existing_major'];
-  $supported_majors = [];
-  if (isset($available['supported_majors'])) {
-    $supported_majors = explode(',', $available['supported_majors']);
+  // Off Drupal.org, '0' could be a valid version string, so don't use empty().
+  if (!isset($project_data['existing_version']) || $project_data['existing_version'] === '') {
+    $project_data['status'] = UpdateFetcherInterface::UNKNOWN;
+    $project_data['reason'] = t('Empty version');
+    return;
   }
-  elseif (isset($available['default_major'])) {
-    // Older release history XML file without supported or recommended.
-    $supported_majors[] = $available['default_major'];
+  try {
+    $existing_major = ExtensionVersion::createFromVersionString($project_data['existing_version'])->getMajorVersion();
+  }
+  catch (UnexpectedValueException $exception) {
+    // If the version has an unexpected value we can't determine updates.
+    $project_data['status'] = UpdateFetcherInterface::UNKNOWN;
+    $project_data['reason'] = t('Invalid version: @existing_version', ['@existing_version' => $project_data['existing_version']]);
+    return;
+  }
+  $supported_branches = [];
+  if (isset($available['supported_branches'])) {
+    $supported_branches = explode(',', $available['supported_branches']);
   }
 
-  if (in_array($existing_major, $supported_majors)) {
+  $is_in_supported_branch = function ($version) use ($supported_branches) {
+    foreach ($supported_branches as $supported_branch) {
+      if (strpos($version, $supported_branch) === 0) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  };
+  if ($is_in_supported_branch($project_data['existing_version'])) {
     // Still supported, stay at the current major version.
     $target_major = $existing_major;
   }
-  elseif (isset($available['recommended_major'])) {
-    // Since 'recommended_major' is defined, we know this is the new XML
-    // format. Therefore, we know the current release is unsupported since
-    // its major version was not in the 'supported_majors' list. We should
-    // find the best release from the recommended major version.
-    $target_major = $available['recommended_major'];
-    $project_data['status'] = UPDATE_NOT_SUPPORTED;
-  }
-  elseif (isset($available['default_major'])) {
-    // Older release history XML file without recommended, so recommend
-    // the currently defined "default_major" version.
-    $target_major = $available['default_major'];
+  elseif ($supported_branches) {
+    // We know the current release is unsupported since it is not in
+    // 'supported_branches' list. We should use the next valid supported
+    // branch for the target major version.
+    $project_data['status'] = UpdateManagerInterface::NOT_SUPPORTED;
+    foreach ($supported_branches as $supported_branch) {
+      try {
+        $target_major = ExtensionVersion::createFromSupportBranch($supported_branch)->getMajorVersion();
+
+      }
+      catch (UnexpectedValueException $exception) {
+        continue;
+      }
+    }
+    if (!isset($target_major)) {
+      // If there are no valid support branches, use the current major.
+      $target_major = $existing_major;
+    }
+
   }
   else {
-    // Malformed XML file? Stick with the current version.
+    // Malformed XML file? Stick with the current branch.
     $target_major = $existing_major;
   }
 
@@ -273,15 +335,12 @@ function update_calculate_project_update_status(&$project_data, $available) {
   // what they have is unsupported and let them figure it out.
   $target_major = max($existing_major, $target_major);
 
-  $release_patch_changed = '';
-  $patch = '';
-
-  // If the project is marked as UPDATE_FETCH_PENDING, it means that the
-  // data we currently have (if any) is stale, and we've got a task queued
-  // up to (re)fetch the data. In that case, we mark it as such, merge in
-  // whatever data we have (e.g. project title and link), and move on.
-  if (!empty($available['fetch_status']) && $available['fetch_status'] == UPDATE_FETCH_PENDING) {
-    $project_data['status'] = UPDATE_FETCH_PENDING;
+  // If the project is marked as UpdateFetcherInterface::FETCH_PENDING, it
+  // means that the data we currently have (if any) is stale, and we've got a
+  // task queued up to (re)fetch the data. In that case, we mark it as such,
+  // merge in whatever data we have (e.g. project title and link), and move on.
+  if (!empty($available['fetch_status']) && $available['fetch_status'] == UpdateFetcherInterface::FETCH_PENDING) {
+    $project_data['status'] = UpdateFetcherInterface::FETCH_PENDING;
     $project_data['reason'] = t('No available update data');
     $project_data['fetch_status'] = $available['fetch_status'];
     return;
@@ -289,19 +348,43 @@ function update_calculate_project_update_status(&$project_data, $available) {
 
   // Defend ourselves from XML history files that contain no releases.
   if (empty($available['releases'])) {
-    $project_data['status'] = UPDATE_UNKNOWN;
+    $project_data['status'] = UpdateFetcherInterface::UNKNOWN;
     $project_data['reason'] = t('No available releases found');
     return;
   }
-  foreach ($available['releases'] as $version => $release) {
+
+  $recommended_version_without_extra = '';
+  $recommended_release = NULL;
+
+  foreach ($available['releases'] as $version => $release_info) {
+    try {
+      $release = ProjectRelease::createFromArray($release_info);
+    }
+    catch (UnexpectedValueException $exception) {
+      // Ignore releases that are in an invalid format. Although this is highly
+      // unlikely we should still process releases in the correct format.
+      watchdog_exception(
+        'update',
+        $exception,
+        'Invalid project format: @release',
+        ['@release' => print_r($release_info, TRUE)]
+      );
+      continue;
+    }
+
+    try {
+      $release_module_version = ExtensionVersion::createFromVersionString($release->getVersion());
+    }
+    catch (UnexpectedValueException $exception) {
+      continue;
+    }
     // First, if this is the existing release, check a few conditions.
     if ($project_data['existing_version'] === $version) {
-      if (isset($release['terms']['Release type']) &&
-          in_array('Insecure', $release['terms']['Release type'])) {
-        $project_data['status'] = UPDATE_NOT_SECURE;
+      if ($release->isInsecure()) {
+        $project_data['status'] = UpdateManagerInterface::NOT_SECURE;
       }
-      elseif ($release['status'] == 'unpublished') {
-        $project_data['status'] = UPDATE_REVOKED;
+      elseif (!$release->isPublished()) {
+        $project_data['status'] = UpdateManagerInterface::REVOKED;
         if (empty($project_data['extra'])) {
           $project_data['extra'] = [];
         }
@@ -311,9 +394,8 @@ function update_calculate_project_update_status(&$project_data, $available) {
           'data' => t('Your currently installed release has been revoked, and is no longer available for download. Disabling everything included in this release or upgrading is strongly recommended!'),
         ];
       }
-      elseif (isset($release['terms']['Release type']) &&
-              in_array('Unsupported', $release['terms']['Release type'])) {
-        $project_data['status'] = UPDATE_NOT_SUPPORTED;
+      elseif ($release->isUnsupported()) {
+        $project_data['status'] = UpdateManagerInterface::NOT_SUPPORTED;
         if (empty($project_data['extra'])) {
           $project_data['extra'] = [];
         }
@@ -324,29 +406,26 @@ function update_calculate_project_update_status(&$project_data, $available) {
         ];
       }
     }
-
-    // Otherwise, ignore unpublished, insecure, or unsupported releases.
-    if ($release['status'] == 'unpublished' ||
-        (isset($release['terms']['Release type']) &&
-         (in_array('Insecure', $release['terms']['Release type']) ||
-          in_array('Unsupported', $release['terms']['Release type'])))) {
+    // Other than the currently installed release, ignore unpublished, insecure,
+    // or unsupported updates.
+    elseif (!$release->isPublished() ||
+            !$is_in_supported_branch($release->getVersion()) ||
+            $release->isUnsupported() ||
+            $release->isInsecure()
+    ) {
       continue;
     }
 
+    $release_major_version = $release_module_version->getMajorVersion();
     // See if this is a higher major version than our target and yet still
     // supported. If so, record it as an "Also available" release.
-    // Note: Some projects have a HEAD release from CVS days, which could
-    // be one of those being compared. They would not have version_major
-    // set, so we must call isset first.
-    if (isset($release['version_major']) && $release['version_major'] > $target_major) {
-      if (in_array($release['version_major'], $supported_majors)) {
-        if (!isset($project_data['also'])) {
-          $project_data['also'] = [];
-        }
-        if (!isset($project_data['also'][$release['version_major']])) {
-          $project_data['also'][$release['version_major']] = $version;
-          $project_data['releases'][$version] = $release;
-        }
+    if ($release_major_version > $target_major) {
+      if (!isset($project_data['also'])) {
+        $project_data['also'] = [];
+      }
+      if (!isset($project_data['also'][$release_major_version])) {
+        $project_data['also'][$release_major_version] = $version;
+        $project_data['releases'][$version] = $release_info;
       }
       // Otherwise, this release can't matter to us, since it's neither
       // from the release series we're currently using nor the recommended
@@ -361,32 +440,37 @@ function update_calculate_project_update_status(&$project_data, $available) {
     // Look for the 'latest version' if we haven't found it yet. Latest is
     // defined as the most recent version for the target major version.
     if (!isset($project_data['latest_version'])
-        && $release['version_major'] == $target_major) {
+        && $release_major_version == $target_major) {
       $project_data['latest_version'] = $version;
-      $project_data['releases'][$version] = $release;
+      $project_data['releases'][$version] = $release_info;
     }
 
     // Look for the development snapshot release for this branch.
     if (!isset($project_data['dev_version'])
-        && $release['version_major'] == $target_major
-        && isset($release['version_extra'])
-        && $release['version_extra'] == 'dev') {
+        && $release_major_version == $target_major
+        && $release_module_version->getVersionExtra() === 'dev') {
       $project_data['dev_version'] = $version;
-      $project_data['releases'][$version] = $release;
+      $project_data['releases'][$version] = $release_info;
+    }
+
+    if ($release_module_version->getVersionExtra()) {
+      $release_version_without_extra = str_replace('-' . $release_module_version->getVersionExtra(), '', $release->getVersion());
+    }
+    else {
+      $release_version_without_extra = $release->getVersion();
     }
 
     // Look for the 'recommended' version if we haven't found it yet (see
     // phpdoc at the top of this function for the definition).
     if (!isset($project_data['recommended'])
-        && $release['version_major'] == $target_major
-        && isset($release['version_patch'])) {
-      if ($patch != $release['version_patch']) {
-        $patch = $release['version_patch'];
-        $release_patch_changed = $release;
+        && $release_major_version == $target_major) {
+      if ($recommended_version_without_extra !== $release_version_without_extra) {
+        $recommended_version_without_extra = $release_version_without_extra;
+        $recommended_release = $release_info;
       }
-      if (empty($release['version_extra']) && $patch == $release['version_patch']) {
-        $project_data['recommended'] = $release_patch_changed['version'];
-        $project_data['releases'][$release_patch_changed['version']] = $release_patch_changed;
+      if ($release_module_version->getVersionExtra() === NULL) {
+        $project_data['recommended'] = $recommended_release['version'];
+        $project_data['releases'][$recommended_release['version']] = $recommended_release;
       }
     }
 
@@ -406,16 +490,14 @@ function update_calculate_project_update_status(&$project_data, $available) {
         // We don't have current timestamp info, so we can't know.
         continue;
       }
-      elseif (isset($release['date']) && ($project_data['datestamp'] + 100 > $release['date'])) {
+      elseif ($release->getDate() && $project_data['datestamp'] + 100 > $release->getDate()) {
         // We're newer than this, so we can skip it.
         continue;
       }
     }
 
-    // See if this release is a security update.
-    if (isset($release['terms']['Release type'])
-        && in_array('Security update', $release['terms']['Release type'])) {
-      $project_data['security updates'][] = $release;
+    if ($release->isSecurityRelease()) {
+      $project_data['security updates'][] = $release_info;
     }
   }
 
@@ -423,15 +505,6 @@ function update_calculate_project_update_status(&$project_data, $available) {
   // version the recommended version if possible.
   if (!isset($project_data['recommended']) && isset($project_data['latest_version'])) {
     $project_data['recommended'] = $project_data['latest_version'];
-  }
-
-  //
-  // Check to see if we need an update or not.
-  //
-
-  if (!empty($project_data['security updates'])) {
-    // If we found security updates, that always trumps any other status.
-    $project_data['status'] = UPDATE_NOT_SECURE;
   }
 
   if (isset($project_data['status'])) {
@@ -442,7 +515,7 @@ function update_calculate_project_update_status(&$project_data, $available) {
   // If we don't know what to recommend, there's nothing we can report.
   // Bail out early.
   if (!isset($project_data['recommended'])) {
-    $project_data['status'] = UPDATE_UNKNOWN;
+    $project_data['status'] = UpdateFetcherInterface::UNKNOWN;
     $project_data['reason'] = t('No available releases found');
     return;
   }
@@ -464,29 +537,29 @@ function update_calculate_project_update_status(&$project_data, $available) {
   switch ($project_data['install_type']) {
     case 'official':
       if ($project_data['existing_version'] === $project_data['recommended'] || $project_data['existing_version'] === $project_data['latest_version']) {
-        $project_data['status'] = UPDATE_CURRENT;
+        $project_data['status'] = UpdateManagerInterface::CURRENT;
       }
       else {
-        $project_data['status'] = UPDATE_NOT_CURRENT;
+        $project_data['status'] = UpdateManagerInterface::NOT_CURRENT;
       }
       break;
 
     case 'dev':
       $latest = $available['releases'][$project_data['latest_dev']];
       if (empty($project_data['datestamp'])) {
-        $project_data['status'] = UPDATE_NOT_CHECKED;
+        $project_data['status'] = UpdateFetcherInterface::NOT_CHECKED;
         $project_data['reason'] = t('Unknown release date');
       }
       elseif (($project_data['datestamp'] + 100 > $latest['date'])) {
-        $project_data['status'] = UPDATE_CURRENT;
+        $project_data['status'] = UpdateManagerInterface::CURRENT;
       }
       else {
-        $project_data['status'] = UPDATE_NOT_CURRENT;
+        $project_data['status'] = UpdateManagerInterface::NOT_CURRENT;
       }
       break;
 
     default:
-      $project_data['status'] = UPDATE_UNKNOWN;
+      $project_data['status'] = UpdateFetcherInterface::UNKNOWN;
       $project_data['reason'] = t('Invalid info');
   }
 }

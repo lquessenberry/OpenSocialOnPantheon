@@ -1,15 +1,18 @@
+# cspell:ignore filefield imagefield optionwidgets
 id: d6_field
 label: Field configuration
 migration_tags:
   - Drupal 6
   - Configuration
 class: Drupal\migrate_drupal\Plugin\migrate\FieldMigration
-field_plugin_method: processField
+field_plugin_method: alterFieldMigration
 source:
   plugin: d6_field
   constants:
     entity_type: node
     langcode: en
+  # Phone is here since it does not use a migrate field plugin.
+  source_module: phone
 process:
   entity_type: 'constants/entity_type'
   status: active

@@ -3,7 +3,6 @@ type: theme
 description: A default base theme using Drupal 8.0.0's core markup and CSS.
 package: Core
 version: VERSION
-core: 8.x
 base theme: false
 hidden: true
 
@@ -90,6 +89,9 @@ libraries-override:
       component:
         misc/vertical-tabs.css: css/core/vertical-tabs.css
 
+  # Load version 3.0.3 of normalize.css for backwards compatibility.
+  core/normalize: stable/normalize
+
   dblog/drupal.dblog:
     css:
       component:
@@ -122,27 +124,45 @@ libraries-override:
     css:
       theme:
         css/image.admin.css: css/image/image.admin.css
-  image/quickedit.inPlaceEditor.image:
-    css:
-      component:
-        css/editors/image.css: css/image/editors/image.css
-      theme:
-        css/editors/image.theme.css: css/image/editors/image.theme.css
 
   language/drupal.language.admin:
     css:
       theme:
         css/language.admin.css: css/language/language.admin.css
 
+  layout_builder/drupal.layout_builder:
+    css:
+      theme:
+        css/layout-builder.css: css/layout_builder/layout-builder.css
+
   locale/drupal.locale.admin:
     css:
       component:
         css/locale.admin.css: css/locale/locale.admin.css
 
+  media/filter.caption:
+    css:
+      component:
+        css/filter.caption.css: css/media/filter.caption.css
+
+  media/oembed.formatter:
+    css:
+      component:
+        css/oembed.formatter.css: css/media/oembed.formatter.css
+  media/oembed.frame:
+    css:
+      component:
+        css/oembed.frame.css: css/media/oembed.frame.css
+
   menu_ui/drupal.menu_ui.adminforms:
     css:
       theme:
         css/menu_ui.admin.css: css/menu_ui/menu_ui.admin.css
+
+  migrate_drupal_ui/base:
+    css:
+      component:
+        css/components/upgrade-analysis-report-tables.css: css/migrate_drupal_ui/components/upgrade-analysis-report-tables.css
 
   node/drupal.node:
     css:
@@ -168,6 +188,12 @@ libraries-override:
       theme:
         css/quickedit.theme.css: css/quickedit/quickedit.theme.css
         css/quickedit.icons.theme.css: css/quickedit/quickedit.icons.theme.css
+  quickedit/quickedit.inPlaceEditor.image:
+    css:
+      component:
+        css/editors/image.css: css/quickedit/editors/image.css
+      theme:
+        css/editors/image.theme.css: css/quickedit/editors/image.theme.css
 
   settings_tray/drupal.settings_tray:
     css:
@@ -183,11 +209,6 @@ libraries-override:
       theme:
         css/shortcut.theme.css: css/shortcut/shortcut.theme.css
         css/shortcut.icons.theme.css: css/shortcut/shortcut.icons.theme.css
-
-  simpletest/drupal.simpletest:
-    css:
-      component:
-        css/simpletest.module.css: css/simpletest/simpletest.module.css
 
   system/base:
     css:
@@ -279,3 +300,11 @@ libraries-override:
       theme:
         css/views_ui.admin.theme.css: css/views_ui/views_ui.admin.theme.css
         css/views_ui.contextual.css: css/views_ui/views_ui.contextual.css
+
+libraries-extend:
+  core/drupal.ajax:
+    - stable/drupal.ajax
+  user/drupal.user:
+    - stable/drupal.user
+  tour/tour:
+    - stable/tour

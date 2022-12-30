@@ -2,8 +2,8 @@
 
 namespace Drupal\Tests\block_content\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\block_content\Entity\BlockContent;
-use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 
 /**
@@ -12,6 +12,11 @@ use Drupal\user\UserInterface;
  * @group block_content
  */
 class BlockContentRevisionsTest extends BlockContentTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Stores blocks created during the test.
@@ -28,11 +33,8 @@ class BlockContentRevisionsTest extends BlockContentTestBase {
   /**
    * Sets the test up.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-
-    /** @var \Drupal\user\Entity\UserInterface $user */
-    $user = User::load(1);
 
     // Create initial block.
     $block = $this->createBlockContent('initial');
@@ -74,13 +76,11 @@ class BlockContentRevisionsTest extends BlockContentTestBase {
         ->getStorage('block_content')
         ->loadRevision($revision_id);
       // Verify revision log is the same.
-      $this->assertEqual($loaded->getRevisionLogMessage(), $logs[$delta], format_string('Correct log message found for revision @revision', [
-        '@revision' => $loaded->getRevisionId(),
-      ]));
+      $this->assertEquals($logs[$delta], $loaded->getRevisionLogMessage(), new FormattableMarkup('Correct log message found for revision @revision', ['@revision' => $loaded->getRevisionId()]));
       if ($delta > 0) {
-        $this->assertTrue($loaded->getRevisionUser() instanceof UserInterface, 'Revision User found.');
-        $this->assertTrue(is_numeric($loaded->getRevisionUserId()), 'Revision User ID found.');
-        $this->assertTrue(is_numeric($loaded->getRevisionCreationTime()), 'Revision time found.');
+        $this->assertInstanceOf(UserInterface::class, $loaded->getRevisionUser());
+        $this->assertIsNumeric($loaded->getRevisionUserId());
+        $this->assertIsNumeric($loaded->getRevisionCreationTime());
       }
     }
 
@@ -95,13 +95,16 @@ class BlockContentRevisionsTest extends BlockContentTestBase {
     $loaded->body = $this->randomMachineName(8);
     $loaded->save();
 
+    // Confirm that revision body text is not present on default version of
+    // block.
     $this->drupalGet('block/' . $loaded->id());
-    $this->assertNoText($loaded->body->value, 'Revision body text is not present on default version of block.');
+    $this->assertSession()->pageTextNotContains($loaded->body->value);
 
     // Verify that the non-default revision id is greater than the default
     // revision id.
     $default_revision = BlockContent::load($loaded->id());
-    $this->assertTrue($loaded->getRevisionId() > $default_revision->getRevisionId(), 'Revision id is greater than default revision id.');
+    // Verify that the revision ID is greater than the default revision ID.
+    $this->assertGreaterThan($default_revision->getRevisionId(), $loaded->getRevisionId());
   }
 
 }

@@ -14,12 +14,11 @@ description: ''
 tag: ''
 base_table: node_field_data
 base_field: nid
-core: 8.x
 display:
   default:
     display_plugin: default
     id: default
-    display_title: Master
+    display_title: Default
     position: 0
     display_options:
       access:
@@ -89,7 +88,7 @@ display:
           exclude: false
           alter:
             alter_text: true
-            text: "Formated: {{ field_link }}<br />\nRaw uri: {{ field_link__uri }}<br />\nRaw title: {{ field_link__title }}<br />\nRaw options: {{ field_link__options }}."
+            text: "Formatted: {{ field_link }}<br />\nRaw uri: {{ field_link__uri }}<br />\nRaw title: {{ field_link__title }}<br />\nRaw options: {{ field_link__options }}."
             make_link: false
             path: '{{ field_link__uri }}'
             absolute: false

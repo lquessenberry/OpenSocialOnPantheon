@@ -24,6 +24,8 @@ use Symfony\Component\VarDumper\Cloner\Stub;
 
 /**
  * @author Maxime Steinhausser <maxime.steinhausser@gmail.com>
+ *
+ * @final since Symfony 4.4
  */
 class ValidatorDataCollector extends DataCollector implements LateDataCollectorInterface
 {
@@ -37,18 +39,20 @@ class ValidatorDataCollector extends DataCollector implements LateDataCollectorI
 
     /**
      * {@inheritdoc}
+     *
+     * @param \Throwable|null $exception
      */
-    public function collect(Request $request, Response $response, \Exception $exception = null)
+    public function collect(Request $request, Response $response/* , \Throwable $exception = null */)
     {
         // Everything is collected once, on kernel terminate.
     }
 
     public function reset()
     {
-        $this->data = array(
-            'calls' => $this->cloneVar(array()),
+        $this->data = [
+            'calls' => $this->cloneVar([]),
             'violations_count' => 0,
-        );
+        ];
     }
 
     /**
@@ -89,9 +93,9 @@ class ValidatorDataCollector extends DataCollector implements LateDataCollectorI
 
     protected function getCasters()
     {
-        return parent::getCasters() + array(
+        return parent::getCasters() + [
             \Exception::class => function (\Exception $e, array $a, Stub $s) {
-                foreach (array("\0Exception\0previous", "\0Exception\0trace") as $k) {
+                foreach (["\0Exception\0previous", "\0Exception\0trace"] as $k) {
                     if (isset($a[$k])) {
                         unset($a[$k]);
                         ++$s->cut;
@@ -101,12 +105,12 @@ class ValidatorDataCollector extends DataCollector implements LateDataCollectorI
                 return $a;
             },
             FormInterface::class => function (FormInterface $f, array $a) {
-                return array(
+                return [
                     Caster::PREFIX_VIRTUAL.'name' => $f->getName(),
                     Caster::PREFIX_VIRTUAL.'type_class' => new ClassStub(\get_class($f->getConfig()->getType()->getInnerType())),
                     Caster::PREFIX_VIRTUAL.'data' => $f->getData(),
-                );
+                ];
             },
-        );
+        ];
     }
 }

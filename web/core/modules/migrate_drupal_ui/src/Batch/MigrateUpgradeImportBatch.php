@@ -17,6 +17,8 @@ use Drupal\migrate\Event\MigrateRowDeleteEvent;
 use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate_drupal\Plugin\MigrationWithFollowUpInterface;
 
+// cspell:ignore idmap
+
 /**
  * Runs a single migration batch.
  */
@@ -60,7 +62,7 @@ class MigrateUpgradeImportBatch {
   /**
    * The follow-up migrations.
    *
-   * @var \Drupal\migrate\Plugin\MigrationInterface[];
+   * @var \Drupal\migrate\Plugin\MigrationInterface[]
    */
   protected static $followUpMigrations;
 
@@ -111,13 +113,18 @@ class MigrateUpgradeImportBatch {
     $definition = \Drupal::service('plugin.manager.migration')->getDefinition($migration_id);
     $configuration = [];
 
-    // @todo Find a way to avoid this in https://www.drupal.org/node/2804611.
+    // Set the source plugin constant, source_base_path, for all migrations with
+    // a file entity destination.
+    // @todo https://www.drupal.org/node/2804611.
+    //   Find a way to avoid having to set configuration here.
     if ($definition['destination']['plugin'] === 'entity:file') {
-      // Make sure we have a single trailing slash.
-      if ($definition['source']['plugin'] === 'd7_file_private') {
-        $configuration['source']['constants']['source_base_path'] = rtrim($config['source_private_file_path'], '/') . '/';
-      }
-      $configuration['source']['constants']['source_base_path'] = rtrim($config['source_base_path'], '/') . '/';
+      // Use the private file path if the scheme property is set in the source
+      // plugin definition and is 'private' otherwise use the public file path.
+      $scheme = $definition['source']['scheme'] ?? NULL;
+      $base_path = ($scheme === 'private' && $config['source_private_file_path'])
+        ? $config['source_private_file_path']
+        : $config['source_base_path'];
+      $configuration['source']['constants']['source_base_path'] = rtrim($base_path, '/');
     }
 
     /** @var \Drupal\migrate\Plugin\Migration $migration */
@@ -257,24 +264,24 @@ class MigrateUpgradeImportBatch {
 
     // If we had any successes log that for the user.
     if ($successes > 0) {
-      drupal_set_message(\Drupal::translation()
+      \Drupal::messenger()->addStatus(\Drupal::translation()
         ->formatPlural($successes, 'Completed 1 upgrade task successfully', 'Completed @count upgrade tasks successfully'));
     }
     // If we had failures, log them and show the migration failed.
     if ($failures > 0) {
-      drupal_set_message(\Drupal::translation()
+      \Drupal::messenger()->addError(\Drupal::translation()
         ->formatPlural($failures, '1 upgrade failed', '@count upgrades failed'));
-      drupal_set_message(t('Upgrade process not completed'), 'error');
+      \Drupal::messenger()->addError(t('Upgrade process not completed'));
     }
     else {
       // Everything went off without a hitch. We may not have had successes
       // but we didn't have failures so this is fine.
-      drupal_set_message(t('Congratulations, you upgraded Drupal!'));
+      \Drupal::messenger()->addStatus(t('Congratulations, you upgraded Drupal!'));
     }
 
     if (\Drupal::moduleHandler()->moduleExists('dblog')) {
       $url = Url::fromRoute('migrate_drupal_ui.log');
-      drupal_set_message(Link::fromTextAndUrl(new TranslatableMarkup('Review the detailed upgrade log'), $url), $failures ? 'error' : 'status');
+      \Drupal::messenger()->addMessage(Link::fromTextAndUrl(new TranslatableMarkup('Review the detailed upgrade log'), $url), $failures ? 'error' : 'status');
     }
   }
 

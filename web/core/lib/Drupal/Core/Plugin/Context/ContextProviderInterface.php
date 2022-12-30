@@ -8,8 +8,8 @@ namespace Drupal\Core\Plugin\Context;
  * Implementations only need to deal with unqualified context IDs so they only
  * need to be unique in the context of a given service provider.
  *
- * The fully qualified context ID then includes the service ID:
- * @{service_id}:{unqualified_context_id}.
+ * The fully qualified context ID then includes the service ID, e.g.
+ * "@service_id:unqualified_context_id".
  *
  * @see \Drupal\Core\Plugin\Context\ContextRepositoryInterface
  */
@@ -27,7 +27,7 @@ interface ContextProviderInterface {
    *   $node = ...
    *
    *   // Set that specific node as the value of the 'node' context.
-   *   $context = new Context(new ContextDefinition('entity:node'), $node);
+   *   $context = EntityContext::fromEntity($node);
    *   return ['node' => $context];
    * @endcode
    *
@@ -62,7 +62,7 @@ interface ContextProviderInterface {
    *   // can be configured to use it. When the plugin, for example a block,
    *   // needs to evaluate the context, the value of this context will be
    *   // supplied by getRuntimeContexts().
-   *   $context = new Context(new ContextDefinition('entity:node'));
+   *   $context = EntityContext::fromEntityTypeId('node');
    *   return ['node' => $context];
    * @endcode
    *

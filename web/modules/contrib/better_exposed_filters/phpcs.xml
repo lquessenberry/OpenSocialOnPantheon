@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<ruleset name="Drupal 8 coding standards">
+  <description>Drupal 8 coding standards</description>
+
+  <exclude-pattern>*/.git/*</exclude-pattern>
+  <exclude-pattern>*/config/*</exclude-pattern>
+  <exclude-pattern>*/icons/*</exclude-pattern>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+
+  <rule ref="Drupal"/>
+
+</ruleset>

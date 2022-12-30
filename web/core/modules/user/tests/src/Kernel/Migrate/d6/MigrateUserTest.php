@@ -22,12 +22,12 @@ class MigrateUserTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['language'];
+  protected static $modules = ['language'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('file');
@@ -45,10 +45,10 @@ class MigrateUserTest extends MigrateDrupal6TestBase {
       'filemime' => 'image/jpeg',
       'created' => 1,
       'changed' => 1,
-      'status' => FILE_STATUS_PERMANENT,
     ]);
+    $file->setPermanent();
     $file->enforceIsNew();
-    file_put_contents($file->getFileUri(), file_get_contents('core/modules/simpletest/files/image-1.png'));
+    file_put_contents($file->getFileUri(), file_get_contents('core/tests/fixtures/files/image-1.png'));
     $file->save();
 
     $file = File::create([
@@ -59,10 +59,10 @@ class MigrateUserTest extends MigrateDrupal6TestBase {
       'filemime' => 'image/png',
       'created' => 1,
       'changed' => 1,
-      'status' => FILE_STATUS_PERMANENT,
     ]);
+    $file->setPermanent();
     $file->enforceIsNew();
-    file_put_contents($file->getFileUri(), file_get_contents('core/modules/simpletest/files/image-2.jpg'));
+    file_put_contents($file->getFileUri(), file_get_contents('core/tests/fixtures/files/image-2.jpg'));
     $file->save();
 
     $this->executeMigration('language');
@@ -91,7 +91,7 @@ class MigrateUserTest extends MigrateDrupal6TestBase {
       $roles = [RoleInterface::AUTHENTICATED_ID];
       $id_map = $this->getMigration('d6_user_role')->getIdMap();
       foreach ($rids as $rid) {
-        $role = $id_map->lookupDestinationId([$rid]);
+        $role = $id_map->lookupDestinationIds([$rid])[0];
         $roles[] = reset($role);
       }
 
@@ -141,7 +141,7 @@ class MigrateUserTest extends MigrateDrupal6TestBase {
       }
       else {
         // Ensure the user does not have a picture.
-        $this->assertFalse($user->user_picture->target_id, sprintf('User %s does not have a picture', $user->id()));
+        $this->assertEmpty($user->user_picture->target_id, sprintf('User %s does not have a picture', $user->id()));
       }
 
       // Use the API to check if the password has been salted and re-hashed to

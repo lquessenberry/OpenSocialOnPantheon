@@ -30,6 +30,7 @@ use Drupal\media\MediaTypeInterface;
  *     "list_builder" = "Drupal\media\MediaTypeListBuilder",
  *     "route_provider" = {
  *       "html" = "Drupal\Core\Entity\Routing\DefaultHtmlRouteProvider",
+ *       "permissions" = "Drupal\user\Entity\EntityPermissionsRouteProvider",
  *     }
  *   },
  *   admin_permission = "administer media types",
@@ -55,6 +56,7 @@ use Drupal\media\MediaTypeInterface;
  *     "add-form" = "/admin/structure/media/add",
  *     "edit-form" = "/admin/structure/media/manage/{media_type}",
  *     "delete-form" = "/admin/structure/media/manage/{media_type}/delete",
+ *     "entity-permissions-form" = "/admin/structure/media/manage/{media_type}/permissions",
  *     "collection" = "/admin/structure/media",
  *   },
  * )
@@ -100,6 +102,8 @@ class MediaType extends ConfigEntityBundleBase implements MediaTypeInterface, En
    * Whether thumbnail downloads are queued.
    *
    * @var bool
+   *
+   * @see \Drupal\media\MediaTypeInterface::thumbnailDownloadsAreQueued()
    */
   protected $queue_thumbnail_downloads = FALSE;
 
@@ -113,7 +117,15 @@ class MediaType extends ConfigEntityBundleBase implements MediaTypeInterface, En
   /**
    * The media source configuration.
    *
+   * A media source can provide a configuration form with source plugin-specific
+   * configuration settings, which must at least include a source_field element
+   * containing a the name of the source field for the media type. The source
+   * configuration is defined by, and used to load, the source plugin. See
+   * \Drupal\media\MediaTypeInterface for an explanation of media sources.
+   *
    * @var array
+   *
+   * @see \Drupal\media\MediaTypeInterface::getSource()
    */
   protected $source_configuration = [];
 
@@ -125,9 +137,11 @@ class MediaType extends ConfigEntityBundleBase implements MediaTypeInterface, En
   protected $sourcePluginCollection;
 
   /**
-   * Field map. Fields provided by type plugin to be stored as entity fields.
+   * The metadata field map.
    *
    * @var array
+   *
+   * @see \Drupal\media\MediaTypeInterface::getFieldMap()
    */
   protected $field_map = [];
 

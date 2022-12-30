@@ -2,7 +2,8 @@
 
 namespace Drupal\media;
 
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\ConfigurableInterface;
+use Drupal\Component\Plugin\DependentPluginInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
@@ -66,7 +67,7 @@ use Drupal\Core\Plugin\PluginFormInterface;
  * @see \Drupal\media\MediaSourceFieldConstraintsInterface
  * @see plugin_api
  */
-interface MediaSourceInterface extends PluginInspectionInterface, ConfigurablePluginInterface, PluginFormInterface {
+interface MediaSourceInterface extends PluginInspectionInterface, ConfigurableInterface, DependentPluginInterface, PluginFormInterface {
 
   /**
    * Default empty value for metadata fields.
@@ -184,7 +185,7 @@ interface MediaSourceInterface extends PluginInspectionInterface, ConfigurablePl
    *   A media item.
    *
    * @return mixed
-   *   The source value.
+   *   The source value, or NULL if the media item's source field is empty.
    *
    * @throws \RuntimeException
    *   If the source field for the media source is not defined.

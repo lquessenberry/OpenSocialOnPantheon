@@ -5,40 +5,77 @@ namespace Drupal\Tests\Component\Bridge;
 use Drupal\Component\Bridge\ZfExtensionManagerSfContainer;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
+use Laminas\Feed\Reader\Extension\Atom\Entry;
+use Laminas\Feed\Reader\StandaloneExtensionManager;
 
 /**
  * @coversDefaultClass \Drupal\Component\Bridge\ZfExtensionManagerSfContainer
  * @group Bridge
+ * @group legacy
  */
 class ZfExtensionManagerSfContainerTest extends TestCase {
 
   /**
    * @covers ::setContainer
+   * @covers ::setStandalone
    * @covers ::get
    */
   public function testGet() {
     $service = new \stdClass();
-    $service->value = 'myvalue';
+    $service->value = 'my_value';
     $container = new ContainerBuilder();
     $container->set('foo', $service);
     $bridge = new ZfExtensionManagerSfContainer();
     $bridge->setContainer($container);
     $this->assertEquals($service, $bridge->get('foo'));
+    $bridge->setStandalone(StandaloneExtensionManager::class);
+    $this->assertInstanceOf(Entry::class, $bridge->get('Atom\Entry'));
+    // Ensure that the standalone service is checked before the container.
+    $container->set('atomentry', $service);
+    $this->assertInstanceOf(Entry::class, $bridge->get('Atom\Entry'));
   }
 
   /**
    * @covers ::setContainer
+   * @covers ::setStandalone
    * @covers ::has
    */
   public function testHas() {
     $service = new \stdClass();
-    $service->value = 'myvalue';
+    $service->value = 'my_value';
     $container = new ContainerBuilder();
     $container->set('foo', $service);
     $bridge = new ZfExtensionManagerSfContainer();
     $bridge->setContainer($container);
     $this->assertTrue($bridge->has('foo'));
     $this->assertFalse($bridge->has('bar'));
+    $this->assertFalse($bridge->has('Atom\Entry'));
+    $bridge->setStandalone(StandaloneExtensionManager::class);
+    $this->assertTrue($bridge->has('Atom\Entry'));
+  }
+
+  /**
+   * @covers ::setStandalone
+   */
+  public function testSetStandaloneException() {
+    $this->expectException(\RuntimeException::class);
+    $this->expectExceptionMessage('Drupal\Tests\Component\Bridge\ZfExtensionManagerSfContainerTest must implement Laminas\Feed\Reader\ExtensionManagerInterface or Laminas\Feed\Writer\ExtensionManagerInterface');
+    $bridge = new ZfExtensionManagerSfContainer();
+    $bridge->setStandalone(static::class);
+  }
+
+  /**
+   * @covers ::get
+   */
+  public function testGetContainerException() {
+    $this->expectException(ServiceNotFoundException::class);
+    $this->expectExceptionMessage('You have requested a non-existent service "test.foo".');
+    $container = new ContainerBuilder();
+    $bridge = new ZfExtensionManagerSfContainer('test.');
+    $bridge->setContainer($container);
+    $bridge->setStandalone(StandaloneExtensionManager::class);
+    $bridge->get('foo');
   }
 
   /**
@@ -48,7 +85,7 @@ class ZfExtensionManagerSfContainerTest extends TestCase {
    */
   public function testPrefix() {
     $service = new \stdClass();
-    $service->value = 'myvalue';
+    $service->value = 'my_value';
     $container = new ContainerBuilder();
     $container->set('foo.bar', $service);
     $bridge = new ZfExtensionManagerSfContainer('foo.');
@@ -64,7 +101,7 @@ class ZfExtensionManagerSfContainerTest extends TestCase {
    */
   public function testCanonicalizeName($name, $canonical_name) {
     $service = new \stdClass();
-    $service->value = 'myvalue';
+    $service->value = 'my_value';
     $container = new ContainerBuilder();
     $container->set($canonical_name, $service);
     $bridge = new ZfExtensionManagerSfContainer();

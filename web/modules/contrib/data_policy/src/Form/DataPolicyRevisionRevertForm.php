@@ -67,7 +67,7 @@ class DataPolicyRevisionRevertForm extends ConfirmFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorage('data_policy'),
+      $container->get('entity_type.manager')->getStorage('data_policy'),
       $container->get('date.formatter'),
       $container->get('datetime.time')
     );
@@ -93,7 +93,7 @@ class DataPolicyRevisionRevertForm extends ConfirmFormBase {
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return new Url('entity.data_policy.version_history');
+    return new Url('entity.data_policy.version_history', ['entity_id' => $this->revision->id()]);
   }
 
   /**

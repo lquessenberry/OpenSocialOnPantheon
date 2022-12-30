@@ -5,6 +5,7 @@ namespace Drupal\Tests\image\Kernel;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\StreamWrapper\PrivateStream;
 use Drupal\Core\StreamWrapper\PublicStream;
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\file_test\StreamWrapper\DummyReadOnlyStreamWrapper;
 use Drupal\file_test\StreamWrapper\DummyRemoteReadOnlyStreamWrapper;
 use Drupal\file_test\StreamWrapper\DummyStreamWrapper;
@@ -23,7 +24,7 @@ class ImageStyleCustomStreamWrappersTest extends KernelTestBase {
    *
    * @var string[]
    */
-  public static $modules = ['system', 'image'];
+  protected static $modules = ['system', 'image'];
 
   /**
    * A testing image style entity.
@@ -42,7 +43,7 @@ class ImageStyleCustomStreamWrappersTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->fileSystem = $this->container->get('file_system');
     $this->config('system.file')->set('default_scheme', 'public')->save();
@@ -75,7 +76,7 @@ class ImageStyleCustomStreamWrappersTest extends KernelTestBase {
    */
   public function testCustomStreamWrappers($source_scheme, $expected_scheme) {
     $derivative_uri = $this->imageStyle->buildUri("$source_scheme://some/path/image.png");
-    $derivative_scheme = $this->fileSystem->uriScheme($derivative_uri);
+    $derivative_scheme = StreamWrapperManager::getScheme($derivative_uri);
 
     // Check that the derivative scheme is the expected scheme.
     $this->assertSame($expected_scheme, $derivative_scheme);

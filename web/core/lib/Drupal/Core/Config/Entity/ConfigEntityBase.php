@@ -5,11 +5,12 @@ namespace Drupal\Core\Config\Entity;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Schema\SchemaIncompleteException;
-use Drupal\Core\Entity\Entity;
+use Drupal\Core\Entity\EntityBase;
 use Drupal\Core\Config\ConfigDuplicateUUIDException;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\EntityWithPluginCollectionInterface;
+use Drupal\Core\Entity\SynchronizableEntityTrait;
 use Drupal\Core\Plugin\PluginDependencyTrait;
 
 /**
@@ -17,11 +18,12 @@ use Drupal\Core\Plugin\PluginDependencyTrait;
  *
  * @ingroup entity_api
  */
-abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface {
+abstract class ConfigEntityBase extends EntityBase implements ConfigEntityInterface {
 
   use PluginDependencyTrait {
     addDependency as addDependencyTrait;
   }
+  use SynchronizableEntityTrait;
 
   /**
    * The original ID of the configuration entity.
@@ -47,14 +49,6 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    * @var string
    */
   protected $uuid;
-
-  /**
-   * Whether the config is being created, updated or deleted through the
-   * import process.
-   *
-   * @var bool
-   */
-  private $isSyncing = FALSE;
 
   /**
    * Whether the config is being deleted by the uninstall process.
@@ -97,6 +91,7 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    *
    * @var array
    */
+  // phpcs:ignore Drupal.Classes.PropertyDeclaration
   protected $_core = [];
 
   /**
@@ -155,7 +150,7 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    * {@inheritdoc}
    */
   public function get($property_name) {
-    return isset($this->{$property_name}) ? $this->{$property_name} : NULL;
+    return $this->{$property_name} ?? NULL;
   }
 
   /**
@@ -207,22 +202,6 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
   /**
    * {@inheritdoc}
    */
-  public function setSyncing($syncing) {
-    $this->isSyncing = $syncing;
-
-    return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function isSyncing() {
-    return $this->isSyncing;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function setUninstalling($uninstalling) {
     $this->isUninstalling = $uninstalling;
   }
@@ -249,14 +228,14 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    * Helper callback for uasort() to sort configuration entities by weight and label.
    */
   public static function sort(ConfigEntityInterface $a, ConfigEntityInterface $b) {
-    $a_weight = isset($a->weight) ? $a->weight : 0;
-    $b_weight = isset($b->weight) ? $b->weight : 0;
+    $a_weight = $a->weight ?? 0;
+    $b_weight = $b->weight ?? 0;
     if ($a_weight == $b_weight) {
-      $a_label = $a->label();
-      $b_label = $b->label();
+      $a_label = $a->label() ?? '';
+      $b_label = $b->label() ?? '';
       return strnatcasecmp($a_label, $b_label);
     }
-    return ($a_weight < $b_weight) ? -1 : 1;
+    return $a_weight <=> $b_weight;
   }
 
   /**
@@ -267,18 +246,12 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
     /** @var \Drupal\Core\Config\Entity\ConfigEntityTypeInterface $entity_type */
     $entity_type = $this->getEntityType();
 
-    $properties_to_export = $entity_type->getPropertiesToExport();
-    if (empty($properties_to_export)) {
-      $config_name = $entity_type->getConfigPrefix() . '.' . $this->id();
-      $definition = $this->getTypedConfig()->getDefinition($config_name);
-      if (!isset($definition['mapping'])) {
-        throw new SchemaIncompleteException("Incomplete or missing schema for $config_name");
-      }
-      $properties_to_export = array_combine(array_keys($definition['mapping']), array_keys($definition['mapping']));
-    }
-
     $id_key = $entity_type->getKey('id');
-    foreach ($properties_to_export as $property_name => $export_name) {
+    $property_names = $entity_type->getPropertiesToExport($this->id());
+    if (empty($property_names)) {
+      throw new SchemaIncompleteException(sprintf("Entity type '%s' is missing 'config_export' definition in its annotation", $entity_type->getClass()));
+    }
+    foreach ($property_names as $property_name => $export_name) {
       // Special handling for IDs so that computed compound IDs work.
       // @see \Drupal\Core\Entity\EntityDisplayBase::id()
       if ($property_name == $id_key) {
@@ -344,6 +317,21 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
       // being written during a configuration synchronization then there is no
       // need to recalculate the dependencies.
       $this->calculateDependencies();
+      // If the data is trusted we need to ensure that the dependencies are
+      // sorted as per their schema. If the save is not trusted then the
+      // configuration will be sorted by StorableConfigBase.
+      if ($this->trustedData) {
+        $mapping = ['config' => 0, 'content' => 1, 'module' => 2, 'theme' => 3, 'enforced' => 4];
+        $dependency_sort = function ($dependencies) use ($mapping) {
+          // Only sort the keys that exist.
+          $mapping_to_replace = array_intersect_key($mapping, $dependencies);
+          return array_replace($mapping_to_replace, $dependencies);
+        };
+        $this->dependencies = $dependency_sort($this->dependencies);
+        if (isset($this->dependencies['enforced'])) {
+          $this->dependencies['enforced'] = $dependency_sort($this->dependencies['enforced']);
+        }
+      }
     }
   }
 
@@ -353,8 +341,11 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
   public function __sleep() {
     $keys_to_unset = [];
     if ($this instanceof EntityWithPluginCollectionInterface) {
+      // Get the plugin collections first, so that the properties are
+      // initialized in $vars and can be found later.
+      $plugin_collections = $this->getPluginCollections();
       $vars = get_object_vars($this);
-      foreach ($this->getPluginCollections() as $plugin_config_key => $plugin_collection) {
+      foreach ($plugin_collections as $plugin_config_key => $plugin_collection) {
         // Save any changes to the plugin configuration to the entity.
         $this->set($plugin_config_key, $plugin_collection->getConfiguration());
         // If the plugin collections are stored as properties on the entity,
@@ -397,31 +388,6 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
       }
     }
     return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function urlInfo($rel = 'edit-form', array $options = []) {
-    // Unless language was already provided, avoid setting an explicit language.
-    $options += ['language' => NULL];
-    return parent::urlInfo($rel, $options);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function url($rel = 'edit-form', $options = []) {
-    // Do not remove this override: the default value of $rel is different.
-    return parent::url($rel, $options);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function link($text = NULL, $rel = 'edit-form', array $options = []) {
-    // Do not remove this override: the default value of $rel is different.
-    return parent::link($text, $rel, $options);
   }
 
   /**
@@ -514,7 +480,7 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    * already invalidates it.
    */
   protected function invalidateTagsOnSave($update) {
-    Cache::invalidateTags($this->getEntityType()->getListCacheTags());
+    Cache::invalidateTags($this->getListCacheTagsToInvalidate());
   }
 
   /**
@@ -524,7 +490,11 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    * config system already invalidates them.
    */
   protected static function invalidateTagsOnDelete(EntityTypeInterface $entity_type, array $entities) {
-    Cache::invalidateTags($entity_type->getListCacheTags());
+    $tags = $entity_type->getListCacheTags();
+    foreach ($entities as $entity) {
+      $tags = Cache::mergeTags($tags, $entity->getListCacheTagsToInvalidate());
+    }
+    Cache::invalidateTags($tags);
   }
 
   /**
@@ -551,7 +521,7 @@ abstract class ConfigEntityBase extends Entity implements ConfigEntityInterface 
    * {@inheritdoc}
    */
   public function getThirdPartySettings($module) {
-    return isset($this->third_party_settings[$module]) ? $this->third_party_settings[$module] : [];
+    return $this->third_party_settings[$module] ?? [];
   }
 
   /**

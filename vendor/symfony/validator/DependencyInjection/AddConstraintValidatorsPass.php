@@ -25,7 +25,7 @@ class AddConstraintValidatorsPass implements CompilerPassInterface
     private $validatorFactoryServiceId;
     private $constraintValidatorTag;
 
-    public function __construct($validatorFactoryServiceId = 'validator.validator_factory', $constraintValidatorTag = 'validator.constraint_validator')
+    public function __construct(string $validatorFactoryServiceId = 'validator.validator_factory', string $constraintValidatorTag = 'validator.constraint_validator')
     {
         $this->validatorFactoryServiceId = $validatorFactoryServiceId;
         $this->constraintValidatorTag = $constraintValidatorTag;
@@ -37,7 +37,7 @@ class AddConstraintValidatorsPass implements CompilerPassInterface
             return;
         }
 
-        $validators = array();
+        $validators = [];
         foreach ($container->findTaggedServiceIds($this->constraintValidatorTag, true) as $id => $attributes) {
             $definition = $container->getDefinition($id);
 

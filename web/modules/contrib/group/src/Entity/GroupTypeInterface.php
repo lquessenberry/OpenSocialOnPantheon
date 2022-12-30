@@ -4,11 +4,12 @@ namespace Drupal\group\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 use Drupal\Core\Entity\EntityDescriptionInterface;
+use Drupal\Core\Entity\RevisionableEntityBundleInterface;
 
 /**
  * Provides an interface defining a group type entity.
  */
-interface GroupTypeInterface extends ConfigEntityInterface, EntityDescriptionInterface {
+interface GroupTypeInterface extends ConfigEntityInterface, EntityDescriptionInterface, RevisionableEntityBundleInterface {
 
   /**
    * The maximum length of the ID, in characters.
@@ -92,6 +93,14 @@ interface GroupTypeInterface extends ConfigEntityInterface, EntityDescriptionInt
   public function getMemberRoleId();
 
   /**
+   * Sets whether a new revision should be created by default.
+   *
+   * @param bool $new_revision
+   *   TRUE if a new revision should be created by default.
+   */
+  public function setNewRevision($new_revision);
+
+  /**
    * Returns whether the group creator automatically receives a membership.
    *
    * @return bool
@@ -148,50 +157,5 @@ interface GroupTypeInterface extends ConfigEntityInterface, EntityDescriptionInt
    *   The installed content enabler plugin for the group type.
    */
   public function getContentPlugin($plugin_id);
-
-  /**
-   * Adds a content enabler plugin to this group type.
-   *
-   * @param string $plugin_id
-   *   The ID of the content enabler plugin to add.
-   * @param array $configuration
-   *   (optional) An array of content enabler plugin configuration.
-   *
-   * @return $this
-   *
-   * @deprecated in Group 1.0-beta3, will be removed before Group 1.0-rc1. Use
-   *   \Drupal\group\Entity\Storage\GroupContentTypeStorageInterface::
-   *   createFromPlugin() instead.
-   */
-  public function installContentPlugin($plugin_id, array $configuration = []);
-
-  /**
-   * Updates the configuration of a content enabler plugin for this group type.
-   *
-   * @param string $plugin_id
-   *   The ID of the content enabler plugin to add.
-   * @param array $configuration
-   *   An array of content enabler plugin configuration.
-   *
-   * @return $this
-   *
-   * @deprecated in Group 1.0-beta3, will be removed before Group 1.0-rc1. Use
-   *   \Drupal\group\Entity\GroupContentTypeInterface::updateContentPlugin()
-   *   instead.
-   */
-  public function updateContentPlugin($plugin_id, array $configuration);
-
-  /**
-   * Removes a content enabler plugin from this group type.
-   *
-   * @param string $plugin_id
-   *   The content enabler plugin ID.
-   *
-   * @return $this
-   *
-   * @deprecated in Group 1.0-beta3, will be removed before Group 1.0-rc1. Use
-   *   \Drupal\group\Entity\GroupContentType::delete() instead.
-   */
-  public function uninstallContentPlugin($plugin_id);
 
 }

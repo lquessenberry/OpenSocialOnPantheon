@@ -40,7 +40,7 @@ interface DriverInterface {
   /**
    * Adds a role for a user.
    *
-   * @param \stdClass $user
+   * @param object $user
    *   A user object.
    * @param string $role
    *   The role name to assign.
@@ -102,7 +102,7 @@ interface DriverInterface {
   /**
    * Creates a taxonomy term.
    *
-   * @param \stdClass $term
+   * @param object $term
    *   Term object.
    *
    * @return object
@@ -113,7 +113,7 @@ interface DriverInterface {
   /**
    * Deletes a taxonomy term.
    *
-   * @param \stdClass $term
+   * @param object $term
    *   Term object to delete.
    *
    * @return bool
@@ -177,5 +177,69 @@ interface DriverInterface {
    *   Value to associate with identifier.
    */
   public function configSet($name, $key, $value);
+
+  /**
+   * Creates an entity of a given type.
+   *
+   * @param string $entity_type
+   *   The entity type ID.
+   * @param object $entity
+   *   The entity to create.
+   *
+   * @return object
+   *   The created entity with `id` set.
+   */
+  public function createEntity($entity_type, \stdClass $entity);
+
+  /**
+   * Deletes an entity of a given type.
+   *
+   * @param string $entity_type
+   *   The entity type ID.
+   * @param object $entity
+   *   The entity to delete.
+   */
+  public function entityDelete($entity_type, \stdClass $entity);
+
+  /**
+   * Enable the test mail collector.
+   */
+  public function startCollectingMail();
+
+  /**
+   * Restore normal operation of outgoing mail.
+   */
+  public function stopCollectingMail();
+
+  /**
+   * Get any mail collected by the test mail collector.
+   *
+   * @return \stdClass[]
+   *   An array of collected emails, each formatted as a Drupal 8
+   *   \Drupal\Core\Mail\MailInterface::mail $message array.
+   */
+  public function getMail();
+
+  /**
+   * Empty the test mail collector store of any collected mail.
+   */
+  public function clearMail();
+
+  /**
+   * Send a mail.
+   *
+   * @param string $body
+   *   The body of the mail.
+   * @param string $subject
+   *   The subject of the mail.
+   * @param string $to
+   *   The recipient's email address, passing PHP email validation filter.
+   * @param string $langcode
+   *   The language used in subject and body.
+   *
+   * @return bool
+   *   Whether the email was sent successfully.
+   */
+  public function sendMail($body, $subject, $to, $langcode);
 
 }

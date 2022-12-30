@@ -2,6 +2,8 @@
 
 namespace Drupal\Component\Utility;
 
+// cspell:ignore ckers kses harnhammar
+
 /**
  * Provides helper to filter for cross-site scripting.
  *
@@ -70,7 +72,7 @@ class Xss {
 
     // Defuse all HTML entities.
     $string = str_replace('&', '&amp;', $string);
-    // Change back only well-formed entities in our whitelist:
+    // Change back only well-formed entities in our list of allowed html tags:
     // Decimal numeric entities.
     $string = preg_replace('/&amp;#([0-9]+;)/', '&#\1', $string);
     // Hexadecimal numeric entities.
@@ -79,11 +81,11 @@ class Xss {
     $string = preg_replace('/&amp;([A-Za-z][A-Za-z0-9]*;)/', '&\1', $string);
     $html_tags = array_flip($html_tags);
     // Late static binding does not work inside anonymous functions.
-    $class = get_called_class();
+    $class = static::class;
     $splitter = function ($matches) use ($html_tags, $class) {
       return $class::split($matches[1], $html_tags, $class);
     };
-    // Strip any tags that are not in the whitelist.
+    // Strip any tags that are not in the list of allowed html tags.
     return preg_replace_callback('%
       (
       <(?=[^a-zA-Z!/])  # a lone <
@@ -154,14 +156,16 @@ class Xss {
     }
     $slash = trim($matches[1]);
     $elem = &$matches[2];
-    $attrlist = &$matches[3];
+    $attributes = &$matches[3];
     $comment = &$matches[4];
 
     if ($comment) {
       $elem = '!--';
     }
 
-    // When in whitelist mode, an element is disallowed when not listed.
+    // Defer to the ::needsRemoval() method to decide if the element is to be
+    // removed. This allows the list of tags to be treated as either a list of
+    // allowed tags or a list of denied tags.
     if ($class::needsRemoval($html_tags, $elem)) {
       return '';
     }
@@ -175,11 +179,11 @@ class Xss {
     }
 
     // Is there a closing XHTML slash at the end of the attributes?
-    $attrlist = preg_replace('%(\s?)/\s*$%', '\1', $attrlist, -1, $count);
+    $attributes = preg_replace('%(\s?)/\s*$%', '\1', $attributes, -1, $count);
     $xhtml_slash = $count ? ' /' : '';
 
     // Clean up attributes.
-    $attr2 = implode(' ', $class::attributes($attrlist));
+    $attr2 = implode(' ', $class::attributes($attributes));
     $attr2 = preg_replace('/[<>]/', '', $attr2);
     $attr2 = strlen($attr2) ? ' ' . $attr2 : '';
 
@@ -211,7 +215,14 @@ class Xss {
           // Attribute name, href for instance.
           if (preg_match('/^([-a-zA-Z][-a-zA-Z0-9]*)/', $attributes, $match)) {
             $attribute_name = strtolower($match[1]);
-            $skip = ($attribute_name == 'style' || substr($attribute_name, 0, 2) == 'on');
+            $skip = (
+              $attribute_name == 'style' ||
+              substr($attribute_name, 0, 2) == 'on' ||
+              substr($attribute_name, 0, 1) == '-' ||
+              // Ignore long attributes to avoid unnecessary processing
+              // overhead.
+              strlen($attribute_name) > 96
+            );
 
             // Values for attributes of type URI should be filtered for
             // potentially malicious protocols (for example, an href-attribute
@@ -236,13 +247,15 @@ class Xss {
         case 1:
           // Equals sign or valueless ("selected").
           if (preg_match('/^\s*=\s*/', $attributes)) {
-            $working = 1; $mode = 2;
+            $working = 1;
+            $mode = 2;
             $attributes = preg_replace('/^\s*=\s*/', '', $attributes);
             break;
           }
 
           if (preg_match('/^\s+/', $attributes)) {
-            $working = 1; $mode = 0;
+            $working = 1;
+            $mode = 0;
             if (!$skip) {
               $attributes_array[] = $attribute_name;
             }
@@ -253,10 +266,10 @@ class Xss {
         case 2:
           // Attribute value, a URL after href= for instance.
           if (preg_match('/^"([^"]*)"(\s+|$)/', $attributes, $match)) {
-            $thisval = $skip_protocol_filtering ? $match[1] : UrlHelper::filterBadProtocol($match[1]);
+            $value = $skip_protocol_filtering ? $match[1] : UrlHelper::filterBadProtocol($match[1]);
 
             if (!$skip) {
-              $attributes_array[] = "$attribute_name=\"$thisval\"";
+              $attributes_array[] = "$attribute_name=\"$value\"";
             }
             $working = 1;
             $mode = 0;
@@ -265,23 +278,25 @@ class Xss {
           }
 
           if (preg_match("/^'([^']*)'(\s+|$)/", $attributes, $match)) {
-            $thisval = $skip_protocol_filtering ? $match[1] : UrlHelper::filterBadProtocol($match[1]);
+            $value = $skip_protocol_filtering ? $match[1] : UrlHelper::filterBadProtocol($match[1]);
 
             if (!$skip) {
-              $attributes_array[] = "$attribute_name='$thisval'";
+              $attributes_array[] = "$attribute_name='$value'";
             }
-            $working = 1; $mode = 0;
+            $working = 1;
+            $mode = 0;
             $attributes = preg_replace("/^'[^']*'(\s+|$)/", '', $attributes);
             break;
           }
 
           if (preg_match("%^([^\s\"']+)(\s+|$)%", $attributes, $match)) {
-            $thisval = $skip_protocol_filtering ? $match[1] : UrlHelper::filterBadProtocol($match[1]);
+            $value = $skip_protocol_filtering ? $match[1] : UrlHelper::filterBadProtocol($match[1]);
 
             if (!$skip) {
-              $attributes_array[] = "$attribute_name=\"$thisval\"";
+              $attributes_array[] = "$attribute_name=\"$value\"";
             }
-            $working = 1; $mode = 0;
+            $working = 1;
+            $mode = 0;
             $attributes = preg_replace("%^[^\s\"']+(\s+|$)%", '', $attributes);
           }
           break;

@@ -2,15 +2,14 @@
 
 namespace Drupal\Tests\field\Kernel\EntityReference;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\field\Entity\FieldConfig;
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
 use Drupal\node\Entity\NodeType;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\taxonomy\Entity\Vocabulary;
-use Symfony\Component\Debug\BufferingLogger;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 
 /**
  * Tests entity reference field settings.
@@ -24,7 +23,16 @@ class EntityReferenceSettingsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'taxonomy', 'field', 'user', 'text', 'entity_reference', 'entity_test', 'system'];
+  protected static $modules = [
+    'node',
+    'taxonomy',
+    'field',
+    'user',
+    'text',
+    'entity_reference',
+    'entity_test',
+    'system',
+  ];
 
   /**
    * Testing node type.
@@ -57,21 +65,21 @@ class EntityReferenceSettingsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    parent::setup();
+  protected function setUp(): void {
+    parent::setUp();
 
     $this->installEntitySchema('node');
     $this->installEntitySchema('taxonomy_term');
     $this->installEntitySchema('entity_test');
 
     $this->nodeType = NodeType::create([
-      'type' => Unicode::strtolower($this->randomMachineName()),
+      'type' => mb_strtolower($this->randomMachineName()),
       'name' => $this->randomString(),
     ]);
     $this->nodeType->save();
 
     // Create a custom bundle.
-    $this->customBundle = 'test_bundle_' . Unicode::strtolower($this->randomMachineName());
+    $this->customBundle = 'test_bundle_' . mb_strtolower($this->randomMachineName());
     entity_test_create_bundle($this->customBundle, NULL, 'entity_test');
 
     // Prepare the logger for collecting the expected critical error.
@@ -86,7 +94,7 @@ class EntityReferenceSettingsTest extends KernelTestBase {
     /** @var \Drupal\taxonomy\Entity\Vocabulary[] $vocabularies */
     $vocabularies = [];
     for ($i = 0; $i < 2; $i++) {
-      $vid = Unicode::strtolower($this->randomMachineName());
+      $vid = mb_strtolower($this->randomMachineName());
       $vocabularies[$i] = Vocabulary::create([
         'name' => $this->randomString(),
         'vid' => $vid,
@@ -94,7 +102,7 @@ class EntityReferenceSettingsTest extends KernelTestBase {
       $vocabularies[$i]->save();
     }
     // Attach an entity reference field to $this->nodeType.
-    $name = Unicode::strtolower($this->randomMachineName());
+    $name = mb_strtolower($this->randomMachineName());
     $label = $this->randomString();
     $handler_settings = [
       'target_bundles' => [
@@ -107,7 +115,7 @@ class EntityReferenceSettingsTest extends KernelTestBase {
     // Check that the 'target_bundle' setting contains the vocabulary.
     $field_config = FieldConfig::loadByName('node', $this->nodeType->id(), $name);
     $actual_handler_settings = $field_config->getSetting('handler_settings');
-    $this->assertEqual($handler_settings, $actual_handler_settings);
+    $this->assertEquals($handler_settings, $actual_handler_settings);
 
     // Delete the vocabulary.
     $vocabularies[0]->delete();
@@ -143,7 +151,7 @@ class EntityReferenceSettingsTest extends KernelTestBase {
    */
   public function testCustomTargetBundleDeletion() {
     // Attach an entity reference field to $this->nodeType.
-    $name = Unicode::strtolower($this->randomMachineName());
+    $name = mb_strtolower($this->randomMachineName());
     $label = $this->randomString();
     $handler_settings = ['target_bundles' => [$this->customBundle => $this->customBundle]];
     $this->createEntityReferenceField('node', $this->nodeType->id(), $name, $label, 'entity_test', 'default', $handler_settings);
@@ -151,7 +159,7 @@ class EntityReferenceSettingsTest extends KernelTestBase {
     // Check that the 'target_bundle' setting contains the custom bundle.
     $field_config = FieldConfig::loadByName('node', $this->nodeType->id(), $name);
     $actual_handler_settings = $field_config->getSetting('handler_settings');
-    $this->assertEqual($handler_settings, $actual_handler_settings);
+    $this->assertEquals($handler_settings, $actual_handler_settings);
 
     // Delete the custom bundle.
     entity_test_delete_bundle($this->customBundle, 'entity_test');
@@ -169,7 +177,7 @@ class EntityReferenceSettingsTest extends KernelTestBase {
     // 'target_bundles' field setting.
     $field_config = FieldConfig::loadByName('node', $this->nodeType->id(), $name);
     $handler_settings = $field_config->getSetting('handler_settings');
-    $this->assertTrue(empty($handler_settings['target_bundles']));
+    $this->assertEmpty($handler_settings['target_bundles']);
   }
 
   /**

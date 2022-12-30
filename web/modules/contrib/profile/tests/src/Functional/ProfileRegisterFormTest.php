@@ -4,6 +4,7 @@ namespace Drupal\Tests\profile\Functional;
 
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\user\UserInterface;
 
 /**
  * Tests attaching of profile entity forms to other forms.
@@ -25,7 +26,7 @@ class ProfileRegisterFormTest extends ProfileTestBase {
     // Allow registration without administrative approval and log in user
     // directly after registering.
     \Drupal::configFactory()->getEditable('user.settings')
-      ->set('register', USER_REGISTER_VISITORS)
+      ->set('register', UserInterface::REGISTER_VISITORS)
       ->set('verify_mail', 0)
       ->save();
     user_role_grant_permissions(AccountInterface::AUTHENTICATED_ROLE, ['view own test profile']);
@@ -48,7 +49,7 @@ class ProfileRegisterFormTest extends ProfileTestBase {
 
     // Verify that we can register.
     $edit['mail'] = $this->randomMachineName() . '@example.com';
-    $edit["entity_" . $id . "[$field_name][0][value]"] = $this->randomMachineName();
+    $edit[$id . "_profiles[0][entity][$field_name][0][value]"] = $this->randomMachineName();
     $this->submitForm($edit, t('Create new account'));
     $this->assertSession()->pageTextContains(new FormattableMarkup('Registration successful. You are now logged in.', []));
 
@@ -59,16 +60,16 @@ class ProfileRegisterFormTest extends ProfileTestBase {
     $storage = $this->container->get('entity_type.manager')->getStorage('profile');
 
     // Verify that a new profile was created for the new user ID.
-    $profile = $storage->loadDefaultByUser($new_user, $this->type->id());
+    $profile = $storage->loadByUser($new_user, $this->type->id());
 
-    $this->assertEquals($profile->get($field_name)->value, $edit["entity_" . $id . "[$field_name][0][value]"], 'Field value found in loaded profile.');
+    $this->assertEquals($profile->get($field_name)->value, $edit[$id . "_profiles[0][entity][$field_name][0][value]"], 'Field value found in loaded profile.');
     // Verify that, as the first profile of this type for the user, it was set
     // as default.
     $this->assertTrue($profile->isDefault());
 
     // Verify that the profile field value appears on the user account page.
-    $this->drupalGet($profile->toUrl()->toString());
-    $this->assertSession()->pageTextContains($edit["entity_" . $id . "[$field_name][0][value]"]);
+    $this->drupalGet($profile->toUrl());
+    $this->assertSession()->pageTextContains($edit[$id . "_profiles[0][entity][$field_name][0][value]"]);
   }
 
 }

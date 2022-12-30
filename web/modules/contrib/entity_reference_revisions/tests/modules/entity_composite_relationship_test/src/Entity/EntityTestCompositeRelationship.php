@@ -18,6 +18,7 @@ use Drupal\entity_test\Entity\EntityTestMulRev;
  *   revision_table = "entity_test_composite_revision",
  *   data_table = "entity_test_composite_field_data",
  *   revision_data_table = "entity_test_composite_field_revision",
+ *   content_translation_ui_skip = TRUE,
  *   translatable = TRUE,
  *   entity_revision_parent_type_field = "parent_type",
  *   entity_revision_parent_id_field = "parent_id",
@@ -44,15 +45,18 @@ class EntityTestCompositeRelationship extends EntityTestMulRev implements Entity
     $fields = parent::baseFieldDefinitions($entity_type);
     $fields['parent_id'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Parent ID'))
-      ->setDescription(t('The ID of the parent entity of which this entity is referenced.'));
+      ->setDescription(t('The ID of the parent entity of which this entity is referenced.'))
+      ->setRevisionable(TRUE);
 
     $fields['parent_type'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Parent type'))
-      ->setDescription(t('The entity parent type to which this entity is referenced.'));
+      ->setDescription(t('The entity parent type to which this entity is referenced.'))
+      ->setRevisionable(TRUE);
 
     $fields['parent_field_name'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Parent field name'))
-      ->setDescription(t('The entity parent field name to which this entity is referenced.'));
+      ->setDescription(t('The entity parent field name to which this entity is referenced.'))
+      ->setRevisionable(TRUE);
 
     return $fields;
   }

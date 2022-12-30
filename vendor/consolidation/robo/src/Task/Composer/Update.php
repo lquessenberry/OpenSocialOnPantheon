@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Task\Composer;
 
 /**
@@ -27,6 +28,19 @@ class Update extends Base
      * {@inheritdoc}
      */
     protected $action = 'update';
+
+    /**
+     * adds `no-suggest` option to composer
+     *
+     * @param bool $noSuggest
+     *
+     * @return $this
+     */
+    public function noSuggest($noSuggest = true)
+    {
+        $this->option('--no-suggest');
+        return $this;
+    }
 
     /**
      * {@inheritdoc}

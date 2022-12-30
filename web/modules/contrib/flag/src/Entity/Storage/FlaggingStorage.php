@@ -38,7 +38,7 @@ class FlaggingStorage extends SqlContentEntityStorage implements FlaggingStorage
    */
   public function loadIsFlagged(EntityInterface $entity, AccountInterface $account, $session_id = NULL) {
     if ($account->isAnonymous() && is_null($session_id)) {
-      throw new \LogicException('Anonymous users must be identifed by session_id');
+      throw new \LogicException('Anonymous users must be identified by session_id');
     }
 
     $flag_ids = $this->loadIsFlaggedMultiple([$entity], $account, $session_id);
@@ -50,7 +50,7 @@ class FlaggingStorage extends SqlContentEntityStorage implements FlaggingStorage
    */
   public function loadIsFlaggedMultiple(array $entities, AccountInterface $account, $session_id = NULL) {
     if ($account->isAnonymous() && is_null($session_id)) {
-      throw new \LogicException('Anonymous users must be identifed by session_id');
+      throw new \LogicException('Anonymous users must be identified by session_id');
     }
 
     // Set a dummy value for $session_id for an authenticated user so that we
@@ -102,7 +102,7 @@ class FlaggingStorage extends SqlContentEntityStorage implements FlaggingStorage
     $query = $this->database->select('flagging', 'f')
       ->fields('f', ['entity_id', 'flag_id', 'global'])
       ->condition('entity_type', $entity_type_id)
-      ->condition('entity_id', array_keys($ids_to_load));
+      ->condition('entity_id', array_keys($ids_to_load), 'IN');
 
     // The flagging must either match the user or be global.
     $user_or_global_condition = $query->orConditionGroup()

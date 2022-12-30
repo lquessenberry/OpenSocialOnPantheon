@@ -73,7 +73,7 @@ class SocialTopicController extends ControllerBase {
   public function latestTopicsPageTitle() {
     $title = $this->t('All topics');
 
-    // TODO This might change depending on the view exposed filter settings.
+    // @todo This might change depending on the view exposed filter settings.
     $topic_type_id = $this->requestStack->getCurrentRequest()->get('field_topic_type_target_id');
     $term = NULL;
     if ($topic_type_id !== NULL) {
@@ -81,7 +81,7 @@ class SocialTopicController extends ControllerBase {
       if (is_numeric($topic_type_id)) {
         $term = $this->entityTypeManager->getStorage('taxonomy_term')->load($topic_type_id);
 
-        if ($term->access('view') && $term->getVocabularyId() === 'topic_types') {
+        if ($term->access('view') && $term->bundle() === 'topic_types') {
           $term_title = $term->getName();
           $title = $this->t('Topics of type @type', ['@type' => $term_title]);
         }
@@ -126,6 +126,18 @@ class SocialTopicController extends ControllerBase {
       return AccessResult::allowedIfHasPermission($account, 'view topics on my profile');
     }
     return AccessResult::allowedIfHasPermission($account, 'view topics on other profiles');
+  }
+
+  /**
+   * Redirects users to their topics page.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   *   Returns a redirect to the topics of the currently logged in user.
+   */
+  public function redirectMyTopics() {
+    return $this->redirect('view.topics.page_profile', [
+      'user' => $this->currentUser()->id(),
+    ]);
   }
 
 }

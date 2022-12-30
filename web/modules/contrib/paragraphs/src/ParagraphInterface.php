@@ -2,6 +2,7 @@
 
 namespace Drupal\paragraphs;
 
+use Drupal\Core\Entity\EntityPublishedInterface;
 use Drupal\user\EntityOwnerInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\entity_reference_revisions\EntityNeedsSaveInterface;
@@ -10,20 +11,32 @@ use Drupal\entity_reference_revisions\EntityNeedsSaveInterface;
  * Provides an interface defining a paragraphs entity.
  * @ingroup paragraphs
  */
-interface ParagraphInterface extends ContentEntityInterface, EntityOwnerInterface, EntityNeedsSaveInterface {
+interface ParagraphInterface extends ContentEntityInterface, EntityOwnerInterface, EntityNeedsSaveInterface, EntityPublishedInterface {
 
   /**
    * Gets the parent entity of the paragraph.
    *
    * Preserves language context with translated entities.
    *
-   * @return ContentEntityInterface
+   * @return \Drupal\Core\Entity\ContentEntityInterface|null
    *   The parent entity.
    */
   public function getParentEntity();
 
   /**
-   * Returns short summary for paragraph.
+   * Set the parent entity of the paragraph.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $parent
+   *   The parent entity.
+   * @param string $parent_field_name
+   *   The parent field name.
+   *
+   * @return $this
+   */
+  public function setParentEntity(ContentEntityInterface $parent, $parent_field_name);
+
+  /**
+   * Returns a short summary for the Paragraph.
    *
    * @param array $options
    *   (optional) Array of additional options, with the following elements:
@@ -34,9 +47,39 @@ interface ParagraphInterface extends ContentEntityInterface, EntityOwnerInterfac
    *     allowed. Defaults to 1 to show nested paragraphs only on top level.
    *
    * @return string
-   *   The text without tags.
+   *   The template based summary.
    */
   public function getSummary(array $options = []);
+
+  /**
+   * Returns the summary items of the Paragraph.
+   *
+   * @param array $options
+   *   (optional) Array of additional options, with the following elements:
+   *   - 'show_behavior_summary': Whether the summary should contain the
+   *     behavior settings. Defaults to TRUE to show behavior settings in the
+   *     summary.
+   *   - 'depth_limit': Depth limit of how many nested paragraph summaries are
+   *     allowed. Defaults to 1 to show nested paragraphs only on top level.
+   *
+   * @return array
+   *   A list of summary items, grouped into the keys 'content' and 'behaviors'.
+   */
+  public function getSummaryItems(array $options = []);
+
+  /**
+   * Returns info icons render array for a paragraph.
+   *
+   * @param array $options
+   *   (optional) Array of additional options, with the following elements:
+   *   - 'show_behavior_icon': Whether the icons should contain the
+   *     behavior settings. Defaults to TRUE to show behavior icons in the
+   *     summary.
+   *
+   * @return array
+   *   A list of render arrays that will be rendered as icons.
+   */
+  public function getIcons(array $options = []);
 
   /**
    * Returns a flag whether a current revision has been changed.

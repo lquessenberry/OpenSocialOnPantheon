@@ -59,7 +59,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
   /**
    * Let modules modify the query just prior to finalizing it.
    *
-   * @param view $view
+   * @param \Drupal\views\ViewExecutable $view
    *   The view which is executed.
    */
   public function alter(ViewExecutable $view) {}
@@ -67,7 +67,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
   /**
    * Builds the necessary info to execute the query.
    *
-   * @param view $view
+   * @param \Drupal\views\ViewExecutable $view
    *   The view which is executed.
    */
   public function build(ViewExecutable $view) {}
@@ -82,7 +82,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
    * $view->result should contain an array of objects. The array must use a
    * numeric index starting at 0.
    *
-   * @param view $view
+   * @param \Drupal\views\ViewExecutable $view
    *   The view which is executed.
    */
   public function execute(ViewExecutable $view) {}
@@ -93,7 +93,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
    * This signature is something that can be used when perusing query logs to
    * discern where particular queries might be coming from.
    *
-   * @param view $view
+   * @param \Drupal\views\ViewExecutable $view
    *   The view which is executed.
    */
   public function addSignature(ViewExecutable $view) {}
@@ -119,7 +119,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
   public function calculateDependencies() {
     $dependencies = [];
 
-    foreach ($this->getEntityTableInfo() as $entity_type => $info) {
+    foreach ($this->getEntityTableInfo() as $info) {
       if (!empty($info['provider'])) {
         $dependencies['module'][] = $info['provider'];
       }
@@ -136,7 +136,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
   }
 
   /**
-   * Set an OFFSET on the query, specifying a number of results to skip
+   * Set an OFFSET on the query, specifying a number of results to skip.
    */
   public function setOffset($offset) {
     $this->offset = $offset;
@@ -192,7 +192,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
 
   /**
    * Loads all entities contained in the passed-in $results.
-   *.
+   *
    * If the entity belongs to the base table, then it gets stored in
    * $result->_entity. Otherwise, it gets stored in
    * $result->_relationship_entities[$relationship_id];
@@ -221,13 +221,13 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
   }
 
   /**
-   * Set the database to the current user timezone,
+   * Set the database to the current user timezone.
    *
    * @return string
-   *   The current timezone as returned by drupal_get_user_timezone().
+   *   The current timezone as returned by date_default_timezone_get().
    */
   public function setupTimezone() {
-    return drupal_get_user_timezone();
+    return date_default_timezone_get();
   }
 
   /**
@@ -316,7 +316,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
 
     // Determine which of the tables are revision tables.
     foreach ($entity_tables as $table_alias => $table) {
-      $entity_type = \Drupal::entityManager()->getDefinition($table['entity_type']);
+      $entity_type = \Drupal::entityTypeManager()->getDefinition($table['entity_type']);
       if ($entity_type->getRevisionTable() == $table['base']) {
         $entity_tables[$table_alias]['revision'] = TRUE;
       }
@@ -339,7 +339,7 @@ abstract class QueryPluginBase extends PluginBase implements CacheableDependency
     $contexts = [];
     if (($views_data = Views::viewsData()->get($this->view->storage->get('base_table'))) && !empty($views_data['table']['entity type'])) {
       $entity_type_id = $views_data['table']['entity type'];
-      $entity_type = \Drupal::entityManager()->getDefinition($entity_type_id);
+      $entity_type = \Drupal::entityTypeManager()->getDefinition($entity_type_id);
       $contexts = $entity_type->getListCacheContexts();
     }
     return $contexts;

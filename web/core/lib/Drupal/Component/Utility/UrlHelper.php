@@ -19,15 +19,12 @@ class UrlHelper {
   /**
    * Parses an array into a valid, rawurlencoded query string.
    *
-   * rawurlencode() is RFC3986 compliant, and as a consequence RFC3987
+   * Function rawurlencode() is RFC3986 compliant, and as a consequence RFC3987
    * compliant. The latter defines the required format of "URLs" in HTML5.
    * urlencode() is almost the same as rawurlencode(), except that it encodes
    * spaces as "+" instead of "%20". This makes its result non compliant to
    * RFC3986 and as a consequence non compliant to RFC3987 and as a consequence
    * not valid as a "URL" in HTML5.
-   *
-   * @todo Remove this function once PHP 5.4 is required as we can use just
-   *   http_build_query() directly.
    *
    * @param array $query
    *   The query parameter array to be processed; for instance,
@@ -150,14 +147,14 @@ class UrlHelper {
     if ($scheme_delimiter_position !== FALSE && ($query_delimiter_position === FALSE || $scheme_delimiter_position < $query_delimiter_position)) {
       // Split off the fragment, if any.
       if (strpos($url, '#') !== FALSE) {
-        list($url, $options['fragment']) = explode('#', $url, 2);
+        [$url, $options['fragment']] = explode('#', $url, 2);
       }
 
       // Split off everything before the query string into 'path'.
-      $parts = explode('?', $url);
+      $parts = explode('?', $url, 2);
 
       // Don't support URLs without a path, like 'http://'.
-      list(, $path) = explode('://', $parts[0], 2);
+      [, $path] = explode('://', $parts[0], 2);
       if ($path != '') {
         $options['path'] = $parts[0];
       }
@@ -245,9 +242,19 @@ class UrlHelper {
    *   TRUE if the URL has the same domain and base path.
    *
    * @throws \InvalidArgumentException
-   *   Exception thrown when a either $url or $bath_url are not fully qualified.
+   *   Exception thrown when either $url or $base_url are not fully qualified.
    */
   public static function externalIsLocal($url, $base_url) {
+    // Some browsers treat \ as / so normalize to forward slashes.
+    $url = str_replace('\\', '/', $url);
+
+    // Leading control characters may be ignored or mishandled by browsers, so
+    // assume such a path may lead to a non-local location. The \p{C} character
+    // class matches all UTF-8 control, unassigned, and private characters.
+    if (preg_match('/^\p{C}/u', $url) !== 0) {
+      return FALSE;
+    }
+
     $url_parts = parse_url($url);
     $base_parts = parse_url($base_url);
 
@@ -316,7 +323,7 @@ class UrlHelper {
    * - If the value is a well-formed (per RFC 3986) relative URL or
    *   absolute URL that does not use a dangerous protocol (like
    *   "javascript:"), then the URL remains unchanged. This includes all
-   *   URLs generated via Url::toString() and UrlGeneratorTrait::url().
+   *   URLs generated via Url::toString().
    * - If the value is a well-formed absolute URL with a dangerous protocol,
    *   the protocol is stripped. This process is repeated on the remaining URL
    *   until it is stripped down to a safe protocol.
@@ -340,7 +347,6 @@ class UrlHelper {
    *
    * @see \Drupal\Component\Utility\Html::escape()
    * @see \Drupal\Core\Url::toString()
-   * @see \Drupal\Core\Routing\UrlGeneratorTrait::url()
    * @see \Drupal\Core\Url::fromUri()
    */
   public static function stripDangerousProtocols($uri) {

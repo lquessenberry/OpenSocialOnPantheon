@@ -37,17 +37,11 @@ class UpdateManager extends PluginManager {
   /**
    * {@inheritdoc}
    */
-  public function getDefinitions($sorted = TRUE) {
-    $definitions = parent::getDefinitions();
-
+  protected function sortDefinitions(array &$definitions) {
     // Sort by the schema number (a.k.a. plugin ID).
-    if ($sorted) {
-      uasort($definitions, function ($a, $b) {
-        return SortArray::sortByKeyInt($a, $b, 'id');
-      });
-    }
-
-    return $definitions;
+    uasort($definitions, function ($a, $b) {
+      return SortArray::sortByKeyInt($a, $b, 'id');
+    });
   }
 
   /**
@@ -76,9 +70,10 @@ class UpdateManager extends PluginManager {
    */
   public function getPendingUpdates($private = FALSE) {
     $pending = [];
-    $installed = $this->theme->getSetting('schemas', []);
+    $installed_schemas = $this->theme->getSetting('schemas', []);
     foreach ($this->getUpdates($private) as $version => $update) {
-      if ($version > $installed) {
+      $installed_schema = $installed_schemas[$update->getProvider()] ?? \Drupal::CORE_MINIMUM_SCHEMA_VERSION;
+      if ($version > $installed_schema) {
         $pending[$version] = $update;
       }
     }

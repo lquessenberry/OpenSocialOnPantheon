@@ -8,6 +8,15 @@ views.query.search_api_query:
     skip_access:
       type: boolean
       label: Do not execute additional access checks for all items in the search results.
+    preserve_facet_query_args:
+      type: boolean
+      label: By default, changing an exposed filter would reset all selected facets. This option allows you to prevent this behavior.
+    query_tags:
+      type: sequence
+      label: 'Query Tags'
+      sequence:
+        type: string
+        label: 'Tag'
 
 views.row.search_api:
   type: views_row
@@ -16,12 +25,18 @@ views.row.search_api:
     view_modes:
       type: sequence
       label: View modes for each datasource
+      orderby: key
       sequence:
         type: sequence
         label: A list of all the bundles and their configured view mode
+        orderby: key
         sequence:
           type: string
           label: View mode for the specific bundle
+
+views.row.search_api_data:
+  type: views.row.data_field
+  label: 'Entity (Search API)'
 
 views.cache.search_api_time:
   type: views_cache
@@ -57,6 +72,14 @@ views.argument.search_api:
   type: views.argument.numeric
   label: 'Search API'
 
+views.argument.search_api_all_terms:
+  type: views.argument.search_api
+  label: 'Search API all taxonomy terms'
+
+views.argument.search_api_date:
+  type: views.argument.search_api
+  label: 'Search API date'
+
 views.argument.search_api_fulltext:
   type: views.argument.search_api
   label: 'Search API more like this'
@@ -70,6 +93,7 @@ views.argument.search_api_fulltext:
     fields:
       type: sequence
       label: 'Fields'
+      orderby: value
       sequence:
         type: string
         label: 'Field'
@@ -81,6 +105,7 @@ views.argument.search_api_more_like_this:
     fields:
       type: sequence
       label: 'Fields'
+      orderby: value
       sequence:
         type: string
         label: 'Field'
@@ -123,6 +148,10 @@ views.field.search_api_boolean:
       type: string
       label: 'Separator for multiple values'
 
+views.field.search_api_bulk_form:
+  type: views.field.bulk_form
+  label: 'Search API bulk form'
+
 views.field.search_api_date:
   type: views.field.date
   label: 'Search API date'
@@ -147,6 +176,7 @@ views.field.search_api_entity:
     display_methods:
       type: sequence
       label: 'Display settings'
+      orderby: key
       sequence:
         type: mapping
         label: 'Display settings for bundle'
@@ -157,6 +187,10 @@ views.field.search_api_entity:
           view_mode:
             type: string
             label: 'View mode'
+
+views.field.search_api_entity_operations:
+  type: views.field.entity_operations
+  label: 'Search API operations links'
 
 views.field.search_api_field:
   type: views.field.field
@@ -195,6 +229,22 @@ views.field.search_api_numeric:
         type: string
         label: 'Singular/Plural string'
 
+views.field.search_api_rendered_item:
+  type: views.field.search_api
+  label: 'Search API rendered item'
+  mapping:
+    view_modes:
+      type: sequence
+      label: 'View modes for each datasource'
+      orderby: key
+      sequence:
+        type: sequence
+        label: 'A list of all the bundles and their configured view mode'
+        orderby: key
+        sequence:
+          type: string
+          label: 'View mode for the specific bundle'
+
 views.filter.search_api_boolean:
   type: views.filter.boolean
   label: 'Search API boolean'
@@ -202,6 +252,10 @@ views.filter.search_api_boolean:
 views.filter.search_api_datasource:
   type: views.filter.search_api_options
   label: 'Search API datasource'
+
+views.filter.search_api_date:
+  type: views.filter.date
+  label: 'Search API date'
 
 views.filter.search_api_fulltext:
   type: views_filter
@@ -216,9 +270,23 @@ views.filter.search_api_fulltext:
     fields:
       type: sequence
       label: Fields to search on
+      orderby: value
       sequence:
         type: string
         label: Field name
+    expose:
+      type: mapping
+      label: 'Exposed'
+      mapping:
+        expose_fields:
+          type: boolean
+          label: 'Expose the list of searched fields'
+        placeholder:
+          type: label
+          label: 'Placeholder'
+        searched_fields_id:
+          type: string
+          label: 'Searched fields identifier'
 
 views.filter.search_api_language:
   type: views.filter.language
@@ -269,6 +337,7 @@ views.filter_value.search_api_numeric:
 
 views.filter_value.search_api_options:
   type: sequence
+  orderby: value
   sequence:
     type: string
     label: 'Value'

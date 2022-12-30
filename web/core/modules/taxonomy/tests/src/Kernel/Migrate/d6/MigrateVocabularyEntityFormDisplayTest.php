@@ -15,12 +15,12 @@ class MigrateVocabularyEntityFormDisplayTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['taxonomy', 'menu_ui'];
+  protected static $modules = ['taxonomy', 'menu_ui'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Execute Dependency Migrations.
@@ -45,7 +45,7 @@ class MigrateVocabularyEntityFormDisplayTest extends MigrateDrupal6TestBase {
     $this->assertSame('options_select', $component['type']);
     $this->assertSame(20, $component['weight']);
     // Test the Id map.
-    $this->assertSame(['node', 'article', 'default', 'field_tags'], $this->getMigration('d6_vocabulary_entity_form_display')->getIdMap()->lookupDestinationId([4, 'article']));
+    $this->assertSame([['node', 'article', 'default', 'field_tags']], $this->getMigration('d6_vocabulary_entity_form_display')->getIdMap()->lookupDestinationIds([4, 'article']));
 
     // Test the term widget tags setting.
     $entity_form_display = EntityFormDisplay::load('node.story.default');
@@ -55,7 +55,7 @@ class MigrateVocabularyEntityFormDisplayTest extends MigrateDrupal6TestBase {
     // Tests that a vocabulary named like a D8 base field will be migrated and
     // prefixed with 'field_' to avoid conflicts.
     $field_type = EntityFormDisplay::load('node.sponsor.default')->getComponent('field_type');
-    $this->assertTrue(is_array($field_type));
+    $this->assertIsArray($field_type);
   }
 
   /**

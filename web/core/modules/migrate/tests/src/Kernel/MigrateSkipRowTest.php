@@ -19,7 +19,7 @@ class MigrateSkipRowTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['migrate', 'migrate_prepare_row_test'];
+  protected static $modules = ['migrate', 'migrate_prepare_row_test'];
 
   /**
    * Tests migration interruptions.
@@ -33,7 +33,7 @@ class MigrateSkipRowTest extends KernelTestBase {
         'plugin' => 'embedded_data',
         'data_rows' => [
           ['id' => '1', 'data' => 'skip_and_record'],
-          ['id' => '2', 'data' => 'skip_and_dont_record'],
+          ['id' => '2', 'data' => 'skip_and_do_not_record'],
         ],
         'ids' => [
           'id' => ['type' => 'string'],
@@ -51,25 +51,25 @@ class MigrateSkipRowTest extends KernelTestBase {
 
     $executable = new MigrateExecutable($migration);
     $result = $executable->import();
-    $this->assertEqual($result, MigrationInterface::RESULT_COMPLETED);
+    $this->assertEquals(MigrationInterface::RESULT_COMPLETED, $result);
 
     /** @var \Drupal\migrate\Plugin\MigrateIdMapInterface $id_map_plugin */
     $id_map_plugin = $migration->getIdMap();
     // The first row is recorded in the map as ignored.
     $map_row = $id_map_plugin->getRowBySource(['id' => 1]);
-    $this->assertEqual(MigrateIdMapInterface::STATUS_IGNORED, $map_row['source_row_status']);
+    $this->assertEquals(MigrateIdMapInterface::STATUS_IGNORED, $map_row['source_row_status']);
     // Check that no message has been logged for the first exception.
-    $messages = $id_map_plugin->getMessageIterator(['id' => 1])->fetchAll();
+    $messages = $id_map_plugin->getMessages(['id' => 1])->fetchAll();
     $this->assertEmpty($messages);
 
     // The second row is not recorded in the map.
     $map_row = $id_map_plugin->getRowBySource(['id' => 2]);
     $this->assertFalse($map_row);
     // Check that the correct message has been logged for the second exception.
-    $messages = $id_map_plugin->getMessageIterator(['id' => 2])->fetchAll();
+    $messages = $id_map_plugin->getMessages(['id' => 2])->fetchAll();
     $this->assertCount(1, $messages);
     $message = reset($messages);
-    $this->assertEquals('skip_and_dont_record message', $message->message);
+    $this->assertEquals('skip_and_do_not_record message', $message->message);
     $this->assertEquals(MigrationInterface::MESSAGE_INFORMATIONAL, $message->level);
 
     // Insert a custom processor in the process flow.
@@ -80,13 +80,13 @@ class MigrateSkipRowTest extends KernelTestBase {
     // Change data to avoid triggering again hook_migrate_prepare_row().
     $definition['source']['data_rows'] = [
       ['id' => '1', 'data' => 'skip_and_record (use plugin)'],
-      ['id' => '2', 'data' => 'skip_and_dont_record (use plugin)'],
+      ['id' => '2', 'data' => 'skip_and_do_not_record (use plugin)'],
     ];
     $migration = \Drupal::service('plugin.manager.migration')->createStubMigration($definition);
 
     $executable = new MigrateExecutable($migration);
     $result = $executable->import();
-    $this->assertEquals($result, MigrationInterface::RESULT_COMPLETED);
+    $this->assertEquals(MigrationInterface::RESULT_COMPLETED, $result);
 
     $id_map_plugin = $migration->getIdMap();
 

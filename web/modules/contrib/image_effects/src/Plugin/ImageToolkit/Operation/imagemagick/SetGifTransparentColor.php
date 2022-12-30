@@ -25,14 +25,16 @@ class SetGifTransparentColor extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    $format = $this->getToolkit()->getDestinationFormat() ?: $this->getToolkit()->getSourceFormat();
+    $toolkit_arguments = $this->getToolkit()->arguments();
+    $format = $toolkit_arguments->getDestinationFormat() ?: $toolkit_arguments->getSourceFormat();
     $mime_type = $this->getFormatMapper()->getMimeTypeFromFormat($format);
     if ($mime_type === 'image/gif' && $arguments['transparent_color']) {
-      $index = $this->getToolkit()->findArgument('-alpha off -transparent-color');
-      if ($index !== FALSE) {
-        $this->getToolkit()->removeArgument($index);
+      $find = $toolkit_arguments->find('/^\-alpha off \-transparent\-color/');
+      if (!empty($find)) {
+        reset($find);
+        $toolkit_arguments->remove(key($find));
       }
-      $this->getToolkit()->addArgument('-alpha off -transparent-color ' . $this->getToolkit()->escapeShellArg($arguments['transparent_color']) . ' -transparent ' . $this->getToolkit()->escapeShellArg($arguments['transparent_color']));
+      $this->addArgument('-alpha off -transparent-color ' . $this->escapeArgument($arguments['transparent_color']) . ' -transparent ' . $this->escapeArgument($arguments['transparent_color']));
     }
   }
 

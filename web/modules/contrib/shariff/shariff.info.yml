@@ -1,0 +1,10 @@
+name: 'Shariff Sharing Buttons'
+description: 'Shariff enables website users to share their favorite content without compromising their privacy. This module integrates this plugin in Drupal.'
+core: 8.x
+core_version_requirement: ^8 || ^9
+type: module
+
+# Information added by Drupal.org packaging script on 2020-09-18
+version: '8.x-1.7'
+project: 'shariff'
+datestamp: 1600424776

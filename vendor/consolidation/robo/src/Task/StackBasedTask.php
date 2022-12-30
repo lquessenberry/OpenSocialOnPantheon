@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Task;
 
 use Robo\Result;
@@ -43,7 +44,7 @@ use Robo\Result;
  *  - Give it a constructor that creates a new Frobinator
  *  - Override getDelegate(), and return the Frobinator instance
  *
- * Finally, add your new class to loadTasks.php as usual,
+ * Finally, add your new class to Tasks.php as usual,
  * and you are all done.
  *
  * If you need to add any methods to your task that should run
@@ -85,7 +86,7 @@ abstract class StackBasedTask extends BaseTask
      * this class.  Calling one of the delegate's methods will defer
      * execution until the run() method is called.
      *
-     * @return null
+     * @return null|object
      */
     protected function getDelegate()
     {
@@ -219,7 +220,7 @@ abstract class StackBasedTask extends BaseTask
      * Execute one task method
      *
      * @param string $command
-     * @param string $action
+     * @param array $action
      *
      * @return \Robo\Result
      */

@@ -7,7 +7,7 @@ data_policy.settings:
 data_policy.user.admin_index.version_history:
   title: 'Data policy'
   description: 'Data policy revisions'
-  route_name: entity.data_policy.version_history
+  route_name: entity.data_policy.collection
   parent: user.admin_index
 
 data_policy.data_policy.settings:

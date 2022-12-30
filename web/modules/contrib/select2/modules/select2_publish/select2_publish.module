@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * @file
+ * This is the select2_publish module.
+ */
+
+use Drupal\Core\Entity\EntityPublishedInterface;
+use Drupal\select2_publish\Element\StatusProperties;
+
+/**
+ * Implements hook_element_info_alter().
+ */
+function select2_publish_element_info_alter(array &$info) {
+  if (!empty($info['select2'])) {
+    $info['select2']['#pre_render'][] = [StatusProperties::class, 'preRender'];
+  }
+}
+
+/**
+ * Implements hook_select2_autocomplete_matches_alter().
+ */
+function select2_publish_select2_autocomplete_matches_alter(array &$matches, array $options) {
+  $entity_manager = \Drupal::entityTypeManager();
+  $entity_definition = $entity_manager->getDefinition($options['target_type']);
+
+  if (!$entity_definition->entityClassImplements(EntityPublishedInterface::class)) {
+    return;
+  }
+
+  $entities = $entity_manager->getStorage($options['target_type'])->loadMultiple(array_keys($matches));
+  /** @var \Drupal\Core\Entity\EntityPublishedInterface $entity */
+  foreach ($entities as $id => $entity) {
+    $matches[$id]['published'] = $entity->isPublished();
+  }
+}

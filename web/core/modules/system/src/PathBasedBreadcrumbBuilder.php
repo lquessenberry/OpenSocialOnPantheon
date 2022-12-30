@@ -144,7 +144,7 @@ class PathBasedBreadcrumbBuilder implements BreadcrumbBuilderInterface {
 
     // Add the url.path.parent cache context. This code ignores the last path
     // part so the result only depends on the path parents.
-    $breadcrumb->addCacheContexts(['url.path.parent']);
+    $breadcrumb->addCacheContexts(['url.path.parent', 'url.path.is_front']);
 
     // Do not display a breadcrumb on the frontpage.
     if ($this->pathMatcher->isFrontPage()) {
@@ -207,8 +207,6 @@ class PathBasedBreadcrumbBuilder implements BreadcrumbBuilderInterface {
     if (!empty($exclude[$path])) {
       return NULL;
     }
-    // @todo Use the RequestHelper once https://www.drupal.org/node/2090293 is
-    //   fixed.
     $request = Request::create($path);
     // Performance optimization: set a short accept header to reduce overhead in
     // AcceptHeaderMatcher when matching the request.

@@ -16,6 +16,13 @@ use Drupal\search\SearchPageInterface;
  * @ConfigEntityType(
  *   id = "search_page",
  *   label = @Translation("Search page"),
+ *   label_collection = @Translation("Search pages"),
+ *   label_singular = @Translation("search page"),
+ *   label_plural = @Translation("search pages"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count search page",
+ *     plural = "@count search pages",
+ *   ),
  *   handlers = {
  *     "access" = "Drupal\search\SearchPageAccessControlHandler",
  *     "list_builder" = "Drupal\search\SearchPageListBuilder",
@@ -204,12 +211,12 @@ class SearchPage extends ConfigEntityBase implements SearchPageInterface, Entity
    * {@inheritdoc}
    */
   public static function sort(ConfigEntityInterface $a, ConfigEntityInterface $b) {
-    /** @var $a \Drupal\search\SearchPageInterface */
-    /** @var $b \Drupal\search\SearchPageInterface */
+    /** @var \Drupal\search\SearchPageInterface $a */
+    /** @var \Drupal\search\SearchPageInterface $b */
     $a_status = (int) $a->status();
     $b_status = (int) $b->status();
     if ($a_status != $b_status) {
-      return ($a_status > $b_status) ? -1 : 1;
+      return $b_status <=> $a_status;
     }
     return parent::sort($a, $b);
   }

@@ -1,1 +1,41 @@
 <?php
+
+/**
+ * @file
+ * Allows URLs to be embedded using a text editor.
+ */
+
+use Drupal\Component\Serialization\Json;
+
+/**
+ * Performs a GET request to Facebook's graph API to retrieve token debug info.
+ *
+ * @param string $token
+ *   The Facebook access token in the format of "APP_ID|APP_SECRET".
+ *
+ * @return false|array
+ *   An array containing app details if successful, false otherwise.
+ *
+ * @see https://developers.facebook.com/docs/facebook-login/access-tokens/debugging-and-error-handling/
+ */
+function url_embed_debug_facebook_access_token($token) {
+  $url = 'https://graph.facebook.com/v8.0/debug_token?input_token=' . $token . '&access_token=' . $token;
+
+  try {
+    $response = \Drupal::httpClient()->get($url);
+    $code = $response->getStatusCode();
+
+    if ($code == 200) {
+      $data = $response->getBody()->getContents();
+      $decoded = Json::decode($data);
+      return isset($decoded['data']) ? $decoded['data'] : FALSE;
+    }
+    else {
+      return FALSE;
+    }
+  }
+  catch (Exception $e) {
+  }
+
+  return FALSE;
+}

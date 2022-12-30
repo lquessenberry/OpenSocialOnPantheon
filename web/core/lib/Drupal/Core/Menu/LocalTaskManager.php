@@ -8,7 +8,6 @@ use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\RefinableCacheableDependencyInterface;
-use Drupal\Core\Controller\ControllerResolverInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
@@ -20,6 +19,7 @@ use Drupal\Core\Routing\RouteProviderInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface;
 
 /**
  * Provides the default local task manager using YML as primary definition.
@@ -51,11 +51,11 @@ class LocalTaskManager extends DefaultPluginManager implements LocalTaskManagerI
   ];
 
   /**
-   * A controller resolver object.
+   * An argument resolver object.
    *
-   * @var \Drupal\Core\Controller\ControllerResolverInterface
+   * @var \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface
    */
-  protected $controllerResolver;
+  protected $argumentResolver;
 
   /**
    * The request stack.
@@ -109,8 +109,8 @@ class LocalTaskManager extends DefaultPluginManager implements LocalTaskManagerI
   /**
    * Constructs a \Drupal\Core\Menu\LocalTaskManager object.
    *
-   * @param \Drupal\Core\Controller\ControllerResolverInterface $controller_resolver
-   *   An object to use in introspecting route methods.
+   * @param \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface $argument_resolver
+   *   An object to use in resolving route arguments.
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
    *   The request object to use for building titles and paths for plugin instances.
    * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
@@ -128,9 +128,9 @@ class LocalTaskManager extends DefaultPluginManager implements LocalTaskManagerI
    * @param \Drupal\Core\Session\AccountInterface $account
    *   The current user.
    */
-  public function __construct(ControllerResolverInterface $controller_resolver, RequestStack $request_stack, RouteMatchInterface $route_match, RouteProviderInterface $route_provider, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache, LanguageManagerInterface $language_manager, AccessManagerInterface $access_manager, AccountInterface $account) {
+  public function __construct(ArgumentResolverInterface $argument_resolver, RequestStack $request_stack, RouteMatchInterface $route_match, RouteProviderInterface $route_provider, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache, LanguageManagerInterface $language_manager, AccessManagerInterface $access_manager, AccountInterface $account) {
     $this->factory = new ContainerFactory($this, '\Drupal\Core\Menu\LocalTaskInterface');
-    $this->controllerResolver = $controller_resolver;
+    $this->argumentResolver = $argument_resolver;
     $this->requestStack = $request_stack;
     $this->routeMatch = $route_match;
     $this->routeProvider = $route_provider;
@@ -170,7 +170,7 @@ class LocalTaskManager extends DefaultPluginManager implements LocalTaskManagerI
   public function getTitle(LocalTaskInterface $local_task) {
     $controller = [$local_task, 'getTitle'];
     $request = $this->requestStack->getCurrentRequest();
-    $arguments = $this->controllerResolver->getArguments($request, $controller);
+    $arguments = $this->argumentResolver->getArguments($request, $controller);
     return call_user_func_array($controller, $arguments);
   }
 
@@ -304,7 +304,7 @@ class LocalTaskManager extends DefaultPluginManager implements LocalTaskManagerI
     }
 
     foreach ($tree as $level => $instances) {
-      /** @var $instances \Drupal\Core\Menu\LocalTaskInterface[] */
+      /** @var \Drupal\Core\Menu\LocalTaskInterface[] $instances */
       foreach ($instances as $plugin_id => $child) {
         $route_name = $child->getRouteName();
         $route_parameters = $child->getRouteParameters($this->routeMatch);
@@ -389,6 +389,7 @@ class LocalTaskManager extends DefaultPluginManager implements LocalTaskManagerI
    * @param string $route_name
    *   The route name of the local task to determine the active status.
    * @param array $route_parameters
+   *   The parameter for the route.
    *
    * @return bool
    *   Returns TRUE if the passed route_name and route_parameters is considered

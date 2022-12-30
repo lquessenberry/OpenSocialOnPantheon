@@ -8,6 +8,7 @@ use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\crop\CropInterface;
 use Drupal\crop\EntityProviderNotFoundException;
+use Drupal\image\Entity\ImageStyle;
 use Drupal\image\ImageStyleInterface;
 
 /**
@@ -19,14 +20,14 @@ use Drupal\image\ImageStyleInterface;
  *   bundle_label = @Translation("Crop type"),
  *   handlers = {
  *     "storage" = "Drupal\crop\CropStorage",
+ *     "storage_schema" = "Drupal\crop\CropStorageSchema",
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
  *     "access" = "Drupal\Core\Entity\EntityAccessControlHandler",
  *     "form" = {
  *       "default" = "Drupal\Core\Entity\ContentEntityForm",
  *       "delete" = "Drupal\Core\Entity\ContentEntityConfirmFormBase",
  *       "edit" = "Drupal\Core\Entity\ContentEntityForm"
- *     },
- *     "translation" = "Drupal\content_translation\ContentTranslationHandler"
+ *     }
  *   },
  *   base_table = "crop",
  *   data_table = "crop_field_data",
@@ -55,6 +56,13 @@ use Drupal\image\ImageStyleInterface;
  * )
  */
 class Crop extends ContentEntityBase implements CropInterface {
+
+  /**
+   * List of effects per image style.
+   *
+   * @var array
+   */
+  protected static $effectsByImageStyle = [];
 
   /**
    * {@inheritdoc}
@@ -124,6 +132,7 @@ class Crop extends ContentEntityBase implements CropInterface {
    */
   public static function cropExists($uri, $type = NULL) {
     $query = \Drupal::entityQuery('crop')
+      ->accessCheck(TRUE)
       ->condition('uri', $uri);
     if ($type) {
       $query->condition('type', $type);
@@ -142,22 +151,19 @@ class Crop extends ContentEntityBase implements CropInterface {
    * {@inheritdoc}
    */
   public static function getCropFromImageStyle($uri, ImageStyleInterface $image_style) {
-    $effects = [];
-    $crop = FALSE;
+    @trigger_error('Crop::getCropFromImageStyle() is deprecated, use Crop::getCropFromImageStyleId() instead.', E_USER_DEPRECATED);
+    return static::getCropFromImageStyleId($uri, $image_style->id());
+  }
 
-    foreach ($image_style->getEffects() as $uuid => $effect) {
-      // Store the effects parameters for later use.
-      $effects[$effect->getPluginId()] = [
-        'uuid' => $uuid,
-        'provider' => $effect->getPluginDefinition()['provider'],
-      ];
-    }
+  /**
+   * {@inheritdoc}
+   */
+  public static function getCropFromImageStyleId($uri, $image_style_id) {
+    $crop = NULL;
+    $effects = self::getEffectsFromImageStyleId($image_style_id);
 
-    if (isset($effects['crop_crop']) && $image_style->getEffects()
-        ->has($effects['crop_crop']['uuid'])) {
-      $type = $image_style->getEffect($effects['crop_crop']['uuid'])
-        ->getConfiguration()['data']['crop_type'];
-      $crop = self::findCrop($uri, $type);
+    if (isset($effects['crop_crop']['type'])) {
+      $crop = self::findCrop($uri, $effects['crop_crop']['type']);
     }
 
     // Fallback to use the provider as a fallback to check if provider name,
@@ -165,11 +171,50 @@ class Crop extends ContentEntityBase implements CropInterface {
     if (!$crop) {
       foreach ($effects as $effect) {
         $provider = $effect['provider'];
+        // Image doesn't provide a crop, so we can ignore that provider.
+        if ($provider === 'image') {
+          continue;
+        }
         $crop = self::findCrop($uri, $provider);
       }
     }
 
     return $crop;
+  }
+
+  /**
+   * Returns the effects for an image style.
+   *
+   * @param string $image_style_id
+   *   The image style ID.
+   *
+   * @return array[]
+   *   A list of effects, keyed by plugin ID, each effect has a uuid, provider
+   *   and in case of crop_crop, the type key.
+   */
+  protected static function getEffectsFromImageStyleId($image_style_id) {
+    if (!isset(static::$effectsByImageStyle[$image_style_id])) {
+      $image_style = ImageStyle::load($image_style_id);
+      if ($image_style === NULL) {
+        return [];
+      }
+
+      $effects = [];
+      foreach ($image_style->getEffects() as $uuid => $effect) {
+        /** @var \Drupal\image\ImageEffectInterface $effect */
+        // Store the effects parameters for later use.
+        $effects[$effect->getPluginId()] = [
+          'uuid' => $uuid,
+          'provider' => $effect->getPluginDefinition()['provider'],
+        ];
+
+        if ($effect->getPluginId() === 'crop_crop') {
+          $effects[$effect->getPluginId()]['type'] = $effect->getConfiguration()['data']['crop_type'];
+        }
+      }
+      static::$effectsByImageStyle[$image_style_id] = $effects;
+    }
+    return static::$effectsByImageStyle[$image_style_id];
   }
 
   /**

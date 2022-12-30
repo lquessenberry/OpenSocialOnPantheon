@@ -64,10 +64,9 @@
  *
  * @section more_info Further information
  *
- * - @link https://api.drupal.org/api/drupal/groups/8 All topics @endlink
  * - @link https://www.drupal.org/project/examples Examples project (sample modules) @endlink
  * - @link https://www.drupal.org/list-changes API change notices @endlink
- * - @link https://www.drupal.org/developing/api/8 Drupal 8 API longer references @endlink
+ * - @link https://www.drupal.org/docs/drupal-apis Drupal API longer references @endlink
  */
 
 /**
@@ -76,8 +75,8 @@
  * Integrating third-party applications using REST and related operations.
  *
  * @section sec_overview Overview of web services
- * Web services make it possible for applications and web sites to read and
- * update information from other web sites. There are several standard
+ * Web services make it possible for applications and websites to read and
+ * update information from other websites. There are several standard
  * techniques for providing web services, including:
  * - SOAP: http://wikipedia.org/wiki/SOAP
  * - XML-RPC: http://wikipedia.org/wiki/XML-RPC
@@ -115,7 +114,7 @@
  *   and HAL.
  * - Node entity support is configured by default. If you would like to support
  *   other types of entities, you can copy
- *   core/modules/rest/config/install/rest.settings.yml to your sync
+ *   core/modules/hal/config/optional/rest.resource.entity.node.yml to your sync
  *   configuration directory, appropriately modified for other entity types,
  *   and import it. Support for GET on the log from the Database Logging module
  *   can also be enabled in this way; in this case, the 'entity:node' line
@@ -152,7 +151,7 @@
  * @ref sec_rest above.
  *
  * @section sec_integrate Integrating data from other sites into Drupal
- * If you want to integrate data from other web sites into Drupal, here are
+ * If you want to integrate data from other websites into Drupal, here are
  * some notes:
  * - There are contributed modules available for integrating many third-party
  *   sites into Drupal. Search on https://www.drupal.org/project/project_module
@@ -192,7 +191,7 @@
  * // Find out when cron was last run; the key is 'system.cron_last'.
  * $time = $state->get('system.cron_last');
  * // Set the cron run time to the current request time.
- * $state->set('system.cron_last', REQUEST_TIME);
+ * $state->set('system.cron_last', \Drupal::time()->getRequestTime());
  * @endcode
  *
  * For more on the State API, see https://www.drupal.org/developing/api/8/state
@@ -208,7 +207,7 @@
  * information. See the @link info_types Information types topic @endlink for
  * an overview of the different types of information. The sections below have
  * more information about the configuration API; see
- * https://www.drupal.org/developing/api/8/configuration for more details.
+ * https://www.drupal.org/docs/drupal-apis/configuration-api for more details.
  *
  * @section sec_storage Configuration storage
  * In Drupal, there is a concept of the "active" configuration, which is the
@@ -382,10 +381,10 @@
  *   be an admin path). Here's an example using the configurable_language config
  *   entity:
  *   @code
- *   mymodule.myroute:
- *     path: '/admin/mypath/{configurable_language}'
+ *   my_module.my_route:
+ *     path: '/admin/my-path/{configurable_language}'
  *     defaults:
- *       _controller: '\Drupal\mymodule\MyController::myMethod'
+ *       _controller: '\Drupal\my_module\MyController::myMethod'
  *     options:
  *       parameters:
  *         configurable_language:
@@ -477,7 +476,7 @@
  *   class: Drupal\Core\Cache\CacheBackendInterface
  *   tags:
  *     - { name: cache.bin }
- *   factory: cache_factory:get
+ *   factory: ['@cache_factory', 'get']
  *   arguments: [nameofbin]
  * @endcode
  * See the @link container Services topic @endlink for more on defining
@@ -576,9 +575,9 @@
  *
  * Cache contexts are services tagged with 'cache.context', whose classes
  * implement \Drupal\Core\Cache\Context\CacheContextInterface. See
- * https://www.drupal.org/developing/api/8/cache/contexts for more information
- * on cache contexts, including a list of the contexts that exist in Drupal
- * core, and information on how to define your own contexts. See the
+ * https://www.drupal.org/docs/drupal-apis/cache-api/cache-contexts for more
+ * information on cache contexts, including a list of the contexts that exist in
+ * Drupal core, and information on how to define your own contexts. See the
  * @link container Services and the Dependency Injection Container @endlink
  * topic for more information about services.
  *
@@ -588,9 +587,10 @@
  *
  * @section configuration Configuration
  *
- * By default cached data is stored in the database. This can be configured
- * though so that all cached data, or that of an individual cache bin, uses a
- * different cache backend, such as APCu or Memcache, for storage.
+ * By default, cached data is stored in the database. However, Drupal can be
+ * configured to use a different backend (specified in their service
+ * definition), e.g. APCu or Memcache. This configuration can nominate a
+ * different backend for all cached data or for specific cache bins.
  *
  * In a settings.php file, you can override the service used for a particular
  * cache bin. For example, if your service implementation of
@@ -735,18 +735,19 @@
  *
  * @section sec_overview Overview of container, injection, and services
  * The Services and Dependency Injection Container concepts have been adopted by
- * Drupal from the @link http://symfony.com/ Symfony framework. @endlink A
- * "service" (such as accessing the database, sending email, or translating user
- * interface text) is defined (given a name and an interface or at least a
- * class that defines the methods that may be called), and a default class is
- * designated to provide the service. These two steps must be done together, and
- * can be done by Drupal Core or a module. Other modules can then define
- * alternative classes to provide the same services, overriding the default
- * classes. Classes and functions that need to use the service should always
- * instantiate the class via the dependency injection container (also known
- * simply as the "container"), rather than instantiating a particular service
- * provider class directly, so that they get the correct class (default or
- * overridden).
+ * Drupal from the
+ * @link http://symfony.com/doc/current/components/dependency_injection.html
+ * Symfony DependencyInjection component. @endlink A "service" (such as
+ * accessing the database, sending email, or translating user interface text) is
+ * defined (given a name and an interface or at least a class that defines the
+ * methods that may be called), and a default class is designated to provide the
+ * service. These two steps must be done together, and can be done by Drupal
+ * Core or a module. Other modules can then define alternative classes to
+ * provide the same services, overriding the default classes. Classes and
+ * functions that need to use the service should always instantiate the class
+ * via the dependency injection container (also known simply as the
+ * "container"), rather than instantiating a particular service provider class
+ * directly, so that they get the correct class (default or overridden).
  *
  * See https://www.drupal.org/node/2133171 for more detailed information on
  * services and the dependency injection container.
@@ -761,9 +762,9 @@
  *
  * A typical service definition in a *.services.yml file looks like this:
  * @code
- * path.alias_manager:
- *   class: Drupal\Core\Path\AliasManager
- *   arguments: ['@path.crud', '@path.alias_whitelist', '@language_manager']
+ * path_alias.manager:
+ *   class: Drupal\path_alias\AliasManager
+ *   arguments: ['@path_alias.repository', '@path_alias.whitelist', '@language_manager']
  * @endcode
  * Some services use other services as factories; a typical service definition
  * is:
@@ -772,7 +773,7 @@
  *     class: Drupal\Core\Cache\CacheBackendInterface
  *     tags:
  *       - { name: cache.bin }
- *     factory: cache_factory:get
+ *     factory: ['@cache_factory', 'get']
  *     arguments: [entity]
  * @endcode
  *
@@ -809,7 +810,7 @@
  *   arguments, but they all include an argument $container of type
  *   \Symfony\Component\DependencyInjection\ContainerInterface.
  *   If you are defining one of these classes, in the create() or
- *   createInstance() method, call $container->get('myservice.name') to
+ *   createInstance() method, call $container->get('my_service.name') to
  *   instantiate a service. The results of these calls are generally passed to
  *   the class constructor and saved as member variables in the class.
  * - For functions and class methods that do not have access to either of
@@ -818,8 +819,8 @@
  *   special methods for accessing commonly-used services, or you can call a
  *   generic method to access any service. Examples:
  *   @code
- *   // Retrieve the entity.manager service object (special method exists).
- *   $manager = \Drupal::entityManager();
+ *   // Retrieve the entity_type.manager service object (special method exists).
+ *   $entity_type_manager = \Drupal::entityTypeManager();
  *   // Retrieve the service object for machine name 'foo.bar'.
  *   $foobar = \Drupal::service('foo.bar');
  *   @endcode
@@ -837,7 +838,7 @@
  * @section sec_define Defining a service
  * If your module needs to define a new service, here are the steps:
  * - Choose a unique machine name for your service. Typically, this should
- *   start with your module name. Example: mymodule.myservice.
+ *   start with your module name. Example: my_module.my_service.
  * - Create a PHP interface to define what your service does.
  * - Create a default class implementing your interface that provides your
  *   service. If your class needs to use existing services (such as database
@@ -852,6 +853,12 @@
  *
  * Services can also be defined dynamically, as in the
  * \Drupal\Core\CoreServiceProvider class, but this is less common for modules.
+ *
+ * @section sec_define Service autowiring
+ * Instead of specifying arguments explicitly, the container can also autowire
+ * a service's arguments from the constructor's type-hints. See
+ * @link https://symfony.com/doc/current/service_container/autowiring.html the Symfony documentation on defining services dependencies automatically @endlink
+ * for details.
  *
  * @section sec_tags Service tags
  * Some services have tags, which are defined in the service definition. See
@@ -1046,7 +1053,7 @@
  *   more information.
  * - In configuration schema files, you can use the unique ID ('id' annotation)
  *   from any DataType plugin class as the 'type' value for an entry. See the
- *   @link config_api Confuration API topic @endlink for more information.
+ *   @link config_api Configuration API topic @endlink for more information.
  * - If you need to create a typed data object in code, first get the
  *   typed_data_manager service from the container or by calling
  *   \Drupal::typedDataManager(). Then pass the plugin ID to
@@ -1062,7 +1069,7 @@
 /**
  * @defgroup testing Automated tests
  * @{
- * Overview of PHPUnit tests and Simpletest tests.
+ * Overview of PHPUnit and Nightwatch automated tests.
  *
  * The Drupal project has embraced a philosophy of using automated tests,
  * consisting of both unit tests (which test the functionality of classes at a
@@ -1083,124 +1090,81 @@
  *   code actually works, and ensure that later changes do not break the new
  *   functionality.
  *
- * @section write_unit Writing PHPUnit tests for classes
- * PHPUnit tests for classes are written using the industry-standard PHPUnit
- * framework. Use a PHPUnit test to test functionality of a class if the Drupal
- * environment (database, settings, etc.) and web browser are not needed for the
- * test, or if the Drupal environment can be replaced by a "mock" object. To
- * write a PHPUnit test:
- * - Define a class that extends \Drupal\Tests\UnitTestCase.
- * - The class name needs to end in the word Test.
- * - The namespace must be a subspace/subdirectory of \Drupal\yourmodule\Tests,
- *   where yourmodule is your module's machine name.
- * - The test class file must be named and placed under the
- *   yourmodule/tests/src/Unit directory, according to the PSR-4 standard.
- * - Your test class needs a phpDoc comment block with a description and
- *   a @group annotation, which gives information about the test.
- * - Add test cases by adding method names that start with 'test' and have no
- *   arguments, for example testYourTestCase(). Each one should test a logical
- *   subset of the functionality.
+ * @section write_test Writing tests
+ * All PHP-based tests for Drupal core are written using the industry-standard
+ * PHPUnit framework, with Drupal extensions. There are several categories of
+ * tests; each has its own purpose, base class, namespace, and directory:
+ * - Unit tests:
+ *   - Purpose: Test functionality of a class if the Drupal environment
+ *     (database, settings, etc.) and web browser are not needed for the test,
+ *     or if the Drupal environment can be replaced by a "mock" object.
+ *   - Base class: \Drupal\Tests\UnitTestCase
+ *   - Namespace: \Drupal\Tests\yourmodule\Unit (or a subdirectory)
+ *   - Directory location: yourmodule/tests/src/Unit (or a subdirectory)
+ * - Kernel tests:
+ *   - Purpose: Test functionality of a class if the full Drupal environment
+ *     and web browser are not needed for the test, but the functionality has
+ *     significant Drupal dependencies that cannot easily be mocked. Kernel
+ *     tests can access services, the database, and a minimal mocked file
+ *     system, and they use an in-memory pseudo-installation. However, modules
+ *     are only installed to the point of having services and hooks, unless you
+ *     install them explicitly.
+ *   - Base class: \Drupal\KernelTests\KernelTestBase
+ *   - Namespace: \Drupal\Tests\yourmodule\Kernel (or a subdirectory)
+ *   - Directory location: yourmodule/tests/src/Kernel (or a subdirectory)
+ * - Browser tests:
+ *   - Purpose: Test functionality with the full Drupal environment and an
+ *     internal simulated web browser, if JavaScript is not needed.
+ *   - Base class: \Drupal\Tests\BrowserTestBase
+ *   - Namespace: \Drupal\Tests\yourmodule\Functional (or a subdirectory)
+ *   - Directory location: yourmodule/tests/src/Functional (or a subdirectory)
+ * - Browser tests with JavaScript:
+ *   - Purpose: Test functionality with the full Drupal environment and an
+ *     internal web browser that includes JavaScript execution.
+ *   - Base class: \Drupal\FunctionalJavascriptTests\WebDriverTestBase
+ *   - Namespace: \Drupal\Tests\yourmodule\FunctionalJavascript (or a
+ *     subdirectory)
+ *   - Directory location: yourmodule/tests/src/FunctionalJavascript (or a
+ *     subdirectory)
+ * - Build tests:
+ *   - Purpose: Test building processes and their outcomes, such as whether a
+ *     live update process actually works, or whether a Composer project
+ *     template actually builds a working site. Provides a temporary build
+ *     workspace and a PHP-native HTTP server to send requests to the site
+ *     you've built.
+ *   - Base class: \Drupal\BuildTests\Framework\BuildTestBase
+ *   - Namespace: \Drupal\Tests\yourmodule\Build (or a
+ *     subdirectory)
+ *   - Directory location: yourmodule/tests/src/Build (or a
+ *     subdirectory)
+ *
+ * Some notes about writing PHP test classes:
+ * - The class needs a phpDoc comment block with a description and
+ *   @group annotation, which gives information about the test.
+ * - For unit tests, this comment block should also have @coversDefaultClass
+ *   annotation.
+ * - When writing tests, put the test code into public methods, each covering a
+ *   logical subset of the functionality that is being tested.
+ * - The test methods must have names starting with 'test'. For unit tests, the
+ *   test methods need to have a phpDoc block with @covers annotation telling
+ *   which class method they are testing.
+ * - In some cases, you may need to write a test module to support your test;
+ *   put such modules under the yourmodule/tests/modules directory.
+ *
+ * Besides the PHPUnit tests described above, Drupal Core also includes a few
+ * JavaScript-only tests, which use the Nightwatch.js framework to test
+ * JavaScript code using only JavaScript. These are located in
+ * core/tests/Drupal/Nightwatch.
+ *
  * For more details, see:
+ * - core/tests/README.md for instructions on running tests
  * - https://www.drupal.org/phpunit for full documentation on how to write
- *   PHPUnit tests for Drupal.
+ *   and run PHPUnit tests for Drupal.
  * - http://phpunit.de for general information on the PHPUnit framework.
  * - @link oo_conventions Object-oriented programming topic @endlink for more
  *   on PSR-4, namespaces, and where to place classes.
- *
- * @section write_functional Writing functional tests
- * Functional tests are written using a Drupal-specific framework that is, for
- * historical reasons, known as "Simpletest". Use a Simpletest test to test the
- * functionality of sub-system of Drupal, if the functionality depends on the
- * Drupal database and settings, or to test the web output of Drupal. To
- * write a Simpletest test:
- * - For functional tests of the web output of Drupal, define a class that
- *   extends \Drupal\simpletest\WebTestBase, which contains an internal web
- *   browser and defines many helpful test assertion methods that you can use
- *   in your tests. You can specify modules to be enabled by defining a
- *   $modules member variable -- keep in mind that by default, WebTestBase uses
- *   a "testing" install profile, with a minimal set of modules enabled.
- * - For functional tests that do not test web output, define a class that
- *   extends \Drupal\KernelTests\KernelTestBase. This class is much faster
- *   than WebTestBase, because instead of making a full install of Drupal, it
- *   uses an in-memory pseudo-installation (similar to what the installer and
- *   update scripts use). To use this test class, you will need to create the
- *   database tables you need and install needed modules manually.
- * - The namespace must be a subspace/subdirectory of \Drupal\yourmodule\Tests,
- *   where yourmodule is your module's machine name.
- * - The test class file must be named and placed under the yourmodule/src/Tests
- *   directory, according to the PSR-4 standard.
- * - Your test class needs a phpDoc comment block with a description and
- *   a @group annotation, which gives information about the test.
- * - You may also override the default setUp() method, which can set be used to
- *   set up content types and similar procedures.
- * - In some cases, you may need to write a test module to support your test;
- *   put such modules under the yourmodule/tests/modules directory.
- * - Add test cases by adding method names that start with 'test' and have no
- *   arguments, for example testYourTestCase(). Each one should test a logical
- *   subset of the functionality. Each method runs in a new, isolated test
- *   environment, so it can only rely on the setUp() method, not what has
- *   been set up by other test methods.
- * For more details, see:
- * - https://www.drupal.org/simpletest for full documentation on how to write
- *   functional tests for Drupal.
- * - @link oo_conventions Object-oriented programming topic @endlink for more
- *   on PSR-4, namespaces, and where to place classes.
- *
- * @section write_functional_phpunit Write functional PHP tests (phpunit)
- * Functional tests extend the BrowserTestBase base class, and use PHPUnit as
- * their underlying framework. They use a simulated browser, in which the test
- * can click links, visit URLs, post to forms, etc. To write a functional test:
- * - Extend \Drupal\Tests\BrowserTestBase.
- * - Place the test in the yourmodule/tests/src/Functional/ directory and use
- *   the \Drupal\Tests\yourmodule\Functional namespace.
- * - Add a @group annotation. For example, if the test is for a Drupal 6
- *   migration process, the group core uses is migrate_drupal_6. Use yourmodule
- *   as the group name if the test does not belong to another larger group.
- * - You may also override the default setUp() method, which can be used to set
- *   up content types and similar procedures. Don't forget to call the parent
- *   method.
- * - In some cases, you may need to write a test module to support your test;
- *   put such modules under the yourmodule/tests/modules directory.
- * - Add test cases by adding method names that start with 'test' and have no
- *   arguments, for example testYourTestCase(). Each one should test a logical
- *   subset of the functionality. Each method runs in a new, isolated test
- *   environment, so it can only rely on the setUp() method, not what has
- *   been set up by other test methods.
- * For more details, see:
- * - https://www.drupal.org/docs/8/phpunit/phpunit-browser-test-tutorial for
- *   a full tutorial on how to write functional PHPUnit tests for Drupal.
- * - https://www.drupal.org/phpunit for the full documentation on how to write
- *   PHPUnit tests for Drupal.
- *
- * @section write_jsfunctional_phpunit Write functional JavaScript tests (phpunit)
- * To write a functional test that relies on JavaScript:
- * - Extend \Drupal\FunctionalJavaScriptTests\JavascriptTestBase.
- * - Place the test into the yourmodule/tests/src/FunctionalJavascript/
- *   directory and use the \Drupal\Tests\yourmodule\FunctionalJavascript
- *   namespace.
- * - Add a @group annotation. Use yourmodule as the group name if the test does
- *   not belong to another larger group.
- * - Set up PhantomJS; see http://phantomjs.org/download.html.
- * - To run tests, see core/tests/README.md.
- * - When clicking a link/button with Ajax behavior attached, keep in mind that
- *   the underlying browser might take time to deliver changes to the HTML. Use
- *   $this->assertSession()->assertWaitOnAjaxRequest() to wait for the Ajax
- *   request to finish.
- * For more details, see:
- * - https://www.drupal.org/docs/8/phpunit/phpunit-javascript-testing-tutorial
- *   for a full tutorial on how to write PHPUnit JavaScript tests for Drupal.
- * - https://www.drupal.org/phpunit for the full documentation on how to write
- *   PHPUnit tests for Drupal.
- *
- * @section running Running tests
- * You can run both Simpletest and PHPUnit tests by enabling the core Testing
- * module (core/modules/simpletest). Once that module is enabled, tests can be
- * run using the core/scripts/run-tests.sh script, using
- * @link https://www.drupal.org/project/drush Drush @endlink, or from the
- *   Testing module user interface.
- *
- * PHPUnit tests can also be run from the command line, using the PHPUnit
- * framework. See https://www.drupal.org/node/2116263 for more information.
+ * - http://nightwatchjs.org/ for information about Nightwatch testing for
+ *   JavaScript
  * @}
  */
 
@@ -1285,10 +1249,10 @@
  *   site; CSS files, which alter the styling applied to the HTML; and
  *   JavaScript, Flash, images, and other files. For more information, see the
  *   @link theme_render Theme system and render API topic @endlink and
- *   https://www.drupal.org/docs/8/theming
+ *   https://www.drupal.org/docs/theming-drupal
  * - Modules: Modules add to or alter the behavior and functionality of Drupal,
  *   by using one or more of the methods listed below. For more information
- *   about creating modules, see https://www.drupal.org/developing/modules/8
+ *   about creating modules, see https://www.drupal.org/docs/creating-custom-modules
  * - Installation profiles: Installation profiles can be used to
  *   create distributions, which are complete specific-purpose packages of
  *   Drupal including additional modules, themes, and data. For more
@@ -1383,7 +1347,8 @@
  *   instantiated. Usually this interface will extend one or more of the
  *   following interfaces:
  *   - \Drupal\Component\Plugin\PluginInspectionInterface
- *   - \Drupal\Component\Plugin\ConfigurablePluginInterface
+ *   - \Drupal\Component\Plugin\ConfigurableInterface
+ *   - \Drupal\Component\Plugin\DependentPluginInterface
  *   - \Drupal\Component\Plugin\ContextAwarePluginInterface
  *   - \Drupal\Core\Plugin\PluginFormInterface
  *   - \Drupal\Core\Executable\ExecutableInterface
@@ -1648,10 +1613,10 @@
  *   files, by defining functions whose name starts with "hook_" (these
  *   files and their functions are never loaded by Drupal -- they exist solely
  *   for documentation). The function should have a documentation header, as
- *   well as a sample function body. For example, in the core file
- *   system.api.php, you can find hooks such as hook_batch_alter(). Also, if
- *   you are viewing this documentation on an API reference site, the Core
- *   hooks will be listed in this topic.
+ *   well as a sample function body. For example, in the core file form.api.php,
+ *   you can find hooks such as hook_batch_alter(). Also, if you are viewing
+ *   this documentation on an API reference site, the Core hooks will be listed
+ *   in this topic.
  * - Copy the function to your module's .module file.
  * - Change the name of the function, substituting your module's short name
  *   (name of the module's directory, and .info.yml file without the extension)
@@ -1959,24 +1924,26 @@ function hook_cron() {
   // Short-running operation example, not using a queue:
   // Delete all expired records since the last cron run.
   $expires = \Drupal::state()->get('mymodule.last_check', 0);
+  $request_time = \Drupal::time()->getRequestTime();
   \Drupal::database()->delete('mymodule_table')
     ->condition('expires', $expires, '>=')
     ->execute();
-  \Drupal::state()->set('mymodule.last_check', REQUEST_TIME);
+  \Drupal::state()->set('mymodule.last_check', $request_time);
 
   // Long-running operation example, leveraging a queue:
   // Queue news feeds for updates once their refresh interval has elapsed.
   $queue = \Drupal::queue('aggregator_feeds');
-  $ids = \Drupal::entityManager()->getStorage('aggregator_feed')->getFeedIdsToRefresh();
+  $ids = \Drupal::entityTypeManager()->getStorage('aggregator_feed')->getFeedIdsToRefresh();
   foreach (Feed::loadMultiple($ids) as $feed) {
     if ($queue->createItem($feed)) {
       // Add timestamp to avoid queueing item more than once.
-      $feed->setQueuedTime(REQUEST_TIME);
+      $feed->setQueuedTime($request_time);
       $feed->save();
     }
   }
   $ids = \Drupal::entityQuery('aggregator_feed')
-    ->condition('queued', REQUEST_TIME - (3600 * 6), '<')
+    ->accessCheck(FALSE)
+    ->condition('queued', $request_time - (3600 * 6), '<')
     ->execute();
   if ($ids) {
     $feeds = Feed::loadMultiple($ids);
@@ -2021,7 +1988,7 @@ function hook_queue_info_alter(&$queues) {
 /**
  * Alter an email message created with MailManagerInterface->mail().
  *
- * hook_mail_alter() allows modification of email messages created and sent
+ * Hook hook_mail_alter() allows modification of email messages created and sent
  * with MailManagerInterface->mail(). Usage examples include adding and/or
  * changing message text, message fields, and message headers.
  *
@@ -2078,7 +2045,7 @@ function hook_mail_alter(&$message) {
 }
 
 /**
- * Prepares a message based on parameters;
+ * Prepares a message based on parameters.
  *
  * This hook is called from MailManagerInterface->mail(). Note that hook_mail(),
  * unlike hook_mail_alter(), is only called on the $module argument to
@@ -2139,7 +2106,7 @@ function hook_mail($key, &$message, $params) {
     $node = $params['node'];
     $variables += [
       '%uid' => $node->getOwnerId(),
-      '%url' => $node->url('canonical', ['absolute' => TRUE]),
+      '%url' => $node->toUrl('canonical', ['absolute' => TRUE])->toString(),
       '%node_type' => node_get_type_label($node),
       '%title' => $node->getTitle(),
       '%teaser' => $node->teaser,
@@ -2318,7 +2285,7 @@ function hook_config_schema_info_alter(&$definitions) {
  * @see \Drupal\Core\Validation\Annotation\Constraint
  */
 function hook_validation_constraint_alter(array &$definitions) {
-  $definitions['Null']['class'] = '\Drupal\mymodule\Validator\Constraints\MyClass';
+  $definitions['Null']['class'] = '\Drupal\mymodule\Plugin\Validation\Constraints\MyClass';
 }
 
 /**
@@ -2426,7 +2393,8 @@ function hook_validation_constraint_alter(array &$definitions) {
  * markup or a set of Ajax commands. If you choose to return HTML markup, you
  * can return it as a string or a renderable array, and it will be placed in
  * the defined 'wrapper' element (see documentation above in @ref sub_form).
- * In addition, any messages returned by drupal_get_messages(), themed as in
+ * In addition, any messages returned by
+ * \Drupal\Core\Messenger\Messenger::all(), themed as in
  * status-messages.html.twig, will be prepended.
  *
  * To return commands, you need to set up an object of class
@@ -2454,8 +2422,8 @@ function hook_validation_constraint_alter(array &$definitions) {
  * @code
  * array('#type' => 'status_messages')
  * @endcode
- * to a render array, use drupal_render() to render it, and add a command to
- * place the messages in an appropriate location.
+ * to a render array, use \Drupal::service('renderer')->render() to render it,
+ * and add a command to place the messages in an appropriate location.
  *
  * @section sec_other Other methods for triggering Ajax
  * Here are some additional methods you can use to trigger Ajax responses in
@@ -2531,26 +2499,25 @@ function hook_validation_constraint_alter(array &$definitions) {
  * Overview of event dispatch and subscribing
  *
  * @section sec_intro Introduction and terminology
- * Events are part of the Symfony framework: they allow for different components
- * of the system to interact and communicate with each other. Each event has a
- * unique string name. One system component dispatches the event at an
- * appropriate time; many events are dispatched by Drupal core and the Symfony
- * framework in every request. Other system components can register as event
- * subscribers; when an event is dispatched, a method is called on each
- * registered subscriber, allowing each one to react. For more on the general
- * concept of events, see
+ * Events allow different components of the system to interact and communicate
+ * with each other. One system component dispatches the event at an appropriate
+ * time; many events are dispatched by Drupal core and the Symfony event system
+ * in every request. Other system components can register as event subscribers;
+ * when an event is dispatched, a method is called on each registered
+ * subscriber, allowing each one to react. For more on the general concept of
+ * events, see
  * http://symfony.com/doc/current/components/event_dispatcher/introduction.html
  *
  * @section sec_dispatch Dispatching events
  * To dispatch an event, call the
- * \Symfony\Component\EventDispatcher\EventDispatcherInterface::dispatch()
+ * \Symfony\Contracts\EventDispatcher\EventDispatcherInterface::dispatch()
  * method on the 'event_dispatcher' service (see the
  * @link container Services topic @endlink for more information about how to
  * interact with services). The first argument is the unique event name, which
  * you should normally define as a constant in a separate static class (see
  * \Symfony\Component\HttpKernel\KernelEvents and
  * \Drupal\Core\Config\ConfigEvents for examples). The second argument is a
- * \Symfony\Component\EventDispatcher\Event object; normally you will need to
+ * \Drupal\Component\EventDispatcher\Event object; normally you will need to
  * extend this class, so that your event class can provide data to the event
  * subscribers.
  *
@@ -2646,5 +2613,29 @@ function hook_validation_constraint_alter(array &$definitions) {
  * within contributed and custom code. Reserved attributes include:
  * - uid: The user ID for an authenticated user. The value of this attribute
  *   cannot be modified.
+ *
+ * @section sec_custom_session_bags Custom session bags
+ * Modules can register custom session bags in order to provide type safe
+ * interfaces on module specific session data. A session bag must implement
+ * \Symfony\Component\HttpFoundation\Session\SessionBagInterface. Custom session
+ * bags are registered using a service entry tagged with the session_bag service
+ * tag. Custom session bags can be accessed through the session retrieved from
+ * the request object.
+ *
+ * Example service definition:
+ * @code
+ * session_test.session_bag:
+ *   class: Drupal\session_test\Session\TestSessionBag
+ *   tags:
+ *     - { name: session_bag }
+ * @endcode
+ *
+ * Example of accessing a custom session bag:
+ * @code
+ * $bag = $request->getSession()->getBag(TestSessionBag::BAG_NAME);
+ * $bag->setFlag();
+ * @endcode
+ * Session data must be deleted from custom session bags as soon as it is no
+ * longer needed (see @ref sec_intro above).
  * @}
  */

@@ -1,0 +1,259 @@
+.region-sticky {
+  position: relative;
+  z-index: 101;
+  padding: 1rem 0 0;
+  width: 100%;
+  background: var(--colorGinAppBackground);
+  box-sizing: border-box;
+  transition: var(--ginTransition);
+
+  @include mq($breakpointLarge) {
+    position: sticky;
+    top: -1px;
+    width: 100%;
+    height: var(--ginStickyHeight);
+    padding: .75rem 0;
+    margin-top: .25rem;
+
+    &-watcher {
+      position: sticky;
+      top: -1px;
+      height: 0;
+    }
+
+    &--is-sticky {
+      opacity: .95;
+      background: var(--colorGinAppBackground);
+
+      @supports (backdrop-filter: blur()) {
+        opacity: .999;
+        background: rgba(var(--colorGinAppBackgroundRGB), .8);
+        backdrop-filter: blur(12px);
+      }
+
+      .gin--high-contrast-mode & {
+        background: var(--colorGinAppBackground);
+        backdrop-filter: none;
+      }
+    }
+
+    .gin--vertical-toolbar &,
+    .gin--horizontal-toolbar &,
+    .gin--classic-toolbar & {
+      top: var(--ginHorizontalToolbarOffset);
+    }
+
+    .gin--classic-toolbar:not(.gin--edit-form) & {
+      position: static;
+    }
+  }
+
+  &__items {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+
+    @include mq($breakpointSmall) {
+      height: 100%;
+
+      .settings-tray-editable {
+        flex-shrink: 0;
+      }
+    }
+
+    &__inner {
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+
+      // Set max-width to max content-width
+      // .gin--edit-form & {
+      //   max-width: $breakpointWide;
+      //   margin: 0 auto;
+      // }
+
+      @include mq($breakpointLarge) {
+        flex-wrap: nowrap;
+        align-items: center;
+        margin-bottom: 0;
+
+        .block-page-title-block {
+          margin: 0;
+        }
+      }
+    }
+
+    .block-page-title-block {
+      flex-grow: 1;
+      align-self: center;
+      display: flex;
+      margin: 0;
+      min-width: 0;
+
+      .page-title {
+        align-self: center;
+        margin: 0;
+      }
+    }
+
+    .gin-sticky {
+      display: none;
+
+      @include mq($breakpointLarge) {
+        display: flex;
+        padding-left: 1.5rem;
+      }
+    }
+  }
+}
+
+.content-header {
+  padding-top: 0;
+  margin-bottom: 0;
+  background-color: transparent;
+  overflow: initial;
+}
+
+.sticky-shadow {
+  @include mq($breakpointLarge) {
+    z-index: 98;
+    position: relative;
+    pointer-events: none;
+    height: 40px;
+    margin: -64px auto 1.5rem;
+    box-shadow: 0 10px 20px -16px rgba(0, 0, 0, .4);
+
+    .gin--dark-mode & {
+      box-shadow: none;
+    }
+  }
+
+  @include mq($breakpointLarge) {
+    position: sticky;
+    top: calc(var(--ginHorizontalToolbarOffset) + 32px);
+    width: calc(100% - min(10vw, 96px) + 24px);
+
+    // Classic, legacy toolbar
+    .gin--classic-toolbar:not(.gin--edit-form) & {
+      display: none;
+    }
+
+    .gin--edit-form & {
+      max-width: 1300px;
+    }
+  }
+}
+
+.page-wrapper {
+  @include mq($breakpointLarge) {
+    margin-top: 1px; // fix for top: auto;
+  }
+}
+
+.toolbar-tray-open:not(.toolbar-vertical) .layout-container,
+body:not(.toolbar-tray-open) .layout-container {
+  margin-left: 1rem;
+  margin-right: 1rem;
+
+  @include mq($breakpointSmall) {
+    margin-left: 2rem;
+    margin-right: 2rem;
+  }
+
+  @include mq($breakpointMedium) {
+    margin-left: m#{i}n(5vw, 48px);
+    margin-right: m#{i}n(5vw, 48px);
+
+    .layout-container {
+      margin-left: 0;
+      margin-right: 0;
+    }
+  }
+}
+
+// Action bar
+.layout-node-form__actions {
+  z-index: 102;
+  position: fixed;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 0 1rem;
+  margin-left: calc((.5em + 1.5rem) * -1);
+  background-color: var(--colorGinAppBackground);
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, .1);
+  box-sizing: border-box;
+
+  @include mq($breakpointSmall) {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    margin-left: calc((2em + 1.5rem) * -1);
+  }
+
+  @include mq($breakpointMedium) {
+    padding-left: m#{i}n(5vw, 48px);
+    padding-right: m#{i}n(5vw, 48px);
+  }
+
+  .toolbar-vertical.toolbar-tray-open & {
+    width: calc(100% - 240px);
+  }
+
+  @include mq($breakpointMedium 1023px) {
+    margin-left: 0;
+    left: 0;
+
+    .gin--vertical-toolbar & {
+      left: var(--ginToolbarWidthCollapsed);
+      width: calc(100% - var(--ginToolbarWidthCollapsed));
+    }
+
+    .gin--vertical-toolbar[data-toolbar-menu='open'] & {
+      left: var(--ginToolbarWidth);
+      width: calc(100% - var(--ginToolbarWidth));
+    }
+  }
+
+  @include mq($breakpointLarge) {
+    display: none; // Hide the real deal
+  }
+
+  @include mq($breakpointBig) {
+    margin-left: calc(100% + 2.5rem);
+  }
+}
+
+.gin-sticky {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  @include mq($breakpointLarge) {
+    flex-wrap: nowrap;
+    width: max-content;
+  }
+
+  .form-actions {
+    margin: 0;
+    align-items: center;
+
+    :last-child {
+      margin-right: 0;
+    }
+  }
+
+  .field--name-status {
+    display: flex;
+    align-items: center;
+    margin-right: 1.5rem;
+
+    .form-type--checkbox {
+      margin-top: .5rem;
+      margin-bottom: .5rem;
+    }
+  }
+}

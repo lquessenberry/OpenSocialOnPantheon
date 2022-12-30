@@ -1,11 +1,16 @@
 Entity API module
 -----------------
 
-This module contains improvements and extensions to the Drupal 8 Entity system.
-The goal is to bring useful improvements to upcoming Drupal 8 minor releases
-(e.g. 8.1, 8.2, ..) while maintaining backwards compatibility in future Entity
-API module versions (based on the improvements which went into core).
+Provides improvements and extensions to the Drupal 8 Entity system.
+Acts as a staging ground for Drupal core, with each core minor release (8.5, 8.6, 8.7)
+receiving a portion of this module's functionality.
 
-@todo: Explain version compatibility pattern.
-@todo: Add overview of all items and maintainers.
-
+Current functionality:
+- Local action providers (core issue: #2976861)
+- Local task providers
+- Permission providers (core issue: #2809177)
+- Query access API (Change record: https://www.drupal.org/node/3002038, core issue: #777578)
+- Bundle plugin API (plugin-based entity bundles, currently not proposed for core inclusion)
+- A generic UI for revisions (WIP, see #2625122)
+- Duplicate entity UI
+- EntityViewsData handler with many improvements over the one in core.

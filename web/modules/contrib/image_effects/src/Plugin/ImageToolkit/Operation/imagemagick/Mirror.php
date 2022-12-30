@@ -25,10 +25,10 @@ class Mirror extends ImagemagickImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     if ($arguments['x_axis'] === TRUE) {
-      $this->getToolkit()->addArgument("-flop");
+      $this->addArgument("-flop");
     }
     if ($arguments['y_axis'] === TRUE) {
-      $this->getToolkit()->addArgument("-flip");
+      $this->addArgument("-flip");
     }
     return TRUE;
   }

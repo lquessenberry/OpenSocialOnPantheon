@@ -2,7 +2,9 @@
 
 namespace Drupal\flag\Plugin\Action;
 
+use Drupal\Component\Plugin\DependentPluginInterface;
 use Drupal\Core\Action\ActionBase;
+use Drupal\Core\Entity\DependencyTrait;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\flag\FlagServiceInterface;
@@ -17,7 +19,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   deriver = "Drupal\flag\Plugin\Derivative\EntityFlagActionDeriver"
  * )
  */
-class FlagAction extends ActionBase implements ContainerFactoryPluginInterface {
+class FlagAction extends ActionBase implements ContainerFactoryPluginInterface, DependentPluginInterface {
+
+  use DependencyTrait;
 
   /**
    * The flag operation (flag or unflag).
@@ -96,6 +100,16 @@ class FlagAction extends ActionBase implements ContainerFactoryPluginInterface {
         // @todo Error handling?
       }
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+    if ($this->flag) {
+      $this->addDependency('config', $this->flag->getConfigDependencyName());
+    }
+    return $this->dependencies;
   }
 
 }

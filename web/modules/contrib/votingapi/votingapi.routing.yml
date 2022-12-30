@@ -1,5 +1,5 @@
 votingapi.admin_settings:
-  path: 'admin/config/search/votingapi'
+  path: '/admin/config/search/votingapi'
   defaults:
    _title: 'Voting API settings'
    _form: '\Drupal\votingapi\Form\SettingsForm'
@@ -36,3 +36,11 @@ entity.vote_type.delete_form:
     _title: 'Delete'
   requirements:
     _entity_access: 'vote_type.delete'
+
+entity.vote.delete_form:
+  path: '/admin/vote/{vote}/delete'
+  defaults:
+    _entity_form: 'vote.delete'
+    _title: 'Delete'
+  requirements:
+    _entity_access: 'vote.delete'

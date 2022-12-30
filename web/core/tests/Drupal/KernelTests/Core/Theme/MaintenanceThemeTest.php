@@ -15,7 +15,7 @@ class MaintenanceThemeTest extends KernelTestBase {
    * Tests that the maintenance theme initializes the theme and its base themes.
    */
   public function testMaintenanceTheme() {
-    $this->setSetting('maintenance_theme', 'seven');
+    $this->setSetting('maintenance_theme', 'test_subtheme');
     // Get the maintenance theme loaded.
     drupal_maintenance_theme();
 
@@ -23,16 +23,11 @@ class MaintenanceThemeTest extends KernelTestBase {
     $this->assertTrue(\Drupal::theme()->hasActiveTheme());
 
     $active_theme = \Drupal::theme()->getActiveTheme();
-    $this->assertEquals('seven', $active_theme->getName());
+    $this->assertEquals('test_subtheme', $active_theme->getName());
 
-    $base_themes = $active_theme->getBaseThemes();
+    $base_themes = $active_theme->getBaseThemeExtensions();
     $base_theme_names = array_keys($base_themes);
-    $this->assertSame(['classy', 'stable'], $base_theme_names);
-
-    // Ensure Classy has the correct base themes and amount of base themes.
-    $classy_base_themes = $base_themes['classy']->getBaseThemes();
-    $classy_base_theme_names = array_keys($classy_base_themes);
-    $this->assertSame(['stable'], $classy_base_theme_names);
+    $this->assertSame(['test_basetheme'], $base_theme_names);
   }
 
 }

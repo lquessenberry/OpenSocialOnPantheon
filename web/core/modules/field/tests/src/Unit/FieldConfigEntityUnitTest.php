@@ -11,7 +11,6 @@ use Drupal\Core\Entity\EntityType;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
-use Drupal\Core\Entity\EntityManager;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\Tests\UnitTestCase;
@@ -25,28 +24,21 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
   /**
    * The entity type used for testing.
    *
-   * @var \Drupal\Core\Config\Entity\ConfigEntityTypeInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Config\Entity\ConfigEntityTypeInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entityType;
 
   /**
-   * The entity manager used for testing.
-   *
-   * @var \Drupal\Core\Entity\EntityManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-   */
-  protected $entityManager;
-
-  /**
    * The entity type manager used for testing.
    *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entityTypeManager;
 
   /**
    * The entity field manager used for testing.
    *
-   * @var \Drupal\Core\Entity\EntityFieldManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entityFieldManager;
 
@@ -60,62 +52,47 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
   /**
    * The UUID generator used for testing.
    *
-   * @var \Drupal\Component\Uuid\UuidInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Component\Uuid\UuidInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $uuid;
 
   /**
    * The mock field storage.
    *
-   * @var \Drupal\field\FieldStorageConfigInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\field\FieldStorageConfigInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $fieldStorage;
 
   /**
-   * The typed configuration manager used for testing.
+   * The mock field type plugin manager.
    *
-   * @var \Drupal\Core\Config\TypedConfigManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-   */
-  protected $typedConfigManager;
-
-  /**
-   * The mock field type plugin manager;
-   *
-   * @var \Drupal\Core\Field\FieldTypePluginManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Field\FieldTypePluginManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $fieldTypePluginManager;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->entityTypeId = $this->randomMachineName();
-    $this->entityType = $this->getMock('\Drupal\Core\Config\Entity\ConfigEntityTypeInterface');
+    $this->entityType = $this->createMock('\Drupal\Core\Config\Entity\ConfigEntityTypeInterface');
 
-    $this->entityManager = new EntityManager();
-    $this->entityTypeManager = $this->getMock(EntityTypeManagerInterface::class);
-    $this->entityFieldManager = $this->getMock(EntityFieldManagerInterface::class);
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
+    $this->entityFieldManager = $this->createMock(EntityFieldManagerInterface::class);
 
-    $this->uuid = $this->getMock('\Drupal\Component\Uuid\UuidInterface');
+    $this->uuid = $this->createMock('\Drupal\Component\Uuid\UuidInterface');
 
-    $this->typedConfigManager = $this->getMock('Drupal\Core\Config\TypedConfigManagerInterface');
-
-    $this->fieldTypePluginManager = $this->getMock('Drupal\Core\Field\FieldTypePluginManagerInterface');
+    $this->fieldTypePluginManager = $this->createMock('Drupal\Core\Field\FieldTypePluginManagerInterface');
 
     $container = new ContainerBuilder();
-    $container->set('entity.manager', $this->entityManager);
     $container->set('entity_field.manager', $this->entityFieldManager);
     $container->set('entity_type.manager', $this->entityTypeManager);
     $container->set('uuid', $this->uuid);
-    $container->set('config.typed', $this->typedConfigManager);
     $container->set('plugin.manager.field.field_type', $this->fieldTypePluginManager);
-    // Inject the container into entity.manager so it can defer to
-    // entity_type.manager, etc.
-    $this->entityManager->setContainer($container);
     \Drupal::setContainer($container);
 
     // Create a mock FieldStorageConfig object.
-    $this->fieldStorage = $this->getMock('\Drupal\field\FieldStorageConfigInterface');
+    $this->fieldStorage = $this->createMock('\Drupal\field\FieldStorageConfigInterface');
     $this->fieldStorage->expects($this->any())
       ->method('getType')
       ->will($this->returnValue('test_field'));
@@ -125,7 +102,7 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
     $this->fieldStorage->expects($this->any())
       ->method('getSettings')
       ->willReturn([]);
-    // Place the field in the mocked entity manager's field registry.
+    // Place the field in the mocked entity field manager's field registry.
     $this->entityFieldManager->expects($this->any())
       ->method('getFieldStorageDefinitions')
       ->with('test_entity_type')
@@ -139,27 +116,17 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
    */
   public function testCalculateDependencies() {
     // Mock the interfaces necessary to create a dependency on a bundle entity.
-    $target_entity_type = $this->getMock('\Drupal\Core\Entity\EntityTypeInterface');
+    $target_entity_type = $this->createMock('\Drupal\Core\Entity\EntityTypeInterface');
     $target_entity_type->expects($this->any())
       ->method('getBundleConfigDependency')
       ->will($this->returnValue(['type' => 'config', 'name' => 'test.test_entity_type.id']));
 
-    $this->entityTypeManager->expects($this->at(0))
+    $this->entityTypeManager->expects($this->any())
       ->method('getDefinition')
-      ->with($this->entityTypeId)
-      ->willReturn($this->entityType);
-    $this->entityTypeManager->expects($this->at(1))
-      ->method('getDefinition')
-      ->with($this->entityTypeId)
-      ->willReturn($this->entityType);
-    $this->entityTypeManager->expects($this->at(2))
-      ->method('getDefinition')
-      ->with($this->entityTypeId)
-      ->willReturn($this->entityType);
-    $this->entityTypeManager->expects($this->at(3))
-      ->method('getDefinition')
-      ->with('test_entity_type')
-      ->willReturn($target_entity_type);
+      ->willReturnMap([
+        [$this->entityTypeId, TRUE, $this->entityType],
+        ['test_entity_type', TRUE, $target_entity_type],
+      ]);
 
     $this->fieldTypePluginManager->expects($this->any())
       ->method('getDefinition')
@@ -183,10 +150,10 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
   }
 
   /**
-   * Test that invalid bundles are handled.
+   * Tests that invalid bundles are handled.
    */
   public function testCalculateDependenciesIncorrectBundle() {
-    $storage = $this->getMock('\Drupal\Core\Config\Entity\ConfigEntityStorageInterface');
+    $storage = $this->createMock('\Drupal\Core\Config\Entity\ConfigEntityStorageInterface');
     $storage->expects($this->any())
       ->method('load')
       ->with('test_bundle_not_exists')
@@ -202,22 +169,12 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
       'bundle_entity_type' => 'bundle_entity_type',
     ]);
 
-    $this->entityTypeManager->expects($this->at(0))
+    $this->entityTypeManager->expects($this->any())
       ->method('getDefinition')
-      ->with($this->entityTypeId)
-      ->willReturn($this->entityType);
-    $this->entityTypeManager->expects($this->at(1))
-      ->method('getDefinition')
-      ->with($this->entityTypeId)
-      ->willReturn($this->entityType);
-    $this->entityTypeManager->expects($this->at(2))
-      ->method('getDefinition')
-      ->with($this->entityTypeId)
-      ->willReturn($this->entityType);
-    $this->entityTypeManager->expects($this->at(3))
-      ->method('getDefinition')
-      ->with('test_entity_type')
-      ->willReturn($target_entity_type);
+      ->willReturnMap([
+        [$this->entityTypeId, TRUE, $this->entityType],
+        ['test_entity_type', TRUE, $target_entity_type],
+      ]);
 
     $this->fieldTypePluginManager->expects($this->any())
       ->method('getDefinition')
@@ -230,7 +187,8 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
       'bundle' => 'test_bundle_not_exists',
       'field_type' => 'test_field',
     ], $this->entityTypeId);
-    $this->setExpectedException(\LogicException::class, 'Missing bundle entity, entity type bundle_entity_type, entity id test_bundle_not_exists.');
+    $this->expectException(\LogicException::class);
+    $this->expectExceptionMessage('Missing bundle entity, entity type bundle_entity_type, entity id test_bundle_not_exists.');
     $field->calculateDependencies();
   }
 
@@ -251,13 +209,13 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
       'dependencies' => [
         'module' => [
           'fruiter',
-        ]
+        ],
       ],
       'third_party_settings' => [
         'fruiter' => [
           'fruit' => 'apple',
-        ]
-      ]
+        ],
+      ],
     ]);
     $changed = $field->onDependencyRemoval(['module' => ['fruiter']]);
     $this->assertTrue($changed);
@@ -299,9 +257,10 @@ class FieldConfigEntityUnitTest extends UnitTestCase {
       ->method('getKey')
       ->with('id')
       ->will($this->returnValue('id'));
-    $this->typedConfigManager->expects($this->once())
-      ->method('getDefinition')
-      ->will($this->returnValue(['mapping' => array_fill_keys(array_keys($expected), '')]));
+    $this->entityType->expects($this->once())
+      ->method('getPropertiesToExport')
+      ->with('test_entity_type.test_bundle.field_test')
+      ->will($this->returnValue(array_combine(array_keys($expected), array_keys($expected))));
 
     $export = $field->toArray();
     $this->assertEquals($expected, $export);

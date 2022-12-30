@@ -3,7 +3,6 @@
 namespace Drupal\Component\Render;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
 
 /**
  * Escapes HTML syntax characters to HTML entities for display in markup.
@@ -42,13 +41,15 @@ class HtmlEscapedText implements MarkupInterface, \Countable {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function count() {
-    return Unicode::strlen($this->string);
+    return mb_strlen($this->string);
   }
 
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function jsonSerialize() {
     return $this->__toString();
   }

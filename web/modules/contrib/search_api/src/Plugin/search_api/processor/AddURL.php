@@ -5,7 +5,7 @@ namespace Drupal\search_api\Plugin\search_api\processor;
 use Drupal\search_api\Datasource\DatasourceInterface;
 use Drupal\search_api\Item\ItemInterface;
 use Drupal\search_api\Processor\ProcessorPluginBase;
-use Drupal\search_api\Processor\ProcessorProperty;
+use Drupal\search_api\Plugin\search_api\processor\Property\AddURLProperty;
 
 /**
  * Adds the item's URL to the indexed data.
@@ -36,7 +36,7 @@ class AddURL extends ProcessorPluginBase {
         'type' => 'string',
         'processor_id' => $this->getPluginId(),
       ];
-      $properties['search_api_url'] = new ProcessorProperty($definition);
+      $properties['search_api_url'] = new AddURLProperty($definition);
     }
 
     return $properties;
@@ -48,11 +48,13 @@ class AddURL extends ProcessorPluginBase {
   public function addFieldValues(ItemInterface $item) {
     $url = $item->getDatasource()->getItemUrl($item->getOriginalObject());
     if ($url) {
-      $url = $url->toString();
+      $fields = $item->getFields(FALSE);
       $fields = $this->getFieldsHelper()
-        ->filterForPropertyPath($item->getFields(), NULL, 'search_api_url');
+        ->filterForPropertyPath($fields, NULL, 'search_api_url');
       foreach ($fields as $field) {
-        $field->addValue($url);
+        $config = $field->getConfiguration();
+        $url->setAbsolute(!empty($config['absolute']));
+        $field->addValue($url->toString(TRUE)->getGeneratedUrl());
       }
     }
   }

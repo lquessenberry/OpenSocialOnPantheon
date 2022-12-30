@@ -6,21 +6,21 @@ services:
     class: Drupal\serialization\Normalizer\ConfigEntityNormalizer
     tags:
       - { name: normalizer }
-    arguments: ['@entity.manager']
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager']
   serializer.normalizer.content_entity:
-      class: Drupal\serialization\Normalizer\ContentEntityNormalizer
-      tags:
-        - { name: normalizer }
-      arguments: ['@entity.manager']
+    class: Drupal\serialization\Normalizer\ContentEntityNormalizer
+    tags:
+      - { name: normalizer }
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager']
   serializer.normalizer.entity:
     class: Drupal\serialization\Normalizer\EntityNormalizer
     tags:
       - { name: normalizer }
-    arguments: ['@entity.manager']
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager']
   serializer.normalizer.primitive_data:
     class: Drupal\serialization\Normalizer\PrimitiveDataNormalizer
     tags:
-      - { name: normalizer, priority: 5, bc: bc_primitives_as_strings, bc_config_name: 'serialization.settings' }
+      - { name: normalizer, priority: 5 }
   serializer.normalizer.complex_data:
     class: Drupal\serialization\Normalizer\ComplexDataNormalizer
     tags:
@@ -57,7 +57,19 @@ services:
     tags:
       # Priority must be higher than serializer.normalizer.field_item and lower
       # than hal normalizers.
-      - { name: normalizer, priority: 8, bc: bc_timestamp_normalizer_unix, bc_config_name: 'serialization.settings' }
+      - { name: normalizer, priority: 8 }
+  serializer.normalizer.timestamp:
+    class: Drupal\serialization\Normalizer\TimestampNormalizer
+    arguments: ['@config.factory']
+    tags:
+      # Priority must be higher than serializer.normalizer.primitive_data.
+      - { name: normalizer, priority: 20 }
+  serializer.normalizer.datetimeiso8601:
+    class: \Drupal\serialization\Normalizer\DateTimeIso8601Normalizer
+    arguments: ['@config.factory']
+    tags:
+      # Priority must be higher than serializer.normalizer.primitive_data.
+      - { name: normalizer, priority: 20 }
   serializer.normalizer.password_field_item:
       class: Drupal\serialization\Normalizer\NullNormalizer
       arguments: ['Drupal\Core\Field\Plugin\Field\FieldType\PasswordItem']
@@ -85,7 +97,7 @@ services:
     class: Drupal\serialization\EntityResolver\UuidResolver
     tags:
       - { name: entity_resolver}
-    arguments: ['@entity.manager']
+    arguments: ['@entity.repository']
   serialization.entity_resolver.target_id:
     class: Drupal\serialization\EntityResolver\TargetIdResolver
     tags:
@@ -100,8 +112,3 @@ services:
     tags:
       - { name: event_subscriber }
     arguments: ['%serializer.formats%']
-  serialization.bc_config_subscriber:
-    class: Drupal\serialization\EventSubscriber\BcConfigSubscriber
-    tags:
-      - { name: event_subscriber }
-    arguments: ['@kernel']

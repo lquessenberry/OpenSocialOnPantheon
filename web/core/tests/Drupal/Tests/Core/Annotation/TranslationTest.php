@@ -15,14 +15,14 @@ class TranslationTest extends UnitTestCase {
   /**
    * The translation manager used for testing.
    *
-   * @var \Drupal\Core\StringTranslation\TranslationInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\StringTranslation\TranslationInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $translationManager;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->translationManager = $this->getStringTranslationStub();
   }
 
@@ -35,11 +35,6 @@ class TranslationTest extends UnitTestCase {
     $container = new ContainerBuilder();
     $container->set('string_translation', $this->translationManager);
     \Drupal::setContainer($container);
-
-    $arguments = isset($values['arguments']) ? $values['arguments'] : [];
-    $options = isset($values['context']) ? [
-      'context' => $values['context'],
-    ] : [];
 
     $annotation = new Translation($values);
 
@@ -55,7 +50,7 @@ class TranslationTest extends UnitTestCase {
       [
         'value' => 'Foo',
       ],
-      'Foo'
+      'Foo',
     ];
     $random = $this->randomMachineName();
     $random_html_entity = '&' . $random;

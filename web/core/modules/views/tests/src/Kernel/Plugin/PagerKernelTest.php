@@ -21,12 +21,12 @@ class PagerKernelTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['user', 'node'];
+  protected static $modules = ['user', 'node'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('node');
@@ -52,7 +52,7 @@ class PagerKernelTest extends ViewsKernelTestBase {
     $output = $view->preview();
 
     \Drupal::service('renderer')->renderPlain($output);
-    $this->assertIdentical(CacheBackendInterface::CACHE_PERMANENT, $output['#cache']['max-age']);
+    $this->assertSame(CacheBackendInterface::CACHE_PERMANENT, $output['#cache']['max-age']);
 
     foreach (['setItemsPerPage', 'setOffset', 'setCurrentPage'] as $method) {
       $view = Views::getView('test_pager_full');
@@ -61,7 +61,7 @@ class PagerKernelTest extends ViewsKernelTestBase {
       $output = $view->preview();
 
       \Drupal::service('renderer')->renderPlain($output);
-      $this->assertIdentical(CacheBackendInterface::CACHE_PERMANENT, $output['#cache']['max-age'], 'Max age kept.');
+      $this->assertSame(CacheBackendInterface::CACHE_PERMANENT, $output['#cache']['max-age'], 'Max age kept.');
     }
 
   }

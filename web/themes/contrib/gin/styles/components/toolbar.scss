@@ -1,0 +1,733 @@
+// Offset
+body.gin--vertical-toolbar,
+body.gin--horizontal-toolbar,
+body.gin--classic-toolbar {
+  padding-top: var(--ginHorizontalToolbarOffset) !important;
+  padding-left: var(--ginVerticalToolbarOffset, 240px);
+  margin-left: 0; // Fix for Drupal 9.3+
+}
+
+.toolbar {
+  font-family: var(--ginFont);
+
+  .toolbar-bar {
+    box-shadow: none;
+
+    @include mq($breakpointXSmall) {
+      .user-menu {
+        flex-grow: 1;
+        flex-shrink: 0;
+        text-align: right;
+
+        .toolbar-menu {
+          text-align: left;
+        }
+      }
+    }
+
+    .toolbar-tab > .toolbar-item {
+      white-space: nowrap;
+    }
+
+    .contextual-toolbar-tab.toolbar-tab {
+      float: right; // Set contextual to right
+    }
+
+    .toolbar-tab > .toolbar-item {
+      font-weight: normal;
+    }
+
+    .toolbar-tab > .toolbar-icon {
+      &:hover {
+        background: rgba(255, 255, 255, .1);
+
+        &::before {
+          background-color: #fff;
+        }
+      }
+
+      &.is-active {
+        color: var(--colorGinButtonText);
+        background-image: none;
+        background-color: var(--colorGinPrimary);
+
+        .gin--dark-mode & {
+          color: var(--colorGinPrimaryActive);
+          background-color: var(--colorGinPrimaryLightActive);
+        }
+
+        &::before {
+          background-color: var(--colorGinButtonText);
+
+          .gin--dark-mode & {
+            background-color: var(--colorGinPrimaryActive);
+          }
+        }
+      }
+    }
+
+    .toolbar-tab > .toolbar-icon:before {
+      @media only screen and (min-width: 36em) {
+        background-size: 90% auto;
+      }
+    }
+
+    .toolbar-icon.toolbar-handle,
+    .toolbar-menu .toolbar-menu .toolbar-icon.toolbar-handle
+    {
+      &::before {
+        transform: rotate(90deg);
+        background-position: center center;
+        background-size: 14px 14px;
+      }
+
+      &.open::before {
+        transform: rotate(-90deg);
+      }
+    }
+
+    // Inline Edit toggle
+    .toolbar-tab > .toolbar-icon.toolbar-icon-edit.toolbar-item,
+    .toolbar-tab > .toolbar-icon.toolbar-icon-edit.toolbar-item.is-active,
+    .toolbar-tab > .toolbar-icon.toolbar-icon-edit.toolbar-item:focus {
+      color: var(--colorGinAppBackground);
+      background: var(--colorGinPrimary);
+
+      &::before {
+        background: var(--colorGinAppBackground);
+      }
+    }
+
+    // Overrides for default toolbar items
+    #toolbar-item-administration-search,
+    .toolbar-menu-administration .toolbar-icon,
+    .toolbar-tab > .toolbar-icon-edit.toolbar-item,
+    .toolbar-icon-toggle-vertical,
+    .toolbar-icon-toggle-horizontal {
+      &::before {
+        background: var(--colorGinIcons);
+        mask-repeat: no-repeat;
+        mask-position: center center;
+        mask-size: var(--iconGinToolbar) var(--iconGinToolbar);
+      }
+
+      &.toolbar-icon-default::before {
+        mask-size: 26px 26px;
+      }
+
+      &:hover::before {
+        @include mq($breakpointMedium) {
+          background: var(--colorGinPrimary);
+        }
+      }
+
+      &.is-active:hover::before {
+        @include mq($breakpointMedium) {
+          background: var(--colorGinPrimary);
+        }
+      }
+    }
+
+    // .menu-item--active-trail {
+    //   .toolbar-icon {
+    //     &::before {
+    //       background: var(--colorGinPrimaryActive) !important;
+    //     }
+    //   }
+    // }
+
+    #toolbar-item-administration-tray .toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default {
+      &:before {
+        $logoSize: 28px;
+        $iconFill: 333333;
+
+        padding-left: 0;
+        padding-right: 0;
+        margin-left: 0;
+        background-color: var(--colorGinText);
+        mask-image: icon('gin');
+        mask-position: center center;
+      }
+
+      &.is-active {
+        background-color: transparent;
+
+        &::after {
+          display: none;
+        }
+      }
+    }
+
+    .toolbar-icon-default {
+      &::before {
+        padding-top: 0;
+      }
+    }
+
+    // Fallback icon if none is set
+    .toolbar-icon {
+      &:before {
+        mask-image: icon('fallback');
+      }
+    }
+
+    // Hamburger
+    .toolbar-icon-menu {
+      &:before {
+        mask-image: icon('hamburger');
+      }
+    }
+
+    // Admin tray: Add content
+    .toolbar-icon-system-admin-content {
+      &:before {
+        mask-image: icon('content');
+      }
+    }
+
+    // Admin tray: Structure
+    .toolbar-icon-system-admin-structure {
+      &:before {
+        mask-image: icon('structure');
+      }
+    }
+
+    // Admin tray: Appearance
+    .toolbar-icon-system-themes-page {
+      &:before {
+        mask-image: icon('appearance');
+      }
+    }
+
+    // Admin tray: Extend
+    .toolbar-icon-system-modules-list {
+      &:before {
+        mask-image: icon('extend');
+      }
+    }
+
+    // Admin tray: Configuration
+    .toolbar-icon-system-admin-config {
+      &:before {
+        mask-image: icon('config');
+      }
+    }
+
+    // Admin tray: People
+    .toolbar-icon-entity-user-collection {
+      &:before {
+        mask-image: icon('people');
+      }
+    }
+
+    // Groups
+    .toolbar-icon-system-admin-group {
+      &:before {
+        mask-image: icon('group');
+      }
+    }
+
+    // Admin tray: Statistics
+    .toolbar-icon-system-admin-reports {
+      &:before {
+        mask-image: icon('reports');
+      }
+    }
+
+    // Admin tray: Help
+    .toolbar-icon-help-main,
+    .toolbar-icon-help {
+      &:before {
+        mask-image: icon('help');
+      }
+    }
+
+    // Commerce
+    .toolbar-icon-commerce-admin-commerce {
+      &:before {
+        mask-image: icon('commerce');
+      }
+    }
+
+    // Webform
+    .toolbar-icon-entity-webform-collection {
+      &:before {
+        mask-image: icon('webform');
+      }
+    }
+
+    // Admin tray: TMGMT Translation.
+    .toolbar-icon-tmgmt-admin-tmgmt {
+      &:before {
+        mask-image: icon('tmgmt');
+      }
+    }
+
+    // BAT
+    .toolbar-icon-bat-admin {
+      &:before {
+        mask-image: icon('bat');
+      }
+    }
+
+    // Back to site
+    .toolbar-icon-escape-admin {
+      display: none;
+    }
+
+    // Edit
+    .toolbar-icon-edit,
+    .toolbar-icon-local-tasks,
+    .toolbar-tab > .toolbar-icon-edit.toolbar-item {
+      &:before {
+        mask-image: icon('edit');
+        mask-size: var(--iconGinSecondaryToolbar) var(--iconGinSecondaryToolbar);
+      }
+    }
+
+    // Shortcuts
+    .toolbar-icon-shortcut {
+      &:before {
+        mask-image: icon('shortcut');
+      }
+    }
+
+    // Coffee & Search
+    .toolbar-icon-coffee,
+    #toolbar-item-administration-search {
+      &:before {
+        mask-image: icon('search');
+      }
+    }
+
+    // Devel
+    .toolbar-icon-devel {
+      &:before {
+        mask-image: icon('devel');
+      }
+    }
+
+    // Rebuild Cache Access
+    .toolbar-icon-rebuild-cache-access {
+      &:before {
+        mask-image: icon('rebuild-cache');
+      }
+    }
+
+    // Responsive Preview
+    .responsive-preview-icon {
+      &:before {
+        mask-image: icon('responsive-preview');
+      }
+    }
+
+    // User
+    .toolbar-icon-user {
+      &:before {
+        mask-image: icon('user');
+      }
+    }
+
+    // Environment
+    .toolbar-icon-environment {
+      &:before {
+        mask-image: icon('server');
+      }
+    }
+
+    // Toggle vertical
+    .toolbar-icon-toggle-vertical {
+      &:before {
+        mask-image: icon('nav-toggle-toleft');
+      }
+    }
+
+    // Toogle horizontal
+    .toolbar-icon-toggle-horizontal {
+      &:before {
+        mask-image: icon('nav-toggle-totop');
+      }
+    }
+
+    // Workbench
+    .toolbar-icon-workbench-content-tab {
+      &:before {
+        mask-image: icon('tool');
+      }
+    }
+  }
+}
+
+.toolbar-horizontal .toolbar-tray {
+  box-shadow: none;
+  border-bottom: 1px solid var(--colorGinBorder);
+
+  a,
+  span {
+    color: var(--colorGinText);
+    font-weight: normal;
+
+    &:hover, &:active, &:focus, &.is-active {
+      text-decoration: none;
+    }
+  }
+
+  .menu-item {
+    a:hover, a:focus {
+      color: var(--colorGinPrimaryHover);
+      background-color: var(--colorGinItemHover);
+
+      .toolbar-icon::before {
+        background-color: var(--colorGinTitle);
+      }
+
+      .toolbar-icon.is-active::before {
+        background-color: var(--colorGinPrimary);
+      }
+    }
+
+    &--no-link {
+      &:hover, a:focus {
+        background-color: transparent;
+      }
+    }
+
+    // Hide icons for sub-items.
+    .menu-item .toolbar-icon::before {
+      display: none;
+    }
+
+    a:focus {
+      box-shadow: inset 0 0 0 1px var(--colorGinFocusBorder), inset 0 0 0 4px var(--colorGinFocus);
+    }
+  }
+
+  .menu-item + .menu-item {
+    border-left: 0 none;
+
+    &:last-child {
+      border-right: 0 none;
+    }
+  }
+}
+
+.gin--dark-mode.toolbar-horizontal .toolbar-tray {
+  border-bottom: 1px solid var(--colorGinLayerBorder);
+}
+
+// Fix for Admin_toolbar 2.4+: Remove white borders added by the admin_toolbar module
+.toolbar .toolbar-tray-horizontal {
+  ul ul li.menu-item:first-child {
+    border-top: 0;
+  }
+
+  .menu-item:last-child {
+    border-left: 0;
+    border-right: 0;
+  }
+}
+
+.toolbar .toolbar-tray-vertical {
+  box-shadow: none;
+  border-right: 1px solid var(--colorGinBorder);
+  background: var(--colorGinLayerBackground);
+
+  .menu-item + .menu-item {
+    border-top: 1px solid var(--colorGinLayerBorder);
+  }
+
+  .menu-item + .menu-item__spacer {
+    border-top: 0 none;
+  }
+
+  .menu-item .toolbar-menu {
+    border-bottom: 0 none;
+  }
+
+  // Custom logo
+  .menu-item .toolbar-logo {
+    padding-left: 16px;
+  }
+
+  .level-1.menu-item:last-child {
+    border-bottom: 1px solid var(--colorGinLayerBorder);
+  }
+
+  .gin--dark-mode & {
+    .toolbar-menu ul ul {
+      border-color: transparent;
+    }
+
+    .level-1 .toolbar-menu {
+      background: var(--colorGinLayer2Background);
+    }
+
+    .level-2 .toolbar-menu {
+      background: var(--colorGinLayer3Background);
+    }
+
+    .level-3 .toolbar-menu {
+      background: #5a5a61;
+    }
+  }
+}
+
+.toolbar-tray-horizontal {
+  ul {
+    li {
+      &.menu-item {
+        .menu-item {
+          background: transparent;
+          border-left: none;
+          border-right: none;
+          border-bottom: 0 none;
+        }
+
+        &--expanded {
+          background-color: transparent;
+          [dir=rtl] & {
+            background-color: transparent;
+          }
+
+          &.hover-intent ul {
+            box-shadow: 0 8px 14px rgba(0, 0, 0, .15);
+          }
+        }
+      }
+    }
+  }
+}
+
+#toolbar-administration .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item {
+  font-weight: 600;
+
+  &:hover::before {
+    background: #fff;
+  }
+}
+
+.toolbar .toolbar-icon.toolbar-handle::before,
+.toolbar .toolbar-icon.toolbar-handle.open::before,
+.toolbar .toolbar-menu .toolbar-menu .toolbar-icon.toolbar-handle::before,
+.toolbar .toolbar-menu .toolbar-menu .toolbar-icon.toolbar-handle.open::before,
+.toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded,
+.toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus {
+  background-image: none;
+  [dir="rtl"] & {
+    background-image: none;
+  }
+}
+
+.toolbar .toolbar-icon.toolbar-handle,
+.toolbar .toolbar-icon.toolbar-handle.open,
+.toolbar .toolbar-menu .toolbar-menu .toolbar-icon.toolbar-handle,
+.toolbar .toolbar-menu .toolbar-menu .toolbar-icon.toolbar-handle.open,
+.toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded {
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    right: 0;
+    top: 18px;
+    width: 16px;
+    height: 16px;
+    background-color: var(--colorGinDisabled);
+    mask-image: icon('handle');
+    mask-repeat: no-repeat;
+    mask-position: center center;
+    mask-size: 14px 14px;
+    /*! rtl:raw:transform: scaleX(-1); */
+  }
+
+  &.menu-item--active-trail,
+  &:hover,
+  &:focus {
+    &::before {
+      background-color: var(--colorGinPrimary);
+    }
+  }
+}
+
+// Mobile.
+.toolbar .toolbar-tray-vertical .toolbar-menu a,
+.toolbar .toolbar-tray-vertical .toolbar-menu span {
+  display: block;
+  padding-left: 3.25em;
+  padding-top: 1.5em;
+  padding-bottom: 1.5em;
+
+  &:hover,
+  &:focus {
+    color: var(--colorGinText);
+  }
+
+  &:focus {
+    background: var(--colorGinPrimaryLight);
+  }
+
+  &.is-active {
+    &::before {
+      background-color: var(--colorGinPrimary);
+    }
+  }
+}
+
+.toolbar .toolbar-bar .toolbar-tab > .toolbar-icon {
+  &::before {
+    background: none;
+    background-color: rgba(255, 255, 255, .75);
+    mask-repeat: no-repeat;
+    mask-position: center center;
+    mask-size: var(--iconGinSecondaryToolbar) var(--iconGinSecondaryToolbar);
+  }
+
+  &.is-active:before,
+  &.is-active:hover:before {
+    @include mq($breakpointMedium) {
+      background-color: var(--colorGinButtonText);
+    }
+  }
+}
+
+.toolbar-secondary .toolbar-bar .toolbar-icon,
+.toolbar-icon-edit,
+.toolbar-icon-menu,
+.toolbar-icon-local-tasks,
+#toolbar-item-administration-search,
+.toolbar-tab > .toolbar-icon-edit.toolbar-item {
+  &:hover:before,
+  &.is-active:before {
+    @include mq(max-width $breakpointMedium) {
+      background: #fff;
+    }
+  }
+}
+
+.toolbar.toolbar-secondary .toolbar-bar .toolbar-tab > .toolbar-icon::before {
+  background-color: var(--colorGinIcons);
+}
+
+.toolbar.toolbar-secondary .toolbar-bar .toolbar-tab > .toolbar-icon.toolbar-icon-edit.toolbar-item::before {
+  left: .55rem;
+}
+
+// Custom logo
+#toolbar-item-administration-tray .toolbar-logo {
+  padding-top: 8px;
+  padding-bottom: 8px;
+
+  img {
+    max-width: 100px;
+    max-height: 35px;
+    object-fit: contain;
+    object-position: center;
+  }
+}
+
+#toolbar-item-user {
+  display: inline-block;
+  vertical-align: top;
+
+  &.icon-user {
+    padding-left: 0;
+    margin-left: 8px;
+    margin-top: 2px;
+  }
+}
+
+// Hide logo if accidentally shown in Devel.
+[data-toolbar-tray=toolbar-item-devel-tray] {
+  .toolbar-icon-admin-toolbar-tools-help,
+  .toolbar-logo {
+    display: none;
+  }
+}
+
+.responsive-preview-icon {
+  @extend .toolbar-icon;
+
+  &::before {
+    mask-size: var(--iconGinSecondaryToolbar) var(--iconGinSecondaryToolbar);
+  }
+}
+
+// Admin Toolbar QuickSearch
+#admin-toolbar-search-input {
+  color: var(--colorGinText);
+  width: 245px;
+  padding-left: 40px;
+  background-color: #fff;
+  border: 1px solid var(--colorGinBorder);
+  border-radius: 25px;
+  box-sizing: border-box;
+
+  &:not(:hover):not(:focus) {
+    box-shadow: none;
+  }
+
+  .gin--dark-mode & {
+    background-color: rgba(255, 255, 255, .075);
+    border: 1px solid transparent;
+
+    &:hover {
+      border-color: var(--colorGinFormElementBorder);
+    }
+  }
+}
+
+#admin-toolbar-search-tab .js-form-type-search {
+  position: relative;
+  margin: 0;
+
+  &::before {
+    content: "";
+    opacity: .75;
+    display: block;
+    width: var(--iconGinSecondaryToolbar);
+    height: var(--iconGinSecondaryToolbar);
+    position: absolute;
+    top: 11px;
+    left: 16px;
+    background-color: var(--colorGinIcons);
+    mask-image: icon('search');
+    mask-size: 100% 100%;
+    mask-position: center center;
+  }
+}
+
+// Admin Toolbar QuickSearch Results
+.ui-autocomplete.admin-toolbar-search-autocomplete-list {
+  color: var(--colorGinText);
+  background-color: var(--colorGinLayer3Background);
+  border-radius: var(--ginBorderMedium);
+  box-shadow: var(--ginShadowLevel2);
+
+  &.ui-widget-content {
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+    border: 0 none;
+    overflow-y: auto;
+  }
+
+  .ui-menu-item {
+    padding: 0 .5rem;
+
+    // Hide url
+    span.admin-toolbar-search-url {
+      display: none;
+    }
+  }
+
+  .ui-menu-item-wrapper {
+    font-size: .875rem;
+    line-height: 1.3;
+    padding: .5rem 1rem;
+    border-radius: var(--ginBorderSmall);
+
+    &.ui-state-active {
+      color: var(--colorGinButtonText);
+      background-color: var(--colorGinPrimary);
+      border: 0 none;
+    }
+  }
+}

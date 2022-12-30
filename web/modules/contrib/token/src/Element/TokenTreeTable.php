@@ -81,10 +81,6 @@ class TokenTreeTable extends Table {
       }
     }
 
-    if (!empty($element['#rows'])) {
-      $element['#attached']['library'][] = 'token/jquery.treeTable';
-    }
-
     // Fill headers if one is not specified.
     if (empty($element['#header'])) {
       $column_map = [

@@ -19,6 +19,11 @@ content:
     settings: {  }
     third_party_settings: {  }
     region: content
+  flag_mute_group_notifications:
+    weight: 10
+    region: content
+    settings: {  }
+    third_party_settings: {  }
 hidden:
   changed: true
   created: true
@@ -27,4 +32,5 @@ hidden:
   field_group_image: true
   field_group_location: true
   label: true
+  search_api_excerpt: true
   uid: true

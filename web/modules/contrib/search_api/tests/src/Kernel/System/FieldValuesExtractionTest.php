@@ -2,6 +2,10 @@
 
 namespace Drupal\Tests\search_api\Kernel\System;
 
+use Drupal\Core\TypedData\DataDefinition;
+use Drupal\Core\TypedData\ListDataDefinition;
+use Drupal\Core\TypedData\MapDataDefinition;
+use Drupal\Core\TypedData\Plugin\DataType\ItemList;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\search_api\Entity\Index;
 use Drupal\search_api\Utility\Utility;
@@ -42,7 +46,7 @@ class FieldValuesExtractionTest extends KernelTestBase {
    *
    * @var string[]
    */
-  public static $modules = [
+  protected static $modules = [
     'entity_test',
     'field',
     'search_api',
@@ -54,7 +58,7 @@ class FieldValuesExtractionTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->installSchema('system', ['sequences']);
@@ -242,7 +246,7 @@ class FieldValuesExtractionTest extends KernelTestBase {
     ksort($values['foobar']);
     $this->assertArrayHasKey('a', $values['foobar']);
     $this->assertNotEmpty($values['foobar']['a']);
-    $this->assertContains('Article 1', $values['foobar']['a'][0]);
+    $this->assertStringContainsString('Article 1', $values['foobar']['a'][0]);
     unset($values['foobar']['a']);
     $this->assertEquals($expected, $values);
 
@@ -294,6 +298,67 @@ class FieldValuesExtractionTest extends KernelTestBase {
     $values = $this->fieldsHelper->extractItemValues($items, $properties);
     ksort($values['foobar']);
     $this->assertEquals($expected, $values);
+  }
+
+  /**
+   * Tests extraction of field values from nested complex data structures.
+   *
+   * @covers ::extractFieldValues
+   */
+  public function testNestedComplexFieldValuesExtraction() {
+    // Complex data definition structure.
+
+    // phpcs:disable Drupal.Commenting.InlineComment.NotCapital
+    // data => ListDataDefinition (list) [
+    //   itemDefinition => ComplexDataDefinition (map) [
+    //     propertyDefinitions => [
+    //       id => DataDefinition (string),
+    //       values (main property) => ListDataDefinition (list) [
+    //         itemDefinition => ComplexDataDefinition (map) [
+    //           propertyDefinitions => [
+    //             property1 => DataDefinition (string),
+    //             property2 (main property) => DataDefinition (string),
+    //           ]
+    //         ]
+    //       ]
+    //     ]
+    //   ]
+    // ]
+    // phpcs:enable
+
+    $properties_def = MapDataDefinition::create();
+    $properties_def->setPropertyDefinition('property1', DataDefinition::create('string'));
+    $properties_def->setPropertyDefinition('property2', DataDefinition::create('string'));
+    $properties_def->setMainPropertyName('property2');
+
+    $values_def = ListDataDefinition::create('map');
+    $values_def->setItemDefinition($properties_def);
+
+    $data_item_def = MapDataDefinition::create();
+    $data_item_def->setPropertyDefinition('id', DataDefinition::create('string'));
+    $data_item_def->setPropertyDefinition('values', $values_def);
+    $data_item_def->setMainPropertyName('values');
+
+    $data_def = ListDataDefinition::create('map');
+    $data_def->setItemDefinition($data_item_def);
+
+    // Creates an instance of the structure with test source data.
+    $target_value = 'target value';
+    $source_data = [
+      'id' => 'test_id',
+      'values' => [
+        [
+          'property1' => 'wrong value',
+          'property2' => $target_value,
+        ],
+      ],
+    ];
+
+    $data = ItemList::createInstance($data_def, 'data');
+    $data->appendItem($source_data);
+
+    $extracted_values = $this->fieldsHelper->extractFieldValues($data);
+    $this->assertEquals([$target_value], $extracted_values);
   }
 
 }

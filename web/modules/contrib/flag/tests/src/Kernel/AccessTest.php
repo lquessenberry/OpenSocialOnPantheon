@@ -85,8 +85,8 @@ class AccessTest extends FlagKernelTestBase {
   /**
    * Tests owners access to flaggables.
    *
-   * authors own articles - and can only flag their own work.
-   * editors own articles - but can only flag the work of others.
+   * Authors own articles - and can only flag their own work.
+   * Editors own articles - but can only flag the work of others.
    */
   public function testOwnersAccess() {
     // A review flag with extra permissions set.
@@ -184,7 +184,7 @@ class AccessTest extends FlagKernelTestBase {
       "unflag $flag_id own user account",
     ]);
 
-    // Create a user who may flag the work of others
+    // Create a user who may flag the work of others.
     $user_bob = $this->createUser([
       "flag $flag_id other user accounts",
       "unflag $flag_id other user accounts",

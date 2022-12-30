@@ -2,8 +2,9 @@
 
 namespace Drupal\votingapi;
 
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityForm;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -16,18 +17,28 @@ class VoteTypeForm extends EntityForm {
   /**
    * The entity manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
+
+  /**
+   * The entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
 
   /**
    * Constructs the VoteTypeForm object.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_manager
+   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
    */
-  public function __construct(EntityManagerInterface $entity_manager) {
-    $this->entityManager = $entity_manager;
+  public function __construct(EntityTypeManagerInterface $entity_manager, EntityFieldManagerInterface $entity_field_manager) {
+    $this->entityTypeManager = $entity_manager;
+    $this->entityFieldManager = $entity_field_manager;
   }
 
   /**
@@ -35,7 +46,8 @@ class VoteTypeForm extends EntityForm {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')
+      $container->get('entity_type.manager'),
+      $container->get('entity_field.manager')
     );
   }
 
@@ -73,6 +85,7 @@ class VoteTypeForm extends EntityForm {
       '#description' => $this->t('A unique machine-readable name for this vote type. It must only contain lowercase letters, numbers, and underscores.', [
         '%vote-add' => $this->t('Add vote type'),
       ]),
+      '#disabled' => !$type->isNew(),
     ];
 
     $form['value_type'] = [
@@ -132,15 +145,19 @@ class VoteTypeForm extends EntityForm {
     $t_args = ['%name' => $type->label()];
 
     if ($status == SAVED_UPDATED) {
-      drupal_set_message($this->t('The vote type %name has been updated.', $t_args));
+      $this->messenger()->addMessage($this->t('The vote type %name has been updated.', $t_args));
     }
     elseif ($status == SAVED_NEW) {
-      drupal_set_message($this->t('The vote type %name has been added.', $t_args));
-      $context = array_merge($t_args, ['link' => $type->link($this->t('View'), 'collection')]);
+      $this->messenger()->addMessage($this->t('The vote type %name has been added.', $t_args));
+      $context = array_merge(
+        $t_args,
+        ['link' => $type->toLink($this->t('View'), 'collection')->toString()]
+      );
       $this->logger('vote')->notice('Added vote type %name.', $context);
     }
 
-    $this->entityManager->clearCachedFieldDefinitions();
+    $this->entityFieldManager->clearCachedFieldDefinitions();
     $form_state->setRedirectUrl($type->toUrl('collection'));
   }
+
 }

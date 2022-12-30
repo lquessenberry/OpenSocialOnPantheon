@@ -1,0 +1,46 @@
+language: node_js
+
+sudo: false
+
+node_js:
+  - "node"
+
+addons:
+  apt:
+    packages:
+      - p7zip-full
+
+env:
+  global:
+    - BASE_NAME=shariff-$TRAVIS_TAG
+
+cache:
+  directories:
+    - node_modules
+
+script:
+  - npm run test
+
+before_deploy:
+  - npm run build
+  - npm run build_zip
+
+deploy:
+  - provider: releases
+    api_key:
+      secure: "QK+97CEzaL5FwA09hs7II9PnBKn1KRUUOLtmGnIw83FiqI5dUtAfPxe0WuA9dwIVX9FKOtPacn5nSoPb0LVvWwdTxGN2DOnYrUW8pIsPGng1Z5kbD2feJdTIeXkVmKb8JYssq76L7O6SyXQbkrbYq6KmrjFH9bEEpGlcUOyKY+k="
+    file:
+      - $BASE_NAME.zip
+      - $BASE_NAME.tar.gz
+    skip_cleanup: true
+    on:
+      repo: heiseonline/shariff
+      tags: true
+  - provider: npm
+    email: npmjs@heise.de
+    api_key:
+      secure: eNX4D2s8TLojBXYg3vCjiUpE+N4dgZlXVbI1eriti1puOyWJ9tO4JxbwGiO0cShSJV+gjpzC9KpWqZCuTlY2ZZIhUfskfE179HDu+0rue4GAF2iQz2dvs8hoeWidLPIkXgn3YofsS1iQMX3VxJ1j3GVBwEg9motbcuIb4zbxKCw=
+    skip_cleanup: true
+    on:
+      repo: heiseonline/shariff
+      tags: true

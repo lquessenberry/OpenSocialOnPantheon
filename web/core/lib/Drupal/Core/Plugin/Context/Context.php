@@ -6,6 +6,7 @@ use Drupal\Component\Plugin\Context\Context as ComponentContext;
 use Drupal\Component\Plugin\Exception\ContextException;
 use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\TypedData\TypedDataInterface;
 use Drupal\Core\TypedData\TypedDataTrait;
 
@@ -15,6 +16,7 @@ use Drupal\Core\TypedData\TypedDataTrait;
 class Context extends ComponentContext implements ContextInterface {
 
   use TypedDataTrait;
+  use DependencySerializationTrait;
 
   /**
    * The data associated with the context.
@@ -79,7 +81,7 @@ class Context extends ComponentContext implements ContextInterface {
    * {@inheritdoc}
    */
   public function hasContextValue() {
-    return (bool) $this->contextData || parent::hasContextValue();
+    return $this->getTypedDataManager()->getCanonicalRepresentation($this->getContextData()) !== NULL;
   }
 
   /**
@@ -122,7 +124,6 @@ class Context extends ComponentContext implements ContextInterface {
     }
     return $this->contextData;
   }
-
 
   /**
    * {@inheritdoc}

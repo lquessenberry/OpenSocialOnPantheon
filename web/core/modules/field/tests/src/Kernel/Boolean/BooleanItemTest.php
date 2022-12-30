@@ -19,7 +19,7 @@ class BooleanItemTest extends FieldKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Create a boolean field and storage for validation.
@@ -35,7 +35,8 @@ class BooleanItemTest extends FieldKernelTestBase {
     ])->save();
 
     // Create a form display for the default form mode.
-    entity_get_form_display('entity_test', 'entity_test', 'default')
+    \Drupal::service('entity_display.repository')
+      ->getFormDisplay('entity_test', 'entity_test')
       ->setComponent('field_boolean', [
         'type' => 'boolean_checkbox',
       ])
@@ -56,20 +57,20 @@ class BooleanItemTest extends FieldKernelTestBase {
     // Verify entity has been created properly.
     $id = $entity->id();
     $entity = EntityTest::load($id);
-    $this->assertTrue($entity->field_boolean instanceof FieldItemListInterface, 'Field implements interface.');
-    $this->assertTrue($entity->field_boolean[0] instanceof FieldItemInterface, 'Field item implements interface.');
-    $this->assertEqual($entity->field_boolean->value, $value);
-    $this->assertEqual($entity->field_boolean[0]->value, $value);
+    $this->assertInstanceOf(FieldItemListInterface::class, $entity->field_boolean);
+    $this->assertInstanceOf(FieldItemInterface::class, $entity->field_boolean[0]);
+    $this->assertEquals($value, $entity->field_boolean->value);
+    $this->assertEquals($value, $entity->field_boolean[0]->value);
 
     // Verify changing the boolean value.
     $new_value = 0;
     $entity->field_boolean->value = $new_value;
-    $this->assertEqual($entity->field_boolean->value, $new_value);
+    $this->assertEquals($new_value, $entity->field_boolean->value);
 
     // Read changed entity and assert changed values.
     $entity->save();
     $entity = EntityTest::load($id);
-    $this->assertEqual($entity->field_boolean->value, $new_value);
+    $this->assertEquals($new_value, $entity->field_boolean->value);
 
     // Test sample item generation.
     $entity = EntityTest::create();

@@ -3,6 +3,7 @@
 namespace Drupal\Tests\Component;
 
 use org\bovigo\vfs\vfsStream;
+use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -37,9 +38,10 @@ class DrupalComponentTest extends TestCase {
    *
    * @param $component_path
    *   The path to the component.
+   *
    * @dataProvider \Drupal\Tests\Component\DrupalComponentTest::getComponents
    */
-  public function testComponentLicence($component_path) {
+  public function testComponentLicense($component_path) {
     $this->assertFileExists($component_path . DIRECTORY_SEPARATOR . 'LICENSE.txt');
     $this->assertSame('e84dac1d9fbb5a4a69e38654ce644cea769aa76b', hash_file('sha1', $component_path . DIRECTORY_SEPARATOR . 'LICENSE.txt'));
   }
@@ -88,8 +90,10 @@ class DrupalComponentTest extends TestCase {
    *
    * @param string $class_path
    *   The full path to the class that should be checked.
+   *
+   * @internal
    */
-  protected function assertNoCoreUsage($class_path) {
+  protected function assertNoCoreUsage(string $class_path): void {
     $contents = file_get_contents($class_path);
     preg_match_all('/^.*Drupal\\\Core.*$/m', $contents, $matches);
     $matches = array_filter($matches[0], function ($line) {
@@ -100,14 +104,14 @@ class DrupalComponentTest extends TestCase {
   }
 
   /**
-   * Data provider for testAssertNoCoreUseage().
+   * Data provider for testAssertNoCoreUsage().
    *
    * @return array
-   *   Data for testAssertNoCoreUseage() in the form:
+   *   Data for testAssertNoCoreUsage() in the form:
    *   - TRUE if the test passes, FALSE otherwise.
    *   - File data as a string. This will be used as a virtual file.
    */
-  public function providerAssertNoCoreUseage() {
+  public function providerAssertNoCoreUsage() {
     return [
       [
         TRUE,
@@ -132,9 +136,9 @@ class DrupalComponentTest extends TestCase {
 
   /**
    * @covers \Drupal\Tests\Component\DrupalComponentTest::assertNoCoreUsage
-   * @dataProvider providerAssertNoCoreUseage
+   * @dataProvider providerAssertNoCoreUsage
    */
-  public function testAssertNoCoreUseage($expected_pass, $file_data) {
+  public function testAssertNoCoreUsage($expected_pass, $file_data) {
     // Set up a virtual file to read.
     $vfs_root = vfsStream::setup('root');
     vfsStream::newFile('Test.php')->at($vfs_root)->setContent($file_data);
@@ -144,7 +148,7 @@ class DrupalComponentTest extends TestCase {
       $pass = TRUE;
       $this->assertNoCoreUsage($file_uri);
     }
-    catch (\PHPUnit_Framework_AssertionFailedError $e) {
+    catch (AssertionFailedError $e) {
       $pass = FALSE;
     }
     $this->assertEquals($expected_pass, $pass, $expected_pass ?

@@ -6,7 +6,7 @@ use Drupal\Core\Image\ImageInterface;
 use Drupal\image\ImageEffectBase;
 
 /**
- * Strips metadata from an image resource.
+ * Inverts image color.
  *
  * @ImageEffect(
  *   id = "image_effects_invert",

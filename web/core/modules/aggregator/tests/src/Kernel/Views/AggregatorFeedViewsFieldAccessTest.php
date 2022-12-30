@@ -9,18 +9,19 @@ use Drupal\Tests\views\Kernel\Handler\FieldFieldAccessTestBase;
  * Tests base field access in Views for the aggregator_feed entity.
  *
  * @group aggregator
+ * @group legacy
  */
 class AggregatorFeedViewsFieldAccessTest extends FieldFieldAccessTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['aggregator', 'entity_test', 'options'];
+  protected static $modules = ['aggregator', 'entity_test', 'options'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('aggregator_feed');

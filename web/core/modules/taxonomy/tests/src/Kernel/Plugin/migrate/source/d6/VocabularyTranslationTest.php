@@ -15,7 +15,7 @@ class VocabularyTranslationTest extends MigrateSqlSourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['taxonomy', 'migrate_drupal'];
+  protected static $modules = ['taxonomy', 'migrate_drupal'];
 
   /**
    * {@inheritdoc}
@@ -39,6 +39,14 @@ class VocabularyTranslationTest extends MigrateSqlSourceTestBase {
         'type' => 'vocabulary',
         'property' => 'name',
         'objectindex' => 2,
+        'format' => 0,
+      ],
+      [
+        'lid' => 3,
+        'objectid' => 3,
+        'type' => 'vocabulary',
+        'property' => 'name',
+        'objectindex' => 3,
         'format' => 0,
       ],
     ];
@@ -81,6 +89,20 @@ class VocabularyTranslationTest extends MigrateSqlSourceTestBase {
         'vid' => 2,
         'name' => 'vocabulary 2',
         'description' => 'description of vocabulary 2',
+        'help' => 1,
+        'relations' => 1,
+        'hierarchy' => 1,
+        'multiple' => 0,
+        'required' => 0,
+        'tags' => 0,
+        'module' => 'taxonomy',
+        'weight' => 5,
+        'language' => '',
+      ],
+      [
+        'vid' => 3,
+        'name' => 'vocabulary 3',
+        'description' => 'description of vocabulary 3',
         'help' => 1,
         'relations' => 1,
         'hierarchy' => 1,

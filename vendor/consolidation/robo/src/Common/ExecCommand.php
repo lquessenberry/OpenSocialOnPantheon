@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Common;
 
 use Robo\Result;
@@ -124,6 +125,9 @@ trait ExecCommand
         return $cmd;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     protected function getCommandDescription()
     {
         return $this->process->getCommandLine();
@@ -137,7 +141,7 @@ trait ExecCommand
     protected function executeCommand($command)
     {
         // TODO: Symfony 4 requires that we supply the working directory.
-        $result_data = $this->execute(new Process($command, getcwd()));
+        $result_data = $this->execute(Process::fromShellCommandline($command, getcwd()));
         return new Result(
             $this,
             $result_data->getExitCode(),

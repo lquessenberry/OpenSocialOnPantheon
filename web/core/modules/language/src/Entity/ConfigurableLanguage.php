@@ -16,6 +16,13 @@ use Drupal\language\ConfigurableLanguageInterface;
  * @ConfigEntityType(
  *   id = "configurable_language",
  *   label = @Translation("Language"),
+ *   label_collection = @Translation("Languages"),
+ *   label_singular = @Translation("language"),
+ *   label_plural = @Translation("languages"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count language",
+ *     plural = "@count languages",
+ *   ),
  *   handlers = {
  *     "list_builder" = "Drupal\language\LanguageListBuilder",
  *     "access" = "Drupal\language\LanguageAccessControlHandler",
@@ -31,6 +38,13 @@ use Drupal\language\ConfigurableLanguageInterface;
  *     "id" = "id",
  *     "label" = "label",
  *     "weight" = "weight"
+ *   },
+ *   config_export = {
+ *     "id",
+ *     "label",
+ *     "direction",
+ *     "weight",
+ *     "locked"
  *   },
  *   links = {
  *     "delete-form" = "/admin/config/regional/language/delete/{configurable_language}",
@@ -139,6 +153,14 @@ class ConfigurableLanguage extends ConfigEntityBase implements ConfigurableLangu
       // Install any available language configuration overrides for the language.
       \Drupal::service('language.config_factory_override')->installLanguageOverrides($this->id());
     }
+
+    if (!$this->isLocked() && !$update) {
+      // Add language to the list of language domains.
+      $config = \Drupal::configFactory()->getEditable('language.negotiation');
+      $domains = $config->get('url.domains');
+      $domains[$this->id()] = '';
+      $config->set('url.domains', $domains)->save(TRUE);
+    }
   }
 
   /**
@@ -173,6 +195,12 @@ class ConfigurableLanguage extends ConfigEntityBase implements ConfigurableLangu
     if (!\Drupal::languageManager()->isMultilingual()) {
       ConfigurableLanguageManager::rebuildServices();
     }
+
+    // Remove language from language prefix and domain list.
+    $config = \Drupal::configFactory()->getEditable('language.negotiation');
+    $config->clear('url.prefixes.' . $entity->id());
+    $config->clear('url.domains.' . $entity->id());
+    $config->save(TRUE);
   }
 
   /**
@@ -256,7 +284,7 @@ class ConfigurableLanguage extends ConfigEntityBase implements ConfigurableLangu
       return static::create([
         'id' => $langcode,
         'label' => $standard_languages[$langcode][0],
-        'direction' => isset($standard_languages[$langcode][2]) ? $standard_languages[$langcode][2] : static::DIRECTION_LTR,
+        'direction' => $standard_languages[$langcode][2] ?? static::DIRECTION_LTR,
       ]);
     }
   }

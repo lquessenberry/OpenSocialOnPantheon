@@ -2,7 +2,9 @@
 
 namespace Drupal\views\Plugin\views\area;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\ViewExecutable;
@@ -25,11 +27,25 @@ class Entity extends TokenizeAreaPluginBase {
   protected $entityType;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
+
+  /**
+   * The entity repository service.
+   *
+   * @var \Drupal\Core\Entity\EntityRepositoryInterface
+   */
+  protected $entityRepository;
+
+  /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
 
   /**
    * Constructs a new Entity instance.
@@ -40,13 +56,19 @@ class Entity extends TokenizeAreaPluginBase {
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
+   * @param \Drupal\Core\Entity\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, EntityRepositoryInterface $entity_repository, EntityDisplayRepositoryInterface $entity_display_repository) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->entityRepository = $entity_repository;
+    $this->entityDisplayRepository = $entity_display_repository;
   }
 
   /**
@@ -57,7 +79,9 @@ class Entity extends TokenizeAreaPluginBase {
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager')
+      $container->get('entity_type.manager'),
+      $container->get('entity.repository'),
+      $container->get('entity_display.repository')
     );
   }
 
@@ -95,12 +119,12 @@ class Entity extends TokenizeAreaPluginBase {
 
     $form['view_mode'] = [
       '#type' => 'select',
-      '#options' => $this->entityManager->getViewModeOptions($this->entityType),
+      '#options' => $this->entityDisplayRepository->getViewModeOptions($this->entityType),
       '#title' => $this->t('View mode'),
       '#default_value' => $this->options['view_mode'],
     ];
 
-    $label = $this->entityManager->getDefinition($this->entityType)->getLabel();
+    $label = $this->entityTypeManager->getDefinition($this->entityType)->getLabel();
     $target = $this->options['target'];
 
     // If the target does not contain tokens, try to load the entity and
@@ -108,10 +132,10 @@ class Entity extends TokenizeAreaPluginBase {
     // @todo Use a method to check for tokens in
     //   https://www.drupal.org/node/2396607.
     if (strpos($this->options['target'], '{{') === FALSE) {
-      // @todo If the entity does not exist, this will will show the config
-      //   target identifier. Decide if this is the correct behavior in
+      // @todo If the entity does not exist, this will show the config target
+      //   identifier. Decide if this is the correct behavior in
       //   https://www.drupal.org/node/2415391.
-      if ($target_entity = $this->entityManager->loadEntityByConfigTarget($this->entityType, $this->options['target'])) {
+      if ($target_entity = $this->entityRepository->loadEntityByConfigTarget($this->entityType, $this->options['target'])) {
         $target = $target_entity->id();
       }
     }
@@ -141,7 +165,7 @@ class Entity extends TokenizeAreaPluginBase {
     //   https://www.drupal.org/node/2396607.
     $options = $form_state->getValue('options');
     if (strpos($options['target'], '{{') === FALSE) {
-      if ($entity = $this->entityManager->getStorage($this->entityType)->load($options['target'])) {
+      if ($entity = $this->entityTypeManager->getStorage($this->entityType)->load($options['target'])) {
         $options['target'] = $entity->getConfigTarget();
       }
       $form_state->setValue('options', $options);
@@ -159,17 +183,17 @@ class Entity extends TokenizeAreaPluginBase {
         // We cast as we need the integer/string value provided by the
         // ::tokenizeValue() call.
         $target_id = (string) $this->tokenizeValue($this->options['target']);
-        if ($entity = $this->entityManager->getStorage($this->entityType)->load($target_id)) {
+        if ($entity = $this->entityTypeManager->getStorage($this->entityType)->load($target_id)) {
           $target_entity = $entity;
         }
       }
       else {
-        if ($entity = $this->entityManager->loadEntityByConfigTarget($this->entityType, $this->options['target'])) {
+        if ($entity = $this->entityRepository->loadEntityByConfigTarget($this->entityType, $this->options['target'])) {
           $target_entity = $entity;
         }
       }
       if (isset($target_entity) && (!empty($this->options['bypass_access']) || $target_entity->access('view'))) {
-        $view_builder = $this->entityManager->getViewBuilder($this->entityType);
+        $view_builder = $this->entityTypeManager->getViewBuilder($this->entityType);
         return $view_builder->view($target_entity, $this->options['view_mode']);
       }
     }
@@ -187,8 +211,8 @@ class Entity extends TokenizeAreaPluginBase {
     // @todo Use a method to check for tokens in
     //   https://www.drupal.org/node/2396607.
     if (strpos($this->options['target'], '{{') === FALSE) {
-      if ($entity = $this->entityManager->loadEntityByConfigTarget($this->entityType, $this->options['target'])) {
-        $dependencies[$this->entityManager->getDefinition($this->entityType)->getConfigDependencyKey()][] = $entity->getConfigDependencyName();
+      if ($entity = $this->entityRepository->loadEntityByConfigTarget($this->entityType, $this->options['target'])) {
+        $dependencies[$this->entityTypeManager->getDefinition($this->entityType)->getConfigDependencyKey()][] = $entity->getConfigDependencyName();
       }
     }
 

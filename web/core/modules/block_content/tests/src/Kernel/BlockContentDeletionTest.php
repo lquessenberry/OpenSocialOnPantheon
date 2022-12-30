@@ -17,14 +17,13 @@ class BlockContentDeletionTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['block', 'block_content', 'system', 'user'];
+  protected static $modules = ['block', 'block_content', 'system', 'user'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
-    $this->installSchema('system', ['sequence']);
     $this->installEntitySchema('user');
     $this->installEntitySchema('block_content');
   }

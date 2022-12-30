@@ -5,9 +5,11 @@
  * Code required only when rendering the available updates report.
  */
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Template\Attribute;
 use Drupal\Core\Url;
+use Drupal\update\ProjectRelease;
+use Drupal\update\UpdateFetcherInterface;
+use Drupal\update\UpdateManagerInterface;
 
 /**
  * Prepares variables for project status report templates.
@@ -19,9 +21,9 @@ use Drupal\Core\Url;
  *   - data: An array of data about each project's status.
  */
 function template_preprocess_update_report(&$variables) {
-  $data = $variables['data'];
+  $data = isset($variables['data']) && is_array($variables['data']) ? $variables['data'] : [];
 
-  $last = \Drupal::state()->get('update.last_check') ?: 0;
+  $last = \Drupal::state()->get('update.last_check', 0);
 
   $variables['last_checked'] = [
     '#theme' => 'update_last_check',
@@ -31,7 +33,7 @@ function template_preprocess_update_report(&$variables) {
       'library' => [
         'update/drupal.update.admin',
       ],
-    ]
+    ],
   ];
 
   // For no project update data, populate no data message.
@@ -54,26 +56,28 @@ function template_preprocess_update_report(&$variables) {
         '#attributes' => ['class' => ['update']],
       ];
     }
-    $row_key = !empty($project['title']) ? Unicode::strtolower($project['title']) : Unicode::strtolower($project['name']);
+    $row_key = !empty($project['title']) ? mb_strtolower($project['title']) : mb_strtolower($project['name']);
 
     // Add the project status row and details.
     $rows[$project['project_type']][$row_key]['status'] = $project_status;
 
     // Add project status class attribute to the table row.
     switch ($project['status']) {
-      case UPDATE_CURRENT:
+      case UpdateManagerInterface::CURRENT:
         $rows[$project['project_type']][$row_key]['#attributes'] = ['class' => ['color-success']];
         break;
-      case UPDATE_UNKNOWN:
-      case UPDATE_FETCH_PENDING:
-      case UPDATE_NOT_FETCHED:
-      case UPDATE_NOT_SECURE:
-      case UPDATE_REVOKED:
-      case UPDATE_NOT_SUPPORTED:
+
+      case UpdateFetcherInterface::UNKNOWN:
+      case UpdateFetcherInterface::FETCH_PENDING:
+      case UpdateFetcherInterface::NOT_FETCHED:
+      case UpdateManagerInterface::NOT_SECURE:
+      case UpdateManagerInterface::REVOKED:
+      case UpdateManagerInterface::NOT_SUPPORTED:
         $rows[$project['project_type']][$row_key]['#attributes'] = ['class' => ['color-error']];
         break;
-      case UPDATE_NOT_CHECKED:
-      case UPDATE_NOT_CURRENT:
+
+      case UpdateFetcherInterface::NOT_CHECKED:
+      case UpdateManagerInterface::NOT_CURRENT:
       default:
         $rows[$project['project_type']][$row_key]['#attributes'] = ['class' => ['color-warning']];
         break;
@@ -101,6 +105,36 @@ function template_preprocess_update_report(&$variables) {
 }
 
 /**
+ * Prepares variables for update version templates.
+ *
+ * Default template: update-version.html.twig.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - version: An array of information about the release version.
+ */
+function template_preprocess_update_version(array &$variables) {
+  $release = ProjectRelease::createFromArray($variables['version']);
+  if (!$release->getCoreCompatibilityMessage()) {
+    return;
+  }
+  $core_compatible = $release->isCoreCompatible();
+  $variables['core_compatibility_details'] = [
+    '#type' => 'details',
+    '#title' => $core_compatible ? t('Compatible') : t('Not compatible'),
+    '#open' => !$core_compatible,
+    'message' => [
+      '#markup' => $release->getCoreCompatibilityMessage(),
+    ],
+    '#attributes' => [
+      'class' => [
+        $core_compatible ? 'compatible' : 'not-compatible',
+      ],
+    ],
+  ];
+}
+
+/**
  * Prepares variables for update project status templates.
  *
  * Default template: update-project-status.html.twig.
@@ -119,7 +153,7 @@ function template_preprocess_update_project_status(&$variables) {
 
   $variables['install_type'] = $project['install_type'];
   if ($project['install_type'] == 'dev' && !empty($project['datestamp'])) {
-    $variables['datestamp'] = format_date($project['datestamp'], 'custom', 'Y-M-d');
+    $variables['datestamp'] = \Drupal::service('date.formatter')->format($project['datestamp'], 'custom', 'Y-M-d');
   }
 
   $variables['existing_version'] = $project['existing_version'];
@@ -128,7 +162,7 @@ function template_preprocess_update_project_status(&$variables) {
   $security_class = [];
   $version_class = [];
   if (isset($project['recommended'])) {
-    if ($project['status'] != UPDATE_CURRENT || $project['existing_version'] !== $project['recommended']) {
+    if ($project['status'] != UpdateManagerInterface::CURRENT || $project['existing_version'] !== $project['recommended']) {
 
       // First, figure out what to recommend.
       // If there's only 1 security update and it has the same version we're
@@ -187,7 +221,7 @@ function template_preprocess_update_project_status(&$variables) {
       ];
     }
     if ($project['install_type'] == 'dev'
-      && $project['status'] != UPDATE_CURRENT
+      && $project['status'] != UpdateManagerInterface::CURRENT
       && isset($project['dev_version'])
       && $project['recommended'] !== $project['dev_version']) {
       $versions_inner[] = [
@@ -231,7 +265,7 @@ function template_preprocess_update_project_status(&$variables) {
       $extra_item['data'] = [
         '#prefix' => '<em>',
         '#markup' => $value['data'],
-        '#suffix' => '</em>'
+        '#suffix' => '</em>',
       ];
       $variables['extras'][] = $extra_item;
     }
@@ -240,19 +274,23 @@ function template_preprocess_update_project_status(&$variables) {
   // Set the project status details.
   $status_label = NULL;
   switch ($project['status']) {
-    case UPDATE_NOT_SECURE:
+    case UpdateManagerInterface::NOT_SECURE:
       $status_label = t('Security update required!');
       break;
-    case UPDATE_REVOKED:
+
+    case UpdateManagerInterface::REVOKED:
       $status_label = t('Revoked!');
       break;
-    case UPDATE_NOT_SUPPORTED:
+
+    case UpdateManagerInterface::NOT_SUPPORTED:
       $status_label = t('Not supported!');
       break;
-    case UPDATE_NOT_CURRENT:
+
+    case UpdateManagerInterface::NOT_CURRENT:
       $status_label = t('Update available');
       break;
-    case UPDATE_CURRENT:
+
+    case UpdateManagerInterface::CURRENT:
       $status_label = t('Up to date');
       break;
   }
@@ -261,24 +299,27 @@ function template_preprocess_update_project_status(&$variables) {
   $variables['status']['reason'] = (isset($project['reason'])) ? $project['reason'] : NULL;
 
   switch ($project['status']) {
-    case UPDATE_CURRENT:
+    case UpdateManagerInterface::CURRENT:
       $uri = 'core/misc/icons/73b355/check.svg';
       $text = t('Ok');
       break;
-    case UPDATE_UNKNOWN:
-    case UPDATE_FETCH_PENDING:
-    case UPDATE_NOT_FETCHED:
+
+    case UpdateFetcherInterface::UNKNOWN:
+    case UpdateFetcherInterface::FETCH_PENDING:
+    case UpdateFetcherInterface::NOT_FETCHED:
       $uri = 'core/misc/icons/e29700/warning.svg';
       $text = t('Warning');
       break;
-    case UPDATE_NOT_SECURE:
-    case UPDATE_REVOKED:
-    case UPDATE_NOT_SUPPORTED:
+
+    case UpdateManagerInterface::NOT_SECURE:
+    case UpdateManagerInterface::REVOKED:
+    case UpdateManagerInterface::NOT_SUPPORTED:
       $uri = 'core/misc/icons/e32700/error.svg';
       $text = t('Error');
       break;
-    case UPDATE_NOT_CHECKED:
-    case UPDATE_NOT_CURRENT:
+
+    case UpdateFetcherInterface::NOT_CHECKED:
+    case UpdateManagerInterface::NOT_CURRENT:
     default:
       $uri = 'core/misc/icons/e29700/warning.svg';
       $text = t('Warning');
@@ -293,4 +334,35 @@ function template_preprocess_update_project_status(&$variables) {
     '#alt' => $text,
     '#title' => $text,
   ];
+}
+
+/**
+ * Prepares variables for update fetch error message templates.
+ *
+ * Default template: update-fetch-error-message.html.twig.
+ *
+ * @param array $variables
+ *   An associative array of template variables.
+ */
+function template_preprocess_update_fetch_error_message(&$variables): void {
+  $variables['error_message'] = [
+    'message' => [
+      '#markup' => t('Failed to fetch available update data:'),
+    ],
+    'items' => [
+      '#theme' => 'item_list',
+      '#items' => [
+        'documentation_link' => t('See <a href="@url">PHP OpenSSL requirements</a> in the Drupal.org handbook for possible reasons this could happen and what you can do to resolve them.', ['@url' => 'https://www.drupal.org/node/3170647']),
+      ],
+    ],
+  ];
+  if (\Drupal::moduleHandler()->moduleExists('dblog') && \Drupal::currentUser()->hasPermission('access site reports')) {
+    $options = ['query' => ['type' => ['update']]];
+    $dblog_url = Url::fromRoute('dblog.overview', [], $options);
+    $variables['error_message']['items']['#items']['dblog'] = t('Check <a href="@url">your local system logs</a> for additional error messages.', ['@url' => $dblog_url->toString()]);
+  }
+  else {
+    $variables['error_message']['items']['#items']['logs'] = t('Check your local system logs for additional error messages.');
+  }
+
 }

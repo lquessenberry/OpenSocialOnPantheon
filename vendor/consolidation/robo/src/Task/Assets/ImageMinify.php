@@ -10,11 +10,10 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Filesystem\Filesystem as sfFilesystem;
 
 /**
- * Minifies images. When the required minifier is not installed on the system
- * the task will try to download it from the [imagemin](https://github.com/imagemin) repository.
+ * Minifies images.
  *
- * When the task is run without any specified minifier it will compress the images
- * based on the extension.
+ * When the task is run without any specified minifier it will compress the
+ * images based on the extension.
  *
  * ```php
  * $this->taskImageMinify('assets/images/*')
@@ -22,15 +21,27 @@ use Symfony\Component\Filesystem\Filesystem as sfFilesystem;
  *     ->run();
  * ```
  *
- * This will use the following minifiers:
+ * This will use the following minifiers based in the extension:
  *
  * - PNG: optipng
  * - GIF: gifsicle
  * - JPG, JPEG: jpegtran
  * - SVG: svgo
  *
- * When the minifier is specified the task will use that for all the input files. In that case
- * it is useful to filter the files with the extension:
+ * When the required minifier is not installed on the system the task will try
+ * to download it from the [imagemin](https://github.com/imagemin) repository
+ * into a local directory.
+ * This directory is `vendor/bin/` by default and may be changed:
+ *
+ * ```php
+ * $this->taskImageMinify('assets/images/*')
+ *     ->setExecutableDir('/tmp/imagemin/bin/)
+ *     ->to('dist/images/')
+ *     ->run();
+ * ```
+ *
+ * When the minifier is specified the task will use that for all the input
+ * files. In that case it is useful to filter the files with the extension:
  *
  * ```php
  * $this->taskImageMinify('assets/images/*.png')
@@ -150,7 +161,7 @@ class ImageMinify extends BaseTask
      *
      * @link https://github.com/imagemin
      *
-     * @var array
+     * @var string[]
      */
     protected $imageminRepos = [
         // PNG
@@ -171,6 +182,9 @@ class ImageMinify extends BaseTask
         'cwebp' => 'https://github.com/imagemin/cwebp-bin', // note: we do not support this minifier because it creates WebP from non-WebP files
     ];
 
+    /**
+     * @param string|string[] $dirs
+     */
     public function __construct($dirs)
     {
         is_array($dirs)
@@ -182,19 +196,7 @@ class ImageMinify extends BaseTask
         // guess the best path for the executables based on __DIR__
         if (($pos = strpos(__DIR__, 'consolidation/robo')) !== false) {
             // the executables should be stored in vendor/bin
-            $this->executableTargetDir = substr(__DIR__, 0, $pos).'bin';
-        }
-
-        // check if the executables are already available
-        foreach ($this->imageminRepos as $exec => $url) {
-            $path = $this->executableTargetDir.'/'.$exec;
-            // if this is Windows add a .exe extension
-            if (substr($this->getOS(), 0, 3) == 'win') {
-                $path .= '.exe';
-            }
-            if (is_file($path)) {
-                $this->executablePaths[$exec] = $path;
-            }
+            $this->setExecutableDir(substr(__DIR__, 0, $pos) . 'bin');
         }
     }
 
@@ -224,6 +226,32 @@ class ImageMinify extends BaseTask
         } else {
             return Result::error($this, $message, $context);
         }
+    }
+
+    /**
+     * Sets the target directory for executables (`vendor/bin/` by default)
+     *
+     * @param string $directory
+     *
+     * @return $this
+     */
+    public function setExecutableDir($directory)
+    {
+        $this->executableTargetDir = $directory;
+
+        // check if the executables are already available in there
+        foreach ($this->imageminRepos as $exec => $url) {
+            $path = $this->executableTargetDir . '/' . $exec;
+            // if this is Windows add a .exe extension
+            if (substr($this->getOS(), 0, 3) == 'win') {
+                $path .= '.exe';
+            }
+            if (is_file($path)) {
+                $this->executablePaths[$exec] = $path;
+            }
+        }
+
+        return $this;
     }
 
     /**
@@ -257,7 +285,7 @@ class ImageMinify extends BaseTask
     }
 
     /**
-     * @param array $dirs
+     * @param string[] $dirs
      *
      * @return array|\Robo\Result
      *
@@ -289,7 +317,7 @@ class ImageMinify extends BaseTask
             } catch (\InvalidArgumentException $e) {
                 // if finder cannot handle it, try with in()->name()
                 if (strpos($dir, '/') === false) {
-                    $dir = './'.$dir;
+                    $dir = './' . $dir;
                 }
                 $parts = explode('/', $dir);
                 $new_dir = implode('/', array_slice($parts, 0, -1));
@@ -319,13 +347,13 @@ class ImageMinify extends BaseTask
      */
     protected function getTarget($file, $to)
     {
-        $target = $to.'/'.basename($file);
+        $target = $to . '/' . basename($file);
 
         return $target;
     }
 
     /**
-     * @param array $files
+     * @param string[] $files
      *
      * @return \Robo\Result
      */
@@ -339,6 +367,8 @@ class ImageMinify extends BaseTask
 
         // loop through the files
         foreach ($files as $from => $to) {
+            $minifier = '';
+
             if (!isset($this->minifier)) {
                 // check filetype based on the extension
                 $extension = strtolower(pathinfo($from, PATHINFO_EXTENSION));
@@ -399,7 +429,7 @@ class ImageMinify extends BaseTask
                             $this->printTaskSuccess($result->getMessage());
                             // retry the conversion with the downloaded executable
                             if (is_callable($minifier)) {
-                                $command = call_user_func($minifier, $from, $to, $minifierOptions);
+                                $command = call_user_func($minifier, $from, $to, $this->minifierOptions);
                             } elseif (method_exists($this, $minifier)) {
                                 $command = $this->{$minifier}($from, $to);
                             }
@@ -432,7 +462,7 @@ class ImageMinify extends BaseTask
     protected function getOS()
     {
         $os = php_uname('s');
-        $os .= '/'.php_uname('m');
+        $os .= '/' . php_uname('m');
         // replace x86_64 to x64, because the imagemin repo uses that
         $os = str_replace('x86_64', 'x64', $os);
         // replace i386, i686, etc to x86, because of imagemin
@@ -463,7 +493,7 @@ class ImageMinify extends BaseTask
                 array_unshift($a, $key);
             }
         }
-        // check if the executable can be replaced with the downloaded one
+        // prefer the downloaded executable if it exists already
         if (array_key_exists($executable, $this->executablePaths)) {
             $executable = $this->executablePaths[$executable];
         }
@@ -473,7 +503,7 @@ class ImageMinify extends BaseTask
         // execute the command
         $exec = new Exec($command);
 
-        return $exec->inflect($this)->printed(false)->run();
+        return $exec->inflect($this)->printOutput(false)->run();
     }
 
     /**
@@ -492,10 +522,10 @@ class ImageMinify extends BaseTask
         $this->printTaskInfo('Downloading the {executable} executable from the imagemin repository', ['executable' => $executable]);
 
         $os = $this->getOS();
-        $url = $this->imageminRepos[$executable].'/blob/master/vendor/'.$os.'/'.$executable.'?raw=true';
+        $url = $this->imageminRepos[$executable] . '/blob/main/vendor/' . $os . '/' . $executable . '?raw=true';
         if (substr($os, 0, 3) == 'win') {
             // if it is win, add a .exe extension
-            $url = $this->imageminRepos[$executable].'/blob/master/vendor/'.$os.'/'.$executable.'.exe?raw=true';
+            $url = $this->imageminRepos[$executable] . '/blob/main/vendor/' . $os . '/' . $executable . '.exe?raw=true';
         }
         $data = @file_get_contents($url, false, null);
         if ($data === false) {
@@ -520,19 +550,28 @@ class ImageMinify extends BaseTask
                 return Result::error($this, $message);
             }
         }
+        // check if target directory was set
+        if (empty($this->executableTargetDir)) {
+            return Result::error($this, 'No target directory for executables set');
+        }
         // check if target directory exists
         if (!is_dir($this->executableTargetDir)) {
-            mkdir($this->executableTargetDir);
+            // create and check access rights (directory created, but not readable)
+            if (!mkdir($this->executableTargetDir) && !is_dir($this->executableTargetDir)) {
+                $message = sprintf('Can not create target directory for executables in <info>%s</info>', $this->executableTargetDir);
+
+                return Result::error($this, $message);
+            }
         }
         // save the executable into the target dir
-        $path = $this->executableTargetDir.'/'.$executable;
+        $path = $this->executableTargetDir . '/' . $executable;
         if (substr($os, 0, 3) == 'win') {
             // if it is win, add a .exe extension
-            $path = $this->executableTargetDir.'/'.$executable.'.exe';
+            $path = $this->executableTargetDir . '/' . $executable . '.exe';
         }
         $result = file_put_contents($path, $data);
         if ($result === false) {
-            $message = sprintf('Could not copy the executable <info>%s</info> to %s', $executable, $target_dir);
+            $message = sprintf('Could not copy the executable <info>%s</info> to %s', $executable, $path);
 
             return Result::error($this, $message);
         }
@@ -540,7 +579,7 @@ class ImageMinify extends BaseTask
         chmod($path, 0755);
 
         // if everything successful, store the executable path
-        $this->executablePaths[$executable] = $this->executableTargetDir.'/'.$executable;
+        $this->executablePaths[$executable] = $this->executableTargetDir . '/' . $executable;
         // if it is win, add a .exe extension
         if (substr($os, 0, 3) == 'win') {
             $this->executablePaths[$executable] .= '.exe';
@@ -562,7 +601,7 @@ class ImageMinify extends BaseTask
         $command = sprintf('optipng -quiet -out "%s" -- "%s"', $to, $from);
         if ($from != $to && is_file($to)) {
             // earlier versions of optipng do not overwrite the target without a backup
-            // http://sourceforge.net/p/optipng/bugs/37/
+            // https://sourceforge.net/p/optipng/bugs/37/
             unlink($to);
         }
 
@@ -582,6 +621,12 @@ class ImageMinify extends BaseTask
         return $command;
     }
 
+    /**
+     * @param string $from
+     * @param string $to
+     *
+     * @return string
+     */
     protected function gifsicle($from, $to)
     {
         $command = sprintf('gifsicle -o "%s" "%s"', $to, $from);

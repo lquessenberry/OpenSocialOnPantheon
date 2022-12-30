@@ -1,0 +1,7 @@
+shariff.settings_form:
+  path: /admin/config/services/shariff
+  defaults:
+    _title: 'Shariff sharing buttons'
+    _form: \Drupal\shariff\Form\ShariffSettingsForm
+  requirements:
+    _permission: 'administer site configuration'

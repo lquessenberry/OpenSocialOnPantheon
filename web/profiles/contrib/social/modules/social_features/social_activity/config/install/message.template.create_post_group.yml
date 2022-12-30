@@ -11,10 +11,11 @@ third_party_settings:
       stream_group: stream_group
       stream_home: stream_home
       stream_profile: stream_profile
-    activity_create_direct: 1
+    activity_create_direct: TRUE
     activity_action: create_entitiy_action
     activity_bundle_entities:
       post-post: post-post
+    email_subject: ''
 template: create_post_group
 label: 'Create post in a group'
 description: 'A user created a post in a group'
@@ -26,8 +27,4 @@ settings:
   'token options':
     clear: false
     'token replace': true
-  purge:
-    override: false
-    enabled: false
-    quota: null
-    days: null
+  purge_methods: {  }

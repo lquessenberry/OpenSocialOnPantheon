@@ -12,6 +12,13 @@ use Drupal\Core\Url;
  * @ConfigEntityType(
  *   id = "contact_form",
  *   label = @Translation("Contact form"),
+ *   label_collection = @Translation("Contact forms"),
+ *   label_singular = @Translation("contact form"),
+ *   label_plural = @Translation("contact forms"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count contact form",
+ *     plural = "@count contact forms",
+ *   ),
  *   handlers = {
  *     "access" = "Drupal\contact\ContactFormAccessControlHandler",
  *     "list_builder" = "Drupal\contact\ContactFormListBuilder",
@@ -19,6 +26,9 @@ use Drupal\Core\Url;
  *       "add" = "Drupal\contact\ContactFormEditForm",
  *       "edit" = "Drupal\contact\ContactFormEditForm",
  *       "delete" = "Drupal\Core\Entity\EntityDeleteForm"
+ *     },
+ *     "route_provider" = {
+ *       "permissions" = "Drupal\user\Entity\EntityPermissionsRouteProviderWithCheck",
  *     }
  *   },
  *   config_prefix = "form",
@@ -31,6 +41,7 @@ use Drupal\Core\Url;
  *   links = {
  *     "delete-form" = "/admin/structure/contact/manage/{contact_form}/delete",
  *     "edit-form" = "/admin/structure/contact/manage/{contact_form}",
+ *     "entity-permissions-form" = "/admin/structure/contact/manage/{contact_form}/permissions",
  *     "collection" = "/admin/structure/contact",
  *     "canonical" = "/contact/{contact_form}",
  *   },

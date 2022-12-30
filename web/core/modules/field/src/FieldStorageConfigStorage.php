@@ -2,10 +2,12 @@
 
 namespace Drupal\field;
 
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Component\Uuid\UuidInterface;
+use Drupal\Core\Cache\MemoryCache\MemoryCacheInterface;
 use Drupal\Core\Config\Entity\ConfigEntityStorage;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\DeletedFieldsRepositoryInterface;
 use Drupal\Core\Field\FieldTypePluginManagerInterface;
@@ -27,11 +29,11 @@ class FieldStorageConfigStorage extends ConfigEntityStorage {
   protected $moduleHandler;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The field type plugin manager.
@@ -58,18 +60,20 @@ class FieldStorageConfigStorage extends ConfigEntityStorage {
    *   The UUID service.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   The language manager.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
    * @param \Drupal\Core\Field\FieldTypePluginManagerInterface $field_type_manager
    *   The field type plugin manager.
    * @param \Drupal\Core\Field\DeletedFieldsRepositoryInterface $deleted_fields_repository
    *   The deleted fields repository.
+   * @param \Drupal\Core\Cache\MemoryCache\MemoryCacheInterface $memory_cache
+   *   The memory cache.
    */
-  public function __construct(EntityTypeInterface $entity_type, ConfigFactoryInterface $config_factory, UuidInterface $uuid_service, LanguageManagerInterface $language_manager, EntityManagerInterface $entity_manager, ModuleHandlerInterface $module_handler, FieldTypePluginManagerInterface $field_type_manager, DeletedFieldsRepositoryInterface $deleted_fields_repository) {
-    parent::__construct($entity_type, $config_factory, $uuid_service, $language_manager);
-    $this->entityManager = $entity_manager;
+  public function __construct(EntityTypeInterface $entity_type, ConfigFactoryInterface $config_factory, UuidInterface $uuid_service, LanguageManagerInterface $language_manager, EntityTypeManagerInterface $entity_type_manager, ModuleHandlerInterface $module_handler, FieldTypePluginManagerInterface $field_type_manager, DeletedFieldsRepositoryInterface $deleted_fields_repository, MemoryCacheInterface $memory_cache) {
+    parent::__construct($entity_type, $config_factory, $uuid_service, $language_manager, $memory_cache);
+    $this->entityTypeManager = $entity_type_manager;
     $this->moduleHandler = $module_handler;
     $this->fieldTypeManager = $field_type_manager;
     $this->deletedFieldsRepository = $deleted_fields_repository;
@@ -84,10 +88,11 @@ class FieldStorageConfigStorage extends ConfigEntityStorage {
       $container->get('config.factory'),
       $container->get('uuid'),
       $container->get('language_manager'),
-      $container->get('entity.manager'),
+      $container->get('entity_type.manager'),
       $container->get('module_handler'),
       $container->get('plugin.manager.field.field_type'),
-      $container->get('entity_field.deleted_fields_repository')
+      $container->get('entity_field.deleted_fields_repository'),
+      $container->get('entity.memory_cache')
     );
   }
 
@@ -96,7 +101,7 @@ class FieldStorageConfigStorage extends ConfigEntityStorage {
    */
   public function loadByProperties(array $conditions = []) {
     // Include deleted fields if specified in the $conditions parameters.
-    $include_deleted = isset($conditions['include_deleted']) ? $conditions['include_deleted'] : FALSE;
+    $include_deleted = $conditions['include_deleted'] ?? FALSE;
     unset($conditions['include_deleted']);
 
     /** @var \Drupal\field\FieldStorageConfigInterface[] $storages */
@@ -108,7 +113,7 @@ class FieldStorageConfigStorage extends ConfigEntityStorage {
     if (empty($conditions['deleted'])) {
       if (isset($conditions['entity_type']) && isset($conditions['field_name'])) {
         // Optimize for the most frequent case where we do have a specific ID.
-        $id = $conditions['entity_type'] . $conditions['field_name'];
+        $id = $conditions['entity_type'] . '.' . $conditions['field_name'];
         $storages = $this->loadMultiple([$id]);
       }
       else {
@@ -154,10 +159,12 @@ class FieldStorageConfigStorage extends ConfigEntityStorage {
    */
   protected function mapFromStorageRecords(array $records) {
     foreach ($records as $id => &$record) {
-      $class = $this->fieldTypeManager->getPluginClass($record['type']);
-      if (empty($class)) {
+      try {
+        $class = $this->fieldTypeManager->getPluginClass($record['type']);
+      }
+      catch (PluginNotFoundException $e) {
         $config_id = $this->getPrefix() . $id;
-        throw new \RuntimeException("Unable to determine class for field type '{$record['type']}' found in the '$config_id' configuration");
+        throw new PluginNotFoundException($record['type'], "Unable to determine class for field type '{$record['type']}' found in the '$config_id' configuration", $e->getCode(), $e);
       }
       $record['settings'] = $class::storageSettingsFromConfigData($record['settings']);
     }

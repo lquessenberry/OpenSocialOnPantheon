@@ -12,7 +12,11 @@
     const domElement = element.$;
     let attribute;
     let attributeName;
-    for (let attrIndex = 0; attrIndex < domElement.attributes.length; attrIndex++) {
+    for (
+      let attrIndex = 0;
+      attrIndex < domElement.attributes.length;
+      attrIndex++
+    ) {
       attribute = domElement.attributes.item(attrIndex);
       attributeName = attribute.nodeName.toLowerCase();
       // Ignore data-cke-* attributes; they're CKEditor internals.
@@ -21,12 +25,15 @@
       }
       // Store the value for this attribute, unless there's a data-cke-saved-
       // alternative for it, which will contain the quirk-free, original value.
-      parsedAttributes[attributeName] = element.data(`cke-saved-${attributeName}`) || attribute.nodeValue;
+      parsedAttributes[attributeName] =
+        element.data(`cke-saved-${attributeName}`) || attribute.nodeValue;
     }
 
     // Remove any cke_* classes.
     if (parsedAttributes.class) {
-      parsedAttributes.class = CKEDITOR.tools.trim(parsedAttributes.class.replace(/cke_\S+/, ''));
+      parsedAttributes.class = CKEDITOR.tools.trim(
+        parsedAttributes.class.replace(/cke_\S+/, ''),
+      );
     }
 
     return parsedAttributes;
@@ -54,6 +61,71 @@
     };
   }
 
+  const registeredLinkableWidgets = [];
+
+  /**
+   * Registers a widget name as linkable.
+   *
+   * @param {string} widgetName
+   *   The name of the widget to register as linkable.
+   */
+  function registerLinkableWidget(widgetName) {
+    registeredLinkableWidgets.push(widgetName);
+  }
+
+  /**
+   * Gets the focused widget, if one of the registered linkable widget names.
+   *
+   * @param {CKEDITOR.editor} editor
+   *   A CKEditor instance.
+   *
+   * @return {?CKEDITOR.plugins.widget}
+   *   The focused linkable widget instance, or null.
+   */
+  function getFocusedLinkableWidget(editor) {
+    const widget = editor.widgets.focused;
+    if (widget && registeredLinkableWidgets.indexOf(widget.name) !== -1) {
+      return widget;
+    }
+    return null;
+  }
+
+  /**
+   * Get the surrounding link element of current selection.
+   *
+   * The following selection will all return the link element.
+   *
+   * @example
+   *  <a href="#">li^nk</a>
+   *  <a href="#">[link]</a>
+   *  text[<a href="#">link]</a>
+   *  <a href="#">li[nk</a>]
+   *  [<b><a href="#">li]nk</a></b>]
+   *  [<a href="#"><b>li]nk</b></a>
+   *
+   * @param {CKEDITOR.editor} editor
+   *   The CKEditor editor object
+   *
+   * @return {?HTMLElement}
+   *   The selected link element, or null.
+   *
+   */
+  function getSelectedLink(editor) {
+    const selection = editor.getSelection();
+    const selectedElement = selection.getSelectedElement();
+    if (selectedElement && selectedElement.is('a')) {
+      return selectedElement;
+    }
+
+    const range = selection.getRanges(true)[0];
+
+    if (range) {
+      range.shrink(CKEDITOR.SHRINK_TEXT);
+      return editor.elementPath(range.getCommonAncestor()).contains('a', 1);
+    }
+    return null;
+  }
+
   CKEDITOR.plugins.add('drupallink', {
     icons: 'drupallink,drupalunlink',
     hidpi: true,
@@ -78,8 +150,7 @@
         modes: { wysiwyg: 1 },
         canUndo: true,
         exec(editor) {
-          const drupalImageUtils = CKEDITOR.plugins.drupalimage;
-          const focusedImageWidget = drupalImageUtils && drupalImageUtils.getFocusedWidget(editor);
+          const focusedLinkableWidget = getFocusedLinkableWidget(editor);
           let linkElement = getSelectedLink(editor);
 
           // Set existing values based on selected element.
@@ -89,16 +160,24 @@
           }
           // Or, if an image widget is focused, we're editing a link wrapping
           // an image widget.
-          else if (focusedImageWidget && focusedImageWidget.data.link) {
-            existingValues = CKEDITOR.tools.clone(focusedImageWidget.data.link);
+          else if (focusedLinkableWidget && focusedLinkableWidget.data.link) {
+            existingValues = CKEDITOR.tools.clone(
+              focusedLinkableWidget.data.link,
+            );
           }
 
           // Prepare a save callback to be used upon saving the dialog.
           const saveCallback = function (returnValues) {
             // If an image widget is focused, we're not editing an independent
             // link, but we're wrapping an image widget in a link.
-            if (focusedImageWidget) {
-              focusedImageWidget.setData('link', CKEDITOR.tools.extend(returnValues.attributes, focusedImageWidget.data.link));
+            if (focusedLinkableWidget) {
+              focusedLinkableWidget.setData(
+                'link',
+                CKEDITOR.tools.extend(
+                  returnValues.attributes,
+                  focusedLinkableWidget.data.link,
+                ),
+              );
               editor.fire('saveSnapshot');
               return;
             }
@@ -113,13 +192,19 @@
               // Use link URL as text with a collapsed cursor.
               if (range.collapsed) {
                 // Shorten mailto URLs to just the email address.
-                const text = new CKEDITOR.dom.text(returnValues.attributes.href.replace(/^mailto:/, ''), editor.document);
+                const text = new CKEDITOR.dom.text(
+                  returnValues.attributes.href.replace(/^mailto:/, ''),
+                  editor.document,
+                );
                 range.insertNode(text);
                 range.selectNodeContents(text);
               }
 
               // Create the new link by applying a style to the new text.
-              const style = new CKEDITOR.style({ element: 'a', attributes: returnValues.attributes });
+              const style = new CKEDITOR.style({
+                element: 'a',
+                attributes: returnValues.attributes,
+              });
               style.type = CKEDITOR.STYLE_INLINE;
               style.applyToRange(range);
               range.select();
@@ -150,12 +235,20 @@
           // loads the JavaScript file instead of Drupal. Pull translated
           // strings from the plugin settings that are translated server-side.
           const dialogSettings = {
-            title: linkElement ? editor.config.drupalLink_dialogTitleEdit : editor.config.drupalLink_dialogTitleAdd,
+            title: linkElement
+              ? editor.config.drupalLink_dialogTitleEdit
+              : editor.config.drupalLink_dialogTitleAdd,
             dialogClass: 'editor-link-dialog',
           };
 
           // Open the dialog for the edit form.
-          Drupal.ckeditor.openDialog(editor, Drupal.url(`editor/dialog/link/${editor.config.drupal.format}`), existingValues, saveCallback, dialogSettings);
+          Drupal.ckeditor.openDialog(
+            editor,
+            Drupal.url(`editor/dialog/link/${editor.config.drupal.format}`),
+            existingValues,
+            saveCallback,
+            dialogSettings,
+          );
         },
       });
       editor.addCommand('drupalunlink', {
@@ -168,15 +261,24 @@
           },
         }),
         exec(editor) {
-          const style = new CKEDITOR.style({ element: 'a', type: CKEDITOR.STYLE_INLINE, alwaysRemoveElement: 1 });
+          const style = new CKEDITOR.style({
+            element: 'a',
+            type: CKEDITOR.STYLE_INLINE,
+            alwaysRemoveElement: 1,
+          });
           editor.removeStyle(style);
         },
         refresh(editor, path) {
-          const element = path.lastElement && path.lastElement.getAscendant('a', true);
-          if (element && element.getName() === 'a' && element.getAttribute('href') && element.getChildCount()) {
+          const element =
+            path.lastElement && path.lastElement.getAscendant('a', true);
+          if (
+            element &&
+            element.getName() === 'a' &&
+            element.getAttribute('href') &&
+            element.getChildCount()
+          ) {
             this.setState(CKEDITOR.TRISTATE_OFF);
-          }
-          else {
+          } else {
             this.setState(CKEDITOR.TRISTATE_DISABLED);
           }
         },
@@ -240,7 +342,10 @@
 
           let menu = {};
           if (anchor.getAttribute('href') && anchor.getChildCount()) {
-            menu = { link: CKEDITOR.TRISTATE_OFF, unlink: CKEDITOR.TRISTATE_OFF };
+            menu = {
+              link: CKEDITOR.TRISTATE_OFF,
+              unlink: CKEDITOR.TRISTATE_OFF,
+            };
           }
           return menu;
         });
@@ -248,47 +353,12 @@
     },
   });
 
-  /**
-   * Get the surrounding link element of current selection.
-   *
-   * The following selection will all return the link element.
-   *
-   * @example
-   *  <a href="#">li^nk</a>
-   *  <a href="#">[link]</a>
-   *  text[<a href="#">link]</a>
-   *  <a href="#">li[nk</a>]
-   *  [<b><a href="#">li]nk</a></b>]
-   *  [<a href="#"><b>li]nk</b></a>
-   *
-   * @param {CKEDITOR.editor} editor
-   *   The CKEditor editor object
-   *
-   * @return {?HTMLElement}
-   *   The selected link element, or null.
-   *
-   */
-  function getSelectedLink(editor) {
-    const selection = editor.getSelection();
-    const selectedElement = selection.getSelectedElement();
-    if (selectedElement && selectedElement.is('a')) {
-      return selectedElement;
-    }
-
-    const range = selection.getRanges(true)[0];
-
-    if (range) {
-      range.shrink(CKEDITOR.SHRINK_TEXT);
-      return editor.elementPath(range.getCommonAncestor()).contains('a', 1);
-    }
-    return null;
-  }
-
   // Expose an API for other plugins to interact with drupallink widgets.
   // (Compatible with the official CKEditor link plugin's API:
   // http://dev.ckeditor.com/ticket/13885.)
   CKEDITOR.plugins.drupallink = {
     parseLinkAttributes: parseAttributes,
     getLinkAttributes: getAttributes,
+    registerLinkableWidget,
   };
-}(jQuery, Drupal, drupalSettings, CKEDITOR));
+})(jQuery, Drupal, drupalSettings, CKEDITOR);

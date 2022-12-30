@@ -2,9 +2,13 @@
 
 namespace Drupal\config\Form;
 
+use Drupal\Core\Batch\BatchBuilder;
 use Drupal\Core\Config\ConfigImporterException;
 use Drupal\Core\Config\ConfigImporter;
+use Drupal\Core\Config\Importer\ConfigImporterBatch;
+use Drupal\Core\Config\ImportStorageTransformer;
 use Drupal\Core\Config\TypedConfigManagerInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ModuleInstallerInterface;
 use Drupal\Core\Extension\ThemeHandlerInterface;
@@ -16,7 +20,7 @@ use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Config\StorageComparer;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Url;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -57,14 +61,14 @@ class ConfigSync extends FormBase {
   /**
    * Event dispatcher.
    *
-   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   * @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
 
   /**
    * The configuration manager.
    *
-   * @var \Drupal\Core\Config\ConfigManagerInterface;
+   * @var \Drupal\Core\Config\ConfigManagerInterface
    */
   protected $configManager;
 
@@ -104,6 +108,20 @@ class ConfigSync extends FormBase {
   protected $renderer;
 
   /**
+   * The module extension list.
+   *
+   * @var \Drupal\Core\Extension\ModuleExtensionList
+   */
+  protected $moduleExtensionList;
+
+  /**
+   * The import transformer service.
+   *
+   * @var \Drupal\Core\Config\ImportStorageTransformer
+   */
+  protected $importTransformer;
+
+  /**
    * Constructs the object.
    *
    * @param \Drupal\Core\Config\StorageInterface $sync_storage
@@ -114,7 +132,7 @@ class ConfigSync extends FormBase {
    *   The snapshot storage.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
    *   The lock object.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   Event dispatcher.
    * @param \Drupal\Core\Config\ConfigManagerInterface $config_manager
    *   Configuration manager.
@@ -128,8 +146,12 @@ class ConfigSync extends FormBase {
    *   The theme handler.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $extension_list_module
+   *   The module extension list
+   * @param \Drupal\Core\Config\ImportStorageTransformer $import_transformer
+   *   The import transformer service.
    */
-  public function __construct(StorageInterface $sync_storage, StorageInterface $active_storage, StorageInterface $snapshot_storage, LockBackendInterface $lock, EventDispatcherInterface $event_dispatcher, ConfigManagerInterface $config_manager, TypedConfigManagerInterface $typed_config, ModuleHandlerInterface $module_handler, ModuleInstallerInterface $module_installer, ThemeHandlerInterface $theme_handler, RendererInterface $renderer) {
+  public function __construct(StorageInterface $sync_storage, StorageInterface $active_storage, StorageInterface $snapshot_storage, LockBackendInterface $lock, EventDispatcherInterface $event_dispatcher, ConfigManagerInterface $config_manager, TypedConfigManagerInterface $typed_config, ModuleHandlerInterface $module_handler, ModuleInstallerInterface $module_installer, ThemeHandlerInterface $theme_handler, RendererInterface $renderer, ModuleExtensionList $extension_list_module, ImportStorageTransformer $import_transformer) {
     $this->syncStorage = $sync_storage;
     $this->activeStorage = $active_storage;
     $this->snapshotStorage = $snapshot_storage;
@@ -141,6 +163,8 @@ class ConfigSync extends FormBase {
     $this->moduleInstaller = $module_installer;
     $this->themeHandler = $theme_handler;
     $this->renderer = $renderer;
+    $this->moduleExtensionList = $extension_list_module;
+    $this->importTransformer = $import_transformer;
   }
 
   /**
@@ -158,7 +182,9 @@ class ConfigSync extends FormBase {
       $container->get('module_handler'),
       $container->get('module_installer'),
       $container->get('theme_handler'),
-      $container->get('renderer')
+      $container->get('renderer'),
+      $container->get('extension.list.module'),
+      $container->get('config.import_transformer')
     );
   }
 
@@ -178,28 +204,31 @@ class ConfigSync extends FormBase {
       '#type' => 'submit',
       '#value' => $this->t('Import all'),
     ];
-    $source_list = $this->syncStorage->listAll();
-    $storage_comparer = new StorageComparer($this->syncStorage, $this->activeStorage, $this->configManager);
-    if (empty($source_list) || !$storage_comparer->createChangelist()->hasChanges()) {
+    $syncStorage = $this->importTransformer->transform($this->syncStorage);
+    $source_list = $syncStorage->listAll();
+    $storage_comparer = new StorageComparer($syncStorage, $this->activeStorage);
+    $storage_comparer->createChangelist();
+    if (empty($source_list) || !$storage_comparer->hasChanges()) {
       $form['no_changes'] = [
         '#type' => 'table',
         '#header' => [$this->t('Name'), $this->t('Operations')],
         '#rows' => [],
-        '#empty' => $this->t('There are no configuration changes to import.'),
+        '#empty' => empty($source_list) ? $this->t('There is no staged configuration.') : $this->t('The staged configuration is identical to the active configuration.'),
       ];
       $form['actions']['#access'] = FALSE;
       return $form;
     }
     elseif (!$storage_comparer->validateSiteUuid()) {
-      drupal_set_message($this->t('The staged configuration cannot be imported, because it originates from a different site than this site. You can only synchronize configuration between cloned instances of this site.'), 'error');
+      $this->messenger()->addError($this->t('The staged configuration cannot be imported, because it originates from a different site than this site. You can only synchronize configuration between cloned instances of this site.'));
       $form['actions']['#access'] = FALSE;
       return $form;
     }
     // A list of changes will be displayed, so check if the user should be
     // warned of potential losses to configuration.
     if ($this->snapshotStorage->exists('core.extension')) {
-      $snapshot_comparer = new StorageComparer($this->activeStorage, $this->snapshotStorage, $this->configManager);
-      if (!$form_state->getUserInput() && $snapshot_comparer->createChangelist()->hasChanges()) {
+      $snapshot_comparer = new StorageComparer($this->activeStorage, $this->snapshotStorage);
+      $snapshot_comparer->createChangelist();
+      if (!$form_state->getUserInput() && $snapshot_comparer->hasChanges()) {
         $change_list = [];
         foreach ($snapshot_comparer->getAllCollectionNames() as $collection) {
           foreach ($snapshot_comparer->getChangelist(NULL, $collection) as $config_names) {
@@ -214,14 +243,14 @@ class ConfigSync extends FormBase {
         sort($change_list);
         $message = [
           [
-            '#markup' => $this->t('The following items in your active configuration have changes since the last import that may be lost on the next import.')
+            '#markup' => $this->t('The following items in your active configuration have changes since the last import that may be lost on the next import.'),
           ],
           [
             '#theme' => 'item_list',
             '#items' => $change_list,
-          ]
+          ],
         ];
-        drupal_set_message($this->renderer->renderPlain($message), 'warning');
+        $this->messenger()->addWarning($this->renderer->renderPlain($message));
       }
     }
 
@@ -295,7 +324,7 @@ class ConfigSync extends FormBase {
               'class' => ['use-ajax'],
               'data-dialog-type' => 'modal',
               'data-dialog-options' => json_encode([
-                'width' => 700
+                'width' => 700,
               ]),
             ],
           ];
@@ -327,88 +356,34 @@ class ConfigSync extends FormBase {
       $this->moduleHandler,
       $this->moduleInstaller,
       $this->themeHandler,
-      $this->getStringTranslation()
+      $this->getStringTranslation(),
+      $this->moduleExtensionList
     );
     if ($config_importer->alreadyImporting()) {
-      drupal_set_message($this->t('Another request may be synchronizing configuration already.'));
+      $this->messenger()->addStatus($this->t('Another request may be synchronizing configuration already.'));
     }
     else {
       try {
         $sync_steps = $config_importer->initialize();
-        $batch = [
-          'operations' => [],
-          'finished' => [get_class($this), 'finishBatch'],
-          'title' => t('Synchronizing configuration'),
-          'init_message' => t('Starting configuration synchronization.'),
-          'progress_message' => t('Completed step @current of @total.'),
-          'error_message' => t('Configuration synchronization has encountered an error.'),
-        ];
+        $batch_builder = (new BatchBuilder())
+          ->setTitle($this->t('Synchronizing configuration'))
+          ->setFinishCallback([ConfigImporterBatch::class, 'finish'])
+          ->setInitMessage($this->t('Starting configuration synchronization.'))
+          ->setProgressMessage($this->t('Completed step @current of @total.'))
+          ->setErrorMessage($this->t('Configuration synchronization has encountered an error.'));
         foreach ($sync_steps as $sync_step) {
-          $batch['operations'][] = [[get_class($this), 'processBatch'], [$config_importer, $sync_step]];
+          $batch_builder->addOperation([ConfigImporterBatch::class, 'process'], [$config_importer, $sync_step]);
         }
 
-        batch_set($batch);
+        batch_set($batch_builder->toArray());
       }
       catch (ConfigImporterException $e) {
         // There are validation errors.
-        drupal_set_message($this->t('The configuration cannot be imported because it failed validation for the following reasons:'), 'error');
+        $this->messenger()->addError($this->t('The configuration cannot be imported because it failed validation for the following reasons:'));
         foreach ($config_importer->getErrors() as $message) {
-          drupal_set_message($message, 'error');
+          $this->messenger()->addError($message);
         }
       }
-    }
-  }
-
-  /**
-   * Processes the config import batch and persists the importer.
-   *
-   * @param \Drupal\Core\Config\ConfigImporter $config_importer
-   *   The batch config importer object to persist.
-   * @param string $sync_step
-   *   The synchronization step to do.
-   * @param array $context
-   *   The batch context.
-   */
-  public static function processBatch(ConfigImporter $config_importer, $sync_step, &$context) {
-    if (!isset($context['sandbox']['config_importer'])) {
-      $context['sandbox']['config_importer'] = $config_importer;
-    }
-
-    $config_importer = $context['sandbox']['config_importer'];
-    $config_importer->doSyncStep($sync_step, $context);
-    if ($errors = $config_importer->getErrors()) {
-      if (!isset($context['results']['errors'])) {
-        $context['results']['errors'] = [];
-      }
-      $context['results']['errors'] += $errors;
-    }
-  }
-
-  /**
-   * Finish batch.
-   *
-   * This function is a static function to avoid serializing the ConfigSync
-   * object unnecessarily.
-   */
-  public static function finishBatch($success, $results, $operations) {
-    if ($success) {
-      if (!empty($results['errors'])) {
-        foreach ($results['errors'] as $error) {
-          drupal_set_message($error, 'error');
-          \Drupal::logger('config_sync')->error($error);
-        }
-        drupal_set_message(\Drupal::translation()->translate('The configuration was imported with errors.'), 'warning');
-      }
-      else {
-        drupal_set_message(\Drupal::translation()->translate('The configuration was imported successfully.'));
-      }
-    }
-    else {
-      // An error occurred.
-      // $operations contains the operations that remained unprocessed.
-      $error_operation = reset($operations);
-      $message = \Drupal::translation()->translate('An error occurred while processing %error_operation with arguments: @arguments', ['%error_operation' => $error_operation[0], '@arguments' => print_r($error_operation[1], TRUE)]);
-      drupal_set_message($message, 'error');
     }
   }
 

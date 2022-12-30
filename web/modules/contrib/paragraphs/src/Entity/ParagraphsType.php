@@ -5,18 +5,27 @@ namespace Drupal\paragraphs\Entity;
 use Drupal\Core\Config\Entity\ConfigEntityBundleBase;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityWithPluginCollectionInterface;
-use Drupal\Core\Render\Element\File;
+use Drupal\file\Entity\File;
+use Drupal\file\FileInterface;
 use Drupal\paragraphs\ParagraphsBehaviorCollection;
-use Drupal\paragraphs\ParagraphsBehaviorInterface;
 use Drupal\paragraphs\ParagraphsTypeInterface;
+use Drupal\Core\File\FileSystemInterface;
 
-/**
+  /**
  * Defines the ParagraphsType entity.
  *
  * @ConfigEntityType(
  *   id = "paragraphs_type",
  *   label = @Translation("Paragraphs type"),
+ *   label_collection = @Translation("Paragraphs types"),
+ *   label_singular = @Translation("Paragraphs type"),
+ *   label_plural = @Translation("Paragraphs types"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count Paragraphs type",
+ *     plural = "@count Paragraphs types",
+ *   ),
  *   handlers = {
+ *     "access" = "Drupal\paragraphs\ParagraphsTypeAccessControlHandler",
  *     "list_builder" = "Drupal\paragraphs\Controller\ParagraphsTypeListBuilder",
  *     "form" = {
  *       "add" = "Drupal\paragraphs\Form\ParagraphsTypeForm",
@@ -34,6 +43,7 @@ use Drupal\paragraphs\ParagraphsTypeInterface;
  *     "id",
  *     "label",
  *     "icon_uuid",
+ *     "icon_default",
  *     "description",
  *     "behavior_plugins",
  *   },
@@ -76,6 +86,13 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
   protected $icon_uuid;
 
   /**
+   * Default icon encoded as data URL scheme (RFC 2397).
+   *
+   * @var string
+   */
+  protected $icon_default;
+
+  /**
    * The Paragraphs type behavior plugins configuration keyed by their id.
    *
    * @var array
@@ -91,11 +108,63 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
   protected $behaviorCollection;
 
   /**
+   * Restores the icon file from the default icon value.
+   *
+   * @return \Drupal\file\FileInterface|bool
+   *   The icon's file entity or FALSE if no default icon set.
+   */
+  protected function restoreDefaultIcon() {
+    // Default icon data in RFC 2397 format ("data" URL scheme).
+    if ($this->icon_default && $icon_data = fopen($this->icon_default, 'r')) {
+      // Compose the default icon file destination.
+      $icon_meta = stream_get_meta_data($icon_data);
+      // File extension from MIME, only JPG/JPEG, PNG and SVG expected.
+      [, $icon_file_ext] = explode('image/', $icon_meta['mediatype']);
+      // SVG special case.
+      if ($icon_file_ext == 'svg+xml') {
+        $icon_file_ext = 'svg';
+      }
+
+      $filesystem = \Drupal::service('file_system');
+      $icon_upload_path = ParagraphsTypeInterface::ICON_UPLOAD_LOCATION;
+      $icon_file_destination = $icon_upload_path . $this->id() . '-default-icon.' . $icon_file_ext;
+      // Check the directory exists before writing data to it.
+      $filesystem->prepareDirectory($icon_upload_path, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
+      // Save the default icon file.
+      $icon_file_uri = $filesystem->saveData($icon_data, $icon_file_destination);
+      if ($icon_file_uri) {
+        // Create the icon file entity.
+        $icon_entity_values = [
+          'uri' => $icon_file_uri,
+          'uid' => \Drupal::currentUser()->id(),
+          'uuid' => $this->icon_uuid,
+          'status' => FileInterface::STATUS_PERMANENT,
+        ];
+
+        // Delete existent icon file if it exists.
+        if ($old_icon = $this->getFileByUuid($this->icon_uuid)) {
+          $old_icon->delete();
+        }
+
+        $new_icon = File::create($icon_entity_values);
+        $new_icon->save();
+        $this->updateFileIconUsage($new_icon, $old_icon);
+        return $new_icon;
+      }
+    }
+
+    return FALSE;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getIconFile() {
-    if ($this->icon_uuid && $icon = $this->getFileByUuid($this->icon_uuid)) {
-      return $icon;
+    if ($this->icon_uuid !== NULL) {
+      $icon = $this->getFileByUuid($this->icon_uuid) ?: $this->restoreDefaultIcon();
+      if ($icon) {
+        return $icon;
+      }
     }
 
     return FALSE;
@@ -116,7 +185,7 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
    */
   public function getIconUrl() {
     if ($image = $this->getIconFile()) {
-      return file_create_url($image->getFileUri());
+      return \Drupal::service('file_url_generator')->generateString($image->getFileUri());
     }
 
     return FALSE;
@@ -140,7 +209,30 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
       $this->addDependency($file_icon->getConfigDependencyKey(), $file_icon->getConfigDependencyName());
     }
 
-    return $this->dependencies;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function onDependencyRemoval(array $dependencies) {
+    $changed = parent::onDependencyRemoval($dependencies);
+    $behavior_plugins = $this->getBehaviorPlugins();
+    foreach ($dependencies['module'] as $module) {
+      /** @var \Drupal\Component\Plugin\PluginInspectionInterface $plugin */
+      foreach ($behavior_plugins as $instance_id => $plugin) {
+        $definition = (array) $plugin->getPluginDefinition();
+        // If a module providing a behavior plugin is being uninstalled,
+        // remove the plugin and dependency so this paragraph bundle is not
+        // deleted too.
+        if (isset($definition['provider']) && $definition['provider'] === $module) {
+          unset($this->behavior_plugins[$instance_id]);
+          $this->getBehaviorPlugins()->removeInstanceId($instance_id);
+          $changed = TRUE;
+        }
+      }
+    }
+    return $changed;
   }
 
   /**
@@ -170,7 +262,7 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
   public function hasEnabledBehaviorPlugin($plugin_id) {
     $plugins = $this->getBehaviorPlugins();
     if ($plugins->has($plugin_id)) {
-      /** @var ParagraphsBehaviorInterface $plugin */
+      /** @var \Drupal\paragraphs\ParagraphsBehaviorInterface $plugin */
       $plugin = $plugins->get($plugin_id);
       $config = $plugin->getConfiguration();
       return (array_key_exists('enabled', $config) && $config['enabled'] === TRUE);
@@ -182,24 +274,12 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
    * {@inheritdoc}
    */
   public function postSave(EntityStorageInterface $storage, $update = TRUE) {
-    // Update the file usage for the icon files.
     if (!$update || $this->icon_uuid != $this->original->icon_uuid) {
-      // The icon has changed. Update file usage.
-      /** @var \Drupal\file\FileUsage\FileUsageInterface $file_usage */
-      $file_usage = \Drupal::service('file.usage');
-
-      // Add usage of the new icon file, if it exists. It might not exist, if
-      // this Paragraphs type was imported as configuration, or if the icon has
-      // just been removed.
-      if ($this->icon_uuid && $new_icon = $this->getFileByUuid($this->icon_uuid)) {
-        $file_usage->add($new_icon, 'paragraphs', 'paragraphs_type', $this->id());
-      }
-      if ($update) {
-        // Delete usage of the old icon file, if it exists.
-        if ($this->original->icon_uuid && $old_icon = $this->getFileByUuid($this->original->icon_uuid)) {
-          $file_usage->delete($old_icon, 'paragraphs', 'paragraphs_type', $this->id());
-        }
-      }
+      // Update the file usage for the icon file.
+      $new_icon_file = $this->icon_uuid ? $this->getFileByUuid($this->icon_uuid) : FALSE;
+      // Update the file usage of the old icon as well if the icon was changed.
+      $old_icon_file = $update && $this->original->icon_uuid ? $this->getFileByUuid($this->original->icon_uuid) : FALSE;
+      $this->updateFileIconUsage($new_icon_file, $old_icon_file);
     }
 
     parent::postSave($storage, $update);
@@ -212,17 +292,36 @@ class ParagraphsType extends ConfigEntityBundleBase implements ParagraphsTypeInt
    *   The file entity's UUID.
    *
    * @return \Drupal\file\FileInterface|null
-   *  The file entity. NULL if the UUID is invalid.
+   *   The file entity. NULL if the UUID is invalid.
    */
   protected function getFileByUuid($uuid) {
-    $files = $this->entityTypeManager()
-      ->getStorage('file')
-      ->loadByProperties(['uuid' => $uuid]);
-    if ($files) {
-      return current($files);
+    if ($id = \Drupal::service('paragraphs_type.uuid_lookup')->get($uuid)) {
+      return $this->entityTypeManager()->getStorage('file')->load($id);
     }
 
     return NULL;
+  }
+
+  /**
+   * Updates the icon file usage information.
+   *
+   * @param \Drupal\file\FileInterface|mixed $new_icon
+   *   The new icon file, FALSE on deletion.
+   * @param \Drupal\file\FileInterface|mixed $old_icon
+   *   (optional) Old icon, on update or deletion.
+   */
+  protected function updateFileIconUsage($new_icon, $old_icon = FALSE) {
+    /** @var \Drupal\file\FileUsage\FileUsageInterface $file_usage */
+    $file_usage = \Drupal::service('file.usage');
+
+    if ($new_icon) {
+      // Add usage of the new icon file.
+      $file_usage->add($new_icon, 'paragraphs', 'paragraphs_type', $this->id());
+    }
+    if ($old_icon) {
+      // Delete usage of the old icon file.
+      $file_usage->delete($old_icon, 'paragraphs', 'paragraphs_type', $this->id());
+    }
   }
 
 }

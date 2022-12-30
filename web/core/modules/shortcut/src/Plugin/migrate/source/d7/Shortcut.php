@@ -7,6 +7,11 @@ use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 /**
  * Drupal 7 shortcut links source from database.
  *
+ * For available configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
+ *
  * @MigrateSource(
  *   id = "d7_shortcut",
  *   source_module = "shortcut"
@@ -30,8 +35,8 @@ class Shortcut extends DrupalSqlBase {
    */
   public function fields() {
     return [
-      'mlid' => $this->t("The menu.mlid primary key for this menu item (= shortcut link)."),
-      'menu_name' => $this->t("The menu_name (= set name) for this shortcut link."),
+      'mlid' => $this->t("The menu.mlid primary key for this menu link (= shortcut link)."),
+      'menu_name' => $this->t("The menu name (= set name) for this shortcut link."),
       'link_path' => $this->t("The link for this shortcut."),
       'link_title' => $this->t("The title for this shortcut."),
       'weight' => $this->t("The weight for this shortcut"),

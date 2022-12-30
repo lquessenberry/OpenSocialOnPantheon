@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\views_ui\Functional;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\views\Views;
 
 /**
@@ -19,6 +19,11 @@ class CustomBooleanTest extends UITestBase {
    * @var array
    */
   public static $testViews = ['test_view'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * \Drupal\views\Tests\ViewTestBase::viewsData().
@@ -68,17 +73,17 @@ class CustomBooleanTest extends UITestBase {
       'plain' => [
         'true' => $custom_true,
         'false' => $custom_false,
-        'test' => 'assertTrue',
+        'test' => 'assertStringContainsString',
       ],
       'allowed tag' => [
         'true' => '<p>' . $custom_true . '</p>',
         'false' => '<p>' . $custom_false . '</p>',
-        'test' => 'assertTrue',
+        'test' => 'assertStringContainsString',
       ],
       'disallowed tag' => [
         'true' => '<script>' . $custom_true . '</script>',
         'false' => '<script>' . $custom_false . '</script>',
-        'test' => 'assertFalse',
+        'test' => 'assertStringNotContainsString',
       ],
     ];
 
@@ -89,16 +94,18 @@ class CustomBooleanTest extends UITestBase {
         'options[type_custom_true]' => $values['true'],
         'options[type_custom_false]' => $values['false'],
       ];
-      $this->drupalPostForm('admin/structure/views/nojs/handler/test_view/default/field/age', $options, 'Apply');
+      $this->drupalGet('admin/structure/views/nojs/handler/test_view/default/field/age');
+      $this->submitForm($options, 'Apply');
 
       // Save the view.
-      $this->drupalPostForm('admin/structure/views/view/test_view', [], 'Save');
+      $this->drupalGet('admin/structure/views/view/test_view');
+      $this->submitForm([], 'Save');
 
       $view = Views::getView('test_view');
       $output = $view->preview();
       $output = \Drupal::service('renderer')->renderRoot($output);
-      $this->{$values['test']}(strpos($output, $values['true']), SafeMarkup::format('Expected custom boolean TRUE value %value in output for %type', ['%value' => $values['true'], '%type' => $type]));
-      $this->{$values['test']}(strpos($output, $values['false']), SafeMarkup::format('Expected custom boolean FALSE value %value in output for %type', ['%value' => $values['false'], '%type' => $type]));
+      $this->{$values['test']}($values['true'], (string) $output, new FormattableMarkup('Expected custom boolean TRUE value %value in output for %type', ['%value' => $values['true'], '%type' => $type]));
+      $this->{$values['test']}($values['false'], (string) $output, new FormattableMarkup('Expected custom boolean FALSE value %value in output for %type', ['%value' => $values['false'], '%type' => $type]));
     }
   }
 
@@ -107,13 +114,13 @@ class CustomBooleanTest extends UITestBase {
    */
   public function testCustomOptionTemplate() {
     // Install theme to test with template system.
-    \Drupal::service('theme_handler')->install(['views_test_theme']);
+    \Drupal::service('theme_installer')->install(['views_test_theme']);
 
     // Set the default theme for Views preview.
     $this->config('system.theme')
       ->set('default', 'views_test_theme')
       ->save();
-    $this->assertEqual($this->config('system.theme')->get('default'), 'views_test_theme');
+    $this->assertEquals('views_test_theme', $this->config('system.theme')->get('default'));
 
     // Add the boolean field handler to the test view.
     $view = Views::getView('test_view');
@@ -140,17 +147,17 @@ class CustomBooleanTest extends UITestBase {
       'plain' => [
         'true' => $custom_true,
         'false' => $custom_false,
-        'test' => 'assertTrue',
+        'test' => 'assertStringContainsString',
       ],
       'allowed tag' => [
         'true' => '<p>' . $custom_true . '</p>',
         'false' => '<p>' . $custom_false . '</p>',
-        'test' => 'assertTrue',
+        'test' => 'assertStringContainsString',
       ],
       'disallowed tag' => [
         'true' => '<script>' . $custom_true . '</script>',
         'false' => '<script>' . $custom_false . '</script>',
-        'test' => 'assertFalse',
+        'test' => 'assertStringNotContainsString',
       ],
     ];
 
@@ -161,19 +168,21 @@ class CustomBooleanTest extends UITestBase {
         'options[type_custom_true]' => $values['true'],
         'options[type_custom_false]' => $values['false'],
       ];
-      $this->drupalPostForm('admin/structure/views/nojs/handler/test_view/default/field/age', $options, 'Apply');
+      $this->drupalGet('admin/structure/views/nojs/handler/test_view/default/field/age');
+      $this->submitForm($options, 'Apply');
 
       // Save the view.
-      $this->drupalPostForm('admin/structure/views/view/test_view', [], 'Save');
+      $this->drupalGet('admin/structure/views/view/test_view');
+      $this->submitForm([], 'Save');
 
       $view = Views::getView('test_view');
       $output = $view->preview();
       $output = \Drupal::service('renderer')->renderRoot($output);
-      $this->{$values['test']}(strpos($output, $values['true']), SafeMarkup::format('Expected custom boolean TRUE value %value in output for %type', ['%value' => $values['true'], '%type' => $type]));
-      $this->{$values['test']}(strpos($output, $values['false']), SafeMarkup::format('Expected custom boolean FALSE value %value in output for %type', ['%value' => $values['false'], '%type' => $type]));
+      $this->{$values['test']}($values['true'], (string) $output, new FormattableMarkup('Expected custom boolean TRUE value %value in output for %type', ['%value' => $values['true'], '%type' => $type]));
+      $this->{$values['test']}($values['false'], (string) $output, new FormattableMarkup('Expected custom boolean FALSE value %value in output for %type', ['%value' => $values['false'], '%type' => $type]));
 
       // Assert that we are using the correct template.
-      $this->assertContains('llama', (string) $output);
+      $this->assertStringContainsString('llama', (string) $output);
     }
   }
 

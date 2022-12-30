@@ -77,8 +77,6 @@ interface EntityFormInterface extends BaseFormIdInterface {
    * the submitted form values are copied to entity properties. The form's
    * entity remains unchanged.
    *
-   * @see \Drupal\Core\Entity\EntityFormInterface::getEntity()
-   *
    * @param array $form
    *   A nested array form elements comprising the form.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
@@ -86,6 +84,8 @@ interface EntityFormInterface extends BaseFormIdInterface {
    *
    * @return \Drupal\Core\Entity\EntityInterface
    *   An updated copy of the form's entity object.
+   *
+   * @see \Drupal\Core\Entity\EntityFormInterface::getEntity()
    */
   public function buildEntity(array $form, FormStateInterface $form_state);
 
@@ -124,20 +124,6 @@ interface EntityFormInterface extends BaseFormIdInterface {
    * @return $this
    */
   public function setModuleHandler(ModuleHandlerInterface $module_handler);
-
-  /**
-   * Sets the entity manager for this form.
-   *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
-   *
-   * @return $this
-   *
-   * @deprecated in Drupal 8.0.0, will be removed before Drupal 9.0.0.
-   *
-   * @todo Remove this set call in https://www.drupal.org/node/2603542.
-   */
-  public function setEntityManager(EntityManagerInterface $entity_manager);
 
   /**
    * Sets the entity type manager for this form.

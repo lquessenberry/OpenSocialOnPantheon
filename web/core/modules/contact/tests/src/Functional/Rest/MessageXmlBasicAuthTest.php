@@ -16,7 +16,7 @@ class MessageXmlBasicAuthTest extends MessageResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['basic_auth'];
+  protected static $modules = ['basic_auth'];
 
   /**
    * {@inheritdoc}
@@ -27,6 +27,11 @@ class MessageXmlBasicAuthTest extends MessageResourceTestBase {
    * {@inheritdoc}
    */
   protected static $mimeType = 'text/xml; charset=UTF-8';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * {@inheritdoc}

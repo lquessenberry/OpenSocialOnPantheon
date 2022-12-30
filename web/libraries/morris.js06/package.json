@@ -1,0 +1,52 @@
+{
+  "name": "morris.js06",
+  "description": "Fork of morrisjs: no jQuery + awesomeness, have a look! :-)",
+  "version": "0.6.9",
+  "author": {
+    "name": "Olly Smith",
+    "email": "olly@oesmith.co.uk"
+  },
+  "private": false,
+  "keywords": [
+    "animation",
+    "javascript",
+    "morris.js"
+  ],
+  "main": "dist/morris.min.js",
+  "module": "dist/morris.esm.js",
+  "types": "dist/types.d.ts",
+  "homepage": "http://pierresh.github.com/morris.js",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pierresh/morris.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pierresh/morris.js/issues"
+  },
+  "dependencies": {
+    "raphael": "^2.2.7"
+  },
+  "devDependencies": {
+    "matchdep": "~0.1.2",
+    "grunt": "~0.4.1",
+    "grunt-mocha": "~0.4.10",
+    "grunt-contrib-concat": "~0.3.0",
+    "grunt-contrib-coffee": "~0.7.0",
+    "grunt-contrib-uglify": "~0.2.4",
+    "grunt-contrib-less": "~0.7.0",
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt-shell": "~0.5.0",
+    "bower": "1.3.8"
+  },
+  "contributors": [{
+  	"name": "a lot of people",
+  	"url": "https://github.com/morrisjs/morris.js/graphs/contributors"
+  }],
+  "scripts": {
+    "test": "grunt concat coffee mocha"
+  },
+  "engines": {
+    "node": ">=0.8"
+  }
+}

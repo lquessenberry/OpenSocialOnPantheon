@@ -16,12 +16,12 @@ class AreaEmptyTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node'];
+  protected static $modules = ['node'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp();
     $this->installEntitySchema('node');
   }
@@ -35,8 +35,8 @@ class AreaEmptyTest extends ViewsKernelTestBase {
       'title' => 'Test Example area',
       'help' => 'A area handler which just exists for tests.',
       'area' => [
-        'id' => 'test_example'
-      ]
+        'id' => 'test_example',
+      ],
     ];
 
     return $data;

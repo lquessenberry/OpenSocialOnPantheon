@@ -15,7 +15,7 @@ class MigrateEntity implements ContainerDeriverInterface {
   protected $derivatives = [];
 
   /**
-   * The entity definitions
+   * The entity definitions.
    *
    * @var \Drupal\Core\Entity\EntityTypeInterface[]
    */
@@ -36,7 +36,7 @@ class MigrateEntity implements ContainerDeriverInterface {
    */
   public static function create(ContainerInterface $container, $base_plugin_id) {
     return new static(
-      $container->get('entity.manager')->getDefinitions()
+      $container->get('entity_type.manager')->getDefinitions()
     );
   }
 

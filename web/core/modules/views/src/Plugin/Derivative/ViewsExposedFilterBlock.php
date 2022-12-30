@@ -53,7 +53,7 @@ class ViewsExposedFilterBlock implements ContainerDeriverInterface {
   public static function create(ContainerInterface $container, $base_plugin_id) {
     return new static(
       $base_plugin_id,
-      $container->get('entity.manager')->getStorage('view')
+      $container->get('entity_type.manager')->getStorage('view')
     );
   }
 
@@ -91,8 +91,8 @@ class ViewsExposedFilterBlock implements ContainerDeriverInterface {
               'config_dependencies' => [
                 'config' => [
                   $view->getConfigDependencyName(),
-                ]
-              ]
+                ],
+              ],
             ];
             $this->derivatives[$delta] += $base_plugin_definition;
           }

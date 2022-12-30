@@ -28,7 +28,7 @@
    * @type {Drupal~behavior}
    *
    * @prop {Drupal~behaviorAttach} attach
-   *   Attaches the behavior for drupalAnnouce.
+   *   Attaches the behavior for drupalAnnounce.
    */
   Drupal.behaviors.drupalAnnounce = {
     attach(context) {
@@ -112,6 +112,6 @@
     // Immediately invoke the function that debounce returns. 200 ms is right at
     // the cusp where humans notice a pause, so we will wait
     // at most this much time before the set of queued announcements is read.
-    return (debounce(announce, 200)());
+    return debounce(announce, 200)();
   };
-}(Drupal, Drupal.debounce));
+})(Drupal, Drupal.debounce);

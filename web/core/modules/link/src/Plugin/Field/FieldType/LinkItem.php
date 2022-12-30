@@ -32,7 +32,7 @@ class LinkItem extends FieldItemBase implements LinkItemInterface {
   public static function defaultFieldSettings() {
     return [
       'title' => DRUPAL_OPTIONAL,
-      'link_type' => LinkItemInterface::LINK_GENERIC
+      'link_type' => LinkItemInterface::LINK_GENERIC,
     ] + parent::defaultFieldSettings();
   }
 
@@ -127,9 +127,11 @@ class LinkItem extends FieldItemBase implements LinkItemInterface {
         case DRUPAL_DISABLED:
           $values['title'] = '';
           break;
+
         case DRUPAL_REQUIRED:
           $values['title'] = $random->sentences(4);
           break;
+
         case DRUPAL_OPTIONAL:
           // In case of optional title, randomize its generation.
           $values['title'] = mt_rand(0, 1) ? $random->sentences(4) : '';
@@ -185,13 +187,6 @@ class LinkItem extends FieldItemBase implements LinkItemInterface {
       $values += [
         'options' => [],
       ];
-    }
-    // Unserialize the values.
-    // @todo The storage controller should take care of this, see
-    //   SqlContentEntityStorage::loadFieldItems, see
-    //   https://www.drupal.org/node/2414835
-    if (is_string($values['options'])) {
-      $values['options'] = unserialize($values['options']);
     }
     parent::setValue($values, $notify);
   }

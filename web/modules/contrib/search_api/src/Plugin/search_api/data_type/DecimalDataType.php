@@ -16,4 +16,15 @@ use Drupal\search_api\DataType\DataTypePluginBase;
  */
 class DecimalDataType extends DataTypePluginBase {
 
+  /**
+   * {@inheritdoc}
+   */
+  public function getValue($value) {
+    $value = (float) $value;
+    if (!strpos((string) $value, '.')) {
+      return (int) $value;
+    }
+    return $value;
+  }
+
 }

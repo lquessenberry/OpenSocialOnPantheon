@@ -7,6 +7,10 @@ use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\node\NodeInterface;
+use Drupal\social_core\EntityUrlLanguageTrait;
+use Drupal\user\RoleInterface;
 use Drupal\user\UserInterface;
 
 /**
@@ -59,7 +63,10 @@ use Drupal\user\UserInterface;
  * )
  */
 class Post extends ContentEntityBase implements PostInterface {
+
   use EntityChangedTrait;
+  use EntityUrlLanguageTrait;
+  use StringTranslationTrait;
 
   /**
    * {@inheritdoc}
@@ -127,7 +134,7 @@ class Post extends ContentEntityBase implements PostInterface {
    * {@inheritdoc}
    */
   public function setPublished($published) {
-    $this->set('status', $published ? NODE_PUBLISHED : NODE_NOT_PUBLISHED);
+    $this->set('status', $published ? NodeInterface::PUBLISHED : NodeInterface::NOT_PUBLISHED);
     return $this;
   }
 
@@ -142,7 +149,7 @@ class Post extends ContentEntityBase implements PostInterface {
    * {@inheritdoc}
    */
   public function setType($type) {
-    $this->set('type', $this->bundle());
+    $this->set('type', $type);
     return $this;
   }
 
@@ -150,11 +157,136 @@ class Post extends ContentEntityBase implements PostInterface {
    * {@inheritdoc}
    */
   public function getDisplayName() {
-    if ($this->hasField('field_post_image') && !$this->get('field_post_image')->isEmpty()) {
-      return t('photo');
+    if ($this->hasField('field_post_image') && !$this->get('field_post_image')
+      ->isEmpty()) {
+      return $this->t('photo');
     }
 
-    return t('post');
+    return $this->t('post');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getVisibility() {
+    $allowed_values = $this->getPostVisibilityAllowedValues();
+
+    if ($this->hasField('field_visibility')) {
+      foreach ($allowed_values as $key => $allowed_value) {
+        if ($this->field_visibility->value == $allowed_value['value']) {
+          // Default visibility options.
+          $visibility = $this->getDefaultVisibilityByLabel($allowed_value['label']);
+
+          // If default visibility doesn't exist it means we use the role
+          // as visibility option and we should set the role id as visibility.
+          if (!$visibility) {
+            $roles = $this->entityTypeManager()
+              ->getStorage('user_role')
+              ->getQuery()
+              ->condition('label', $allowed_value['label'])
+              ->execute();
+            $role_id = reset($roles);
+            // If role_id is empty it means we have an uninspected visibility
+            // option, because this option does not default and not from
+            // the role.
+            if (!empty($role_id)) {
+              $visibility = $role_id;
+            }
+          }
+        }
+      }
+
+    }
+
+    return $visibility;
+  }
+
+  /**
+   * Get default visibility option.
+   *
+   * @param string $label
+   *   The visibility label.
+   * @param bool $reverse
+   *   For setting or getting data.
+   *
+   * @return string
+   *   Visibility label.
+   */
+  public function getDefaultVisibilityByLabel($label, $reverse = FALSE) {
+    $default_visibilities = [
+      [
+        'id' => 'community',
+        'label' => $this->t('Community'),
+      ],
+      [
+        'id' => 'public',
+        'label' => $this->t('Public'),
+      ],
+      [
+        'id' => 'group',
+        'label' => $this->t('Group members'),
+      ],
+    ];
+
+    if ($reverse) {
+      foreach ($default_visibilities as $visibility) {
+        if ($visibility['id'] == $label) {
+          return $visibility['label'];
+        }
+      }
+    }
+    else {
+      foreach ($default_visibilities as $visibility) {
+        if ($visibility['label'] == $label) {
+          return $visibility['id'];
+        }
+      }
+    }
+  }
+
+  /**
+   * Get post visibility options.
+   *
+   * @return array
+   *   Field allowed values.
+   */
+  private function getPostVisibilityAllowedValues() {
+    // Post visibility field storage.
+    $post_storage = 'field.storage.post.field_visibility';
+    $config = \Drupal::configFactory()->getEditable($post_storage);
+
+    return $config->getOriginal('settings.allowed_values');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setVisibility($visibility) {
+    $allowed_values = $this->getPostVisibilityAllowedValues();
+    $visibility_label = $this->getDefaultVisibilityByLabel($visibility, TRUE);
+
+    if (!$visibility_label) {
+      /** @var \Drupal\user\RoleInterface $role */
+      $role = $this->entityTypeManager()
+        ->getStorage('user_role')
+        ->load($visibility);
+      if ($role instanceof RoleInterface) {
+        foreach ($allowed_values as $key => $value) {
+          if ($value['label'] === $role->label()) {
+            $this->set('field_visibility', $key);
+          }
+        }
+      }
+    }
+    else {
+      foreach ($allowed_values as $key => $allowed_value) {
+        if ($visibility_label == $allowed_value['label']) {
+          $this->set('field_visibility', (int) $allowed_value['value']);
+        }
+      }
+    }
+
+    return $this;
   }
 
   /**
@@ -163,7 +295,7 @@ class Post extends ContentEntityBase implements PostInterface {
   public function getCacheContexts() {
     $defaults = parent::getCacheContexts();
 
-    // @TODO Change this to custom cache context, may edit/delete post.
+    // @todo Change this to custom cache context, may edit/delete post.
     if (!in_array('user', $defaults)) {
       $defaults[] = 'user';
     }
@@ -193,7 +325,7 @@ class Post extends ContentEntityBase implements PostInterface {
       ->setRevisionable(TRUE)
       ->setSetting('target_type', 'user')
       ->setSetting('handler', 'default')
-      ->setDefaultValueCallback('Drupal\node\Entity\Node::getCurrentUserId')
+      ->setDefaultValueCallback('Drupal\node\Entity\Node::getDefaultEntityOwner')
       ->setTranslatable(TRUE)
       ->setDisplayOptions('view', [
         'label' => 'hidden',

@@ -11,6 +11,7 @@ class Mn implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{0300}\x{0301}\x{0302}\x{0303}\x{0304}\x{0305}\x{0306}' .
       '\x{0307}\x{0308}\x{0309}\x{030A}\x{030B}\x{030C}\x{030D}' .
@@ -195,6 +196,7 @@ class Mn implements UnicodeCharacterPropertyInterface {
       '\x{E01DB}\x{E01DC}\x{E01DD}\x{E01DE}\x{E01DF}\x{E01E0}\x{E01E1}' .
       '\x{E01E2}\x{E01E3}\x{E01E4}\x{E01E5}\x{E01E6}\x{E01E7}\x{E01E8}' .
       '\x{E01E9}\x{E01EA}\x{E01EB}\x{E01EC}\x{E01ED}\x{E01EE}\x{E01EF}';
+    // phpcs:enable
   }
 
 }

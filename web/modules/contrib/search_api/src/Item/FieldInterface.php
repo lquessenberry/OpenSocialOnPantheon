@@ -153,13 +153,8 @@ interface FieldInterface extends \Traversable {
   /**
    * Retrieves this field's label.
    *
-   * The field's label, contrary to the label returned by the field's data
-   * definition, contains a human-readable representation of the full property
-   * path. The datasource label is not included, though – use getPrefixedLabel()
-   * for that.
-   *
-   * @return string
-   *   A human-readable label representing this field's property path.
+   * @return string|null
+   *   A human-readable label for this field, or NULL if none has been set yet.
    */
   public function getLabel();
 

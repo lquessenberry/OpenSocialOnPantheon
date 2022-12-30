@@ -8,7 +8,7 @@ use Drupal\image\ConfigurableImageEffectBase;
 use Drupal\image_effects\Component\ImageUtility;
 
 /**
- * Class ImagemagickArgumentsImageEffect.
+ * Directly enter ImageMagick/GraphicsMagick command line arguments.
  *
  * @ImageEffect(
  *   id = "image_effects_imagemagick_arguments",
@@ -55,7 +55,7 @@ class ImagemagickArgumentsImageEffect extends ConfigurableImageEffectBase {
     ];
     $form['dimensions_method'] = [
       '#type' => 'radios',
-      '#title' => t('Dimensions'),
+      '#title' => $this->t('Dimensions'),
       '#description' => $this->t("Dimensions are stored in the Drupal image object and used for output HTML image (img) element <em>width</em> and <em>height</em> attributes. <em>They have no effect on the real size of the image, but may affect the display.</em><br />It's not possible to detect the dimensions of the Imagemagick command's result image in the scope of this effect, so you have to decide what dimensions to pass to ImageAPI here."),
       '#default_value' => $this->configuration['dimensions_method'],
       '#options' => [

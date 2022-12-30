@@ -4,9 +4,10 @@ namespace Drupal\Tests\Component\Discovery;
 
 use Drupal\Component\Discovery\YamlDiscovery;
 use Drupal\Component\FileCache\FileCacheFactory;
+use Drupal\Component\Serialization\Exception\InvalidDataTypeException;
 use org\bovigo\vfs\vfsStream;
-use org\bovigo\vfs\vfsStreamWrapper;
 use org\bovigo\vfs\vfsStreamDirectory;
+use org\bovigo\vfs\vfsStreamWrapper;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -19,7 +20,7 @@ class YamlDiscoveryTest extends TestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     // Ensure that FileCacheFactory has a prefix.
     FileCacheFactory::setPrefix('prefix');
   }
@@ -53,7 +54,7 @@ class YamlDiscoveryTest extends TestCase {
     $discovery = new YamlDiscovery('test', $directories);
     $data = $discovery->findAll();
 
-    $this->assertEquals(count($data), count($directories));
+    $this->assertCount(4, $data);
     $this->assertArrayHasKey('test_1', $data);
     $this->assertArrayHasKey('test_2', $data);
     $this->assertArrayHasKey('test_3', $data);
@@ -61,10 +62,30 @@ class YamlDiscoveryTest extends TestCase {
 
     foreach (['test_1', 'test_2', 'test_3'] as $key) {
       $this->assertArrayHasKey('name', $data[$key]);
-      $this->assertEquals($data[$key]['name'], 'test');
+      $this->assertEquals('test', $data[$key]['name']);
     }
 
     $this->assertSame([], $data['test_4']);
+  }
+
+  /**
+   * Tests if filename is output for a broken YAML file.
+   */
+  public function testForBrokenYml() {
+    vfsStreamWrapper::register();
+    $root = new vfsStreamDirectory('modules');
+    vfsStreamWrapper::setRoot($root);
+    $url = vfsStream::url('modules');
+
+    mkdir($url . '/test_broken');
+    file_put_contents($url . '/test_broken/test_broken.test.yml', "broken:\n:");
+
+    $this->expectException(InvalidDataTypeException::class);
+    $this->expectExceptionMessage('vfs://modules/test_broken/test_broken.test.yml');
+
+    $directories = ['test_broken' => $url . '/test_broken'];
+    $discovery = new YamlDiscovery('test', $directories);
+    $discovery->findAll();
   }
 
 }

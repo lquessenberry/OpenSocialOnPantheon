@@ -29,6 +29,13 @@ class MessageTokenTest extends KernelTestBase {
   protected $user;
 
   /**
+   * The entity type manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * {@inheritdoc}
    */
   public function setUp() {
@@ -43,6 +50,7 @@ class MessageTokenTest extends KernelTestBase {
       'name' => $this->randomString(),
     ]);
     $this->user->save();
+    $this->entityTypeManager = $this->container->get('entity_type.manager');
   }
 
   /**
@@ -110,7 +118,7 @@ class MessageTokenTest extends KernelTestBase {
     $original_message->save();
     // Make very, very sure the message arguments are not coming from the
     // object save created.
-    \Drupal::entityTypeManager()->getStorage('message')->resetCache();
+    $this->entityTypeManager->getStorage('message')->resetCache();
     $message = Message::load($original_message->id());
     $this->assertNotSame($message, $original_message);
 

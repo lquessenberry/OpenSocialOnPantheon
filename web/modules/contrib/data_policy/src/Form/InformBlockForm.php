@@ -43,7 +43,7 @@ class InformBlockForm extends EntityForm {
     $form['status'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable on this page'),
-      '#default_value' => isset($informblock->status) ? $informblock->status : TRUE,
+      '#default_value' => $informblock->status ?? TRUE,
       '#disabled' => !$this->currentUser()->hasPermission('change inform and consent setting status'),
     ];
 
@@ -80,8 +80,8 @@ class InformBlockForm extends EntityForm {
     $form['summary'] = [
       '#type' => 'text_format',
       '#title' => $this->t('Summary'),
-      '#default_value' => $informblock->summary['value'],
-      '#format' => $informblock->summary['format'],
+      '#default_value' => $informblock->summary['value'] ?? '',
+      '#format' => $informblock->summary['format'] ?? NULL,
       '#required' => TRUE,
       '#description' => $this->t('Summarise what data is collected.'),
     ];
@@ -89,8 +89,8 @@ class InformBlockForm extends EntityForm {
     $form['body'] = [
       '#type' => 'text_format',
       '#title' => $this->t('Description'),
-      '#default_value' => $informblock->body['value'],
-      '#format' => $informblock->body['format'],
+      '#default_value' => $informblock->body['value'] ?? '',
+      '#format' => $informblock->body['format'] ?? NULL,
       '#required' => FALSE,
       '#description' => $this->t('Describe in detail what data is collected and how it is used.'),
     ];
@@ -106,12 +106,12 @@ class InformBlockForm extends EntityForm {
     $status = $informblock->save();
 
     if ($status) {
-      drupal_set_message($this->t('Saved the %label Example.', [
+      $this->messenger()->addStatus($this->t('Saved the %label Example.', [
         '%label' => $informblock->label(),
       ]));
     }
     else {
-      drupal_set_message($this->t('The %label Example was not saved.', [
+      $this->messenger()->addStatus($this->t('The %label Example was not saved.', [
         '%label' => $informblock->label(),
       ]));
     }

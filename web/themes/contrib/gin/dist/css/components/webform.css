@@ -1,0 +1,73 @@
+.webform-filter-form {
+  margin-bottom: 2rem;
+}
+
+.webform-filter-form .details-wrapper {
+  margin-top: 0;
+  margin-bottom: .5rem;
+}
+
+.webform-filter-form + div:not(.layer-wrapper) {
+  margin-bottom: .75rem;
+}
+
+.webform-ui-element-type-change-form .layer-wrapper {
+  padding: 0;
+}
+
+.webform-element-help {
+  color: var(--colorGinText);
+  background: transparent;
+  border-color: var(--colorGinText);
+}
+
+.webform-element-help:hover, .webform-element-help:active, .webform-element-help:focus {
+  color: var(--colorGinPrimary);
+  border-color: var(--colorGinPrimary);
+  background-color: transparent;
+}
+
+.webform-element-help--title {
+  color: var(--colorGinTitle);
+}
+
+.ui-tooltip.ui-widget {
+  font-size: .875rem;
+  color: var(--colorGinText);
+  padding: 1rem;
+  background: var(--colorGinLayer3Background);
+  border: 0 none;
+  border-radius: 6px;
+}
+
+[dir="ltr"] .ui-tooltip.ui-widget {
+  box-shadow: 20px 20px 60px rgba(0, 0, 0, .2);
+}
+
+[dir="rtl"] .ui-tooltip.ui-widget {
+  box-shadow: -20px 20px 60px rgba(0, 0, 0, .2);
+}
+
+.ui-tooltip.ui-widget hr {
+  margin: .5rem 0;
+}
+
+.webform-details-toggle-state {
+  color: var(--colorGinPrimary);
+}
+
+.webform-ui-elements-table tr.webform-ui-element-type-webform_actions td {
+  border-top: none;
+  border-bottom: none;
+  background: none;
+}
+
+.webform-tabs.ui-tabs .ui-tabs-nav {
+  border-bottom: 0 none;
+}
+
+.webform-tabs.ui-tabs .ui-tabs-nav .ui-tabs-active.ui-state-active a {
+  border: 2px solid var(--colorGinPrimary);
+  border-radius: var(--ginBorderDefault);
+}
+

@@ -18,17 +18,23 @@ namespace Robo\Collection;
  * danger of cleaning up after some unrelated task.
  *
  * An application need never use Temporary directly, save to
- * call Temporary::wrap() inside loadTasks or loadShortcuts, and
+ * call Temporary::wrap() inside Tasks or Shortcuts, and
  * to call Temporary::complete() immediately prior to terminating.
  * This is recommended, but not required; this function will be
  * registered as a shutdown function, and called on termination.
  */
 class Temporary
 {
+
+    /**
+     * @var \Robo\Collection\Collection
+     */
     private static $collection;
 
     /**
      * Provides direct access to the collection of temporaries, if necessary.
+     *
+     * @return \Robo\Collection\Collection
      */
     public static function getCollection()
     {

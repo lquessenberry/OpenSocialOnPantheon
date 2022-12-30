@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\views\Kernel\Entity;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\Entity\NodeType;
@@ -30,12 +29,19 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'comment', 'user', 'field', 'text', 'search'];
+  protected static $modules = [
+    'node',
+    'comment',
+    'user',
+    'field',
+    'text',
+    'search',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp(FALSE);
 
     // Install the necessary dependencies for node type creation to work.
@@ -56,7 +62,7 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
     ]);
     $content_type->save();
     $field_storage = FieldStorageConfig::create([
-      'field_name' => Unicode::strtolower($this->randomMachineName()),
+      'field_name' => mb_strtolower($this->randomMachineName()),
       'entity_type' => 'node',
       'type' => 'comment',
     ]);
@@ -77,7 +83,7 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
       'settings' => ['display_summary' => TRUE],
     ])->save();
 
-    ViewTestData::createTestViews(get_class($this), ['views_test_config']);
+    ViewTestData::createTestViews(static::class, ['views_test_config']);
   }
 
   /**
@@ -90,7 +96,7 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
         'comment',
         'node',
         'user',
-      ]
+      ],
     ];
     // Tests dependencies of relationships.
     $expected['test_relationship_dependency'] = [
@@ -98,7 +104,7 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
         'comment',
         'node',
         'user',
-      ]
+      ],
     ];
     $expected['test_plugin_dependencies'] = [
       'module' => [
@@ -109,24 +115,24 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
         'RowTest',
         'StaticTest',
         'StyleTest',
-      ]
+      ],
     ];
 
     $expected['test_argument_dependency'] = [
       'config' => [
         'core.entity_view_mode.node.teaser',
-        'field.storage.node.body'
+        'field.storage.node.body',
       ],
       'content' => [
         'ArgumentDefaultTest',
-        'ArgumentValidatorTest'
+        'ArgumentValidatorTest',
       ],
       'module' => [
         'node',
         // The argument handler is provided by the search module.
         'search',
         'text',
-        'user'
+        'user',
       ],
     ];
 
@@ -134,7 +140,7 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
       $view = Views::getView($view_id);
 
       $dependencies = $view->getDependencies();
-      $this->assertEqual($expected[$view_id], $dependencies);
+      $this->assertEquals($expected[$view_id], $dependencies);
       $config = $this->config('views.view.' . $view_id);
       \Drupal::service('config.storage.sync')->write($view_id, $config->get());
     }
@@ -146,25 +152,25 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
       ],
       'content' => [
         'ArgumentDefaultTest',
-        'ArgumentValidatorTest'
+        'ArgumentValidatorTest',
       ],
       'module' => [
         'core',
         'node',
         'search',
         'user',
-        'views'
+        'views',
       ],
     ];
     $expected_display['page'] = [
       'config' => [
-        'field.storage.node.body'
+        'field.storage.node.body',
       ],
       'module' => [
         'core',
         'node',
         'text',
-        'views'
+        'views',
       ],
     ];
 
@@ -172,7 +178,7 @@ class ViewEntityDependenciesTest extends ViewsKernelTestBase {
     $view->initDisplay();
     foreach ($view->displayHandlers as $display) {
       // Calculate the dependencies each display has.
-      $this->assertEqual($expected_display[$display->getPluginId()], $display->calculateDependencies());
+      $this->assertEquals($expected_display[$display->getPluginId()], $display->calculateDependencies());
     }
   }
 

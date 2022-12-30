@@ -2,16 +2,17 @@
 
 namespace Drupal\basic_auth\Authentication\Provider;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Authentication\AuthenticationProviderInterface;
 use Drupal\Core\Authentication\AuthenticationProviderChallengeInterface;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Http\Exception\CacheableUnauthorizedHttpException;
 use Drupal\user\UserAuthInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
  * HTTP Basic authentication provider.
@@ -40,11 +41,11 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
   protected $flood;
 
   /**
-   * The entity manager.
+   * The entity type manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a HTTP basic authentication provider object.
@@ -55,14 +56,14 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
    *   The user authentication service.
    * @param \Drupal\Core\Flood\FloodInterface $flood
    *   The flood service.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, UserAuthInterface $user_auth, FloodInterface $flood, EntityManagerInterface $entity_manager) {
+  public function __construct(ConfigFactoryInterface $config_factory, UserAuthInterface $user_auth, FloodInterface $flood, EntityTypeManagerInterface $entity_type_manager) {
     $this->configFactory = $config_factory;
     $this->userAuth = $user_auth;
     $this->flood = $flood;
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -89,7 +90,7 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
     // in to many different user accounts.  We have a reasonably high limit
     // since there may be only one apparent IP for all users at an institution.
     if ($this->flood->isAllowed('basic_auth.failed_login_ip', $flood_config->get('ip_limit'), $flood_config->get('ip_window'))) {
-      $accounts = $this->entityManager->getStorage('user')->loadByProperties(['name' => $username, 'status' => 1]);
+      $accounts = $this->entityTypeManager->getStorage('user')->loadByProperties(['name' => $username, 'status' => 1]);
       $account = reset($accounts);
       if ($account) {
         if ($flood_config->get('uid_only')) {
@@ -109,7 +110,7 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
           $uid = $this->userAuth->authenticate($username, $password);
           if ($uid) {
             $this->flood->clear('basic_auth.failed_login_user', $identifier);
-            return $this->entityManager->getStorage('user')->load($uid);
+            return $this->entityTypeManager->getStorage('user')->load($uid);
           }
           else {
             // Register a per-user failed login event.
@@ -120,7 +121,7 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
     }
     // Always register an IP-based failed login event.
     $this->flood->register('basic_auth.failed_login_ip', $flood_config->get('ip_window'));
-    return [];
+    return NULL;
   }
 
   /**
@@ -129,16 +130,16 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
   public function challengeException(Request $request, \Exception $previous) {
     $site_config = $this->configFactory->get('system.site');
     $site_name = $site_config->get('name');
-    $challenge = SafeMarkup::format('Basic realm="@realm"', [
+    $challenge = new FormattableMarkup('Basic realm="@realm"', [
       '@realm' => !empty($site_name) ? $site_name : 'Access restricted',
     ]);
 
     // A 403 is converted to a 401 here, but it doesn't matter what the
     // cacheability was of the 403 exception: what matters here is that
-    // authentication credentials are missing, i.e. that this request was made
-    // as the anonymous user.
-    // Therefore, all we must do, is make this response:
-    // 1. vary by whether the current user has the 'anonymous' role or not. This
+    // authentication credentials are missing, i.e. this request was made
+    // as an anonymous user.
+    // Therefore, the following actions will be taken:
+    // 1. Verify whether the current user has the 'anonymous' role or not. This
     //    works fine because:
     //    - Thanks to \Drupal\basic_auth\PageCache\DisallowBasicAuthRequests,
     //      Page Cache never caches a response whose request has Basic Auth
@@ -146,16 +147,18 @@ class BasicAuth implements AuthenticationProviderInterface, AuthenticationProvid
     //    - Dynamic Page Cache will cache a different result for when the
     //      request is unauthenticated (this 401) versus authenticated (some
     //      other response)
-    // 2. have the 'config:user.role.anonymous' cache tag, because the only
+    // 2. Have the 'config:user.role.anonymous' cache tag, because the only
     //    reason this 401 would no longer be a 401 is if permissions for the
-    //    'anonymous' role change, causing that cache tag to be invalidated.
+    //    'anonymous' role change, causing the cache tag to be invalidated.
     // @see \Drupal\Core\EventSubscriber\AuthenticationSubscriber::onExceptionSendChallenge()
     // @see \Drupal\Core\EventSubscriber\ClientErrorResponseSubscriber()
     // @see \Drupal\Core\EventSubscriber\FinishResponseSubscriber::onAllResponds()
     $cacheability = CacheableMetadata::createFromObject($site_config)
       ->addCacheTags(['config:user.role.anonymous'])
       ->addCacheContexts(['user.roles:anonymous']);
-    return new CacheableUnauthorizedHttpException($cacheability, (string) $challenge, 'No authentication credentials provided.', $previous);
+    return $request->isMethodCacheable()
+      ? new CacheableUnauthorizedHttpException($cacheability, (string) $challenge, 'No authentication credentials provided.', $previous)
+      : new UnauthorizedHttpException((string) $challenge, 'No authentication credentials provided.', $previous);
   }
 
 }

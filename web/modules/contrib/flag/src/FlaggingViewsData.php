@@ -20,7 +20,7 @@ class FlaggingViewsData extends EntityViewsData {
     unset($data['delete_flagging']);
 
     // Flag counts.
-    $data['flag_counts']['table']['group'] = t('Flagging');
+    $data['flag_counts']['table']['group'] = $this->t('Flagging');
     $data['flag_counts']['table']['join']['flagging'] = [
       'left_field' => 'flag_id',
       'field' => 'flag_id',
@@ -49,30 +49,30 @@ class FlaggingViewsData extends EntityViewsData {
     // Flag link.
     $data['flagging']['link_flag'] = [
       'field' => [
-        'title' => t('Flag link'),
-        'help' => t('Display flag/unflag link.'),
+        'title' => $this->t('Flag link'),
+        'help' => $this->t('Display flag/unflag link.'),
         'id' => 'flag_link',
       ],
     ];
 
     // Specialized is null/is not null field.
     $data['flagging']['flagged'] = [
-      'title' => t('Flagged'),
+      'title' => $this->t('Flagged'),
       'real field' => 'uid',
       'field' => [
         'id' => 'flag_flagged',
-        'label' => t('Flagged'),
-        'help' => t('A boolean field to show whether the flag is set or not.'),
+        'label' => $this->t('Flagged'),
+        'help' => $this->t('A boolean field to show whether the flag is set or not.'),
       ],
       'filter' => [
         'id' => 'flag_filter',
-        'label' => t('Flagged'),
-        'help' => t('Filter to ensure content has or has not been flagged.'),
+        'label' => $this->t('Flagged'),
+        'help' => $this->t('Filter to ensure content has or has not been flagged.'),
       ],
       'sort' => [
         'id' => 'flag_sort',
-        'label' => t('Flagged'),
-        'help' => t('Sort by whether entities have or have not been flagged.'),
+        'label' => $this->t('Flagged'),
+        'help' => $this->t('Sort by whether entities have or have not been flagged.'),
       ],
     ];
 

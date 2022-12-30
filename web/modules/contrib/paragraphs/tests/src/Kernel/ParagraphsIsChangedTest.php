@@ -18,7 +18,7 @@ class ParagraphsIsChangedTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'paragraphs',
     'user',
     'system',
@@ -30,7 +30,7 @@ class ParagraphsIsChangedTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('user');
     $this->installEntitySchema('paragraph');
@@ -61,11 +61,6 @@ class ParagraphsIsChangedTest extends KernelTestBase {
     // Save the paragraph and assert no changes.
     $paragraph->save();
     $this->assertFalse($paragraph->isChanged(), 'Paragraph::isChanged() found no changes after the entity has been saved.');
-
-    // Update the revision author field, which should be skipped from checking
-    // for changes in Paragraph::isChanged().
-    $paragraph->setRevisionAuthorId(3);
-    $this->assertFalse($paragraph->isChanged(), 'Paragraph::isChanged() found no changes after updating revision_uid field.');
 
     $paragraph->set('text', 'New text');
     $this->assertTrue($paragraph->isChanged(), 'Paragraph::isChanged() found changes after updating text field.');

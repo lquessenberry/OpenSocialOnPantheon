@@ -14,7 +14,7 @@ class EntityFlagTypeDeriver extends DeriverBase {
    * {@inheritdoc}
    */
   public function getDerivativeDefinitions($base_plugin_def) {
-    $derivatives = array();
+    $derivatives = [];
     foreach (\Drupal::entityTypeManager()->getDefinitions() as $entity_id => $entity_type) {
       // Skip config entity types.
       if (!$entity_type instanceof ContentEntityTypeInterface) {
@@ -23,6 +23,11 @@ class EntityFlagTypeDeriver extends DeriverBase {
       $derivatives[$entity_id] = [
         'title' => $entity_type->getLabel(),
         'entity_type' => $entity_id,
+        'config_dependencies' => [
+          'module' => [
+            $entity_type->getProvider(),
+          ],
+        ],
       ] + $base_plugin_def;
     }
 

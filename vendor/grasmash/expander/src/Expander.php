@@ -54,7 +54,7 @@ class Expander implements LoggerAwareInterface
     /**
      * @param \Psr\Log\LoggerInterface $logger
      */
-    public function setLogger(\Psr\Log\LoggerInterface $logger)
+    public function setLogger(\Psr\Log\LoggerInterface $logger): void
     {
         $this->logger = $logger;
     }
@@ -106,14 +106,14 @@ class Expander implements LoggerAwareInterface
     ) {
         foreach ($array as $key => $value) {
             // Boundary condition(s).
-            if (is_null($value) || is_bool($value)) {
+            if ($value === null || is_bool($value)) {
                 continue;
             }
             // Recursive case.
             if (is_array($value)) {
                 $this->doExpandArrayProperties($data, $value, $parent_keys . "$key.", $reference_data);
-            } // Base case.
-            else {
+            } else {
+                // Base case.
                 $this->expandStringProperties($data, $parent_keys, $reference_data, $value, $key);
             }
         }
@@ -144,25 +144,32 @@ class Expander implements LoggerAwareInterface
         $value,
         $key
     ) {
+        $pattern = '/\$\{([^\$}]+)\}/';
         // We loop through all placeholders in a given string.
         // E.g., '${placeholder1} ${placeholder2}' requires two replacements.
-        while (strpos($value, '${') !== false) {
+        while (strpos((string)$value, '${') !== false) {
             $original_value = $value;
             $value = preg_replace_callback(
-                '/\$\{([^\$}]+)\}/',
+                $pattern,
                 function ($matches) use ($data, $reference_data) {
-                    return $this->expandStringPropertiesCallback(
-                        $matches,
-                        $data,
-                        $reference_data
-                    );
+                    return $this->expandStringPropertiesCallback($matches, $data, $reference_data);
                 },
-                $value
+                $value,
+                -1,
+                $count
             );
+
+            // If the value was just a _single_ property reference, we have the opportunity to preserve the data type.
+            if ($count === 1) {
+                preg_match($pattern, $original_value, $matches);
+                if ($matches[0] === $original_value) {
+                    $value = $this->expandStringPropertiesCallback($matches, $data, $reference_data);
+                }
+            }
 
             // If no replacement occurred at all, break to prevent
             // infinite loop.
-            if ($original_value == $value) {
+            if ($original_value === $value) {
                 break;
             }
 
@@ -201,8 +208,8 @@ class Expander implements LoggerAwareInterface
         // Use only values within the subject array's data.
         if (!$reference_data) {
             return $this->expandProperty($property_name, $unexpanded_value, $data);
-        } // Search both the subject array's data and the reference data for a value.
-        else {
+        } else {
+            // Search both the subject array's data and the reference data for a value.
             return $this->expandPropertyWithReferenceData(
                 $property_name,
                 $unexpanded_value,
@@ -241,7 +248,7 @@ class Expander implements LoggerAwareInterface
         );
         // If the string was not changed using the subject data, try using
         // the reference data.
-        if ($expanded_value == $unexpanded_value) {
+        if ($expanded_value === $unexpanded_value) {
             $expanded_value = $this->expandProperty(
                 $property_name,
                 $unexpanded_value,
@@ -269,8 +276,8 @@ class Expander implements LoggerAwareInterface
         if (strpos($property_name, "env.") === 0 &&
           !$data->has($property_name)) {
             $env_key = substr($property_name, 4);
-            if (getenv($env_key)) {
-                $data->set($property_name, getenv($env_key));
+            if (isset($_SERVER[$env_key])) {
+                $data->set($property_name, $_SERVER[$env_key]);
             }
         }
 

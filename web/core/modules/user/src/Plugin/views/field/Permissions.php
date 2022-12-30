@@ -2,7 +2,7 @@
 
 namespace Drupal\user\Plugin\views\field;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\ViewExecutable;
@@ -33,7 +33,7 @@ class Permissions extends PrerenderList {
   protected $moduleHandler;
 
   /**
-   * Constructs a Drupal\Component\Plugin\PluginBase object.
+   * Constructs a \Drupal\user\Plugin\views\field\Permissions object.
    *
    * @param array $configuration
    *   A configuration array containing information about the plugin instance.
@@ -43,13 +43,13 @@ class Permissions extends PrerenderList {
    *   The plugin implementation definition.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ModuleHandlerInterface $module_handler, EntityManagerInterface $entity_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ModuleHandlerInterface $module_handler, EntityTypeManagerInterface $entity_type_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
-    $this->roleStorage = $entity_manager->getStorage('user_role');
+    $this->roleStorage = $entity_type_manager->getStorage('user_role');
     $this->moduleHandler = $module_handler;
   }
 
@@ -57,7 +57,13 @@ class Permissions extends PrerenderList {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static($configuration, $plugin_id, $plugin_definition, $container->get('module_handler'), $container->get('entity.manager'));
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('module_handler'),
+      $container->get('entity_type.manager')
+    );
   }
 
   /**
@@ -81,11 +87,14 @@ class Permissions extends PrerenderList {
 
     $rids = [];
     foreach ($values as $result) {
-      $user_rids = $this->getEntity($result)->getRoles();
-      $uid = $this->getValue($result);
+      $user = $this->getEntity($result);
+      if ($user) {
+        $user_rids = $user->getRoles();
+        $uid = $this->getValue($result);
 
-      foreach ($user_rids as $rid) {
-        $rids[$rid][] = $uid;
+        foreach ($user_rids as $rid) {
+          $rids[$rid][] = $uid;
+        }
       }
     }
 

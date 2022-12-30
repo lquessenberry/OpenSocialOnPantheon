@@ -22,6 +22,11 @@ class QueryTest extends UITestBase {
   /**
    * {@inheritdoc}
    */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
   protected function viewsData() {
     $data = parent::viewsData();
     $data['views_test_data']['table']['base']['query_id'] = 'query_test';
@@ -41,14 +46,15 @@ class QueryTest extends UITestBase {
     // Save some query settings.
     $query_settings_path = "admin/structure/views/nojs/display/test_view/default/query";
     $random_value = $this->randomMachineName();
-    $this->drupalPostForm($query_settings_path, ['query[options][test_setting]' => $random_value], t('Apply'));
-    $this->drupalPostForm(NULL, [], t('Save'));
+    $this->drupalGet($query_settings_path);
+    $this->submitForm(['query[options][test_setting]' => $random_value], 'Apply');
+    $this->submitForm([], 'Save');
 
     // Check that the settings are saved into the view itself.
     $view = Views::getView('test_view');
     $view->initDisplay();
     $view->initQuery();
-    $this->assertEqual($random_value, $view->query->options['test_setting'], 'Query settings got saved');
+    $this->assertEquals($random_value, $view->query->options['test_setting'], 'Query settings got saved');
   }
 
 }

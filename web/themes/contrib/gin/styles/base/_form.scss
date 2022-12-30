@@ -1,0 +1,470 @@
+$maxWidth: 520px;
+
+.form-element {
+  color: var(--colorGinText);
+  background-color: var(--colorGinInputBackground);
+  border: 1px solid var(--colorGinFormElementBorder);
+  border-radius: var(--ginBorderDefault);
+  box-sizing: border-box;
+  // box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  transition: var(--ginTransition);
+
+  &:hover {
+    border-color: var(--colorGinText);
+    box-shadow: inset 0 0 0 1px var(--colorGinText);
+  }
+
+  &--small,
+  &--extrasmall {
+    border-radius: var(--ginBorderSmall);
+  }
+
+  &[disabled],
+  &[disabled]:hover {
+    color: var(--colorGinDisabled);
+    border-color: var(--colorGinDisabled);
+    box-shadow: none;
+  }
+}
+
+.form-textarea-wrapper {
+  // box-shadow: 0 1px 2px rgba(0, 0, 0, .15);
+  border-radius: var(--ginBorderDefault);
+
+  textarea {
+    max-width: 100%;
+  }
+}
+
+.form-item--editor-format,
+.form-element--editor-format {
+  width: auto;
+
+  .form-item__label {
+    top: 3px;
+    padding-bottom: 0;
+  }
+}
+
+// Password
+.password-field {
+  width: 100%;
+}
+
+.password-confirm {
+  width: 100%;
+  max-width: $maxWidth;
+}
+
+.password-strength {
+  &__title {
+    color: var(--colorGinTextLight);
+  }
+
+  &__text {
+    color: var(--colorGinTitle);
+  }
+}
+
+.password-suggestions {
+  color: var(--colorGinTextLight);
+  border: 1px solid var(--colorGinLayer2Border);
+  background-color: transparent;
+}
+
+// Select
+.form-element--type-select {
+  padding-right: calc(2.5rem - 1px);
+
+  .gin--dark-mode & {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 9'%3E%3Cpath fill='none' stroke-width='1.5' d='M1 1L7 7L13 1' stroke='%23ffffff'/%3E%3C/svg%3E%0A");
+  }
+}
+
+.form-element--type-select--small {
+  font-size: 0.79rem;
+  min-height: 2.25rem;
+  line-height: 1.2;
+  padding-top: .474rem; // 0.79rem * 1.2 / 2
+  padding-bottom: .474rem; // 0.79rem * 1.2 / 2
+  background-position: 100% 52%;
+}
+
+.form-boolean {
+  width: 21px;
+  height: 21px;
+  border-color: var(--colorGinFormElementBorder);
+  border-radius: var(--ginBorderXSmall);
+}
+
+// Darkmode Checkbox
+.form-boolean--type-checkbox {
+  &:not(:checked) {
+    .gin--dark-mode & {
+      background: var(--colorGinInputBackground);
+    }
+  }
+
+  &:checked {
+    background-color: var(--colorGinPrimary);
+
+    &:hover {
+      background-color: var(--colorGinPrimaryHover);
+    }
+
+    &:active {
+      background-color: var(--colorGinPrimaryActive);
+    }
+
+    .gin--dark-mode & {
+      background-image: icon('checked');
+    }
+  }
+}
+
+// Single Checkbox: show as toggle
+:not(.form-checkboxes):not(td):not(.media-library-item__click-to-select-checkbox):not(.field-content) > .form-type--checkbox {
+  position: relative;
+  margin-left: 0;
+
+  .checkbox-toggle {
+    z-index: 0;
+    display: inline-block;
+    vertical-align: top;
+    width: 40px;
+    height: 24px;
+    border-radius: 12px;
+    box-sizing: border-box;
+
+    &__inner {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      clip-path: circle(24px at 50% 50%); // Fix Safari bug
+      background-color: var(--colorGinDisabled);
+      border: 3px solid transparent;
+      border-radius: 12px;
+      box-sizing: border-box;
+
+      .gin--dark-mode & {
+        background-color: var(--colorGinInputBackground);
+      }
+
+      &:before {
+        position: absolute;
+        content: "";
+        width: 100%;
+        height: 100%;
+        background-color: #fff;
+        border-radius: 21px;
+        transform: translateX(-16px);
+        transition: transform .3s;
+
+        .gin--dark-mode & {
+          background-color: var(--colorGinFormElementBorder);
+        }
+      }
+    }
+  }
+
+  input {
+    @include visually-hidden;
+    width: 40px;
+    height: 24px;
+    clip: auto;
+    margin-left: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+
+    &:hover,
+    &:focus,
+    &:active,
+    &:hover:focus,
+    &:active:focus {
+      outline: none;
+      box-shadow: none;
+      border: none;
+    }
+
+    &:hover ~ .checkbox-toggle {
+      opacity: .9;
+      box-shadow: 0 0 2px rgba(0, 0, 0, .2);
+    }
+
+    &:checked ~ .checkbox-toggle {
+      border-color: var(--colorGinPrimaryLightActive);
+
+      .gin--high-contrast-mode & {
+        border-color: var(--colorGinBorder);
+      }
+
+      .checkbox-toggle__inner {
+        background-color: var(--colorGinSwitch);
+
+        .gin--dark-mode & {
+          background-color: var(--colorGinPrimaryLightActive);
+        }
+
+        &:before {
+          transform: translateX(16px);
+          background-color: #fff;
+
+          .gin--dark-mode & {
+            background-color: var(--colorGinPrimaryHover);
+          }
+
+          .gin--high-contrast-mode & {
+            background-color: var(--colorGinBorder);
+          }
+        }
+      }
+    }
+
+    &:active ~ .checkbox-toggle .checkbox-toggle__inner,
+    &:focus ~ .checkbox-toggle .checkbox-toggle__inner {
+      box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+    }
+
+    // Disabled state: set cursor to not-allowed
+    &:disabled {
+      cursor: not-allowed;
+    }
+
+    // Disabled styles
+    &:disabled ~ .checkbox-toggle,
+    &:disabled ~ .checkbox-toggle:hover,
+    &:disabled:checked ~ .checkbox-toggle .checkbox-toggle__inner,
+    &:disabled:checked ~ .checkbox-toggle:hover .checkbox-toggle__inner {
+      background-color: var(--colorGinDisabled);
+
+      &::before {
+        background-color: #fff;
+        opacity: .4;
+      }
+    }
+  }
+
+  label {
+    z-index: 1;
+    position: relative;
+    padding-left: 4px;
+    padding-bottom: 0;
+    color: var(--colorGinText);
+  }
+}
+
+.form-boolean {
+  &:hover, &:active {
+    .gin--dark-mode & {
+      box-shadow: none;
+      border-color: var(--colorGinText);
+    }
+  }
+}
+
+.form-boolean--type-radio {
+  &, &:hover, &:active, &:focus, &:hover:focus {
+    background-image: none;
+    background-color: var(--colorGinInputBackground);
+    border-color: var(--colorGinFormElementBorder);
+    border-radius: 50%;
+  }
+
+  &:hover {
+    box-shadow: inset 0 0 0 1px var(--colorGinLayer2Border);
+
+    &, .gin--dark-mode & {
+      border-color: var(--colorGinText);
+    }
+  }
+
+  &:active, &:focus {
+    box-shadow: inset 0 0 0 1px var(--colorGinLayer2Border),
+                0 0 0 1px var(--colorGinFocusBorder),
+                0 0 0 4px var(--colorGinFocus);
+  }
+
+  &:checked:not(:disabled) {
+    &, &:hover {
+      background-image: none;
+      background-color: var(--colorGinLayerBackground);
+      box-shadow: inset 0 0 0 5px var(--colorGinPrimary);
+    }
+
+    &:active, &:focus, &:hover:focus {
+      box-shadow: inset 0 0 0 5px var(--colorGinPrimary),
+                  0 0 0 1px var(--colorGinFocusBorder),
+                  0 0 0 4px var(--colorGinFocus);
+    }
+  }
+
+  &:checked:disabled {
+    &, &:hover {
+      background-image: none;
+      background-color: var(--colorGinDisabledText);
+      border-color: var(--colorGinDisabled);
+      box-shadow: inset 0 0 0 5px var(--colorGinDisabled);
+    }
+  }
+}
+
+.form-boolean--type-checkbox[disabled]:checked {
+  border-color: var(--colorGinDisabled);
+  background-color: var(--colorGinDisabled);
+  box-shadow: none;
+}
+
+.form-radios,
+.form-checkboxes {
+  .form-type--boolean {
+    margin-top: .5rem;
+    margin-bottom: .5rem;
+  }
+}
+
+.form-edit .form-actions {
+  padding: 0;
+  margin-bottom: 0;
+  border: 0 none;
+  background-color: transparent;
+}
+
+// Fieldgroup
+fieldset:not(.fieldgroup) {
+  color: var(--colorGinTextLight);
+  padding-top: 8px;
+  padding-left: 0;
+  padding-right: 0;
+  background: transparent;
+  border-color: var(--colorGinBorder);
+  border-radius: var(--ginBorderDefault);
+  box-shadow: none;
+
+  > legend {
+    top: 20px;
+  }
+
+  > .fieldset-wrapper {
+    margin-top: 20px;
+  }
+}
+
+/* Align fieldset label positioning to regular form item label, see claro form.css. */
+.fieldset__label {
+  margin-top: 0.25rem;
+}
+
+.fieldset__label,
+.fieldset__label--group,
+.form-item__label {
+  color: var(--colorGinText);
+}
+
+.form-item__label.has-error,
+.form-item__error-message {
+  color: var(--colorGinDanger);
+}
+
+.form-item__description,
+.fieldset__description {
+  max-width: $maxWidth;
+  color: var(--colorGinTextLight);
+}
+
+.form-item__label.form-required::after,
+.fieldset__label.form-required::after,
+.form-required > .fieldset__label::after,
+.horizontal-tab-button .form-required::after {
+  content: "*";
+  color: var(--colorGinDanger);
+  line-height: 1;
+  margin-right: .15em;
+  margin-left: .15em;
+  vertical-align: text-top;
+  background: none;
+}
+
+.claro-details__summary:not(.form-required) {
+  .required-mark {
+    display: none;
+  }
+}
+
+.form-item__warning {
+  display: inline-block;
+  margin-top: .5rem;
+}
+
+.js .form-autocomplete {
+  padding-right: 36px;
+}
+
+.entity-form-display-form {
+  > .form-actions {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}
+
+.required-mark {
+  &::after {
+    background: var(--colorGinDanger);
+    mask-image: icon('asterisk');
+    mask-position: center center;
+    mask-size: 100% 100%;
+  }
+}
+
+.form-wrapper,
+.form-composite {
+  .form-item__label {
+    // color: var(--colorGinPrimaryActive);
+    position: relative;
+    padding-bottom: 4px;
+  }
+}
+
+.field--type-text-with-summary,
+.field--widget-text-textarea {
+  .form-item {
+    margin-bottom: 0;
+  }
+
+  .filter-wrapper {
+    border: 0 none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+// Autocomplete field
+.js input.form-linkit-autocomplete {
+  padding-right: 2rem;
+  background-position: right 8px center;
+}
+
+.claro-autocomplete {
+  width: calc(100% - 1rem);
+
+  .form-autocomplete {
+    width: 100%;
+  }
+}
+
+.no-touchevents .form-element--type-select.form-element--extrasmall {
+  min-height: 1.75rem;
+}
+
+// Special case, form starts with a form item, remove margin-top.
+#block-gin-content > form > .form-item:first-of-type {
+  margin-top: 0;
+}
+
+.image-style-new {
+  .form-item {
+    margin-right: .25rem;
+  }
+}

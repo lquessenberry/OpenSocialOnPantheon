@@ -3,6 +3,7 @@
 namespace Drupal\Tests\editor\Functional;
 
 use Drupal\file\Entity\File;
+use Drupal\node\NodeInterface;
 use Drupal\Tests\BrowserTestBase;
 use Drupal\user\Entity\Role;
 use Drupal\user\RoleInterface;
@@ -19,7 +20,7 @@ class EditorPrivateFileReferenceFilterTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     // Needed for the config: this is the only module in core that utilizes the
     // functionality in editor.module to be tested, and depends on that.
     'ckeditor',
@@ -32,6 +33,11 @@ class EditorPrivateFileReferenceFilterTest extends BrowserTestBase {
     // - with drupalimage.image_upload.directory set to ''.
     'editor_private_test',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests the editor file reference filter with private files.
@@ -92,7 +98,7 @@ class EditorPrivateFileReferenceFilterTest extends BrowserTestBase {
     // just-created file.
     $unpublished_node = $this->drupalCreateNode([
       'type' => 'page',
-      'status' => NODE_NOT_PUBLISHED,
+      'status' => NodeInterface::NOT_PUBLISHED,
       'body' => [
         'value' => '<img alt="alt" data-entity-type="file" data-entity-uuid="' . $file->uuid() . '" src="' . $src . '" />',
         'format' => 'private_images',
@@ -112,7 +118,7 @@ class EditorPrivateFileReferenceFilterTest extends BrowserTestBase {
 
     // When the published node is also unpublished, the image should also
     // become inaccessible to anonymous users.
-    $published_node->setPublished(FALSE)->save();
+    $published_node->setUnpublished()->save();
 
     $this->drupalGet($published_node->toUrl());
     $this->assertSession()->statusCodeEquals(403);
@@ -121,7 +127,7 @@ class EditorPrivateFileReferenceFilterTest extends BrowserTestBase {
 
     // Disallow anonymous users to view the entity, which then should also
     // disallow them to view the image.
-    $published_node->setPublished(TRUE)->save();
+    $published_node->setPublished()->save();
     Role::load(RoleInterface::ANONYMOUS_ID)
       ->revokePermission('access content')
       ->save();

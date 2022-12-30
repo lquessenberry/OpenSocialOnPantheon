@@ -253,6 +253,8 @@ interface ItemInterface extends \Traversable {
    *     highlighting data should also include any non-highlighted field values,
    *     to avoid having to determine which values are included and which
    *     aren't.
+   *   - highlighted_keys: The exact tokens that matched keys in this item's
+   *     text values. The value is an array of strings.
    *   However, contrib modules can define arbitrary other keys. (Usually they
    *   should be prefixed with the module name, though.)
    * @param mixed $default
@@ -293,7 +295,24 @@ interface ItemInterface extends \Traversable {
    *
    * @return bool
    *   TRUE if access is granted, FALSE otherwise.
+   *
+   * @deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0.
+   *   Use getAccessResult() instead.
+   *
+   * @see https://www.drupal.org/node/3051902
    */
   public function checkAccess(AccountInterface $account = NULL);
+
+  /**
+   * Checks whether a user has permission to view this item.
+   *
+   * @param \Drupal\Core\Session\AccountInterface|null $account
+   *   (optional) The user for which to check access, or NULL to check access
+   *   for the current user.
+   *
+   * @return \Drupal\Core\Access\AccessResultInterface
+   *   The access result.
+   */
+  public function getAccessResult(AccountInterface $account = NULL);
 
 }

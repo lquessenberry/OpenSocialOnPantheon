@@ -20,41 +20,13 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\field\FieldConfigInterface;
 use Drupal\field\FieldStorageConfigInterface;
 use Drupal\node\NodeInterface;
 use Drupal\user\RoleInterface;
-
-/**
- * Anonymous posters cannot enter their contact information.
- *
- * @deprecated in Drupal 8.3.x and will be removed before Drupal 9.0.0.
- *   Use \Drupal\comment\CommentInterface::ANONYMOUS_MAYNOT_CONTACT instead.
- *
- * @see https://www.drupal.org/node/2831620
- */
-const COMMENT_ANONYMOUS_MAYNOT_CONTACT = 0;
-
-/**
- * Anonymous posters may leave their contact information.
- *
- * @deprecated in Drupal 8.3.x and will be removed before Drupal 9.0.0.
- *   Use \Drupal\comment\CommentInterface::ANONYMOUS_MAY_CONTACT instead.
- *
- * @see https://www.drupal.org/node/2831620
- */
-const COMMENT_ANONYMOUS_MAY_CONTACT = 1;
-
-/**
- * Anonymous posters are required to leave their contact information.
- *
- * @deprecated in Drupal 8.3.x and will be removed before Drupal 9.0.0.
- *   Use \Drupal\comment\CommentInterface::ANONYMOUS_MUST_CONTACT instead.
- *
- * @see https://www.drupal.org/node/2831620
- */
-const COMMENT_ANONYMOUS_MUST_CONTACT = 2;
+use Drupal\user\UserInterface;
 
 /**
  * The time cutoff for comments marked as read for entity types other node.
@@ -78,15 +50,15 @@ function comment_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Enabling commenting') . '</dt>';
-      $output .= '<dd>' . t('Comment functionality can be enabled for any entity sub-type (for example, a <a href=":content-type">content type</a>) by adding a <em>Comments</em> field on its <em>Manage fields page</em>. Adding or removing commenting for an entity through the user interface requires the <a href=":field_ui">Field UI</a> module to be enabled, even though the commenting functionality works without it. For more information on fields and entities, see the <a href=":field">Field module help page</a>.', [':content-type' => (\Drupal::moduleHandler()->moduleExists('node')) ? \Drupal::url('entity.node_type.collection') : '#', ':field' => \Drupal::url('help.page', ['name' => 'field']), ':field_ui' => (\Drupal::moduleHandler()->moduleExists('field_ui')) ? \Drupal::url('help.page', ['name' => 'field_ui']) : '#']) . '</dd>';
+      $output .= '<dd>' . t('Comment functionality can be enabled for any entity sub-type (for example, a <a href=":content-type">content type</a>) by adding a <em>Comments</em> field on its <em>Manage fields page</em>. Adding or removing commenting for an entity through the user interface requires the <a href=":field_ui">Field UI</a> module to be enabled, even though the commenting functionality works without it. For more information on fields and entities, see the <a href=":field">Field module help page</a>.', [':content-type' => (\Drupal::moduleHandler()->moduleExists('node')) ? Url::fromRoute('entity.node_type.collection')->toString() : '#', ':field' => Url::fromRoute('help.page', ['name' => 'field'])->toString(), ':field_ui' => (\Drupal::moduleHandler()->moduleExists('field_ui')) ? Url::fromRoute('help.page', ['name' => 'field_ui'])->toString() : '#']) . '</dd>';
       $output .= '<dt>' . t('Configuring commenting settings') . '</dt>';
-      $output .= '<dd>' . t('Commenting settings can be configured by editing the <em>Comments</em> field on the <em>Manage fields page</em> of an entity type if the <em>Field UI module</em> is enabled. Configuration includes the label of the comments field, the number of comments to be displayed, and whether they are shown in threaded list. Commenting can be be configured as: <em>Open</em> to allow new comments, <em>Closed</em> to view existing comments, but prevent new comments, or <em>Hidden</em> to hide existing comments and prevent new comments. Changing this configuration for an entity type will not change existing entity items.') . '</dd>';
+      $output .= '<dd>' . t('Commenting settings can be configured by editing the <em>Comments</em> field on the <em>Manage fields page</em> of an entity type if the <em>Field UI module</em> is enabled. Configuration includes the label of the comments field, the number of comments to be displayed, and whether they are shown in threaded list. Commenting can be configured as: <em>Open</em> to allow new comments, <em>Closed</em> to view existing comments, but prevent new comments, or <em>Hidden</em> to hide existing comments and prevent new comments. Changing this configuration for an entity type will not change existing entity items.') . '</dd>';
       $output .= '<dt>' . t('Overriding default settings') . '</dt>';
       $output .= '<dd>' . t('Users with the appropriate permissions can override the default commenting settings of an entity type when they create an item of that type.') . '</dd>';
       $output .= '<dt>' . t('Adding comment types') . '</dt>';
-      $output .= '<dd>' . t('Additional <em>comment types</em> can be created per entity sub-type and added on the <a href=":field">Comment types page</a>. If there are multiple comment types available you can select the appropriate one after adding a <em>Comments field</em>.', [':field' => \Drupal::url('entity.comment_type.collection')]) . '</dd>';
+      $output .= '<dd>' . t('Additional <em>comment types</em> can be created per entity sub-type and added on the <a href=":field">Comment types page</a>. If there are multiple comment types available you can select the appropriate one after adding a <em>Comments field</em>.', [':field' => Url::fromRoute('entity.comment_type.collection')->toString()]) . '</dd>';
       $output .= '<dt>' . t('Approving and managing comments') . '</dt>';
-      $output .= '<dd>' . t('Comments from users who have the <em>Skip comment approval</em> permission are published immediately. All other comments are placed in the <a href=":comment-approval">Unapproved comments</a> queue, until a user who has permission to <em>Administer comments and comment settings</em> publishes or deletes them. Published comments can be bulk managed on the <a href=":admin-comment">Published comments</a> administration page. When a comment has no replies, it remains editable by its author, as long as the author has <em>Edit own comments</em> permission.', [':comment-approval' => \Drupal::url('comment.admin_approval'), ':admin-comment' => \Drupal::url('comment.admin')]) . '</dd>';
+      $output .= '<dd>' . t('Comments from users who have the <em>Skip comment approval</em> permission are published immediately. All other comments are placed in the <a href=":comment-approval">Unapproved comments</a> queue, until a user who has permission to <em>Administer comments and comment settings</em> publishes or deletes them. Published comments can be bulk managed on the <a href=":admin-comment">Published comments</a> administration page. When a comment has no replies, it remains editable by its author, as long as the author has <em>Edit own comments</em> permission.', [':comment-approval' => Url::fromRoute('comment.admin_approval')->toString(), ':admin-comment' => Url::fromRoute('comment.admin')->toString()]) . '</dd>';
       $output .= '</dl>';
       return $output;
 
@@ -176,7 +148,7 @@ function comment_field_config_update(FieldConfigInterface $field) {
   if ($field->getType() == 'comment') {
     // Comment field settings also affects the rendering of *comment* entities,
     // not only the *commented* entities.
-    \Drupal::entityManager()->getViewBuilder('comment')->resetCache();
+    \Drupal::entityTypeManager()->getViewBuilder('comment')->resetCache();
   }
 }
 
@@ -199,11 +171,13 @@ function comment_field_storage_config_insert(FieldStorageConfigInterface $field_
 function comment_field_config_delete(FieldConfigInterface $field) {
   if ($field->getType() == 'comment') {
     // Delete all comments that used by the entity bundle.
-    $entity_query = \Drupal::entityQuery('comment');
+    $entity_query = \Drupal::entityQuery('comment')->accessCheck(FALSE);
     $entity_query->condition('entity_type', $field->getEntityTypeId());
     $entity_query->condition('field_name', $field->getName());
     $cids = $entity_query->execute();
-    entity_delete_multiple('comment', $cids);
+    $comment_storage = \Drupal::entityTypeManager()->getStorage('comment');
+    $comments = $comment_storage->loadMultiple($cids);
+    $comment_storage->delete($comments);
   }
 }
 
@@ -239,7 +213,7 @@ function comment_entity_view(array &$build, EntityInterface $entity, EntityViewD
         ];
         $entity->rss_elements[] = [
           'key' => 'comments',
-          'value' => $entity->url('canonical', $options),
+          'value' => $entity->toUrl('canonical', $options)->toString(),
         ];
       }
     }
@@ -253,54 +227,6 @@ function comment_node_view_alter(array &$build, EntityInterface $node, EntityVie
   if (\Drupal::moduleHandler()->moduleExists('history')) {
     $build['#attributes']['data-history-node-id'] = $node->id();
   }
-}
-
-/**
- * Generates an array for rendering a comment.
- *
- * @param \Drupal\comment\CommentInterface $comment
- *   The comment object.
- * @param string $view_mode
- *   (optional) View mode; for instance, 'full', 'teaser', etc. Defaults to
- *   'full'.
- * @param string $langcode
- *   (optional) A language code to use for rendering. Defaults to the global
- *   content language of the current request.
- *
- * @return array
- *   An array as expected by \Drupal\Core\Render\RendererInterface::render().
- *
- * @deprecated in Drupal 8.x and will be removed before Drupal 9.0.
- *   Use \Drupal::entityManager()->getViewBuilder('comment')->view().
- */
-function comment_view(CommentInterface $comment, $view_mode = 'full', $langcode = NULL) {
-  return entity_view($comment, $view_mode, $langcode);
-}
-
-/**
- * Constructs render array from an array of loaded comments.
- *
- * @param \Drupal\comment\CommentInterface[] $comments
- *   An array of comments as returned by entity_load_multiple().
- * @param string $view_mode
- *   (optional) View mode; for instance, 'full', 'teaser', etc. Defaults to
- *   'full'.
- * @param string $langcode
- *   (optional) A string indicating the language field values are to be shown
- *   in. If no language is provided the current content language is used.
- *   Defaults to NULL.
- *
- * @return array
- *   An array in the format expected by
- *   \Drupal\Core\Render\RendererInterface::render().
- *
- * @deprecated in Drupal 8.x and will be removed before Drupal 9.0.
- *   Use \Drupal::entityManager()->getViewBuilder('comment')->viewMultiple().
- *
- * @see \Drupal\Core\Render\RendererInterface::render()
- */
-function comment_view_multiple($comments, $view_mode = 'full', $langcode = NULL) {
-  return entity_view_multiple($comments, $view_mode, $langcode);
 }
 
 /**
@@ -345,7 +271,7 @@ function comment_form_field_ui_display_overview_form_alter(&$form, FormStateInte
  */
 function comment_entity_storage_load($entities, $entity_type) {
   // Comments can only be attached to content entities, so skip others.
-  if (!\Drupal::entityManager()->getDefinition($entity_type)->entityClassImplements(FieldableEntityInterface::class)) {
+  if (!\Drupal::entityTypeManager()->getDefinition($entity_type)->entityClassImplements(FieldableEntityInterface::class)) {
     return;
   }
   if (!\Drupal::service('comment.manager')->getFields($entity_type)) {
@@ -392,11 +318,13 @@ function comment_entity_predelete(EntityInterface $entity) {
   // entity type that has an integer ID, $entity->id() might be a string
   // containing a number), and then cast it to an integer when querying.
   if ($entity instanceof FieldableEntityInterface && is_numeric($entity->id())) {
-    $entity_query = \Drupal::entityQuery('comment');
+    $entity_query = \Drupal::entityQuery('comment')->accessCheck(FALSE);
     $entity_query->condition('entity_id', (int) $entity->id());
     $entity_query->condition('entity_type', $entity->getEntityTypeId());
     $cids = $entity_query->execute();
-    entity_delete_multiple('comment', $cids);
+    $comment_storage = \Drupal::entityTypeManager()->getStorage('comment');
+    $comments = $comment_storage->loadMultiple($cids);
+    $comment_storage->delete($comments);
     \Drupal::service('comment.statistics')->delete($entity);
   }
 }
@@ -412,12 +340,12 @@ function comment_entity_predelete(EntityInterface $entity) {
  *   FALSE otherwise.
  */
 function _comment_entity_uses_integer_id($entity_type_id) {
-  $entity_type = \Drupal::entityManager()->getDefinition($entity_type_id);
+  $entity_type = \Drupal::entityTypeManager()->getDefinition($entity_type_id);
   $entity_type_id_key = $entity_type->getKey('id');
   if ($entity_type_id_key === FALSE) {
     return FALSE;
   }
-  $field_definitions = \Drupal::entityManager()->getBaseFieldDefinitions($entity_type->id());
+  $field_definitions = \Drupal::service('entity_field.manager')->getBaseFieldDefinitions($entity_type->id());
   $entity_type_id_definition = $field_definitions[$entity_type_id_key];
   return $entity_type_id_definition->getType() === 'integer';
 }
@@ -439,7 +367,7 @@ function comment_node_update_index(EntityInterface $node) {
     // edit could change the security situation so it is not safe to index the
     // comments.
     $index_comments = TRUE;
-    $roles = \Drupal::entityManager()->getStorage('user_role')->loadMultiple();
+    $roles = \Drupal::entityTypeManager()->getStorage('user_role')->loadMultiple();
     $authenticated_can_access = $roles[RoleInterface::AUTHENTICATED_ID]->hasPermission('access comments');
     foreach ($roles as $rid => $role) {
       if ($role->hasPermission('search content') && !$role->hasPermission('access comments')) {
@@ -463,10 +391,10 @@ function comment_node_update_index(EntityInterface $node) {
       $mode = $field_definition->getSetting('default_mode');
       $comments_per_page = $field_definition->getSetting('per_page');
       if ($node->get($field_name)->status) {
-        $comments = \Drupal::entityManager()->getStorage('comment')
+        $comments = \Drupal::entityTypeManager()->getStorage('comment')
           ->loadThread($node, $field_name, $mode, $comments_per_page);
         if ($comments) {
-          $build[] = \Drupal::entityManager()->getViewBuilder('comment')->viewMultiple($comments);
+          $build[] = \Drupal::entityTypeManager()->getViewBuilder('comment')->viewMultiple($comments);
         }
       }
     }
@@ -518,22 +446,29 @@ function comment_node_search_result(EntityInterface $node) {
 /**
  * Implements hook_user_cancel().
  */
-function comment_user_cancel($edit, $account, $method) {
+function comment_user_cancel($edit, UserInterface $account, $method) {
   switch ($method) {
     case 'user_cancel_block_unpublish':
-      $comments = entity_load_multiple_by_properties('comment', ['uid' => $account->id()]);
+      $comments = \Drupal::entityTypeManager()->getStorage('comment')->loadByProperties(['uid' => $account->id()]);
       foreach ($comments as $comment) {
-        $comment->setPublished(CommentInterface::NOT_PUBLISHED);
+        $comment->setUnpublished();
         $comment->save();
       }
       break;
 
     case 'user_cancel_reassign':
       /** @var \Drupal\comment\CommentInterface[] $comments */
-      $comments = entity_load_multiple_by_properties('comment', ['uid' => $account->id()]);
+      $comments = \Drupal::entityTypeManager()->getStorage('comment')->loadByProperties(['uid' => $account->id()]);
       foreach ($comments as $comment) {
-        $comment->setOwnerId(0);
-        $comment->setAuthorName(\Drupal::config('user.settings')->get('anonymous'));
+        $langcodes = array_keys($comment->getTranslationLanguages());
+        // For efficiency manually save the original comment before applying any
+        // changes.
+        $comment->original = clone $comment;
+        foreach ($langcodes as $langcode) {
+          $comment_translated = $comment->getTranslation($langcode);
+          $comment_translated->setOwnerId(0);
+          $comment_translated->setAuthorName(\Drupal::config('user.settings')->get('anonymous'));
+        }
         $comment->save();
       }
       break;
@@ -544,10 +479,12 @@ function comment_user_cancel($edit, $account, $method) {
  * Implements hook_ENTITY_TYPE_predelete() for user entities.
  */
 function comment_user_predelete($account) {
-  $entity_query = \Drupal::entityQuery('comment');
+  $entity_query = \Drupal::entityQuery('comment')->accessCheck(FALSE);
   $entity_query->condition('uid', $account->id());
   $cids = $entity_query->execute();
-  entity_delete_multiple('comment', $cids);
+  $comment_storage = \Drupal::entityTypeManager()->getStorage('comment');
+  $comments = $comment_storage->loadMultiple($cids);
+  $comment_storage->delete($comments);
 }
 
 /**
@@ -593,11 +530,13 @@ function comment_preview(CommentInterface $comment, FormStateInterface $form_sta
     $field_name = $comment->getFieldName();
     $entity = clone $entity;
     $entity->$field_name->status = CommentItemInterface::HIDDEN;
-    $build = entity_view($entity, 'full');
+    $build = \Drupal::entityTypeManager()
+      ->getViewBuilder($entity->getEntityTypeId())
+      ->view($entity, 'full');
   }
 
   $preview_build['comment_output_below'] = $build;
-  $preview_build['comment_output_below']['#weight'] = 100;
+  $preview_build['comment_output_below']['#weight'] = 200;
 
   return $preview_build;
 }
@@ -614,6 +553,15 @@ function comment_preprocess_block(&$variables) {
 /**
  * Prepares variables for comment templates.
  *
+ * By default this function performs special preprocessing of some base fields
+ * so they are available as variables in the template. For example 'subject'
+ * appears as 'title'. This preprocessing is skipped if:
+ * - a module makes the field's display configurable via the field UI by means
+ *   of BaseFieldDefinition::setDisplayConfigurable()
+ * - AND the additional entity type property
+ *   'enable_base_field_custom_preprocess_skipping' has been set using
+ *   hook_entity_type_build().
+ *
  * Default template: comment.html.twig.
  *
  * @param array $variables
@@ -622,6 +570,8 @@ function comment_preprocess_block(&$variables) {
  *     Array keys: #comment, #commented_entity.
  */
 function template_preprocess_comment(&$variables) {
+  /** @var \Drupal\Core\Datetime\DateFormatterInterface $date_formatter */
+  $date_formatter = \Drupal::service('date.formatter');
   /** @var \Drupal\comment\CommentInterface $comment */
   $comment = $variables['elements']['#comment'];
   $commented_entity = $comment->getCommentedEntity();
@@ -629,51 +579,57 @@ function template_preprocess_comment(&$variables) {
   $variables['commented_entity'] = $commented_entity;
   $variables['threaded'] = $variables['elements']['#comment_threaded'];
 
-  $account = $comment->getOwner();
-  $username = [
-    '#theme' => 'username',
-    '#account' => $account,
-  ];
-  $variables['author'] = \Drupal::service('renderer')->render($username);
-  $variables['author_id'] = $comment->getOwnerId();
-  $variables['new_indicator_timestamp'] = $comment->getChangedTime();
-  $variables['created'] = format_date($comment->getCreatedTime());
-  // Avoid calling format_date() twice on the same timestamp.
-  if ($comment->getChangedTime() == $comment->getCreatedTime()) {
-    $variables['changed'] = $variables['created'];
-  }
-  else {
-    $variables['changed'] = format_date($comment->getChangedTime());
-  }
+  $skip_custom_preprocessing = $comment->getEntityType()->get('enable_base_field_custom_preprocess_skipping');
 
-  if (theme_get_setting('features.comment_user_picture')) {
-    // To change user picture settings (for instance, image style), edit the
-    // 'compact' view mode on the User entity.
-    $variables['user_picture'] = user_view($account, 'compact');
-  }
-  else {
-    $variables['user_picture'] = [];
+  // Make created, uid, pid and subject fields available separately. Skip this
+  // custom preprocessing if the field display is configurable and skipping has
+  // been enabled.
+  // @todo https://www.drupal.org/project/drupal/issues/3015623
+  //   Eventually delete this code and matching template lines. Using
+  //   $variables['content'] is more flexible and consistent.
+  $submitted_configurable = $comment->getFieldDefinition('created')->isDisplayConfigurable('view') || $comment->getFieldDefinition('uid')->isDisplayConfigurable('view');
+
+  if (!$skip_custom_preprocessing || !$submitted_configurable) {
+    $account = $comment->getOwner();
+    $username = [
+      '#theme' => 'username',
+      '#account' => $account,
+    ];
+    $variables['author'] = \Drupal::service('renderer')->render($username);
+    $variables['author_id'] = $comment->getOwnerId();
+    $variables['new_indicator_timestamp'] = $comment->getChangedTime();
+    $variables['created'] = $date_formatter->format($comment->getCreatedTime());
+    // Avoid calling DateFormatterInterface::format() twice on the same timestamp.
+    if ($comment->getChangedTime() == $comment->getCreatedTime()) {
+      $variables['changed'] = $variables['created'];
+    }
+    else {
+      $variables['changed'] = $date_formatter->format($comment->getChangedTime());
+    }
+
+    if (theme_get_setting('features.comment_user_picture')) {
+      // To change user picture settings (for instance, image style), edit the
+      // 'compact' view mode on the User entity.
+      $variables['user_picture'] = \Drupal::entityTypeManager()
+        ->getViewBuilder('user')
+        ->view($account, 'compact');
+    }
+    else {
+      $variables['user_picture'] = [];
+    }
+
+    $variables['submitted'] = t('Submitted by @username on @datetime', ['@username' => $variables['author'], '@datetime' => $variables['created']]);
   }
 
   if (isset($comment->in_preview)) {
-    $variables['title'] = \Drupal::l($comment->getSubject(), new Url('<front>'));
-    $variables['permalink'] = \Drupal::l(t('Permalink'), new Url('<front>'));
+    $variables['permalink'] = Link::fromTextAndUrl(t('Permalink'), Url::fromRoute('<front>'))->toString();
   }
   else {
-    $uri = $comment->permalink();
-    $attributes = $uri->getOption('attributes') ?: [];
-    $attributes += ['class' => ['permalink'], 'rel' => 'bookmark'];
-    $uri->setOption('attributes', $attributes);
-    $variables['title'] = \Drupal::l($comment->getSubject(), $uri);
-
-    $variables['permalink'] = \Drupal::l(t('Permalink'), $comment->permalink());
+    $variables['permalink'] = Link::fromTextAndUrl(t('Permalink'), $comment->permalink())->toString();
   }
 
-  $variables['submitted'] = t('Submitted by @username on @datetime', ['@username' => $variables['author'], '@datetime' => $variables['created']]);
-
-  if ($comment->hasParentComment()) {
+  if (($comment_parent = $comment->getParentComment()) && (!$skip_custom_preprocessing || !$comment->getFieldDefinition('pid')->isDisplayConfigurable('view'))) {
     // Fetch and store the parent comment information for use in templates.
-    $comment_parent = $comment->getParentComment();
     $account_parent = $comment_parent->getOwner();
     $variables['parent_comment'] = $comment_parent;
     $username = [
@@ -681,20 +637,20 @@ function template_preprocess_comment(&$variables) {
       '#account' => $account_parent,
     ];
     $variables['parent_author'] = \Drupal::service('renderer')->render($username);
-    $variables['parent_created'] = format_date($comment_parent->getCreatedTime());
-    // Avoid calling format_date() twice on the same timestamp.
+    $variables['parent_created'] = $date_formatter->format($comment_parent->getCreatedTime());
+    // Avoid calling DateFormatterInterface::format() twice on same timestamp.
     if ($comment_parent->getChangedTime() == $comment_parent->getCreatedTime()) {
       $variables['parent_changed'] = $variables['parent_created'];
     }
     else {
-      $variables['parent_changed'] = format_date($comment_parent->getChangedTime());
+      $variables['parent_changed'] = $date_formatter->format($comment_parent->getChangedTime());
     }
     $permalink_uri_parent = $comment_parent->permalink();
     $attributes = $permalink_uri_parent->getOption('attributes') ?: [];
     $attributes += ['class' => ['permalink'], 'rel' => 'bookmark'];
     $permalink_uri_parent->setOption('attributes', $attributes);
-    $variables['parent_title'] = \Drupal::l($comment_parent->getSubject(), $permalink_uri_parent);
-    $variables['parent_permalink'] = \Drupal::l(t('Parent permalink'), $permalink_uri_parent);
+    $variables['parent_title'] = Link::fromTextAndUrl($comment_parent->getSubject(), $permalink_uri_parent)->toString();
+    $variables['parent_permalink'] = Link::fromTextAndUrl(t('Parent permalink'), $permalink_uri_parent)->toString();
     $variables['parent'] = t('In reply to @parent_title by @parent_username',
         ['@parent_username' => $variables['parent_author'], '@parent_title' => $variables['parent_title']]);
   }
@@ -706,6 +662,19 @@ function template_preprocess_comment(&$variables) {
     $variables['parent_title'] = '';
     $variables['parent_permalink'] = '';
     $variables['parent'] = '';
+  }
+
+  if (!$skip_custom_preprocessing || !$comment->getFieldDefinition('subject')->isDisplayConfigurable('view')) {
+    if (isset($comment->in_preview)) {
+      $variables['title'] = Link::fromTextAndUrl($comment->getSubject(), Url::fromRoute('<front>'))->toString();
+    }
+    else {
+      $uri = $comment->permalink();
+      $attributes = $uri->getOption('attributes') ?: [];
+      $attributes += ['class' => ['permalink'], 'rel' => 'bookmark'];
+      $uri->setOption('attributes', $attributes);
+      $variables['title'] = Link::fromTextAndUrl($comment->getSubject(), $uri)->toString();
+    }
   }
 
   // Helpful $content variable for templates.
@@ -723,6 +692,8 @@ function template_preprocess_comment(&$variables) {
 
   // Add comment author user ID. Necessary for the comment-by-viewer library.
   $variables['attributes']['data-comment-user-id'] = $comment->getOwnerId();
+  // Add anchor for each comment.
+  $variables['attributes']['id'] = 'comment-' . $comment->id();
 }
 
 /**
@@ -775,7 +746,7 @@ function comment_entity_view_display_presave(EntityViewDisplayInterface $display
   }
 
   // Disable the comment field formatter when the used view display is disabled.
-  foreach ($storage->loadMultiple() as $id => $view_display) {
+  foreach ($storage->loadMultiple() as $view_display) {
     $changed = FALSE;
     /** @var \Drupal\Core\Entity\Display\EntityViewDisplayInterface $view_display */
     foreach ($view_display->getComponents() as $field => $component) {

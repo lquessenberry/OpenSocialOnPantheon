@@ -1,0 +1,17 @@
+r4032login.settings.form:
+  route_name: r4032login.settings.form
+  base_route: r4032login.settings.form
+  title: 'Settings'
+  weight: 10
+
+r4032login.anonymous.form:
+  route_name: r4032login.anonymous_settings.form
+  base_route: r4032login.settings.form
+  title: 'Anonymous behavior'
+  weight: 20
+
+r4032login.authenticated.form:
+  route_name: r4032login.authenticated_settings.form
+  base_route: r4032login.settings.form
+  title: 'Authenticated behavior'
+  weight: 30

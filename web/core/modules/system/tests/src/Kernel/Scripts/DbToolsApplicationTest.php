@@ -16,16 +16,17 @@ use Drupal\KernelTests\KernelTestBase;
 class DbToolsApplicationTest extends KernelTestBase {
 
   /**
-   * Test that the dump command is correctly registered.
+   * Tests that the dump command is correctly registered.
    */
   public function testDumpCommandRegistration() {
     $application = new DbToolsApplication();
     $command = $application->find('dump');
     $this->assertInstanceOf('\Drupal\Core\Command\DbDumpCommand', $command);
+    $this->assertSame(\Drupal::VERSION, $application->getVersion());
   }
 
   /**
-   * Test that the dump command is correctly registered.
+   * Tests that the dump command is correctly registered.
    */
   public function testImportCommandRegistration() {
     $application = new DbToolsApplication();

@@ -98,8 +98,8 @@ class BlockPageVariant extends VariantBase implements PageVariantInterface, Cont
       $plugin_id,
       $plugin_definition,
       $container->get('block.repository'),
-      $container->get('entity.manager')->getViewBuilder('block'),
-      $container->get('entity.manager')->getDefinition('block')->getListCacheTags()
+      $container->get('entity_type.manager')->getViewBuilder('block'),
+      $container->get('entity_type.manager')->getDefinition('block')->getListCacheTags()
     );
   }
 
@@ -135,7 +135,7 @@ class BlockPageVariant extends VariantBase implements PageVariantInterface, Cont
     // Load all region content assigned via blocks.
     $cacheable_metadata_list = [];
     foreach ($this->blockRepository->getVisibleBlocksPerRegion($cacheable_metadata_list) as $region => $blocks) {
-      /** @var $blocks \Drupal\block\BlockInterface[] */
+      /** @var \Drupal\block\BlockInterface[] $blocks */
       foreach ($blocks as $key => $block) {
         $block_plugin = $block->getPlugin();
         if ($block_plugin instanceof MainContentBlockPluginInterface) {
@@ -177,6 +177,7 @@ class BlockPageVariant extends VariantBase implements PageVariantInterface, Cont
       $build['content']['messages'] = [
         '#weight' => -1000,
         '#type' => 'status_messages',
+        '#include_fallback' => TRUE,
       ];
     }
 

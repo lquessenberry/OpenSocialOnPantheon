@@ -5,12 +5,13 @@ namespace Drupal\search_api\Task;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\SearchApiException;
 use Drupal\search_api\ServerInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Provides a service for managing pending tasks.
@@ -54,24 +55,34 @@ class TaskManager implements TaskManagerInterface {
   /**
    * The event dispatcher.
    *
-   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   * @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
+
+  /**
+   * The messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
 
   /**
    * Constructs a TaskManager object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   The event dispatcher.
    * @param \Drupal\Core\StringTranslation\TranslationInterface $translation
    *   The string translation service.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, EventDispatcherInterface $event_dispatcher, TranslationInterface $translation) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, EventDispatcherInterface $event_dispatcher, TranslationInterface $translation, MessengerInterface $messenger) {
     $this->entityTypeManager = $entity_type_manager;
     $this->eventDispatcher = $event_dispatcher;
     $this->setStringTranslation($translation);
+    $this->messenger = $messenger;
   }
 
   /**
@@ -96,9 +107,14 @@ class TaskManager implements TaskManagerInterface {
    *   An entity query for search tasks.
    */
   protected function getTasksQuery(array $conditions = []) {
-    $query = $this->getTaskStorage()->getQuery();
+    $query = $this->getTaskStorage()->getQuery()->accessCheck(FALSE);
     foreach ($conditions as $property => $values) {
-      $query->condition($property, $values, is_array($values) ? 'IN' : '=');
+      if ($values === NULL) {
+        $query->notExists($property);
+      }
+      else {
+        $query->condition($property, $values, is_array($values) ? 'IN' : '=');
+      }
     }
     $query->sort('id');
     return $query;
@@ -108,13 +124,18 @@ class TaskManager implements TaskManagerInterface {
    * {@inheritdoc}
    */
   public function getTasksCount(array $conditions = []) {
-    return $this->getTasksQuery($conditions)->count()->execute();
+    return $this->getTasksQuery($conditions)
+      ->count()
+      ->accessCheck(FALSE)
+      ->execute();
   }
 
   /**
    * {@inheritdoc}
    */
   public function addTask($type, ServerInterface $server = NULL, IndexInterface $index = NULL, $data = NULL) {
+    $server_id = $server ? $server->id() : NULL;
+    $index_id = $index ? $index->id() : NULL;
     if (isset($data)) {
       if ($data instanceof EntityInterface) {
         $data = [
@@ -125,10 +146,20 @@ class TaskManager implements TaskManagerInterface {
       $data = serialize($data);
     }
 
+    $result = $this->getTasksQuery([
+      'type' => $type,
+      'server_id' => $server_id,
+      'index_id' => $index_id,
+      'data' => $data,
+    ])->execute();
+    if ($result) {
+      return $this->getTaskStorage()->load(reset($result));
+    }
+
     $task = $this->getTaskStorage()->create([
       'type' => $type,
-      'server_id' => $server ? $server->id() : NULL,
-      'index_id' => $index ? $index->id() : NULL,
+      'server_id' => $server_id,
+      'index_id' => $index_id,
       'data' => $data,
     ]);
     $task->save();
@@ -181,7 +212,7 @@ class TaskManager implements TaskManagerInterface {
    */
   public function executeSpecificTask(TaskInterface $task) {
     $event = new TaskEvent($task);
-    $this->eventDispatcher->dispatch('search_api.task.' . $task->getType(), $event);
+    $this->eventDispatcher->dispatch($event, 'search_api.task.' . $task->getType());
     if (!$event->isPropagationStopped()) {
       $id = $task->id();
       $type = $task->getType();
@@ -265,8 +296,35 @@ class TaskManager implements TaskManagerInterface {
       ],
       'finished' => [$this, 'finishBatch'],
     ];
+
+    // If called inside of Drush, we want to start the batch immediately.
+    // However, we first need to determine whether there already is one running,
+    // since we don't want to start a second one – our new batch will
+    // automatically be appended to the currently running batch operation.
+    $batch = batch_get();
+    $run_drush_batch = function_exists('drush_backend_batch_process')
+      && empty($batch['running']);
+
     // Schedule the batch.
     batch_set($batch_definition);
+
+    // Now run the Drush batch, if applicable.
+    if ($run_drush_batch) {
+      $result = drush_backend_batch_process();
+      // Drush performs batch processing in a separate PHP request. When the
+      // last batch is processed the batch list is cleared, but this only takes
+      // effect in the other request. Take the same action here to ensure that
+      // we are not requeueing stale batches when there are multiple tasks being
+      // handled in a single request.
+      // (Drush 9.6 changed the structure of $result, so check for both variants
+      // as long as we support earlier Drush versions, too.)
+      if (!empty($result['context']['drush_batch_process_finished'])
+          || !empty($result['drush_batch_process_finished'])) {
+        $batch = &batch_get();
+        $batch = NULL;
+        unset($batch);
+      }
+    }
   }
 
   /**
@@ -288,6 +346,8 @@ class TaskManager implements TaskManagerInterface {
     // Initialize context information.
     if (!isset($context['sandbox']['task_ids'])) {
       $context['sandbox']['task_ids'] = $task_ids;
+    }
+    if (!isset($context['results']['total'])) {
       $context['results']['total'] = $this->getTasksCount($conditions);
     }
 
@@ -312,11 +372,13 @@ class TaskManager implements TaskManagerInterface {
     $pending = $this->getTasksCount($conditions);
     $context['finished'] = 1 - $pending / $context['results']['total'];
     $executed = $context['results']['total'] - $pending;
-    $context['message'] = $this->formatPlural(
-      $executed,
-      'Successfully executed @count pending task.',
-      'Successfully executed @count pending tasks.'
-    );
+    if ($executed > 0) {
+      $context['message'] = $this->formatPlural(
+        $executed,
+        'Successfully executed @count pending task.',
+        'Successfully executed @count pending tasks.'
+      );
+    }
   }
 
   /**
@@ -335,11 +397,11 @@ class TaskManager implements TaskManagerInterface {
         'Successfully executed @count pending task.',
         'Successfully executed @count pending tasks.'
       );
-      drupal_set_message($message);
+      $this->messenger->addStatus($message);
     }
     else {
       // Notify the user about the batch job failure.
-      drupal_set_message($this->t('An error occurred while trying to execute tasks. Check the logs for details.'), 'error');
+      $this->messenger->addError($this->t('An error occurred while trying to execute tasks. Check the logs for details.'));
     }
   }
 

@@ -7,6 +7,7 @@
 
 namespace Drupal\Tests\views\Unit\EventSubscriber;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\RouteBuildEvent;
 use Drupal\Tests\UnitTestCase;
 use Drupal\views\EventSubscriber\RouteSubscriber;
@@ -20,16 +21,16 @@ use Symfony\Component\Routing\RouteCollection;
 class RouteSubscriberTest extends UnitTestCase {
 
   /**
-   * The mocked entity manager.
+   * The mocked entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The mocked view storage.
    *
-   * @var \Drupal\views\ViewStorage|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\views\ViewStorage|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $viewStorage;
 
@@ -43,28 +44,28 @@ class RouteSubscriberTest extends UnitTestCase {
   /**
    * The mocked key value storage.
    *
-   * @var \Drupal\Core\State\StateInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\State\StateInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $state;
 
-  protected function setUp() {
-    $this->entityManager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
+  protected function setUp(): void {
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
     $this->viewStorage = $this->getMockBuilder('Drupal\Core\Config\Entity\ConfigEntityStorage')
       ->disableOriginalConstructor()
       ->getMock();
-    $this->entityManager->expects($this->any())
+    $this->entityTypeManager->expects($this->any())
       ->method('getStorage')
       ->with('view')
       ->will($this->returnValue($this->viewStorage));
-    $this->state = $this->getMock('\Drupal\Core\State\StateInterface');
-    $this->routeSubscriber = new TestRouteSubscriber($this->entityManager, $this->state);
+    $this->state = $this->createMock('\Drupal\Core\State\StateInterface');
+    $this->routeSubscriber = new TestRouteSubscriber($this->entityTypeManager, $this->state);
   }
 
   /**
    * @covers ::routeRebuildFinished
    */
   public function testRouteRebuildFinished() {
-    list($display_1, $display_2) = $this->setupMocks();
+    [$display_1, $display_2] = $this->setupMocks();
 
     $display_1->expects($this->once())
       ->method('collectRoutes')
@@ -95,7 +96,7 @@ class RouteSubscriberTest extends UnitTestCase {
 
     $route_event = new RouteBuildEvent($collection, 'views');
 
-    list($display_1, $display_2) = $this->setupMocks();
+    [$display_1, $display_2] = $this->setupMocks();
 
     // The page_1 display overrides an existing route, so the dynamicRoutes
     // should only call the second display.
@@ -139,7 +140,7 @@ class RouteSubscriberTest extends UnitTestCase {
   /**
    * Sets up mocks of Views objects needed for testing.
    *
-   * @return \Drupal\views\Plugin\views\display\DisplayRouterInterface[]|\PHPUnit_Framework_MockObject_MockObject[]
+   * @return \Drupal\views\Plugin\views\display\DisplayRouterInterface[]|\PHPUnit\Framework\MockObject\MockObject[]
    *   An array of two mocked view displays.
    */
   protected function setupMocks() {
@@ -163,25 +164,25 @@ class RouteSubscriberTest extends UnitTestCase {
 
     $executable->expects($this->any())
       ->method('setDisplay')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         ['page_1', TRUE],
         ['page_2', TRUE],
         ['page_3', FALSE],
-      ]));
+      ]);
 
     // Ensure that only the first two displays are actually called.
-    $display_1 = $this->getMock('Drupal\views\Plugin\views\display\DisplayRouterInterface');
-    $display_2 = $this->getMock('Drupal\views\Plugin\views\display\DisplayRouterInterface');
+    $display_1 = $this->createMock('Drupal\views\Plugin\views\display\DisplayRouterInterface');
+    $display_2 = $this->createMock('Drupal\views\Plugin\views\display\DisplayRouterInterface');
 
     $display_collection = $this->getMockBuilder('Drupal\views\DisplayPluginCollection')
       ->disableOriginalConstructor()
       ->getMock();
     $display_collection->expects($this->any())
       ->method('get')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         ['page_1', $display_1],
         ['page_2', $display_2],
-      ]));
+      ]);
     $executable->displayHandlers = $display_collection;
 
     $this->routeSubscriber->applicableViews = [];

@@ -15,7 +15,7 @@ use Drupal\Core\Form\FormStateInterface;
  *   id = "popover_enabled",
  *   type = "checkbox",
  *   title = @Translation("Enable Bootstrap Popovers"),
- *   description = @Translation("Elements that have the <code>data-toggle=&quot;popover&quot;</code> attribute set will automatically initialize the popover upon page load. <strong class='error text-error'>WARNING: This feature can sometimes impact performance. Disable if pages appear to hang after initial load.</strong>"),
+ *   description = @Translation("Elements that have the <code>data-toggle=&quot;popover&quot;</code> attribute set will automatically initialize the popover upon page load. <div class='alert alert-warning alert-sm'><strong>WARNING:</strong> This feature can sometimes impact performance. Disable if pages appear to hang after load.</div>"),
  *   defaultValue = 1,
  *   weight = -1,
  *   groups = {
@@ -33,7 +33,7 @@ class PopoverEnabled extends SettingBase {
     parent::alterFormElement($form, $form_state, $form_id);
 
     $group = $this->getGroupElement($form, $form_state);
-    $group->setProperty('description', t('Add small overlays of content, like those on the iPad, to any element for housing secondary information.'));
+    $group->setProperty('description', $this->t('Add small overlays of content, like those on the iPad, to any element for housing secondary information.'));
   }
 
   /**

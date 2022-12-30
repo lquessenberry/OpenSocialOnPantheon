@@ -3,9 +3,9 @@
 namespace Drupal\Tests\file\Unit\Plugin\migrate\process\d6;
 
 use Drupal\file\Plugin\migrate\process\d6\FieldFile;
+use Drupal\migrate\MigrateLookupInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\MigrateExecutableInterface;
-use Drupal\migrate\Plugin\MigrateProcessInterface;
 use Drupal\migrate\Row;
 use Drupal\Tests\UnitTestCase;
 
@@ -22,14 +22,14 @@ class FieldFileTest extends UnitTestCase {
     $row = $this->prophesize(Row::class)->reveal();
     $migration = $this->prophesize(MigrationInterface::class)->reveal();
 
-    $migration_plugin = $this->prophesize(MigrateProcessInterface::class);
-    $migration_plugin->transform(1, $executable, $row, 'foo')->willReturn(1);
+    $migrate_lookup = $this->prophesize(MigrateLookupInterface::class);
+    $migrate_lookup->lookup('d6_file', [1])->willReturn([['fid' => 1]]);
 
-    $plugin = new FieldFile([], 'd6_file', [], $migration, $migration_plugin->reveal());
+    $plugin = new FieldFile([], 'd6_file', [], $migration, $migrate_lookup->reveal());
 
     $options = [
-      'alt' => 'Foobaz',
-      'title' => 'Wambooli',
+      'alt' => 'Foo',
+      'title' => 'Bar',
     ];
     $value = [
       'fid' => 1,
@@ -42,8 +42,8 @@ class FieldFileTest extends UnitTestCase {
       'target_id' => 1,
       'display' => TRUE,
       'description' => '',
-      'alt' => 'Foobaz',
-      'title' => 'Wambooli',
+      'alt' => 'Foo',
+      'title' => 'Bar',
     ];
     $this->assertSame($expected, $transformed);
   }

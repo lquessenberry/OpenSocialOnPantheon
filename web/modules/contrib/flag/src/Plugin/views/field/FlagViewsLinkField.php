@@ -2,13 +2,14 @@
 
 namespace Drupal\flag\Plugin\views\field;
 
-use Drupal\Component\Serialization\Json;
-use Drupal\Core\Link;
-use Drupal\flag\Plugin\ActionLink\FormEntryInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\flag\FlaggingInterface;
+use Drupal\flag\FlagLinkBuilderInterface;
 use Drupal\views\Plugin\views\field\FieldPluginBase;
 use Drupal\views\ResultRow;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Entity\EntityInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a views field to flag or unflag the selected content.
@@ -18,19 +19,63 @@ use Drupal\Core\Entity\EntityInterface;
  *
  * @ViewsField("flag_link")
  */
-class FlagViewsLinkField extends FieldPluginBase {
+class FlagViewsLinkField extends FieldPluginBase implements ContainerFactoryPluginInterface {
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The flag for this row.
+   *
+   * @var \Drupal\flag\FlagInterface
+   */
+  protected $flag;
+
+  /**
+   * The builder for flag links.
+   *
+   * @var \Drupal\flag\FlagLinkBuilderInterface
+   */
+  protected $flagLinkBuilder;
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('flag.link_builder')
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, FlagLinkBuilderInterface $flag_link_builder) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->flagLinkBuilder = $flag_link_builder;
+  }
 
   /**
    * A helper method to retrieve the flag entity from the views relationship.
    *
-   * @return FlagInterface|null
+   * @return \Drupal\flag\FlagInterface|null
    *   The flag selected by the views relationship.
    */
   public function getFlag() {
+    if ($this->flag) {
+      return $this->flag;
+    }
     // When editing a view it's possible to delete the relationship (either by
     // error or to later recreate it), so we have to guard against a missing
     // one.
-    if (isset($this->view->relationship[$this->options['relationship']])) {
+    elseif (isset($this->view->relationship[$this->options['relationship']])) {
       return $this->view->relationship[$this->options['relationship']]->getFlag();
     }
 
@@ -46,7 +91,7 @@ class FlagViewsLinkField extends FieldPluginBase {
     // Set the default relationship handler. The first instance of the
     // FlagViewsRelationship should always have the id "flag_relationship", so
     // we set that as the default.
-    $options['relationship'] = array('default' => 'flag_relationship');
+    $options['relationship'] = ['default' => 'flag_relationship'];
 
     return $options;
   }
@@ -72,7 +117,22 @@ class FlagViewsLinkField extends FieldPluginBase {
    * {@inheritdoc}
    */
   public function render(ResultRow $values) {
-    $entity = $this->getParentRelationshipEntity($values);
+    // If the flagging is the base for the view, there wouldn't be a
+    // relationship involved.
+    if ($values->_entity instanceof FlaggingInterface) {
+      $entity_type = $values->_entity->getFlaggableType();
+      $entity_id = $values->_entity->getFlaggableId();
+      $entity = $this->getEntityTypeManager()
+        ->getStorage($entity_type)
+        ->load($entity_id);
+      $this->flag = $values->_entity->getFlag();
+    }
+    else {
+      $entity = $this->getParentRelationshipEntity($values);
+    }
+    if (empty($entity)) {
+      return '';
+    }
     return $this->renderLink($entity, $values);
   }
 
@@ -86,6 +146,7 @@ class FlagViewsLinkField extends FieldPluginBase {
    *   The current result row.
    *
    * @return \Drupal\Core\Entity\EntityInterface
+   *   The parent entity.
    */
   protected function getParentRelationshipEntity(ResultRow $values) {
     $relationship_id = $this->options['relationship'];
@@ -119,27 +180,23 @@ class FlagViewsLinkField extends FieldPluginBase {
       return '';
     }
 
-    $flag = $this->getFlag();
-    $link_type_plugin = $flag->getLinkTypePlugin();
+    return $this->flagLinkBuilder->build(
+      $entity->getEntityTypeId(), $entity->id(), $this->getFlag()->id()
+    );
+  }
 
-    $link = $link_type_plugin->getAsLink($flag, $entity);
-
-    $renderable = $link->toRenderable();
-
-    if ($link_type_plugin instanceof FormEntryInterface) {
-      // Check if form should be in a modal or dialog.
-      $configuration = $link_type_plugin->getConfiguration();
-      if ($configuration['form_behavior'] !== 'default') {
-        $renderable['#attached']['library'][] = 'core/drupal.ajax';
-        $renderable['#attributes']['class'][] = 'use-ajax';
-        $renderable['#attributes']['data-dialog-type'] = $configuration['form_behavior'];
-        $renderable['#attributes']['data-dialog-options'] = Json::encode([
-          'width' => 'auto',
-        ]);
-      }
+  /**
+   * Returns the entity type manager.
+   *
+   * @return \Drupal\Core\Entity\EntityTypeManagerInterface
+   *   The entity type manager service.
+   */
+  protected function getEntityTypeManager() {
+    if (!isset($this->entityTypeManager)) {
+      $this->entityTypeManager = \Drupal::service('entity_type.manager');
     }
 
-    return $renderable;
+    return $this->entityTypeManager;
   }
 
 }

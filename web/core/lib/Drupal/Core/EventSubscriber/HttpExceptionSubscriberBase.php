@@ -3,7 +3,7 @@
 namespace Drupal\Core\EventSubscriber;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 
@@ -17,14 +17,14 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * method:
  *
  * @code
- * public function on404(GetResponseForExceptionEvent $event) {}
+ * public function on404(ExceptionEvent $event) {}
  * @endcode
  *
  * To implement a fallback for the entire 4xx class of codes, implement the
  * method:
  *
  * @code
- * public function on4xx(GetResponseForExceptionEvent $event) {}
+ * public function on4xx(ExceptionEvent $event) {}
  * @endcode
  *
  * That method should then call $event->setResponse() to set the response object
@@ -82,11 +82,11 @@ abstract class HttpExceptionSubscriberBase implements EventSubscriberInterface {
   /**
    * Handles errors for this subscriber.
    *
-   * @param \Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ExceptionEvent $event
    *   The event to process.
    */
-  public function onException(GetResponseForExceptionEvent $event) {
-    $exception = $event->getException();
+  public function onException(ExceptionEvent $event) {
+    $exception = $event->getThrowable();
 
     // Make the exception available for example when rendering a block.
     $request = $event->getRequest();
@@ -99,7 +99,7 @@ abstract class HttpExceptionSubscriberBase implements EventSubscriberInterface {
     if ($exception instanceof HttpExceptionInterface && (empty($handled_formats) || in_array($format, $handled_formats))) {
       $method = 'on' . $exception->getStatusCode();
       // Keep just the leading number of the status code to produce either a
-      // on400 or a 500 method callback.
+      // 400 or a 500 method callback.
       $method_fallback = 'on' . substr($exception->getStatusCode(), 0, 1) . 'xx';
       // We want to allow the method to be called and still not set a response
       // if it has additional filtering logic to determine when it will apply.

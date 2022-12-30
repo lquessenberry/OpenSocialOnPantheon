@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\mailsystem_test\Plugin\Mail\DummyFormatter.
- */
 
 namespace Drupal\mailsystem_test\Plugin\Mail;
 
@@ -24,11 +20,11 @@ class DummyFormatter implements MailInterface {
    */
   public function format(array $message) {
     // TODO: Implement format() method.
-    \debug(array(
+    \dump([
       'Subject' => $message['subject'],
       'Body' => $message['body'],
       'Headers' => $message['headers'],
-    ), 'DummyFormatter: format()');
+    ], 'DummyFormatter: format()');
     return $message;
   }
 

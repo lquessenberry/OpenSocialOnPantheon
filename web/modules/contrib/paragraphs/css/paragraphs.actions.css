@@ -112,6 +112,7 @@
 
 .form-wrapper .paragraphs-dropdown-action.button {
   margin-top: 0;
+  margin-bottom: 0;
 }
 
 @media (max-width: 768px) {

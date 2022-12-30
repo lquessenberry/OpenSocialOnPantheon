@@ -55,7 +55,7 @@ class TestForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     \Drupal::service('plugin.manager.mail')->mail('swiftmailer', 'test', $form_state->getValue(['test', 'recipient']), \Drupal::languageManager()->getDefaultLanguage()->getId());
-    drupal_set_message($this->t('An attempt has been made to send an e-mail to @email.', ['@email' => $form_state->getValue(['test', 'recipient'])]));
+    \Drupal::messenger()->addMessage($this->t('An attempt has been made to send an e-mail to @email.', ['@email' => $form_state->getValue(['test', 'recipient'])]));
   }
 
 }

@@ -11,6 +11,7 @@ class Pe implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{0029}\x{005D}\x{007D}\x{0F3B}\x{0F3D}\x{169C}\x{2046}' .
       '\x{207E}\x{208E}\x{2309}\x{230B}\x{232A}\x{2769}\x{276B}' .
@@ -23,6 +24,7 @@ class Pe implements UnicodeCharacterPropertyInterface {
       '\x{FE36}\x{FE38}\x{FE3A}\x{FE3C}\x{FE3E}\x{FE40}\x{FE42}' .
       '\x{FE44}\x{FE48}\x{FE5A}\x{FE5C}\x{FE5E}\x{FF09}\x{FF3D}' .
       '\x{FF5D}\x{FF60}\x{FF63}';
+    // phpcs:enable
   }
 
 }

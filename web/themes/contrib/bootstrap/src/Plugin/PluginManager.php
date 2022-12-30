@@ -85,6 +85,17 @@ class PluginManager extends DefaultPluginManager {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  protected function findDefinitions() {
+    $definitions = parent::findDefinitions();
+
+    $this->sortDefinitions($definitions);
+
+    return $definitions;
+  }
+
+  /**
    * Retrieves the cache tags used to invalidate caches.
    *
    * @return array
@@ -92,17 +103,6 @@ class PluginManager extends DefaultPluginManager {
    */
   public function getCacheTags() {
     return [Bootstrap::CACHE_TAG];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getDefinitions($sorted = TRUE) {
-    $definitions = parent::getDefinitions();
-    if ($sorted) {
-      uasort($definitions, ['\Drupal\Component\Utility\SortArray', 'sortByWeightElement']);
-    }
-    return $definitions;
   }
 
   /**
@@ -131,6 +131,16 @@ class PluginManager extends DefaultPluginManager {
    */
   protected function providerExists($provider) {
     return $this->themeHandler->themeExists($provider);
+  }
+
+  /**
+   * Sorts the plugin definitions.
+   *
+   * @param array $definitions
+   *   The unsorted plugin definitions, passed by reference.
+   */
+  protected function sortDefinitions(array &$definitions) {
+    uasort($definitions, ['\Drupal\Component\Utility\SortArray', 'sortByWeightElement']);
   }
 
 }

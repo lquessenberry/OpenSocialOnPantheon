@@ -3,8 +3,10 @@
 namespace Drupal\search_api\Plugin\views\cache;
 
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\views\Plugin\views\cache\Tag;
+use Drupal\views\ResultRow;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -15,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * Use this for search results views that are fully controlled by a single
  * Drupal instance. A common use case is a website that uses the default
- * database search backend and does not index any external data sources.
+ * database search backend and does not index any external datasources.
  *
  * @ingroup views_cache_plugins
  *
@@ -76,8 +78,40 @@ class SearchApiTagCache extends Tag {
    */
   public function getCacheTags() {
     $tags = $this->view->storage->getCacheTags();
+    // Add the list cache tag of the search index, so that the view will be
+    // invalidated whenever the index is updated.
     $tag = 'search_api_list:' . $this->getQuery()->getIndex()->id();
     $tags = Cache::mergeTags([$tag], $tags);
+    // Also add the cache tags of the index itself, so that the view will be
+    // invalidated if the configuration of the index changes.
+    $index_tags = $this->getQuery()->getIndex()->getCacheTagsToInvalidate();
+    $tags = Cache::mergeTags($index_tags, $tags);
+    return $tags;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getRowId(ResultRow $row) {
+    return $row->search_api_id;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getRowCacheTags(ResultRow $row) {
+    $tags = [];
+
+    foreach ($row->_relationship_objects as $objects) {
+      /** @var \Drupal\Core\TypedData\ComplexDataInterface $object */
+      foreach ($objects as $object) {
+        $entity = $object->getValue();
+        if ($entity instanceof EntityInterface) {
+          $tags = Cache::mergeTags($tags, $entity->getCacheTags());
+        }
+      }
+    }
+
     return $tags;
   }
 

@@ -1,0 +1,13 @@
+name: 'Entity Host Base Field ERR'
+type: module
+description: 'Entity host with base field definition using entity_reference_revisions.'
+package: Testing
+core_version_requirement: ^8.7.7 || ^9
+
+dependencies:
+  - entity_composite_relationship_test:entity_composite_relationship_test
+
+# Information added by Drupal.org packaging script on 2021-03-03
+version: '8.x-1.9'
+project: 'entity_reference_revisions'
+datestamp: 1614805875

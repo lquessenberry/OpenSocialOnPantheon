@@ -7,6 +7,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl;
 
@@ -116,14 +117,14 @@ class NegotiationUrlForm extends ConfigFormBase {
         '#type' => 'textfield',
         '#title' => $language->isDefault() ? $this->t('%language (%langcode) path prefix (Default language)', $t_args) : $this->t('%language (%langcode) path prefix', $t_args),
         '#maxlength' => 64,
-        '#default_value' => isset($prefixes[$langcode]) ? $prefixes[$langcode] : '',
+        '#default_value' => $prefixes[$langcode] ?? '',
         '#field_prefix' => $base_url . '/',
       ];
       $form['domain'][$langcode] = [
         '#type' => 'textfield',
         '#title' => $this->t('%language (%langcode) domain', ['%language' => $language->getName(), '%langcode' => $language->getId()]),
         '#maxlength' => 128,
-        '#default_value' => isset($domains[$langcode]) ? $domains[$langcode] : '',
+        '#default_value' => $domains[$langcode] ?? '',
       ];
     }
 
@@ -151,7 +152,7 @@ class NegotiationUrlForm extends ConfigFormBase {
           // Throw a form error if the prefix is blank for a non-default language,
           // although it is required for selected negotiation type.
           $form_state->setErrorByName("prefix][$langcode", $this->t('The prefix may only be left blank for the <a href=":url">selected detection fallback language.</a>', [
-            ':url' => $this->getUrlGenerator()->generate('language.negotiation_selected'),
+            ':url' => Url::fromRoute('language.negotiation_selected')->toString(),
           ]));
         }
       }

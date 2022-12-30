@@ -3,19 +3,15 @@ Mink
 [![Latest Stable Version](https://poser.pugx.org/behat/mink/v/stable.svg)](https://packagist.org/packages/behat/mink)
 [![Latest Unstable Version](https://poser.pugx.org/behat/mink/v/unstable.svg)](https://packagist.org/packages/behat/mink)
 [![Total Downloads](https://poser.pugx.org/behat/mink/downloads.svg)](https://packagist.org/packages/behat/mink)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/minkphp/Mink/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/minkphp/Mink/?branch=master)
-[![Code Coverage](https://scrutinizer-ci.com/g/minkphp/Mink/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/minkphp/Mink/)
-[![Build Status](https://travis-ci.org/minkphp/Mink.svg?branch=master)](https://travis-ci.org/minkphp/Mink)
-[![SensioLabsInsight](https://insight.sensiolabs.com/projects/5bb8fab0-978f-428a-ae23-44ee4e129fbc/mini.png)](https://insight.sensiolabs.com/projects/5bb8fab0-978f-428a-ae23-44ee4e129fbc)
+[![CI](https://github.com/minkphp/Mink/actions/workflows/tests.yml/badge.svg)](https://github.com/minkphp/Mink/actions/workflows/tests.yml)
 [![License](https://poser.pugx.org/behat/mink/license.svg)](https://packagist.org/packages/behat/mink)
 
 
 Useful Links
 ------------
 
-- The main website with documentation is at [http://mink.behat.org](http://mink.behat.org)
-- Official Google Group is at [http://groups.google.com/group/behat](http://groups.google.com/group/behat)
-- IRC channel on [#freenode](http://freenode.net/) is `#behat`
+- The main website with documentation is at [https://mink.behat.org](https://mink.behat.org)
+- Official Google Group is at [https://groups.google.com/group/behat](https://groups.google.com/group/behat)
 - [Note on Patches/Pull Requests](CONTRIBUTING.md)
 
 Usage Example

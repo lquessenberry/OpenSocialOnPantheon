@@ -2,17 +2,17 @@
 
 namespace Drupal\serialization\Normalizer;
 
+use Drupal\Core\TypedData\TypedDataInterface;
+
 /**
  * Converts typed data objects to arrays.
  */
 class TypedDataNormalizer extends NormalizerBase {
 
   /**
-   * The interface or class that this Normalizer supports.
-   *
-   * @var string
+   * {@inheritdoc}
    */
-  protected $supportedInterfaceOrClass = 'Drupal\Core\TypedData\TypedDataInterface';
+  protected $supportedInterfaceOrClass = TypedDataInterface::class;
 
   /**
    * {@inheritdoc}
@@ -25,6 +25,13 @@ class TypedDataNormalizer extends NormalizerBase {
       $value = (string) $value;
     }
     return $value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function hasCacheableSupportsMethod(): bool {
+    return TRUE;
   }
 
 }

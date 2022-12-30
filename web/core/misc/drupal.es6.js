@@ -42,7 +42,14 @@ window.Drupal = { behaviors: {}, locale: {} };
 
 // JavaScript should be made compatible with libraries other than jQuery by
 // wrapping it in an anonymous closure.
-(function (Drupal, drupalSettings, drupalTranslations) {
+(function (
+  Drupal,
+  drupalSettings,
+  drupalTranslations,
+  console,
+  Proxy,
+  Reflect,
+) {
   /**
    * Helper to rethrow errors asynchronously.
    *
@@ -121,7 +128,7 @@ window.Drupal = { behaviors: {}, locale: {} };
    * behaviors to the new content.
    *
    * Behaviors should use `var elements =
-   * $(context).find(selector).once('behavior-name');` to ensure the behavior is
+   * once('behavior-name', selector, context);` to ensure the behavior is
    * attached only once to a given element. (Doing so enables the reprocessing
    * of given elements, which may be needed on occasion despite the ability to
    * limit behavior attachment to a particular element.)
@@ -157,8 +164,7 @@ window.Drupal = { behaviors: {}, locale: {} };
         // Don't stop the execution of behaviors in case of an error.
         try {
           behaviors[i].attach(context, settings);
-        }
-        catch (e) {
+        } catch (e) {
           Drupal.throwError(e);
         }
       }
@@ -172,10 +178,10 @@ window.Drupal = { behaviors: {}, locale: {} };
    * before page content is about to be removed, feeding in an element to be
    * processed, in order to allow special behaviors to detach from the content.
    *
-   * Such implementations should use `.findOnce()` and `.removeOnce()` to find
+   * Such implementations should use `once.filter()` and `once.remove()` to find
    * elements with their corresponding `Drupal.behaviors.behaviorName.attach`
-   * implementation, i.e. `.removeOnce('behaviorName')`, to ensure the behavior
-   * is detached only from previously processed elements.
+   * implementation, i.e. `once.remove('behaviorName', selector, context)`,
+   * to ensure the behavior is detached only from previously processed elements.
    *
    * @param {HTMLDocument|HTMLElement} [context=document]
    *   An element to detach behaviors from.
@@ -217,8 +223,7 @@ window.Drupal = { behaviors: {}, locale: {} };
         // Don't stop the execution of behaviors in case of an error.
         try {
           behaviors[i].detach(context, settings, trigger);
-        }
-        catch (e) {
+        } catch (e) {
           Drupal.throwError(e);
         }
       }
@@ -237,7 +242,8 @@ window.Drupal = { behaviors: {}, locale: {} };
    * @ingroup sanitization
    */
   Drupal.checkPlain = function (str) {
-    str = str.toString()
+    str = str
+      .toString()
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -364,7 +370,12 @@ window.Drupal = { behaviors: {}, locale: {} };
     options.context = options.context || '';
 
     // Fetch the localized version of the string.
-    if (typeof drupalTranslations !== 'undefined' && drupalTranslations.strings && drupalTranslations.strings[options.context] && drupalTranslations.strings[options.context][str]) {
+    if (
+      typeof drupalTranslations !== 'undefined' &&
+      drupalTranslations.strings &&
+      drupalTranslations.strings[options.context] &&
+      drupalTranslations.strings[options.context][str]
+    ) {
       str = drupalTranslations.strings[options.context][str];
     }
 
@@ -407,8 +418,7 @@ window.Drupal = { behaviors: {}, locale: {} };
     // strings may throw an exception.
     try {
       url = decodeURIComponent(url);
-    }
-    catch (e) {
+    } catch (e) {
       // Empty.
     }
 
@@ -434,26 +444,26 @@ window.Drupal = { behaviors: {}, locale: {} };
     // Always use browser-derived absolute URLs in the comparison, to avoid
     // attempts to break out of the base path using directory traversal.
     let absoluteUrl = Drupal.url.toAbsolute(url);
-    let protocol = location.protocol;
+    let { protocol } = window.location;
 
     // Consider URLs that match this site's base URL but use HTTPS instead of HTTP
     // as local as well.
     if (protocol === 'http:' && absoluteUrl.indexOf('https:') === 0) {
       protocol = 'https:';
     }
-    let baseUrl = `${protocol}//${location.host}${drupalSettings.path.baseUrl.slice(0, -1)}`;
+    let baseUrl = `${protocol}//${
+      window.location.host
+    }${drupalSettings.path.baseUrl.slice(0, -1)}`;
 
     // Decoding non-UTF-8 strings may throw an exception.
     try {
       absoluteUrl = decodeURIComponent(absoluteUrl);
-    }
-    catch (e) {
+    } catch (e) {
       // Empty.
     }
     try {
       baseUrl = decodeURIComponent(baseUrl);
-    }
-    catch (e) {
+    } catch (e) {
       // Empty.
     }
 
@@ -500,14 +510,23 @@ window.Drupal = { behaviors: {}, locale: {} };
     args['@count'] = count;
 
     const pluralDelimiter = drupalSettings.pluralDelimiter;
-    const translations = Drupal.t(singular + pluralDelimiter + plural, args, options).split(pluralDelimiter);
+    const translations = Drupal.t(
+      singular + pluralDelimiter + plural,
+      args,
+      options,
+    ).split(pluralDelimiter);
     let index = 0;
 
     // Determine the index of the plural form.
-    if (typeof drupalTranslations !== 'undefined' && drupalTranslations.pluralFormula) {
-      index = count in drupalTranslations.pluralFormula ? drupalTranslations.pluralFormula[count] : drupalTranslations.pluralFormula.default;
-    }
-    else if (args['@count'] !== 1) {
+    if (
+      typeof drupalTranslations !== 'undefined' &&
+      drupalTranslations.pluralFormula
+    ) {
+      index =
+        count in drupalTranslations.pluralFormula
+          ? drupalTranslations.pluralFormula[count]
+          : drupalTranslations.pluralFormula.default;
+    } else if (args['@count'] !== 1) {
       index = 1;
     }
 
@@ -527,6 +546,61 @@ window.Drupal = { behaviors: {}, locale: {} };
    */
   Drupal.encodePath = function (item) {
     return window.encodeURIComponent(item).replace(/%2F/g, '/');
+  };
+
+  /**
+   * Triggers deprecation error.
+   *
+   * Deprecation errors are only triggered if deprecation errors haven't
+   * been suppressed.
+   *
+   * @param {Object} deprecation
+   *   The deprecation options.
+   * @param {string} deprecation.message
+   *   The deprecation message.
+   *
+   * @see https://www.drupal.org/core/deprecation#javascript
+   */
+  Drupal.deprecationError = ({ message }) => {
+    if (
+      drupalSettings.suppressDeprecationErrors === false &&
+      typeof console !== 'undefined' &&
+      console.warn
+    ) {
+      console.warn(`[Deprecation] ${message}`);
+    }
+  };
+
+  /**
+   * Triggers deprecation error when object property is being used.
+   *
+   * @param {Object} deprecation
+   *   The deprecation options.
+   * @param {Object} deprecation.target
+   *   The targeted object.
+   * @param {string} deprecation.deprecatedProperty
+   *   A key of the deprecated property.
+   * @param {string} deprecation.message
+   *   The deprecation message.
+   * @returns {Object}
+   *
+   * @see https://www.drupal.org/core/deprecation#javascript
+   */
+  Drupal.deprecatedProperty = ({ target, deprecatedProperty, message }) => {
+    // Proxy and Reflect are not supported by all browsers. Unsupported browsers
+    // are ignored since this is a development feature.
+    if (!Proxy || !Reflect) {
+      return target;
+    }
+
+    return new Proxy(target, {
+      get: (target, key, ...rest) => {
+        if (key === deprecatedProperty) {
+          Drupal.deprecationError({ message });
+        }
+        return Reflect.get(target, key, ...rest);
+      },
+    });
   };
 
   /**
@@ -571,4 +645,11 @@ window.Drupal = { behaviors: {}, locale: {} };
   Drupal.theme.placeholder = function (str) {
     return `<em class="placeholder">${Drupal.checkPlain(str)}</em>`;
   };
-}(Drupal, window.drupalSettings, window.drupalTranslations));
+})(
+  Drupal,
+  window.drupalSettings,
+  window.drupalTranslations,
+  window.console,
+  window.Proxy,
+  window.Reflect,
+);

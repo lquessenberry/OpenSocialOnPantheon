@@ -9,6 +9,7 @@ use Drupal\Core\Url;
 use Drupal\image_effects\Plugin\ImageEffectsPluginBase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 
 /**
  * Dropdown image selector plugin.
@@ -33,6 +34,13 @@ class Dropdown extends ImageEffectsPluginBase {
   protected $imageFactory;
 
   /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs a ImageEffectsPluginBase object.
    *
    * @param array $configuration
@@ -47,10 +55,13 @@ class Dropdown extends ImageEffectsPluginBase {
    *   The image_effects logger.
    * @param \Drupal\Core\Image\ImageFactory $image_factory
    *   The image factory service.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory, LoggerInterface $logger, ImageFactory $image_factory) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory, LoggerInterface $logger, ImageFactory $image_factory, MessengerInterface $messenger) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $config_factory, $logger);
     $this->imageFactory = $image_factory;
+    $this->messenger = $messenger;
   }
 
   /**
@@ -63,7 +74,8 @@ class Dropdown extends ImageEffectsPluginBase {
       $plugin_definition,
       $container->get('config.factory'),
       $container->get('logger.channel.image_effects'),
-      $container->get('image.factory')
+      $container->get('image.factory'),
+      $container->get('messenger')
     );
   }
 
@@ -105,10 +117,10 @@ class Dropdown extends ImageEffectsPluginBase {
     // Get list of images.
     $image_files = $this->getList();
     if (empty($image_files)) {
-      drupal_set_message($this->t(
+      $this->messenger->addWarning($this->t(
           'No images available. Make sure at least one image is available in the directory specified in the <a href=":url">configuration page</a>.',
           [':url' => Url::fromRoute('image_effects.settings')->toString()]
-        ), 'warning'
+        )
       );
     }
 

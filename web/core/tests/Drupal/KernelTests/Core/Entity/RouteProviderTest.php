@@ -5,6 +5,7 @@ namespace Drupal\KernelTests\Core\Entity;
 use Drupal\entity_test\Entity\EntityTestAdminRoutes;
 use Drupal\entity_test\Entity\EntityTestMul;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\user\Entity\Role;
 use Drupal\user\RoleInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,24 +18,28 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
  */
 class RouteProviderTest extends KernelTestBase {
 
-  /**
-   * {@inheritdoc}
-   */
-  public static $modules = ['entity_test', 'user', 'system'];
+  use UserCreationTrait;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected static $modules = ['entity_test', 'user', 'system'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->installEntitySchema('user');
+    $this->setUpCurrentUser(['uid' => 1]);
+
     $this->installEntitySchema('entity_test_mul');
     $this->installEntitySchema('entity_test_admin_routes');
 
     /** @var \Drupal\user\RoleInterface $role */
     $role = Role::create([
-      'id' => RoleInterface::ANONYMOUS_ID
+      'id' => RoleInterface::ANONYMOUS_ID,
+      'label' => 'Anonymous',
     ]);
     $role
       ->grantPermission('administer entity_test content')
@@ -79,13 +84,13 @@ class RouteProviderTest extends KernelTestBase {
     ]);
     $entity->save();
 
-    $this->setRawContent($this->httpKernelHandle($entity->url()));
+    $this->setRawContent($this->httpKernelHandle($entity->toUrl()->toString()));
     $this->assertTitle('Test title | ');
 
-    $this->setRawContent($this->httpKernelHandle($entity->url('edit-form')));
+    $this->setRawContent($this->httpKernelHandle($entity->toUrl('edit-form')->toString()));
     $this->assertTitle('Edit Test title | ');
 
-    $this->setRawContent($this->httpKernelHandle($entity->url('delete-form')));
+    $this->setRawContent($this->httpKernelHandle($entity->toUrl('delete-form')->toString()));
     $this->assertTitle('Are you sure you want to delete the test entity - data table Test title? | ');
   }
 
@@ -122,13 +127,13 @@ class RouteProviderTest extends KernelTestBase {
     ]);
     $entity->save();
 
-    $this->setRawContent($this->httpKernelHandle($entity->url()));
+    $this->setRawContent($this->httpKernelHandle($entity->toUrl()->toString()));
     $this->assertTitle('Test title | ');
 
-    $this->setRawContent($this->httpKernelHandle($entity->url('edit-form')));
+    $this->setRawContent($this->httpKernelHandle($entity->toUrl('edit-form')->toString()));
     $this->assertTitle('Edit Test title | ');
 
-    $this->setRawContent($this->httpKernelHandle($entity->url('delete-form')));
+    $this->setRawContent($this->httpKernelHandle($entity->toUrl('delete-form')->toString()));
     $this->assertTitle('Are you sure you want to delete the test entity - admin routes Test title? | ');
   }
 

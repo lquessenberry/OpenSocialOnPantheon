@@ -1,0 +1,5 @@
+r4032login.settings:
+  title: 'r4032login'
+  route_name: r4032login.settings.form
+  description: 'Configure r4032login.'
+  parent: system.admin_config_system

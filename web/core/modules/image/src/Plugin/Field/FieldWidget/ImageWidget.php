@@ -5,7 +5,6 @@ namespace Drupal\image\Plugin\Field\FieldWidget;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Image\ImageFactory;
-use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\ElementInfoManagerInterface;
 use Drupal\file\Entity\File;
@@ -178,7 +177,7 @@ class ImageWidget extends FileWidget {
       $default_image = $this->fieldDefinition->getFieldStorageDefinition()->getSetting('default_image');
     }
     // Convert the stored UUID into a file ID.
-    if (!empty($default_image['uuid']) && $entity = \Drupal::entityManager()->loadEntityByUuid('file', $default_image['uuid'])) {
+    if (!empty($default_image['uuid']) && $entity = \Drupal::service('entity.repository')->loadEntityByUuid('file', $default_image['uuid'])) {
       $default_image['fid'] = $entity->id();
     }
     $element['#default_image'] = !empty($default_image['fid']) ? $default_image : [];
@@ -187,7 +186,7 @@ class ImageWidget extends FileWidget {
   }
 
   /**
-   * Form API callback: Processes a image_image field element.
+   * Form API callback: Processes an image_image field element.
    *
    * Expands the image_image type to include the alt and title fields.
    *
@@ -207,10 +206,14 @@ class ImageWidget extends FileWidget {
         'uri' => $file->getFileUri(),
       ];
 
+      $dimension_key = $variables['uri'] . '.image_preview_dimensions';
       // Determine image dimensions.
       if (isset($element['#value']['width']) && isset($element['#value']['height'])) {
         $variables['width'] = $element['#value']['width'];
         $variables['height'] = $element['#value']['height'];
+      }
+      elseif ($form_state->has($dimension_key)) {
+        $variables += $form_state->get($dimension_key);
       }
       else {
         $image = \Drupal::service('image.factory')->get($file->getFileUri());
@@ -234,14 +237,7 @@ class ImageWidget extends FileWidget {
 
       // Store the dimensions in the form so the file doesn't have to be
       // accessed again. This is important for remote files.
-      $element['width'] = [
-        '#type' => 'hidden',
-        '#value' => $variables['width'],
-      ];
-      $element['height'] = [
-        '#type' => 'hidden',
-        '#value' => $variables['height'],
-      ];
+      $form_state->set($dimension_key, ['width' => $variables['width'], 'height' => $variables['height']]);
     }
     elseif (!empty($element['#default_image'])) {
       $default_image = $element['#default_image'];
@@ -262,25 +258,25 @@ class ImageWidget extends FileWidget {
     $element['alt'] = [
       '#title' => t('Alternative text'),
       '#type' => 'textfield',
-      '#default_value' => isset($item['alt']) ? $item['alt'] : '',
-      '#description' => t('This text will be used by screen readers, search engines, or when the image cannot be loaded.'),
+      '#default_value' => $item['alt'] ?? '',
+      '#description' => t('Short description of the image used by screen readers and displayed when the image is not loaded. This is important for accessibility.'),
       // @see https://www.drupal.org/node/465106#alt-text
       '#maxlength' => 512,
       '#weight' => -12,
       '#access' => (bool) $item['fids'] && $element['#alt_field'],
       '#required' => $element['#alt_field_required'],
-      '#element_validate' => $element['#alt_field_required'] == 1 ? [[get_called_class(), 'validateRequiredFields']] : [],
+      '#element_validate' => $element['#alt_field_required'] == 1 ? [[static::class, 'validateRequiredFields']] : [],
     ];
     $element['title'] = [
       '#type' => 'textfield',
       '#title' => t('Title'),
-      '#default_value' => isset($item['title']) ? $item['title'] : '',
+      '#default_value' => $item['title'] ?? '',
       '#description' => t('The title is used as a tool tip when the user hovers the mouse over the image.'),
       '#maxlength' => 1024,
       '#weight' => -11,
       '#access' => (bool) $item['fids'] && $element['#title_field'],
       '#required' => $element['#title_field_required'],
-      '#element_validate' => $element['#title_field_required'] == 1 ? [[get_called_class(), 'validateRequiredFields']] : [],
+      '#element_validate' => $element['#title_field_required'] == 1 ? [[static::class, 'validateRequiredFields']] : [],
     ];
 
     return parent::process($element, $form_state, $form);
@@ -296,18 +292,7 @@ class ImageWidget extends FileWidget {
     // Only do validation if the function is triggered from other places than
     // the image process form.
     $triggering_element = $form_state->getTriggeringElement();
-    if (empty($triggering_element['#submit']) || !in_array('file_managed_file_submit', $triggering_element['#submit'])) {
-      // If the image is not there, we do not check for empty values.
-      $parents = $element['#parents'];
-      $field = array_pop($parents);
-      $image_field = NestedArray::getValue($form_state->getUserInput(), $parents);
-      // We check for the array key, so that it can be NULL (like if the user
-      // submits the form without using the "upload" button).
-      if (!array_key_exists($field, $image_field)) {
-        return;
-      }
-    }
-    else {
+    if (!empty($triggering_element['#submit']) && in_array('file_managed_file_submit', $triggering_element['#submit'], TRUE)) {
       $form_state->setLimitValidationErrors([]);
     }
   }
@@ -338,7 +323,7 @@ class ImageWidget extends FileWidget {
     if ($style_id && $style = ImageStyle::load($style_id)) {
       if (!empty($dependencies[$style->getConfigDependencyKey()][$style->getConfigDependencyName()])) {
         /** @var \Drupal\image\ImageStyleStorageInterface $storage */
-        $storage = \Drupal::entityManager()->getStorage($style->getEntityTypeId());
+        $storage = \Drupal::entityTypeManager()->getStorage($style->getEntityTypeId());
         $replacement_id = $storage->getReplacementId($style_id);
         // If a valid replacement has been provided in the storage, replace the
         // preview image style with the replacement.

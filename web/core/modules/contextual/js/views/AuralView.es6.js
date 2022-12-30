@@ -4,48 +4,56 @@
  */
 
 (function (Drupal, Backbone) {
-  Drupal.contextual.AuralView = Backbone.View.extend(/** @lends Drupal.contextual.AuralView# */{
+  /**
+   * @deprecated in drupal:9.4.0 and is removed from drupal:10.0.0. There is no
+   *  replacement.
+   */
+  Drupal.contextual.AuralView = Backbone.View.extend(
+    /** @lends Drupal.contextual.AuralView# */ {
+      /**
+       * Renders the aural view of a contextual link (i.e. screen reader support).
+       *
+       * @constructs
+       *
+       * @augments Backbone.View
+       *
+       * @param {object} options
+       *   Options for the view.
+       */
+      initialize(options) {
+        this.options = options;
 
-    /**
-     * Renders the aural view of a contextual link (i.e. screen reader support).
-     *
-     * @constructs
-     *
-     * @augments Backbone.View
-     *
-     * @param {object} options
-     *   Options for the view.
-     */
-    initialize(options) {
-      this.options = options;
+        this.listenTo(this.model, 'change', this.render);
 
-      this.listenTo(this.model, 'change', this.render);
+        // Initial render.
+        this.render();
+      },
 
-      // Use aria-role form so that the number of items in the list is spoken.
-      this.$el.attr('role', 'form');
+      /**
+       * {@inheritdoc}
+       */
+      render() {
+        const isOpen = this.model.get('isOpen');
 
-      // Initial render.
-      this.render();
+        // Set the hidden property of the links.
+        this.$el.find('.contextual-links').prop('hidden', !isOpen);
+
+        // Update the view of the trigger.
+        const $trigger = this.$el.find('.trigger');
+        $trigger
+          .each((index, element) => {
+            element.textContent = Drupal.t(
+              '@action @title configuration options',
+              {
+                '@action': !isOpen
+                  ? this.options.strings.open
+                  : this.options.strings.close,
+                '@title': this.model.get('title'),
+              },
+            );
+          })
+          .attr('aria-pressed', isOpen);
+      },
     },
-
-    /**
-     * @inheritdoc
-     */
-    render() {
-      const isOpen = this.model.get('isOpen');
-
-      // Set the hidden property of the links.
-      this.$el.find('.contextual-links')
-        .prop('hidden', !isOpen);
-
-      // Update the view of the trigger.
-      this.$el.find('.trigger')
-        .text(Drupal.t('@action @title configuration options', {
-          '@action': (!isOpen) ? this.options.strings.open : this.options.strings.close,
-          '@title': this.model.get('title'),
-        }))
-        .attr('aria-pressed', isOpen);
-    },
-
-  });
-}(Drupal, Backbone));
+  );
+})(Drupal, Backbone);

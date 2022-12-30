@@ -1,9 +1,11 @@
 <?php
+
 namespace Drush\Commands;
 
 use Consolidation\AnnotatedCommand\CommandData;
 use Drush\Commands\DrushCommands;
 use Drush\Drush;
+use Drush\Exec\ExecTrait;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
@@ -12,7 +14,6 @@ use Symfony\Component\Filesystem\Filesystem;
 
 class SyncViaHttpCommands extends DrushCommands
 {
-
   /**
    * When a hook extends a command with additional options, it must
    * implement declare those option(s) in a @hook option like this one.  Doing so will add
@@ -30,14 +31,14 @@ class SyncViaHttpCommands extends DrushCommands
     {
     }
 
-  /**
-   * During the pre hook, determine if the http-sync option has been
-   * specified.  If it has been, then disable the normal ssh + rsync
-   * dump-and-transfer that sql-sync usually does, and transfer the
-   * database dump via an http download.
-   *
-   * @hook pre-command sql-sync
-   */
+    /**
+     * During the pre hook, determine if the http-sync option has been
+     * specified.  If it has been, then disable the normal ssh + rsync
+     * dump-and-transfer that sql-sync usually does, and transfer the
+     * database dump via an http download.
+     *
+     * @hook pre-command sql-sync
+     */
     public function preSqlSync(CommandData $commandData)
     {
         $sql_dump_download_url = $commandData->input()->getOption('http-sync');
@@ -51,32 +52,37 @@ class SyncViaHttpCommands extends DrushCommands
         }
     }
 
-  /**
-   * Downloads a file.
-   *
-   * Optionally uses user authentication, using either wget or curl, as available.
-   */
+    /**
+     * Downloads a file.
+     *
+     * Optionally uses user authentication, using either wget or curl, as available.
+     */
     protected function downloadFile($url, $user = false, $password = false, $destination = false, $overwrite = true)
     {
         static $use_wget;
         if ($use_wget === null) {
-            $use_wget = drush_shell_exec('which wget');
+            $use_wget = ExecTrait::programExists('wget');
         }
 
         $destination_tmp = drush_tempnam('download_file');
         if ($use_wget) {
+            $args = ['wget', '-q', '--timeout=30'];
             if ($user && $password) {
-                drush_shell_exec("wget -q --timeout=30 --user=%s --password=%s -O %s %s", $user, $password, $destination_tmp, $url);
+                $args = array_merge($args, ["--user=$user", "--password=$password", '-O', $destination_tmp, $url]);
             } else {
-                drush_shell_exec("wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
+                $args = array_merge($args, ['-O', $destination_tmp, $url]);
             }
         } else {
+            $args = ['curl', '-s', '-L', '--connect-timeout 30'];
             if ($user && $password) {
-                drush_shell_exec("curl -s -L --connect-timeout 30 --user %s:%s -o %s %s", $user, $password, $destination_tmp, $url);
+                $args = array_merge($args, ['--user', "$user:$password", '-o', $destination_tmp, $url]);
             } else {
-                drush_shell_exec("curl -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
+                $args = array_merge($args, ['-o', $destination_tmp, $url]);
             }
         }
+        $process = Drush::process($args);
+        $process->mustRun();
+
         if (!Drush::simulate()) {
             if (!drush_file_not_empty($destination_tmp) && $file = @file_get_contents($url)) {
                 @file_put_contents($destination_tmp, $file);

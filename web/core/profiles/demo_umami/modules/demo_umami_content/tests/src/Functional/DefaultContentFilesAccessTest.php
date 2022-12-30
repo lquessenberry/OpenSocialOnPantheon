@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\demo_umami_content\Functional;
 
-use Drupal\Core\Site\Settings;
 use Drupal\Tests\BrowserTestBase;
 
 /**
@@ -13,18 +12,23 @@ use Drupal\Tests\BrowserTestBase;
 class DefaultContentFilesAccessTest extends BrowserTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests that sample images, recipes and articles are not accessible.
    */
   public function testAccessDeniedToFiles() {
     // The demo_umami profile should not be used because we want to ensure that
     // if you install another profile these files are not available.
-    $this->assertNotSame('demo_umami', Settings::get('install_profile'));
+    $this->assertNotSame('demo_umami', \Drupal::installProfile());
 
     $files_to_test = [
-      'images/chocolate-brownie-umami.jpg',
-      'recipe_instructions/chocolate-brownie-umami.html',
-      'article_body/lets-hear-it-for-carrots.html',
-      'articles.csv',
+      'images/heritage-carrots.jpg',
+      'languages/en/recipe_instructions/mediterranean-quiche-umami.html',
+      'languages/en/article_body/lets-hear-it-for-carrots.html',
+      'languages/en/node/article.csv',
     ];
     foreach ($files_to_test as $file) {
       // Hard code the path since the demo_umami profile is not installed.

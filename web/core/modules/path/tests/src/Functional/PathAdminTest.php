@@ -14,13 +14,23 @@ class PathAdminTest extends PathTestBase {
    *
    * @var array
    */
-  public static $modules = ['path'];
+  protected static $modules = ['path'];
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
 
     // Create test user and log in.
-    $web_user = $this->drupalCreateUser(['create page content', 'edit own page content', 'administer url aliases', 'create url aliases']);
+    $web_user = $this->drupalCreateUser([
+      'create page content',
+      'edit own page content',
+      'administer url aliases',
+      'create url aliases',
+    ]);
     $this->drupalLogin($web_user);
   }
 
@@ -36,65 +46,68 @@ class PathAdminTest extends PathTestBase {
     // Create aliases.
     $alias1 = '/' . $this->randomMachineName(8);
     $edit = [
-      'source' => '/node/' . $node1->id(),
-      'alias' => $alias1,
+      'path[0][value]' => '/node/' . $node1->id(),
+      'alias[0][value]' => $alias1,
     ];
-    $this->drupalPostForm('admin/config/search/path/add', $edit, t('Save'));
+    $this->drupalGet('admin/config/search/path/add');
+    $this->submitForm($edit, 'Save');
 
     $alias2 = '/' . $this->randomMachineName(8);
     $edit = [
-      'source' => '/node/' . $node2->id(),
-      'alias' => $alias2,
+      'path[0][value]' => '/node/' . $node2->id(),
+      'alias[0][value]' => $alias2,
     ];
-    $this->drupalPostForm('admin/config/search/path/add', $edit, t('Save'));
+    $this->drupalGet('admin/config/search/path/add');
+    $this->submitForm($edit, 'Save');
 
     $alias3 = '/' . $this->randomMachineName(4) . '/' . $this->randomMachineName(4);
     $edit = [
-      'source' => '/node/' . $node3->id(),
-      'alias' => $alias3,
+      'path[0][value]' => '/node/' . $node3->id(),
+      'alias[0][value]' => $alias3,
     ];
-    $this->drupalPostForm('admin/config/search/path/add', $edit, t('Save'));
+    $this->drupalGet('admin/config/search/path/add');
+    $this->submitForm($edit, 'Save');
 
     // Filter by the first alias.
     $edit = [
       'filter' => $alias1,
     ];
-    $this->drupalPostForm(NULL, $edit, t('Filter'));
-    $this->assertLinkByHref($alias1);
-    $this->assertNoLinkByHref($alias2);
-    $this->assertNoLinkByHref($alias3);
+    $this->submitForm($edit, 'Filter');
+    $this->assertSession()->linkByHrefExists($alias1);
+    $this->assertSession()->linkByHrefNotExists($alias2);
+    $this->assertSession()->linkByHrefNotExists($alias3);
 
     // Filter by the second alias.
     $edit = [
       'filter' => $alias2,
     ];
-    $this->drupalPostForm(NULL, $edit, t('Filter'));
-    $this->assertNoLinkByHref($alias1);
-    $this->assertLinkByHref($alias2);
-    $this->assertNoLinkByHref($alias3);
+    $this->submitForm($edit, 'Filter');
+    $this->assertSession()->linkByHrefNotExists($alias1);
+    $this->assertSession()->linkByHrefExists($alias2);
+    $this->assertSession()->linkByHrefNotExists($alias3);
 
     // Filter by the third alias which has a slash.
     $edit = [
       'filter' => $alias3,
     ];
-    $this->drupalPostForm(NULL, $edit, t('Filter'));
-    $this->assertNoLinkByHref($alias1);
-    $this->assertNoLinkByHref($alias2);
-    $this->assertLinkByHref($alias3);
+    $this->submitForm($edit, 'Filter');
+    $this->assertSession()->linkByHrefNotExists($alias1);
+    $this->assertSession()->linkByHrefNotExists($alias2);
+    $this->assertSession()->linkByHrefExists($alias3);
 
     // Filter by a random string with a different length.
     $edit = [
       'filter' => $this->randomMachineName(10),
     ];
-    $this->drupalPostForm(NULL, $edit, t('Filter'));
-    $this->assertNoLinkByHref($alias1);
-    $this->assertNoLinkByHref($alias2);
+    $this->submitForm($edit, 'Filter');
+    $this->assertSession()->linkByHrefNotExists($alias1);
+    $this->assertSession()->linkByHrefNotExists($alias2);
 
     // Reset the filter.
     $edit = [];
-    $this->drupalPostForm(NULL, $edit, t('Reset'));
-    $this->assertLinkByHref($alias1);
-    $this->assertLinkByHref($alias2);
+    $this->submitForm($edit, 'Reset');
+    $this->assertSession()->linkByHrefExists($alias1);
+    $this->assertSession()->linkByHrefExists($alias2);
   }
 
 }

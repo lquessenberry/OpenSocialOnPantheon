@@ -9,32 +9,20 @@
  */
 
 use Drupal\Component\Graph\Graph;
+use Drupal\Core\Extension\Exception\UnknownExtensionException;
 use Drupal\Core\Utility\Error;
 
 /**
- * Disables any extensions that are incompatible with the current core version.
- */
-function update_fix_compatibility() {
-  $extension_config = \Drupal::configFactory()->getEditable('core.extension');
-  $save = FALSE;
-  foreach (['module', 'theme'] as $type) {
-    foreach ($extension_config->get($type) as $name => $weight) {
-      if (update_check_incompatibility($name, $type)) {
-        $extension_config->clear("$type.$name");
-        $save = TRUE;
-      }
-    }
-  }
-  if ($save) {
-    $extension_config->set('module', module_config_sort($extension_config->get('module')));
-    $extension_config->save();
-  }
-}
-
-/**
  * Tests the compatibility of a module or theme.
+ *
+ * @deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. No direct
+ *   replacement is provided.
+ *
+ * @see https://www.drupal.org/node/3150727
+ * @see \Drupal\Core\Extension\ExtensionList::checkIncompatibility()
  */
 function update_check_incompatibility($name, $type = 'module') {
+  @trigger_error('update_check_incompatibility() is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. No direct replacement is provided. See https://www.drupal.org/node/3150727', E_USER_DEPRECATED);
   static $themes, $modules;
 
   // Store values of expensive functions for future use.
@@ -43,7 +31,7 @@ function update_check_incompatibility($name, $type = 'module') {
     // code changes that were made in the filesystem before the update script
     // was initiated.
     $themes = \Drupal::service('theme_handler')->rebuildThemeData();
-    $modules = system_rebuild_module_data();
+    $modules = \Drupal::service('extension.list.module')->reset()->getList();
   }
 
   if ($type == 'module' && isset($modules[$name])) {
@@ -53,8 +41,7 @@ function update_check_incompatibility($name, $type = 'module') {
     $file = $themes[$name];
   }
   if (!isset($file)
-      || !isset($file->info['core'])
-      || $file->info['core'] != \Drupal::CORE_COMPATIBILITY
+      || $file->info['core_incompatible']
       || version_compare(phpversion(), $file->info['php']) < 0) {
     return TRUE;
   }
@@ -70,7 +57,7 @@ function update_check_incompatibility($name, $type = 'module') {
 function update_system_schema_requirements() {
   $requirements = [];
 
-  $system_schema = drupal_get_installed_schema_version('system');
+  $system_schema = \Drupal::service('update.update_hook_registry')->getInstalledVersion('system');
 
   $requirements['minimum schema']['title'] = 'Minimum schema version';
   if ($system_schema >= \Drupal::CORE_MINIMUM_SCHEMA_VERSION) {
@@ -94,10 +81,69 @@ function update_system_schema_requirements() {
  * Checks update requirements and reports errors and (optionally) warnings.
  */
 function update_check_requirements() {
+  // Because this is one of the earliest points in the update process,
+  // detect and fix missing schema versions for modules here to ensure
+  // it runs on all update code paths.
+  _update_fix_missing_schema();
+
   // Check requirements of all loaded modules.
   $requirements = \Drupal::moduleHandler()->invokeAll('requirements', ['update']);
   $requirements += update_system_schema_requirements();
   return $requirements;
+}
+
+/**
+ * Helper to detect and fix 'missing' schema information.
+ *
+ * Repairs the case where a module has no schema version recorded.
+ * This has to be done prior to updates being run, otherwise the update
+ * system would detect and attempt to run all historical updates for a
+ * module.
+ *
+ * @todo: remove in a major version after
+ * https://www.drupal.org/project/drupal/issues/3130037 has been fixed.
+ */
+function _update_fix_missing_schema() {
+  /** @var \Drupal\Core\Update\UpdateHookRegistry $update_registry */
+  $update_registry = \Drupal::service('update.update_hook_registry');
+  $versions = $update_registry->getAllInstalledVersions();
+  $module_handler = \Drupal::moduleHandler();
+  $enabled_modules = $module_handler->getModuleList();
+
+  foreach (array_keys($enabled_modules) as $module) {
+    // All modules should have a recorded schema version, but when they
+    // don't, detect and fix the problem.
+    if (!isset($versions[$module])) {
+      // Ensure the .install file is loaded.
+      $module_handler->loadInclude($module, 'install');
+      $all_updates = $update_registry->getAvailableUpdates($module);
+      // If the schema version of a module hasn't been recorded, we cannot
+      // know the actual schema version a module is at, because
+      // no updates will ever have been run on the site and it was not set
+      // correctly when the module was installed, so instead set it to
+      // the same as the last update. This means that updates will proceed
+      // again the next time the module is updated and a new update is
+      // added. Updates added in between the module being installed and the
+      // schema version being fixed here (if any have been added) will never
+      // be run, but we have no way to identify which updates these are.
+      if ($all_updates) {
+        $last_update = max($all_updates);
+      }
+      else {
+        $last_update = \Drupal::CORE_MINIMUM_SCHEMA_VERSION;
+      }
+      // If the module implements hook_update_last_removed() use the
+      // value of that if it's higher than the schema versions found so
+      // far.
+      if ($last_removed = $module_handler->invoke($module, 'update_last_removed')) {
+        $last_update = max($last_update, $last_removed);
+      }
+      $update_registry->setInstalledVersion($module, $last_update);
+      $args = ['%module' => $module, '%last_update_hook' => $module . '_update_' . $last_update . '()'];
+      \Drupal::messenger()->addWarning(t('Schema information for module %module was missing from the database. You should manually review the module updates and your database to check if any updates have been skipped up to, and including, %last_update_hook.', $args));
+      \Drupal::logger('update')->warning('Schema information for module %module was missing from the database. You should manually review the module updates and your database to check if any updates have been skipped up to, and including, %last_update_hook.', $args);
+    }
+  }
 }
 
 /**
@@ -109,13 +155,19 @@ function update_check_requirements() {
  *   Name of the module.
  * @param string $schema_version
  *   The schema version the module should be set to.
+ *
+ * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct
+ *   replacement is provided.
+ *
+ * @see https://www.drupal.org/node/3210925
  */
 function update_set_schema($module, $schema_version) {
-  \Drupal::keyValue('system.schema')->set($module, $schema_version);
-  // system_list_reset() is in module.inc but that would only be available
-  // once the variable bootstrap is done.
-  require_once __DIR__ . '/module.inc';
-  system_list_reset();
+  @trigger_error('update_set_schema() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct replacement is provided. See https://www.drupal.org/node/3210925', E_USER_DEPRECATED);
+  \Drupal::service('update.update_hook_registry')->setInstalledVersion($module, $schema_version);
+  \Drupal::service('extension.list.profile')->reset();
+  \Drupal::service('extension.list.module')->reset();
+  \Drupal::service('extension.list.theme_engine')->reset();
+  \Drupal::service('extension.list.theme')->reset();
 }
 
 /**
@@ -137,7 +189,7 @@ function update_set_schema($module, $schema_version) {
  * example:
  * @code
  * use Drupal\Core\Utility\UpdateException;
- * throw new UpdateException(t('Description of what went wrong'));
+ * throw new UpdateException('Description of what went wrong');
  * @endcode
  *
  * If an exception is thrown, the current update and all updates that depend on
@@ -186,8 +238,8 @@ function update_do_one($module, $number, $dependency_map, &$context) {
       watchdog_exception('update', $e);
 
       $variables = Error::decodeException($e);
-      unset($variables['backtrace']);
-      $ret['#abort'] = ['success' => FALSE, 'query' => t('%type: @message in %function (line %line of %file).', $variables)];
+      unset($variables['backtrace'], $variables['exception'], $variables['severity_level']);
+      $ret['#abort'] = ['success' => FALSE, 'query' => t(Error::DEFAULT_ERROR_MESSAGE, $variables)];
     }
   }
 
@@ -211,7 +263,7 @@ function update_do_one($module, $number, $dependency_map, &$context) {
 
   // Record the schema update if it was completed successfully.
   if ($context['finished'] == 1 && empty($ret['#abort'])) {
-    drupal_set_installed_schema_version($module, $number);
+    \Drupal::service('update.update_hook_registry')->setInstalledVersion($module, $number);
   }
 
   $context['message'] = t('Updating @module', ['@module' => $module]);
@@ -234,8 +286,10 @@ function update_invoke_post_update($function, &$context) {
     return;
   }
 
-  list($module, $name) = explode('_post_update_', $function, 2);
-  module_load_include('php', $module, $module . '.post_update');
+  // Ensure extension post update code is loaded.
+  [$extension, $name] = explode('_post_update_', $function, 2);
+  \Drupal::service('update.post_update_registry')->getUpdateFunctions($extension);
+
   if (function_exists($function)) {
     try {
       $ret['results']['query'] = $function($context['sandbox']);
@@ -253,10 +307,10 @@ function update_invoke_post_update($function, &$context) {
       watchdog_exception('update', $e);
 
       $variables = Error::decodeException($e);
-      unset($variables['backtrace']);
+      unset($variables['backtrace'], $variables['exception'], $variables['severity_level']);
       $ret['#abort'] = [
         'success' => FALSE,
-        'query' => t('%type: @message in %function (line %line of %file).', $variables),
+        'query' => t(Error::DEFAULT_ERROR_MESSAGE, $variables),
       ];
     }
   }
@@ -265,17 +319,17 @@ function update_invoke_post_update($function, &$context) {
     $context['finished'] = $context['sandbox']['#finished'];
     unset($context['sandbox']['#finished']);
   }
-  if (!isset($context['results'][$module][$name])) {
-    $context['results'][$module][$name] = [];
+  if (!isset($context['results'][$extension][$name])) {
+    $context['results'][$extension][$name] = [];
   }
-  $context['results'][$module][$name] = array_merge($context['results'][$module][$name], $ret);
+  $context['results'][$extension][$name] = array_merge($context['results'][$extension][$name], $ret);
 
   if (!empty($ret['#abort'])) {
     // Record this function in the list of updates that were aborted.
     $context['results']['#abort'][] = $function;
   }
 
-  $context['message'] = t('Post updating @module', ['@module' => $module]);
+  $context['message'] = t('Post updating @extension', ['@extension' => $extension]);
 }
 
 /**
@@ -300,29 +354,52 @@ function update_get_update_list() {
   // Make sure that the system module is first in the list of updates.
   $ret = ['system' => []];
 
-  $modules = drupal_get_installed_schema_version(NULL, FALSE, TRUE);
+  /** @var \Drupal\Core\Update\UpdateHookRegistry $update_registry */
+  $update_registry = \Drupal::service('update.update_hook_registry');
+  $modules = $update_registry->getAllInstalledVersions();
+  /** @var \Drupal\Core\Extension\ExtensionList $extension_list */
+  $extension_list = \Drupal::service('extension.list.module');
+  /** @var array $installed_module_info */
+  $installed_module_info = $extension_list->getAllInstalledInfo();
   foreach ($modules as $module => $schema_version) {
     // Skip uninstalled and incompatible modules.
-    if ($schema_version == SCHEMA_UNINSTALLED || update_check_incompatibility($module)) {
+    try {
+      if ($schema_version == $update_registry::SCHEMA_UNINSTALLED || $extension_list->checkIncompatibility($module)) {
+        continue;
+      }
+    }
+    // It is possible that the system schema has orphaned entries, so the
+    // incompatibility checking might throw an exception.
+    catch (UnknownExtensionException $e) {
+      $args = [
+        '%name' => $module,
+        ':url' => 'https://www.drupal.org/node/3137656',
+      ];
+      \Drupal::messenger()->addWarning(t('Module %name has an entry in the system.schema key/value storage, but is missing from your site. <a href=":url">More information about this error</a>.', $args));
+      \Drupal::logger('system')->notice('Module %name has an entry in the system.schema key/value storage, but is missing from your site. <a href=":url">More information about this error</a>.', $args);
       continue;
     }
+    // There might be orphaned entries for modules that are in the filesystem
+    // but not installed. Also skip those, but warn site admins about it.
+    if (empty($installed_module_info[$module])) {
+      $args = [
+        '%name' => $module,
+        ':url' => 'https://www.drupal.org/node/3137656',
+      ];
+      \Drupal::messenger()->addWarning(t('Module %name has an entry in the system.schema key/value storage, but is not installed. <a href=":url">More information about this error</a>.', $args));
+      \Drupal::logger('system')->notice('Module %name has an entry in the system.schema key/value storage, but is not installed. <a href=":url">More information about this error</a>.', $args);
+      continue;
+    }
+
     // Display a requirements error if the user somehow has a schema version
     // from the previous Drupal major version.
     if ($schema_version < \Drupal::CORE_MINIMUM_SCHEMA_VERSION) {
-      $ret[$module]['warning'] = '<em>' . $module . '</em> module cannot be updated. Its schema version is ' . $schema_version . ', which is from an earlier major release of Drupal. You will need to <a href="https://www.drupal.org/node/2127611">migrate the data for this module</a> instead.';
+      $ret[$module]['warning'] = '<em>' . $module . '</em> module cannot be updated. Its schema version is ' . $schema_version . ', which is from an earlier major release of Drupal. See the <a href="https://www.drupal.org/docs/upgrading-drupal">Upgrading Drupal guide</a>.';
       continue;
     }
     // Otherwise, get the list of updates defined by this module.
-    $updates = drupal_get_schema_versions($module);
-    if ($updates !== FALSE) {
-      // \Drupal::moduleHandler()->invoke() returns NULL for non-existing hooks,
-      // so if no updates are removed, it will == 0.
-      $last_removed = \Drupal::moduleHandler()->invoke($module, 'update_last_removed');
-      if ($schema_version < $last_removed) {
-        $ret[$module]['warning'] = '<em>' . $module . '</em> module cannot be updated. Its schema version is ' . $schema_version . '. Updates up to and including ' . $last_removed . ' have been removed in this release. In order to update <em>' . $module . '</em> module, you will first <a href="https://www.drupal.org/upgrade">need to upgrade</a> to the last version in which these updates were available.';
-        continue;
-      }
-
+    $updates = $update_registry->getAvailableUpdates($module);
+    if ($updates) {
       foreach ($updates as $update) {
         if ($update == \Drupal::CORE_MINIMUM_SCHEMA_VERSION) {
           $ret[$module]['warning'] = '<em>' . $module . '</em> module cannot be updated. It contains an update numbered as ' . \Drupal::CORE_MINIMUM_SCHEMA_VERSION . ' which is reserved for the earliest installation of a module in Drupal ' . \Drupal::CORE_COMPATIBILITY . ', before any updates. In order to update <em>' . $module . '</em> module, you will need to install a version of the module with valid updates.';
@@ -331,7 +408,14 @@ function update_get_update_list() {
         if ($update > $schema_version) {
           // The description for an update comes from its Doxygen.
           $func = new ReflectionFunction($module . '_update_' . $update);
-          $description = str_replace(["\n", '*', '/'], '', $func->getDocComment());
+          $patterns = [
+            '/^\s*[\/*]*/',
+            '/(\n\s*\**)(.*)/',
+            '/\/$/',
+            '/^\s*/',
+          ];
+          $replacements = ['', '$2', '', ''];
+          $description = preg_replace($patterns, $replacements, $func->getDocComment());
           $ret[$module]['pending'][$update] = "$update - $description";
           if (!isset($ret[$module]['start'])) {
             $ret[$module]['start'] = $update;
@@ -448,10 +532,12 @@ function update_get_update_function_list($starting_updates) {
   // Go through each module and find all updates that we need (including the
   // first update that was requested and any updates that run after it).
   $update_functions = [];
+  /** @var \Drupal\Core\Update\UpdateHookRegistry $update_registry */
+  $update_registry = \Drupal::service('update.update_hook_registry');
   foreach ($starting_updates as $module => $version) {
     $update_functions[$module] = [];
-    $updates = drupal_get_schema_versions($module);
-    if ($updates !== FALSE) {
+    $updates = $update_registry->getAvailableUpdates($module);
+    if ($updates) {
       $max_version = max($updates);
       if ($version <= $max_version) {
         foreach ($updates as $update) {
@@ -580,7 +666,7 @@ function update_is_missing($module, $number, $update_functions) {
  *   performed; FALSE otherwise.
  */
 function update_already_performed($module, $number) {
-  return $number <= drupal_get_installed_schema_version($module);
+  return $number <= \Drupal::service('update.update_hook_registry')->getInstalledVersion($module);
 }
 
 /**
@@ -600,16 +686,27 @@ function update_already_performed($module, $number) {
  */
 function update_retrieve_dependencies() {
   $return = [];
+  /** @var \Drupal\Core\Extension\ModuleExtensionList */
+  $extension_list = \Drupal::service('extension.list.module');
+  /** @var \Drupal\Core\Update\UpdateHookRegistry $update_registry */
+  $update_registry = \Drupal::service('update.update_hook_registry');
   // Get a list of installed modules, arranged so that we invoke their hooks in
   // the same order that \Drupal::moduleHandler()->invokeAll() does.
-  foreach (\Drupal::keyValue('system.schema')->getAll() as $module => $schema) {
-    if ($schema == SCHEMA_UNINSTALLED) {
+  foreach ($update_registry->getAllInstalledVersions() as $module => $schema) {
+    // Skip modules that are entirely missing from the filesystem here, since
+    // module_load_install() will call trigger_error() if invoked on a module
+    // that doesn't exist. There's no way to catch() that, so avoid it entirely.
+    // This can happen when there are orphaned entries in the system.schema k/v
+    // store for modules that have been removed from a site without first being
+    // cleanly uninstalled. We don't care here if the module has been installed
+    // or not, since we'll filter those out in update_get_update_list().
+    if ($schema == $update_registry::SCHEMA_UNINSTALLED || !$extension_list->exists($module)) {
       // Nothing to upgrade.
       continue;
     }
     $function = $module . '_update_dependencies';
     // Ensure install file is loaded.
-    module_load_install($module);
+    \Drupal::moduleHandler()->loadInclude($module, 'install');
     if (function_exists($function)) {
       $updated_dependencies = $function();
       // Each implementation of hook_update_dependencies() returns a
@@ -654,35 +751,4 @@ function update_retrieve_dependencies() {
   }
 
   return $return;
-}
-
-/**
- * Replace permissions during update.
- *
- * This function can replace one permission to several or even delete an old
- * one.
- *
- * @param array $replace
- *   An associative array. The keys are the old permissions the values are lists
- *   of new permissions. If the list is an empty array, the old permission is
- *   removed.
- */
-function update_replace_permissions($replace) {
-  $prefix = 'user.role.';
-  $cut = strlen($prefix);
-  $role_names = \Drupal::service('config.storage')->listAll($prefix);
-  foreach ($role_names as $role_name) {
-    $rid = substr($role_name, $cut);
-    $config = \Drupal::config("user.role.$rid");
-    $permissions = $config->get('permissions') ?: [];
-    foreach ($replace as $old_permission => $new_permissions) {
-      if (($index = array_search($old_permission, $permissions)) !== FALSE) {
-        unset($permissions[$index]);
-        $permissions = array_unique(array_merge($permissions, $new_permissions));
-      }
-    }
-    $config
-      ->set('permissions', $permissions)
-      ->save();
-  }
 }

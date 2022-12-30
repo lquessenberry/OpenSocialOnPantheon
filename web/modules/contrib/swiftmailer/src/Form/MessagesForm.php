@@ -38,48 +38,64 @@ class MessagesForm extends ConfigFormBase {
     $form['#tree'] = TRUE;
 
     $form['description'] = [
-      '#markup' => '<p>' . $this->t('This page allows you to configure settings which determines how e-mail messages are created.') . '</p>',
+      '#markup' => '<p>' . $this->t('This page allows you to configure how e-mail messages are formatted.
+        The Default PHP mailer can only send plain text e-mails. This module can send HTML e-mails if you
+        use the recommended settings below.') . '</p>',
     ];
 
-    $form['format'] = [
+    $form['content_type'] = [
       '#type' => 'fieldset',
-      '#title' => $this->t('Message format'),
-      '#description' => $this->t('You can set the default message format which should be applied to e-mail
-        messages.'),
+      '#title' => $this->t('Content type'),
+      '#description' => $this->t('Select the content type. This module will convert content if necessary.
+        The <em>Keep existing</em> option is less recommended because many applications do not set the
+        existing content type reliably. Some applications (including Simplenews newsletter)
+        allow case-by-case configuration of content type that overrides this value.'),
     ];
 
-    $form['format']['type'] = [
+    $options = [
+      SWIFTMAILER_FORMAT_HTML => $this->t('HTML (recommended)'),
+      SWIFTMAILER_FORMAT_PLAIN => $this->t('Plain Text'),
+      '' => $this->t('Keep existing'),
+    ];
+    $form['content_type']['type'] = [
       '#type' => 'radios',
-      '#options' => [SWIFTMAILER_FORMAT_PLAIN => $this->t('Plain Text'), SWIFTMAILER_FORMAT_HTML => $this->t('HTML')],
-      '#default_value' => $config->get('format'),
+      '#options' => $options,
+      '#default_value' => $config->get('content_type'),
     ];
 
-    $form['format']['respect'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Respect provided e-mail format.'),
-      '#default_value' => $config->get('respect_format'),
-      '#description' => $this->t('The header "Content-Type", if available, will be respected if you enable this setting.
-        Settings such as e-mail format ("text/plain" or "text/html") and character set may be provided through this
-        header. Unless your site somehow alters e-mails, enabling this setting will result in all e-mails to be sent
-        as plain text as this is the content type Drupal by default will apply to all e-mails.'),
+    $form['html_convert'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('HTML formatting'),
+      '#description' => $this->t('Text format to use when converting a plain text e-mail to HTML.'),
     ];
 
-    $form['convert'] = [
+    // The filter will operate on plain text so only show formats that escape
+    // HTML.
+    foreach (filter_formats($this->currentUser()) as $format) {
+      if ($format->filters('filter_html_escape')->status) {
+        $formats[$format->id()] = $format->label();
+      }
+    }
+
+    $form['html_convert']['format'] = [
+      '#type' => 'select',
+      '#title' => t('Text format'),
+      '#options' => $formats,
+      '#default_value' => $config->get('text_format') ?: filter_fallback_format(),
+      '#description' => $this->t('The list of available formats is restricted to those that escape HTML.'),
+    ];
+
+    $form['generate_plain'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Plain Text Version'),
       '#description' => $this->t('An alternative plain text version can be generated based on the HTML version if no plain text version
         has been explicitly set. The plain text version will be used by e-mail clients not capable of displaying HTML content.'),
-      '#states' => [
-        'visible' => [
-          'input[type=radio][name=format[type]]' => ['value' => SWIFTMAILER_FORMAT_HTML],
-        ],
-      ],
     ];
 
-    $form['convert']['mode'] = [
+    $form['generate_plain']['mode'] = [
       '#type' => 'checkbox',
-      '#title' => $this->t('Generate alternative plain text version.'),
-      '#default_value' => $config->get('convert_mode'),
+      '#title' => $this->t('Generate alternative plain text version (recommended).'),
+      '#default_value' => $config->get('generate_plain'),
       '#description' => $this->t('Please refer to @link for more details about how the alternative plain text version will be generated.', ['@link' => Link::fromTextAndUrl('html2text', Url::fromUri('http://www.chuggnutt.com/html2text'))->toString()]),
     ];
 
@@ -105,9 +121,9 @@ class MessagesForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('swiftmailer.message');
-    $config->set('format', $form_state->getValue(['format', 'type']));
-    $config->set('respect_format', $form_state->getValue(['format', 'respect']));
-    $config->set('convert_mode', $form_state->getValue(['convert', 'mode']));
+    $config->set('content_type', $form_state->getValue(['content_type', 'type']));
+    $config->set('text_format', $form_state->getValue(['html_convert', 'format']));
+    $config->set('generate_plain', $form_state->getValue(['generate_plain', 'mode']));
     $config->set('character_set', $form_state->getValue(['character_set', 'type']));
 
     $config->save();

@@ -32,7 +32,7 @@ crop.type.*:
       sequence:
         type: crop_type.third_party.[%key]
 
-media_entity.bundle.third_party.crop:
+media.type.*.third_party.crop:
   type: mapping
   label: 'Crop settings'
   mapping:
@@ -46,6 +46,9 @@ image.effect.crop_crop:
   mapping:
     crop_type:
       label: 'Crop type'
+      type: string
+    automatic_crop_provider:
+      label: 'Automatic crop provider'
       type: string
 
 crop.settings:

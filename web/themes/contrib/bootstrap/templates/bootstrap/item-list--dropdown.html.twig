@@ -33,7 +33,7 @@
   {%- if items -%}
     <{{ list_type }}{{ attributes.addClass(classes) }} role="menu">
       {%- for item in items -%}
-        <li{{ item.attributes }}>{{ item.value }}</li>
+        <li{{ item.attributes }} role="menuitem">{{ item.value }}</li>
       {%- endfor -%}
     </{{ list_type }}>
   {%- else -%}

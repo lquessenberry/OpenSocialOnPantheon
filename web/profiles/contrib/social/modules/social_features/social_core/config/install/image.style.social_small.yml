@@ -14,6 +14,7 @@ effects:
     id: image_scale_and_crop
     weight: 2
     data:
+      anchor: center-center
       width: 24
       height: 24
   3da54178-876f-4602-a245-60f035dc3c66:
@@ -22,9 +23,16 @@ effects:
     weight: 1
     data:
       crop_type: profile_small
+      automatic_crop_provider: null
   db56295b-59b4-4adb-873b-4fd967615ffc:
     uuid: db56295b-59b4-4adb-873b-4fd967615ffc
     id: image_effects_auto_orient
     weight: 3
     data:
       scan_exif: true
+  4737a2ff-3cf8-4549-a5c4-cbd13c628fg9:
+    uuid: 4737a2ff-3cf8-4549-a5c4-cbd13c628fg9
+    id: image_convert
+    weight: 4
+    data:
+      extension: webp

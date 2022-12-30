@@ -128,8 +128,8 @@ class ApcuBackend implements CacheBackendInterface {
    *
    * Checks that the item is either permanent or did not expire.
    *
-   * @param \stdClass $cache
-   *   An item loaded from cache_get() or cache_get_multiple().
+   * @param object $cache
+   *   An item loaded from self::get() or self::getMultiple().
    * @param bool $allow_invalid
    *   If TRUE, a cache item may be returned even if it is expired or has been
    *   invalidated. See ::get().
@@ -184,7 +184,7 @@ class ApcuBackend implements CacheBackendInterface {
    */
   public function setMultiple(array $items = []) {
     foreach ($items as $cid => $item) {
-      $this->set($cid, $item['data'], isset($item['expire']) ? $item['expire'] : CacheBackendInterface::CACHE_PERMANENT, isset($item['tags']) ? $item['tags'] : []);
+      $this->set($cid, $item['data'], $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT, $item['tags'] ?? []);
     }
   }
 

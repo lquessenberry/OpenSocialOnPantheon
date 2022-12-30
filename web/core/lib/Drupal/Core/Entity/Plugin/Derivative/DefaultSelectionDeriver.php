@@ -3,7 +3,7 @@
 namespace Drupal\Core\Entity\Plugin\Derivative;
 
 use Drupal\Component\Plugin\Derivative\DeriverBase;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\Discovery\ContainerDeriverInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -19,20 +19,20 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class DefaultSelectionDeriver extends DeriverBase implements ContainerDeriverInterface {
 
   /**
-   * The entity manager
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
-   * Creates an SelectionBase object.
+   * Creates a DefaultSelectionDeriver object.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(EntityManagerInterface $entity_manager) {
-    $this->entityManager = $entity_manager;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -40,7 +40,7 @@ class DefaultSelectionDeriver extends DeriverBase implements ContainerDeriverInt
    */
   public static function create(ContainerInterface $container, $base_plugin_id) {
     return new static(
-      $container->get('entity.manager')
+      $container->get('entity_type.manager')
     );
   }
 
@@ -48,7 +48,7 @@ class DefaultSelectionDeriver extends DeriverBase implements ContainerDeriverInt
    * {@inheritdoc}
    */
   public function getDerivativeDefinitions($base_plugin_definition) {
-    foreach ($this->entityManager->getDefinitions() as $entity_type_id => $entity_type) {
+    foreach ($this->entityTypeManager->getDefinitions() as $entity_type_id => $entity_type) {
       $this->derivatives[$entity_type_id] = $base_plugin_definition;
       $this->derivatives[$entity_type_id]['entity_types'] = [$entity_type_id];
       $this->derivatives[$entity_type_id]['label'] = t('@entity_type selection', ['@entity_type' => $entity_type->getLabel()]);
@@ -58,7 +58,7 @@ class DefaultSelectionDeriver extends DeriverBase implements ContainerDeriverInt
       // definition, we have to use the alternate PhpSelection class as default
       // plugin, which allows filtering the target entities by their label()
       // method. The major downside of PhpSelection is that it is more expensive
-      // performance-wise than SelectionBase because it has to load all the
+      // performance-wise than DefaultSelection because it has to load all the
       // target entities in order to perform the filtering process, regardless
       // of whether a limit has been passed.
       // @see \Drupal\Core\Entity\Plugin\EntityReferenceSelection\PhpSelection

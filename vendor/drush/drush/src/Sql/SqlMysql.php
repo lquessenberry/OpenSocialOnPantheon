@@ -2,28 +2,31 @@
 
 namespace Drush\Sql;
 
-use Drush\Drush;
-use Drush\Preflight\PreflightArgs;
 use PDO;
 
 class SqlMysql extends SqlBase
 {
+    public $queryExtra = '-A';
 
-    public function command()
+    public function command(): string
     {
         return 'mysql';
     }
 
-    public function creds($hide_password = true)
+    public function creds($hide_password = true): string
     {
         $dbSpec = $this->getDbSpec();
         if ($hide_password) {
+            // Default to unix socket if configured.
+            $unixSocket = empty($dbSpec['unix_socket']) ? '' : 'socket="' . $dbSpec['unix_socket'] . '"';
+
             // EMPTY password is not the same as NO password, and is valid.
             $contents = <<<EOT
 #This file was written by Drush's Sqlmysql.php.
 [client]
 user="{$dbSpec['username']}"
 password="{$dbSpec['password']}"
+{$unixSocket}
 EOT;
 
             $file = drush_save_data_to_temp_file($contents);
@@ -44,8 +47,8 @@ EOT;
         // Default to unix socket if configured.
         if (!empty($dbSpec['unix_socket'])) {
             $parameters['socket'] = $dbSpec['unix_socket'];
-        } // EMPTY host is not the same as NO host, and is valid (see unix_socket).
-        elseif (isset($dbSpec['host'])) {
+        } elseif (isset($dbSpec['host'])) {
+            // EMPTY host is not the same as NO host, and is valid (see unix_socket).
             $parameters['host'] = $dbSpec['host'];
         }
 
@@ -80,12 +83,12 @@ EOT;
         return $this->paramsToOptions($parameters);
     }
 
-    public function silent()
+    public function silent(): string
     {
         return '--silent';
     }
 
-    public function createdbSql($dbname, $quoted = false)
+    public function createdbSql($dbname, $quoted = false): string
     {
         $dbSpec = $this->getDbSpec();
         if ($quoted) {
@@ -93,15 +96,21 @@ EOT;
         }
         $sql[] = sprintf('DROP DATABASE IF EXISTS %s;', $dbname);
         $sql[] = sprintf('CREATE DATABASE %s /*!40100 DEFAULT CHARACTER SET utf8 */;', $dbname);
-        $db_superuser = $this->getConfig()->get('sql.db-su');
+        $db_superuser = $this->getOption('db-su');
         if (isset($db_superuser)) {
             // - For a localhost database, create a localhost user.  This is important for security.
             //   localhost is special and only allows local Unix socket file connections.
             // - If the database is on a remote server, create a wildcard user with %.
             //   We can't easily know what IP address or hostname would represent our server.
             $domain = ($dbSpec['host'] == 'localhost') ? 'localhost' : '%';
-            $sql[] = sprintf('GRANT ALL PRIVILEGES ON %s.* TO \'%s\'@\'%s\'', $dbname, $dbSpec['username'], $domain);
-            $sql[] = sprintf("IDENTIFIED BY '%s';", $dbSpec['password']);
+            $user = sprintf("'%s'@'%s'", $dbSpec['username'], $domain);
+            $sql[] = sprintf("DROP USER IF EXISTS %s;", $user);
+            $sql[] = sprintf("CREATE USER %s IDENTIFIED WITH mysql_native_password;", $user);
+
+            // For MariaDB, ALTER USER was introduced in version 10.2. Support
+            // for 10.1 ended in October 2020.
+            $sql[] = sprintf("ALTER USER %s IDENTIFIED BY '%s';", $user, $dbSpec['password']);
+            $sql[] = sprintf('GRANT ALL PRIVILEGES ON %s.* TO %s;', $dbname, $user);
             $sql[] = 'FLUSH PRIVILEGES;';
         }
         return implode(' ', $sql);
@@ -110,19 +119,32 @@ EOT;
     /**
      * @inheritdoc
      */
-    public function dbExists()
+    public function dbExists(): bool
     {
         // Suppress output. We only care about return value.
-        return $this->alwaysQuery("SELECT 1;", null, drush_bit_bucket());
+        return $this->alwaysQuery("SELECT 1;");
     }
 
-    public function listTables()
+    public function listTables(): array
     {
+        $tables = [];
         $this->alwaysQuery('SHOW TABLES;');
-        return drush_shell_exec_output();
+        if ($out = trim($this->getProcess()->getOutput())) {
+            $tables = explode(PHP_EOL, $out);
+        }
+        return $tables;
     }
 
-    public function dumpCmd($table_selection)
+    public function listTablesQuoted(): array
+    {
+        $tables = $this->listTables();
+        foreach ($tables as &$table) {
+            $table = "`$table`";
+        }
+        return $tables;
+    }
+
+    public function dumpCmd($table_selection): string
     {
         $dbSpec = $this->getDbSpec();
         $parens = false;
@@ -150,7 +172,7 @@ EOT;
         if ($ordered_dump) {
             $extra .= ' --skip-extended-insert --order-by-primary';
         }
-        if ($option = $this->getOption('extra-dump', $this->queryExtra)) {
+        if ($option = $this->getOption('extra-dump')) {
             $extra .= " $option";
         }
         $exec .= $extra;
@@ -163,7 +185,7 @@ EOT;
                 $ignores[] = '--ignore-table=' . $dbSpec['database'] . '.' . $table;
                 $parens = true;
             }
-            $exec .= ' '. implode(' ', $ignores);
+            $exec .= ' ' . implode(' ', $ignores);
 
             // Run mysqldump again and append output if we need some structure only tables.
             if (!empty($structure_tables)) {

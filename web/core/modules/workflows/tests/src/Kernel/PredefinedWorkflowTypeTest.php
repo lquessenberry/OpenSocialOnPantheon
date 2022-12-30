@@ -15,10 +15,10 @@ class PredefinedWorkflowTypeTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['workflows', 'workflow_type_test'];
+  protected static $modules = ['workflows', 'workflow_type_test'];
 
   /**
-   * Test a predefined workflow type.
+   * Tests a predefined workflow type.
    */
   public function testPredefinedWorkflowType() {
     $workflow = Workflow::create([

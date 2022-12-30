@@ -17,7 +17,12 @@ class EntityAddUITest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_test'];
+  protected static $modules = ['entity_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests the add page for an entity type using bundle entities.
@@ -31,7 +36,7 @@ class EntityAddUITest extends BrowserTestBase {
     // Users without create access for bundles do not have access to the add
     // page if there are no bundles.
     $this->drupalGet('/entity_test_with_bundle/add');
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
 
     $bundle_admin_user = $this->drupalCreateUser([
       'administer entity_test_with_bundle content',
@@ -42,8 +47,8 @@ class EntityAddUITest extends BrowserTestBase {
     // No bundles exist, the add bundle message should be present as the user
     // has the necessary permissions.
     $this->drupalGet('/entity_test_with_bundle/add');
-    $this->assertText('There is no test entity bundle yet.');
-    $this->assertLink('Add a new test entity bundle.');
+    $this->assertSession()->pageTextContains('There is no test entity bundle yet.');
+    $this->assertSession()->linkExists('Add a new test entity bundle.');
 
     // One bundle exists, confirm redirection to the add-form.
     EntityTestBundle::create([
@@ -52,7 +57,7 @@ class EntityAddUITest extends BrowserTestBase {
       'description' => 'My test description',
     ])->save();
     $this->drupalGet('/entity_test_with_bundle/add');
-    $this->assertUrl('/entity_test_with_bundle/add/test');
+    $this->assertSession()->addressEquals('/entity_test_with_bundle/add/test');
 
     // Two bundles exist, confirm both are shown.
     EntityTestBundle::create([
@@ -62,17 +67,17 @@ class EntityAddUITest extends BrowserTestBase {
     ])->save();
     $this->drupalGet('/entity_test_with_bundle/add');
 
-    $this->assertLink('Test label');
-    $this->assertLink('Test2 label');
-    $this->assertText('My test description');
-    $this->assertText('My test2 description');
+    $this->assertSession()->linkExists('Test label');
+    $this->assertSession()->linkExists('Test2 label');
+    $this->assertSession()->pageTextContains('My test description');
+    $this->assertSession()->pageTextContains('My test2 description');
 
     $this->clickLink('Test2 label');
     $this->drupalGet('/entity_test_with_bundle/add/test2');
 
-    $this->drupalPostForm(NULL, ['name[0][value]' => 'test name'], t('Save'));
+    $this->submitForm(['name[0][value]' => 'test name'], 'Save');
     $entity = EntityTestWithBundle::load(1);
-    $this->assertEqual('test name', $entity->label());
+    $this->assertEquals('test name', $entity->label());
 
     // Create a new user that only has bundle specific permissions.
     $user = $this->drupalCreateUser([
@@ -88,16 +93,16 @@ class EntityAddUITest extends BrowserTestBase {
       'description' => 'My test3 description',
     ])->save();
     $this->drupalGet('/entity_test_with_bundle/add');
-    $this->assertLink('Test label');
-    $this->assertLink('Test2 label');
-    $this->assertNoLink('Test3 label');
-    $this->clickLink(t('Test label'));
-    $this->assertResponse(200);
+    $this->assertSession()->linkExists('Test label');
+    $this->assertSession()->linkExists('Test2 label');
+    $this->assertSession()->linkNotExists('Test3 label');
+    $this->clickLink('Test label');
+    $this->assertSession()->statusCodeEquals(200);
 
     // Without any permissions, access must be denied.
     $this->drupalLogout();
     $this->drupalGet('/entity_test_with_bundle/add');
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
 
     // Create a new user that has bundle create permissions.
     $user = $this->drupalCreateUser([
@@ -109,10 +114,10 @@ class EntityAddUITest extends BrowserTestBase {
     // does not have bundle specific permissions. The add bundle message is
     // present as the user has bundle create permissions.
     $this->drupalGet('/entity_test_with_bundle/add');
-    $this->assertNoLink('Test label');
-    $this->assertNoLink('Test2 label');
-    $this->assertNoLink('Test3 label');
-    $this->assertLink('Add a new test entity bundle.');
+    $this->assertSession()->linkNotExists('Test label');
+    $this->assertSession()->linkNotExists('Test2 label');
+    $this->assertSession()->linkNotExists('Test3 label');
+    $this->assertSession()->linkExists('Add a new test entity bundle.');
   }
 
   /**
@@ -130,21 +135,21 @@ class EntityAddUITest extends BrowserTestBase {
 
     // One bundle exists, confirm redirection to the add-form.
     $this->drupalGet('/entity_test_mul/add');
-    $this->assertUrl('/entity_test_mul/add/test');
+    $this->assertSession()->addressEquals('/entity_test_mul/add/test');
 
     // Two bundles exist, confirm both are shown.
     entity_test_create_bundle('test2', 'Test2 label', 'entity_test_mul');
     $this->drupalGet('/entity_test_mul/add');
 
-    $this->assertLink('Test label');
-    $this->assertLink('Test2 label');
+    $this->assertSession()->linkExists('Test label');
+    $this->assertSession()->linkExists('Test2 label');
 
     $this->clickLink('Test2 label');
     $this->drupalGet('/entity_test_mul/add/test2');
 
-    $this->drupalPostForm(NULL, ['name[0][value]' => 'test name'], t('Save'));
+    $this->submitForm(['name[0][value]' => 'test name'], 'Save');
     $entity = EntityTestMul::load(1);
-    $this->assertEqual('test name', $entity->label());
+    $this->assertEquals('test name', $entity->label());
   }
 
 }

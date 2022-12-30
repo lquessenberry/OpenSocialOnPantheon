@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\mailsystem\MailsystemServiceProvider.
- */
-
 namespace Drupal\mailsystem;
 
 use Drupal\Core\DependencyInjection\ContainerBuilder;
@@ -17,7 +12,7 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class MailsystemServiceProvider implements ServiceProviderInterface, ServiceModifierInterface {
 
- /**
+  /**
    * {@inheritdoc}
    */
   public function register(ContainerBuilder $container) {

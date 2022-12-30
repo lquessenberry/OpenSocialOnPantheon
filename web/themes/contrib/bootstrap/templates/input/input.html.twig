@@ -19,7 +19,7 @@
  * @see template_preprocess_input()
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   {% if input_group %}
     <div class="input-group">
   {% endif %}
@@ -41,4 +41,4 @@
   {% endif %}
 
   {{ children }}
-{% endspaceless %}
+{% endapply %}

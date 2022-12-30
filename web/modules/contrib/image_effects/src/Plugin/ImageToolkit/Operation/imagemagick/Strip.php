@@ -29,7 +29,7 @@ class Strip extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    $this->getToolkit()->addArgument('-strip');
+    $this->addArgument('-strip');
     return TRUE;
   }
 

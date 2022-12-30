@@ -20,7 +20,7 @@ dependencies:
       - flag_bookmark
 roles: null
 flag_type: entity:node
-link_type: reload
+link_type: ajax_link
 flagTypeConfig:
   show_in_links:
     - full
@@ -28,6 +28,5 @@ flagTypeConfig:
   show_as_field: true
   show_on_form: false
   show_contextual_link: false
-  i18n: null
   extra_permissions: { }
 linkTypeConfig: {  }

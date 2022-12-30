@@ -1,3 +1,4 @@
+# @todo Remove god-mode permission in 8.2.0 release.
 bypass group access:
   title: 'Bypass group access control'
   description: 'Gain full control over all groups and group configuration.'

@@ -73,8 +73,13 @@ class EntityReferenceRevisions extends EntityReference {
    */
   public function getTarget() {
     if (!isset($this->target) && isset($this->revision_id)) {
-      // If we have a valid reference, return the entity's TypedData adapter.
-      $entity = \Drupal::entityTypeManager()->getStorage($this->getTargetDefinition()->getEntityTypeId())->loadRevision($this->revision_id);
+      $storage = \Drupal::entityTypeManager()->getStorage($this->getTargetDefinition()->getEntityTypeId());
+      // By default always load the default revision, so caches get used.
+      $entity = $storage->load($this->id);
+      if ($entity !== NULL && $entity->getRevisionId() != $this->revision_id) {
+        // A non-default revision is a referenced, so load this one.
+        $entity = $storage->loadRevision($this->revision_id);
+      }
       $this->target = isset($entity) ? $entity->getTypedData() : NULL;
     }
     return $this->target;

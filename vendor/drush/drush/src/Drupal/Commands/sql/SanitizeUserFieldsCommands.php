@@ -1,9 +1,8 @@
 <?php
+
 namespace Drush\Drupal\Commands\sql;
 
 use Consolidation\AnnotatedCommand\CommandData;
-use Drupal\Component\Utility\Random;
-use Drupal\Core\Database\Database;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\Console\Input\InputInterface;
 
@@ -13,13 +12,13 @@ use Symfony\Component\Console\Input\InputInterface;
 class SanitizeUserFieldsCommands extends DrushCommands implements SanitizePluginInterface
 {
     protected $database;
-    protected $entityManager;
+    protected $entityFieldManager;
     protected $entityTypeManager;
 
-    public function __construct($database, $entityManager, $entityTypeManager)
+    public function __construct($database, $entityFieldManager, $entityTypeManager)
     {
         $this->database = $database;
-        $this->entityManager = $entityManager;
+        $this->entityFieldManager = $entityFieldManager;
         $this->entityTypeManager = $entityTypeManager;
     }
 
@@ -34,9 +33,9 @@ class SanitizeUserFieldsCommands extends DrushCommands implements SanitizePlugin
     /**
      * @return mixed
      */
-    public function getEntityManager()
+    public function getEntityFieldManager()
     {
-        return $this->entityManager;
+        return $this->entityFieldManager;
     }
 
     /**
@@ -48,13 +47,17 @@ class SanitizeUserFieldsCommands extends DrushCommands implements SanitizePlugin
      *
      * @inheritdoc
      */
-    public function sanitize($result, CommandData $commandData)
+    public function sanitize($result, CommandData $commandData): void
     {
         $options = $commandData->options();
         $conn = $this->getDatabase();
-        $field_definitions = $this->getEntityManager()->getFieldDefinitions('user', 'user');
-        $field_storage = $this->getEntityManager()->getFieldStorageDefinitions('user');
-        foreach (explode(',', $options['whitelist-fields']) as $key => $def) {
+        $field_definitions = $this->getEntityFieldManager()->getFieldDefinitions('user', 'user');
+        $field_storage = $this->getEntityFieldManager()->getFieldStorageDefinitions('user');
+        /** @deprecated Use $options['allowlist-fields'] instead. */
+        foreach (explode(',', $options['whitelist-fields']) as $key) {
+            unset($field_definitions[$key], $field_storage[$key]);
+        }
+        foreach (explode(',', $options['allowlist-fields']) as $key) {
             unset($field_definitions[$key], $field_storage[$key]);
         }
 
@@ -68,8 +71,11 @@ class SanitizeUserFieldsCommands extends DrushCommands implements SanitizePlugin
             $query = $conn->update($table);
             $name = $def->getName();
             $field_type_class = \Drupal::service('plugin.manager.field.field_type')->getPluginClass($def->getType());
-            $value_array = $field_type_class::generateSampleValue($def);
-            $value = $value_array['value'];
+            $supported_field_types = ['email', 'string', 'string_long', 'telephone', 'text', 'text_long', 'text_with_summary'];
+            if (in_array($def->getType(), $supported_field_types)) {
+                $value_array = $field_type_class::generateSampleValue($def);
+                $value = $value_array['value'];
+            }
             switch ($def->getType()) {
                 case 'email':
                     $query->fields([$name . '_value' => $value]);
@@ -123,16 +129,17 @@ class SanitizeUserFieldsCommands extends DrushCommands implements SanitizePlugin
      *
      * @inheritdoc
      */
-    public function messages(&$messages, InputInterface $input)
+    public function messages(&$messages, InputInterface $input): void
     {
         $messages[] = dt('Sanitize text fields associated with users.');
     }
 
     /**
      * @hook option sql-sanitize
-     * @option whitelist-fields A comma delimited list of fields exempt from sanitization.
+     * @option whitelist-fields Deprecated. Use allowlist-fields instead.
+     * @option allowlist-fields A comma delimited list of fields exempt from sanitization.
      */
-    public function options($options = ['whitelist-fields' => ''])
+    public function options($options = ['whitelist-fields' => '', 'allowlist-fields' => '']): void
     {
     }
 }

@@ -2,11 +2,8 @@
 
 namespace Drupal\Core\Password;
 
-use Drupal\Component\Utility\Crypt;
-
 /**
- * Secure password hashing functions based on the Portable PHP password
- * hashing framework.
+ * Secure hashing functions based on Portable PHP password hashing framework.
  *
  * @see http://www.openwall.com/phpass/
  */
@@ -37,6 +34,8 @@ class PhpassHashedPassword implements PasswordInterface {
    * Specifies the number of times the hashing function will be applied when
    * generating new password hashes. The number of times is calculated by
    * raising 2 to the power of the given value.
+   *
+   * @var int
    */
   protected $countLog2;
 
@@ -108,7 +107,7 @@ class PhpassHashedPassword implements PasswordInterface {
     // We encode the final log2 iteration count in base 64.
     $output .= static::$ITOA64[$this->countLog2];
     // 6 bytes is the standard salt for a portable phpass hash.
-    $output .= $this->base64Encode(Crypt::randomBytes(6), 6);
+    $output .= $this->base64Encode(random_bytes(6), 6);
     return $output;
   }
 
@@ -167,9 +166,9 @@ class PhpassHashedPassword implements PasswordInterface {
       return FALSE;
     }
     $count_log2 = $this->getCountLog2($setting);
-    // Stored hashes may have been crypted with any iteration count. However we
-    // do not allow applying the algorithm for unreasonable low and high values
-    // respectively.
+    // Stored hashes may have been encrypted with any iteration count. However
+    // we do not allow applying the algorithm for unreasonable low and high
+    // values respectively.
     if ($count_log2 != $this->enforceLog2Boundaries($count_log2)) {
       return FALSE;
     }
@@ -182,7 +181,6 @@ class PhpassHashedPassword implements PasswordInterface {
     // Convert the base 2 logarithm into an integer.
     $count = 1 << $count_log2;
 
-    // We rely on the hash() function being available in PHP 5.2+.
     $hash = hash($algo, $salt . $password, TRUE);
     do {
       $hash = hash($algo, $hash . $password, TRUE);
@@ -238,6 +236,7 @@ class PhpassHashedPassword implements PasswordInterface {
         // A normal Drupal 7 password using sha512.
         $computed_hash = $this->crypt('sha512', $password, $stored_hash);
         break;
+
       case '$H$':
         // phpBB3 uses "$H$" for the same thing as "$P$".
       case '$P$':
@@ -245,12 +244,13 @@ class PhpassHashedPassword implements PasswordInterface {
         // imported password or from an earlier Drupal version.
         $computed_hash = $this->crypt('md5', $password, $stored_hash);
         break;
+
       default:
         return FALSE;
     }
 
-    // Compare using hashEquals() instead of === to mitigate timing attacks.
-    return $computed_hash && Crypt::hashEquals($stored_hash, $computed_hash);
+    // Compare using hash_equals() instead of === to mitigate timing attacks.
+    return $computed_hash && hash_equals($stored_hash, $computed_hash);
   }
 
   /**

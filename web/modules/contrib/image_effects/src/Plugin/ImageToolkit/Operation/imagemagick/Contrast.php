@@ -25,7 +25,7 @@ class Contrast extends ImagemagickImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     if ($arguments['level']) {
-      $this->getToolkit()->addArgument('-brightness-contrast ' . $this->getToolkit()->escapeShellArg('0x' . $arguments['level']));
+      $this->addArgument('-brightness-contrast ' . $this->escapeArgument('0x' . $arguments['level']));
     }
 
     return TRUE;

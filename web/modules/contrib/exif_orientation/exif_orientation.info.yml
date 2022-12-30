@@ -1,0 +1,11 @@
+name: EXIF Orientation
+type: module
+description: 'Rotates images per their EXIF Orientation'
+core: '8.x'
+core_version_requirement: ^8 || ^9
+package: 'Media'
+
+# Information added by Drupal.org packaging script on 2020-07-02
+version: '8.x-1.1'
+project: 'exif_orientation'
+datestamp: 1593659919

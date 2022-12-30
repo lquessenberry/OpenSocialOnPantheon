@@ -4,4 +4,4 @@
  */
 (function ($) {
   $(document).ready(() => {});
-}(jQuery));
+})(jQuery);

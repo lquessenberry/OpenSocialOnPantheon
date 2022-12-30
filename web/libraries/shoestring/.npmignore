@@ -1,0 +1,29 @@
+# Project files
+/dist/development.js
+/dist/main.js
+/dist/production.js
+/dist/shoestring-dev.min.js
+/dist/shoestring.min.js
+
+# Versioning
+*.diff
+*.patch
+
+# OS
+.DS_Store
+thumbs.db
+
+# Editor/IDE files
+*~
+*.iml
+*.ipr
+*.iws
+.idea
+.project
+*.sublime-workspace
+nb-configuration.xml
+nbactions.xml
+nbproject/private
+
+# Node
+node_modules

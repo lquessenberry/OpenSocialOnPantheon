@@ -12,4 +12,7 @@
  * @ingroup themeable
  */
 #}
-<div data-horizontal-tabs-panes{{ attributes }}>{{ children }}</div>
+<div data-horizontal-tabs class="horizontal-tabs clearfix">
+  <ul data-horizontal-tabs-list class="horizontal-tabs-list visually-hidden"></ul>
+  <div data-horizontal-tabs-panes{{ attributes }}>{{ children }}</div>
+</div>

@@ -1,0 +1,98 @@
+body.cke_editable_themed {
+  color: var(--colorGinText);
+}
+
+body.cke_editable_themed.gin--dark-mode {
+  background-color: var(--colorGinLayer2Background);
+}
+
+a {
+  color: var(--colorGinPrimary);
+}
+
+.cke_panel_grouptitle {
+  color: var(--colorGinTitle);
+  background: var(--colorGinLayer2Background);
+}
+
+.cke_panel_listItem.cke_selected a,
+.cke_panel_listItem a:hover,
+.cke_panel_listItem a:focus,
+.cke_panel_listItem a:active {
+  background-color: var(--colorGinPrimaryLight);
+}
+
+.cke_editable {
+  line-height: 1.5;
+}
+
+/* CKE Context Menu */
+
+.cke_panel_block {
+  border-color: var(--colorGinFormElementBorder);
+  border-radius: var(--ginBorderDefault);
+}
+
+.cke_panel_block .cke_menu .cke_menubutton_icon {
+  background-color: var(--colorGinAppBackground);
+}
+
+.gin--dark-mode .cke_panel_block .cke_menu .cke_menubutton_icon .cke_button_icon {
+  filter: invert(1);
+}
+
+.cke_panel_block .cke_menu .cke_menubutton_label {
+  color: var(--colorGinText);
+}
+
+.cke_panel_block .cke_menu .cke_menubutton_shortcut {
+  color: var(--colorGinTextLight);
+}
+
+.cke_panel_block .cke_menu a:hover, .cke_panel_block .cke_menu a:focus, .cke_panel_block .cke_menu a:active {
+  background-color: var(--colorGinPrimaryLight);
+}
+
+.cke_panel_block .cke_menu a:hover .cke_menubutton_icon, .cke_panel_block .cke_menu a:focus .cke_menubutton_icon, .cke_panel_block .cke_menu a:active .cke_menubutton_icon {
+  background-color: var(--colorGinPrimaryLight);
+}
+
+body.cke_editable_themed blockquote {
+  font-size: 1.1em;
+  position: relative;
+  margin: 1rem;
+}
+
+[dir="ltr"] body.cke_editable_themed blockquote {
+  padding-left: 1.5rem;
+}
+
+[dir="rtl"] body.cke_editable_themed blockquote {
+  padding-right: 1.5rem;
+}
+
+@media (min-width: 976px) {
+  body.cke_editable_themed blockquote {
+    font-size: 1.2em;
+  }
+}
+
+body.cke_editable_themed blockquote::before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background-color: var(--colorGinPrimary);
+  border-radius: 2px;
+}
+
+[dir="ltr"] body.cke_editable_themed blockquote::before {
+  left: 0;
+}
+
+[dir="rtl"] body.cke_editable_themed blockquote::before {
+  right: 0;
+}
+

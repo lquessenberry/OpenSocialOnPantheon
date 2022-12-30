@@ -2,13 +2,15 @@
 
 namespace Drupal\mentions\Entity;
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\mentions\MentionsInterface;
+use Drupal\user\UserInterface;
 
 /**
- * Mentions Class.
+ * The Mentions entity.
  *
  * @ContentEntityType(
  *   id = "mentions",
@@ -87,56 +89,72 @@ class Mentions extends ContentEntityBase implements MentionsInterface {
   /**
    * {@inheritdoc}
    */
-  public function getCreatedTime() {
-    return $this->get('created')->value;
+  public function getCreatedTime(): int {
+    return (int) $this->get('created')->value;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getOwner() {
-    return $this->get('auid')->entity;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getOwnerId() {
-    return $this->get('auid')->target_id;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getMentionedEntity() {
-    $entity_type = $this->getMentionedEntityTypeId();
-    $entity_id = $this->getMentionedEntityId();
-
-    $storage = \Drupal::entityTypeManager()->getStorage($entity_type);
-    $entity = $storage->load($entity_id);
-
+    $entity = $this->get('auid')->entity;
+    assert($entity instanceof UserInterface);
     return $entity;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getMentionedEntityId() {
-    return $this->get('entity_id')->target_id;
+  public function getOwnerId(): ?int {
+    return (int) $this->get('auid')->target_id;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getMentionedEntityTypeId() {
+  public function setOwnerId($uid) {
+    $this->set('auid', $uid);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setOwner(UserInterface $account) {
+    $this->set('auid', $account->id());
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMentionedEntity(): ?EntityInterface {
+    $entity_type = $this->getMentionedEntityTypeId();
+    $entity_id = $this->getMentionedEntityId();
+    $storage = \Drupal::entityTypeManager()->getStorage($entity_type);
+
+    return $storage->load($entity_id);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMentionedEntityId(): int {
+    return (int) $this->get('entity_id')->target_id;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMentionedEntityTypeId(): string {
     return $this->get('entity_type')->value;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getMentionedUserId() {
-    return $this->get('uid')->target_id;
+  public function getMentionedUserId(): int {
+    return (int) $this->get('uid')->target_id;
   }
 
 }

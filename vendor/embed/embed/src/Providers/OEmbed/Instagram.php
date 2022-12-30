@@ -2,34 +2,66 @@
 
 namespace Embed\Providers\OEmbed;
 
-use Embed\Url;
+use Embed\Adapters\Adapter;
+use Embed\Http\Response;
+use Embed\Http\Url;
 
-class Instagram extends OEmbedImplementation
+class Instagram extends EndPoint implements EndPointInterface
 {
+    protected static $pattern = [
+        'instagram.com/p/*',
+        'www.instagram.com/p/*',
+        'www.instagram.com/tv/*',
+        'instagr.am/p/*',
+    ];
+    protected static $endPoint = 'https://graph.facebook.com/v8.0/instagram_oembed';
+    protected $key;
+
     /**
      * {@inheritdoc}
      */
-    public static function getEndPoint(Url $url)
+    public static function create(Adapter $adapter)
     {
-        return 'http://api.instagram.com/oembed';
+        $key = $adapter->getConfig('facebook[key]');
+
+        if (!empty($key)) {
+            $response = $adapter->getResponse();
+
+            if ($response->getUrl()->match(static::$pattern)) {
+                return new static($response, null, $key);
+            }
+
+            if ($response->getStartingUrl()->match(static::$pattern)) {
+                return new static($response, $response->getStartingUrl(), $key);
+            }
+        }
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function getPatterns()
+    protected function __construct(Response $response, $url = null, $key = null)
     {
-        return [
-            'https?://instagram.com/p/*',
-            'https?://www.instagram.com/p/*',
-        ];
+        $this->response = $response;
+        $this->key = $key;
+
+        if ($url) {
+            $this->url = $url;
+        }
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function getParams(Url $url)
+    public function getEndPoint()
     {
-        return ['url' => $url->withScheme('http')->getUrl()];
+        $url = $this->getUrl()->withScheme('http');
+
+        return Url::create(static::$endPoint)
+                ->withQueryParameters([
+                    'url' => (string) $url,
+                    'format' => 'json',
+                    'access_token' => $this->key,
+                ]);
     }
 }

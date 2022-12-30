@@ -2,6 +2,7 @@
 
 namespace Drupal\KernelTests;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Form\FormState;
 
 /**
@@ -14,7 +15,7 @@ abstract class ConfigFormTestBase extends KernelTestBase {
   /**
    * Form ID to use for testing.
    *
-   * @var \Drupal\Core\Form\FormInterface.
+   * @var \Drupal\Core\Form\FormInterface
    */
   protected $form;
 
@@ -56,10 +57,10 @@ abstract class ConfigFormTestBase extends KernelTestBase {
       '%values' => print_r($values, TRUE),
       '%errors' => $valid_form ? t('None') : implode(' ', $errors),
     ];
-    $this->assertTrue($valid_form, format_string('Input values: %values<br/>Validation handler errors: %errors', $args));
+    $this->assertTrue($valid_form, new FormattableMarkup('Input values: %values<br/>Validation handler errors: %errors', $args));
 
     foreach ($this->values as $data) {
-      $this->assertEqual($data['#value'], $this->config($data['#config_name'])->get($data['#config_key']));
+      $this->assertEquals($this->config($data['#config_name'])->get($data['#config_key']), $data['#value']);
     }
   }
 

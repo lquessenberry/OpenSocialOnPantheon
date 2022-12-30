@@ -3,7 +3,8 @@
 namespace Drupal\filter\Plugin;
 
 use Drupal\Component\Plugin\PluginInspectionInterface;
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\ConfigurableInterface;
+use Drupal\Component\Plugin\DependentPluginInterface;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -49,16 +50,16 @@ use Drupal\Core\Form\FormStateInterface;
  * Filters are discovered through annotations, which may contain the following
  * definition properties:
  * - title: (required) An administrative summary of what the filter does.
- *   - type: (required) A classification of the filter's purpose. This is one
- *     of the following:
- *     - FilterInterface::TYPE_HTML_RESTRICTOR: HTML tag and attribute
- *       restricting filters.
- *     - FilterInterface::TYPE_MARKUP_LANGUAGE: Non-HTML markup language filters
- *       that generate HTML.
- *     - FilterInterface::TYPE_TRANSFORM_IRREVERSIBLE: Irreversible
- *       transformation filters.
- *     - FilterInterface::TYPE_TRANSFORM_REVERSIBLE: Reversible transformation
- *       filters.
+ * - type: (required) A classification of the filter's purpose. This is one of
+ *   the following:
+ *   - FilterInterface::TYPE_HTML_RESTRICTOR: HTML tag and attribute restricting
+ *     filters.
+ *   - FilterInterface::TYPE_MARKUP_LANGUAGE: Non-HTML markup language filters
+ *     that generate HTML.
+ *   - FilterInterface::TYPE_TRANSFORM_IRREVERSIBLE: Irreversible transformation
+ *     filters.
+ *   - FilterInterface::TYPE_TRANSFORM_REVERSIBLE: Reversible transformation
+ *     filters.
  * - description: Additional administrative information about the filter's
  *   behavior, if needed for clarification.
  * - status: The default status for new instances of the filter. Defaults to
@@ -75,7 +76,7 @@ use Drupal\Core\Form\FormStateInterface;
  * @see \Drupal\filter\Plugin\FilterBase
  * @see plugin_api
  */
-interface FilterInterface extends ConfigurablePluginInterface, PluginInspectionInterface {
+interface FilterInterface extends ConfigurableInterface, DependentPluginInterface, PluginInspectionInterface {
 
   /**
    * Non-HTML markup language filters that generate HTML.
@@ -197,7 +198,7 @@ interface FilterInterface extends ConfigurablePluginInterface, PluginInspectionI
    *             be attribute values (which may use a wildcard, e.g. "xsd:*"),
    *             the possible values are TRUE or FALSE: to mark the attribute
    *             value as allowed or forbidden, respectively
-   *     -  'forbidden_tags': (optional) the forbidden tags
+   *     -  'forbidden_tags': (deprecated) the forbidden tags
    *
    *   There is one special case: the "wildcard tag", "*": any attribute
    *   restrictions on that pseudotag apply to all tags.

@@ -185,7 +185,10 @@ class FieldsHelper implements FieldsHelperInterface {
    * {@inheritdoc}
    */
   public function extractFieldValues(TypedDataInterface $data) {
-    if ($data->getDataDefinition()->isList()) {
+    $definition = $data->getDataDefinition();
+
+    // Process list data types.
+    if ($definition->isList()) {
       $values = [];
       foreach ($data as $piece) {
         $values[] = $this->extractFieldValues($piece);
@@ -193,12 +196,18 @@ class FieldsHelper implements FieldsHelperInterface {
       return $values ? call_user_func_array('array_merge', $values) : [];
     }
 
-    $value = $data->getValue();
-    $definition = $data->getDataDefinition();
+    // Process complex data types.
     if ($definition instanceof ComplexDataDefinitionInterface) {
-      $property = $definition->getMainPropertyName();
-      return isset($value[$property]) ? [$value[$property]] : [];
+      $main_property_name = $definition->getMainPropertyName();
+      $data_properties = $data->getProperties(TRUE);
+      if (isset($data_properties[$main_property_name])) {
+        return $this->extractFieldValues($data_properties[$main_property_name]);
+      }
+      return [];
     }
+
+    // Process simple (scalar) data types.
+    $value = $data->getValue();
     if (is_array($value)) {
       return array_values($value);
     }
@@ -252,11 +261,8 @@ class FieldsHelper implements FieldsHelperInterface {
           // processor-defined property, we need to use the processor to
           // retrieve the value. Otherwise, we extract it normally from the
           // data object.
-          $property = NULL;
           $property_name = Utility::splitPropertyPath($property_path, FALSE)[0];
-          if (isset($properties[$property_name])) {
-            $property = $properties[$property_name];
-          }
+          $property = $properties[$property_name] ?? NULL;
           if ($property instanceof ProcessorPropertyInterface) {
             $field_info = [
               'datasource_id' => $datasource_id,
@@ -331,8 +337,8 @@ class FieldsHelper implements FieldsHelperInterface {
       $entity_type_id = $property->getEntityTypeId();
       $is_content_type = $this->isContentEntityType($entity_type_id);
       if ($is_content_type) {
-        $bundles = $this->entityBundleInfo->getBundleInfo($entity_type_id);
-        foreach ($bundles as $bundle => $bundleLabel) {
+        $bundles = $property->getBundles() ?: array_keys($this->entityBundleInfo->getBundleInfo($entity_type_id));
+        foreach ($bundles as $bundle) {
           $bundleProperties = $this->entityFieldManager
             ->getFieldDefinitions($entity_type_id, $bundle);
           $nestedProperties += $bundleProperties;
@@ -352,7 +358,7 @@ class FieldsHelper implements FieldsHelperInterface {
     }
 
     $property = $this->getInnerProperty($properties[$key]);
-    if (!isset($nestedPath)) {
+    if ($nestedPath === NULL) {
       return $property;
     }
 
@@ -438,9 +444,7 @@ class FieldsHelper implements FieldsHelperInterface {
    * {@inheritdoc}
    */
   public function createFieldFromProperty(IndexInterface $index, DataDefinitionInterface $property, $datasourceId, $propertyPath, $fieldId = NULL, $type = NULL) {
-    if (!isset($fieldId)) {
-      $fieldId = $this->getNewFieldId($index, $propertyPath);
-    }
+    $fieldId = $fieldId ?? $this->getNewFieldId($index, $propertyPath);
 
     if (!isset($type)) {
       $typeMapping = $this->dataTypeHelper->getFieldTypeMapping();
@@ -488,6 +492,13 @@ class FieldsHelper implements FieldsHelperInterface {
     }
 
     return $fieldId;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function compareFieldLabels(FieldInterface $a, FieldInterface $b) {
+    return strnatcasecmp((string) $a->getLabel(), (string) $b->getLabel());
   }
 
 }

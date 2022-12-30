@@ -27,13 +27,18 @@
   font-weight: bold;
 }
 
-.search-api-list-index .search-api-type {
+.search-api-list-server .search-api-title .description {
+  font-weight: normal;
+}
+
+.search-api-entity-list--servers-with-indexes .search-api-list-index .search-api-type {
   padding-left: 3em;
 }
 
 .search-api-list-disabled .search-api-type,
-.search-api-list-disabled .search-api-title {
-  font-style: italic;
+.search-api-list-disabled .search-api-title,
+.search-api-list-disabled .search-api-status {
+  opacity: .5;
 }
 
 /*
@@ -90,4 +95,6 @@ details .messages {
 .search-api-checkboxes-list .form-checkboxes {
   max-height: 30em;
   overflow: auto;
+  margin-left: -1rem;
+  padding-left: 1rem;
 }

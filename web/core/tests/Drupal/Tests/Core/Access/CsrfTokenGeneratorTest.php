@@ -25,26 +25,26 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
   /**
    * The mock private key instance.
    *
-   * @var \Drupal\Core\PrivateKey|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\PrivateKey|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $privateKey;
 
   /**
    * The mock session metadata bag.
    *
-   * @var \Drupal\Core\Session\MetadataBag|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Session\MetadataBag|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $sessionMetadata;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->privateKey = $this->getMockBuilder('Drupal\Core\PrivateKey')
       ->disableOriginalConstructor()
-      ->setMethods(['get'])
+      ->onlyMethods(['get'])
       ->getMock();
 
     $this->sessionMetadata = $this->getMockBuilder('Drupal\Core\Session\MetadataBag')
@@ -83,7 +83,7 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
   public function testGet() {
     $this->setupDefaultExpectations();
 
-    $this->assertInternalType('string', $this->generator->get());
+    $this->assertIsString($this->generator->get());
     $this->assertNotSame($this->generator->get(), $this->generator->get($this->randomMachineName()));
     $this->assertNotSame($this->generator->get($this->randomMachineName()), $this->generator->get($this->randomMachineName()));
   }
@@ -107,7 +107,7 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
       ->method('setCsrfTokenSeed')
       ->with($this->isType('string'));
 
-    $this->assertInternalType('string', $this->generator->get());
+    $this->assertIsString($this->generator->get());
   }
 
   /**
@@ -177,7 +177,7 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
   public function testInvalidParameterTypes($token, $value = '') {
     $this->setupDefaultExpectations();
 
-    $this->setExpectedException(\InvalidArgumentException::class);
+    $this->expectException(\InvalidArgumentException::class);
     $this->generator->validate($token, $value);
   }
 
@@ -205,7 +205,7 @@ class CsrfTokenGeneratorTest extends UnitTestCase {
     // Update settings with no hash salt.
     new Settings([]);
     $generator = new CsrfTokenGenerator($this->privateKey, $this->sessionMetadata);
-    $this->setExpectedException(\RuntimeException::class);
+    $this->expectException(\RuntimeException::class);
     $generator->get();
   }
 

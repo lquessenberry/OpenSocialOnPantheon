@@ -1,0 +1,6 @@
+services:
+  ultimate_cron.commands:
+    class: Drupal\ultimate_cron\Commands\UltimateCronCommands
+    arguments: ['@logger.factory']
+    tags:
+      - { name: drush.command }

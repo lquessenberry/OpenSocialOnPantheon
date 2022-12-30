@@ -2,6 +2,9 @@
 
 namespace Drupal\layout_builder;
 
+use Drupal\Core\Config\Entity\ThirdPartySettingsInterface;
+use Drupal\Core\Plugin\PreviewAwarePluginInterface;
+
 /**
  * Provides a domain object for layout sections.
  *
@@ -11,18 +14,10 @@ namespace Drupal\layout_builder;
  * - An array of settings for the layout plugin.
  * - An array of components that can be rendered in the section.
  *
- * @internal
- *   Layout Builder is currently experimental and should only be leveraged by
- *   experimental modules and development releases of contributed modules.
- *   See https://www.drupal.org/core/experimental for more information.
- *
  * @see \Drupal\Core\Layout\LayoutDefinition
  * @see \Drupal\layout_builder\SectionComponent
- *
- * @todo Determine whether an interface will be provided for this in
- *   https://www.drupal.org/project/drupal/issues/2930334.
  */
-class Section {
+class Section implements ThirdPartySettingsInterface {
 
   /**
    * The layout plugin ID.
@@ -46,6 +41,15 @@ class Section {
   protected $components = [];
 
   /**
+   * Third party settings.
+   *
+   * An array of key/value pairs keyed by provider.
+   *
+   * @var array[]
+   */
+  protected $thirdPartySettings = [];
+
+  /**
    * Constructs a new Section.
    *
    * @param string $layout_id
@@ -54,13 +58,16 @@ class Section {
    *   (optional) The layout plugin settings.
    * @param \Drupal\layout_builder\SectionComponent[] $components
    *   (optional) The components.
+   * @param array[] $third_party_settings
+   *   (optional) Any third party settings.
    */
-  public function __construct($layout_id, array $layout_settings = [], array $components = []) {
+  public function __construct($layout_id, array $layout_settings = [], array $components = [], array $third_party_settings = []) {
     $this->layoutId = $layout_id;
     $this->layoutSettings = $layout_settings;
     foreach ($components as $component) {
       $this->setComponent($component);
     }
+    $this->thirdPartySettings = $third_party_settings;
   }
 
   /**
@@ -82,17 +89,29 @@ class Section {
       }
     }
 
-    return $this->getLayout()->build($regions);
+    $layout = $this->getLayout($contexts);
+    if ($layout instanceof PreviewAwarePluginInterface) {
+      $layout->setInPreview($in_preview);
+    }
+
+    return $layout->build($regions);
   }
 
   /**
    * Gets the layout plugin for this section.
    *
+   * @param \Drupal\Core\Plugin\Context\ContextInterface[] $contexts
+   *   An array of available contexts.
+   *
    * @return \Drupal\Core\Layout\LayoutInterface
    *   The layout plugin.
    */
-  public function getLayout() {
-    return $this->layoutPluginManager()->createInstance($this->getLayoutId(), $this->getLayoutSettings());
+  public function getLayout(array $contexts = []) {
+    $layout = $this->layoutPluginManager()->createInstance($this->getLayoutId(), $this->layoutSettings);
+    if ($contexts) {
+      $this->contextHandler()->applyContextMapping($layout, $contexts);
+    }
+    return $layout;
   }
 
   /**
@@ -118,7 +137,7 @@ class Section {
    *   This method should only be used by code responsible for storing the data.
    */
   public function getLayoutSettings() {
-    return $this->layoutSettings;
+    return $this->getLayout()->getConfiguration();
   }
 
   /**
@@ -148,7 +167,7 @@ class Section {
    * Returns the components of the section.
    *
    * @return \Drupal\layout_builder\SectionComponent[]
-   *   The components.
+   *   An array of components, keyed by the component UUID.
    */
   public function getComponents() {
     return $this->components;
@@ -240,12 +259,12 @@ class Section {
    * @return \Drupal\layout_builder\SectionComponent[]
    *   An array of components in the specified region, sorted by weight.
    */
-  protected function getComponentsByRegion($region) {
+  public function getComponentsByRegion($region) {
     $components = array_filter($this->getComponents(), function (SectionComponent $component) use ($region) {
       return $component->getRegion() === $region;
     });
     uasort($components, function (SectionComponent $a, SectionComponent $b) {
-      return $a->getWeight() > $b->getWeight() ? 1 : -1;
+      return $a->getWeight() <=> $b->getWeight();
     });
     return $components;
   }
@@ -334,6 +353,7 @@ class Section {
       'components' => array_map(function (SectionComponent $component) {
         return $component->toArray();
       }, $this->getComponents()),
+      'third_party_settings' => $this->thirdPartySettings,
     ];
   }
 
@@ -349,11 +369,80 @@ class Section {
    *   The section object.
    */
   public static function fromArray(array $section) {
+    // Ensure expected array keys are present.
+    $section += [
+      'layout_id' => '',
+      'layout_settings' => [],
+      'components' => [],
+      'third_party_settings' => [],
+    ];
     return new static(
       $section['layout_id'],
       $section['layout_settings'],
-      array_map([SectionComponent::class, 'fromArray'], $section['components'])
+      array_map([SectionComponent::class, 'fromArray'], $section['components']),
+      $section['third_party_settings']
     );
+  }
+
+  /**
+   * Magic method: Implements a deep clone.
+   */
+  public function __clone() {
+    foreach ($this->components as $uuid => $component) {
+      $this->components[$uuid] = clone $component;
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getThirdPartySetting($provider, $key, $default = NULL) {
+    return $this->thirdPartySettings[$provider][$key] ?? $default;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getThirdPartySettings($provider) {
+    return $this->thirdPartySettings[$provider] ?? [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setThirdPartySetting($provider, $key, $value) {
+    $this->thirdPartySettings[$provider][$key] = $value;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function unsetThirdPartySetting($provider, $key) {
+    unset($this->thirdPartySettings[$provider][$key]);
+    // If the third party is no longer storing any information, completely
+    // remove the array holding the settings for this provider.
+    if (empty($this->thirdPartySettings[$provider])) {
+      unset($this->thirdPartySettings[$provider]);
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getThirdPartyProviders() {
+    return array_keys($this->thirdPartySettings);
+  }
+
+  /**
+   * Wraps the context handler.
+   *
+   * @return \Drupal\Core\Plugin\Context\ContextHandlerInterface
+   *   The context handler.
+   */
+  protected function contextHandler() {
+    return \Drupal::service('context.handler');
   }
 
 }

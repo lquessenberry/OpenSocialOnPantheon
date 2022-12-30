@@ -1,0 +1,14 @@
+slider:
+  license:
+    name: Public Domain
+    url: https://github.com/jquery/jquery-ui/blob/1.12.1/LICENSE.txt
+    gpl-compatible: true
+  js:
+    jquery.ui/ui/widgets/slider-min.js: { minified: true }
+  css:
+    component:
+      jquery.ui/themes/base/slider.css: {}
+  dependencies:
+    - jquery_ui/core
+    - jquery_ui/mouse
+    - jquery_ui/widget

@@ -1,0 +1,26 @@
+.ief-entity-table .ief-row-form {
+  border: 1px solid var(--colorGinBorder);
+}
+
+.ief-entity-table .ief-row-form:hover {
+  background: transparent;
+}
+
+.ief-entity-table .ief-row-form td {
+  padding-bottom: 0;
+}
+
+.ief-form > .form-wrapper > .form-wrapper:last-of-type {
+  background: var(--colorGinLayer2Background);
+  padding: 0 1rem;
+  margin: 0 -1rem;
+}
+
+.ief-form.ief-form-bottom {
+  border: 1px solid var(--colorGinBorder);
+}
+
+.ief-form.ief-form-bottom .fieldset__wrapper {
+  margin-bottom: 0;
+}
+

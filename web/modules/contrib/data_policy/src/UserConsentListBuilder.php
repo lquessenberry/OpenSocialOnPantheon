@@ -7,6 +7,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\user\UserInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -45,7 +46,7 @@ class UserConsentListBuilder extends EntityListBuilder {
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('date.formatter')
     );
   }
@@ -65,10 +66,11 @@ class UserConsentListBuilder extends EntityListBuilder {
    * {@inheritdoc}
    */
   public function buildRow(EntityInterface $entity) {
-    /* @var $entity \Drupal\data_policy\Entity\UserConsentInterface */
+    $owner = $entity->getOwner();
+    /** @var \Drupal\data_policy\Entity\UserConsentInterface $entity */
     return [
       'id' => $entity->id(),
-      'user' => $entity->getOwner()->getDisplayName(),
+      'user' => ($owner instanceof UserInterface) ? $owner->getDisplayName() : $this->t('Deleted user'),
       'created' => $this->dateFormatter->format($entity->getChangedTime(), 'short'),
     ];
   }

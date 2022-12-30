@@ -13,6 +13,8 @@ use Drupal\search_api\Task\TaskInterface;
 /**
  * Tests whether the Search API task system works correctly.
  *
+ * @see \Drupal\search_api_test_tasks\TestTaskWorker
+ *
  * @group search_api
  */
 class TaskTest extends KernelTestBase {
@@ -34,7 +36,7 @@ class TaskTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'user',
     'search_api',
     'search_api_test',
@@ -58,7 +60,7 @@ class TaskTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('search_api_task');
@@ -162,6 +164,42 @@ class TaskTest extends KernelTestBase {
   }
 
   /**
+   * Tests that duplicate tasks won't be created.
+   */
+  public function testTaskDuplicates() {
+    // @todo Use named parameters here once we depend on PHP 8.0+.
+    $data = ['foo' => 'bar', 1];
+    $task1 = $this->addTask('success');
+    $task2 = $this->addTask('success', NULL, NULL, NULL, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', NULL, NULL, $data);
+    $task2 = $this->addTask('success', NULL, NULL, $data, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', $this->server);
+    $task2 = $this->addTask('success', $this->server, NULL, NULL, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', $this->server, NULL, $data);
+    $task2 = $this->addTask('success', $this->server, NULL, $data, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', NULL, $this->index);
+    $task2 = $this->addTask('success', NULL, $this->index, NULL, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', NULL, $this->index, $data);
+    $task2 = $this->addTask('success', NULL, $this->index, $data, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', $this->server, $this->index);
+    $task2 = $this->addTask('success', $this->server, $this->index, NULL, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $task1 = $this->addTask('success', $this->server, $this->index, $data);
+    $task2 = $this->addTask('success', $this->server, $this->index, $data, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+    $data[] = 2;
+    $task1 = $this->addTask('success', NULL, NULL, $data);
+    $task2 = $this->addTask('success', NULL, NULL, $data, TRUE);
+    $this->assertEquals($task1->id(), $task2->id());
+  }
+
+  /**
    * Tests that multiple pending tasks are treated correctly.
    */
   public function testMultipleTasks() {
@@ -212,10 +250,11 @@ class TaskTest extends KernelTestBase {
     ]);
     $this->assertEquals($num -= 2, $this->taskManager->getTasksCount());
 
-    $tasks[7] = $this->addTask('success');
-    $tasks[8] = $this->addTask('success');
-    $tasks[9] = $this->addTask('fail');
-    $tasks[10] = $this->addTask('success');
+    // Need to include some data so the new task won't count as a duplicate.
+    $tasks[7] = $this->addTask('success', NULL, NULL, 1);
+    $tasks[8] = $this->addTask('success', NULL, NULL, 2);
+    $tasks[9] = $this->addTask('fail', NULL, NULL, 3);
+    $tasks[10] = $this->addTask('success', NULL, NULL, 4);
     $num += 4;
 
     try {
@@ -263,11 +302,14 @@ class TaskTest extends KernelTestBase {
    *   (optional) The search index associated with the task, if any.
    * @param mixed|null $data
    *   (optional) Additional, type-specific data to save with the task.
+   * @param bool $duplicate
+   *   (optional) TRUE if the task is expected to be a duplicate and not
+   *   created.
    *
    * @return \Drupal\search_api\Task\TaskInterface
-   *   The new task.
+   *   The task returned by the task manager.
    */
-  protected function addTask($type, ServerInterface $server = NULL, IndexInterface $index = NULL, $data = NULL) {
+  protected function addTask($type, ServerInterface $server = NULL, IndexInterface $index = NULL, $data = NULL, bool $duplicate = FALSE) {
     $type = "search_api_test_tasks.$type";
     $count_before = $this->taskManager->getTasksCount();
     $conditions = [
@@ -280,10 +322,11 @@ class TaskTest extends KernelTestBase {
 
     $task = $this->taskManager->addTask($type, $server, $index, $data);
 
+    $delta = $duplicate ? 0 : 1;
     $count_after = $this->taskManager->getTasksCount();
-    $this->assertEquals($count_before + 1, $count_after);
+    $this->assertEquals($count_before + $delta, $count_after);
     $count_after_conditions = $this->taskManager->getTasksCount($conditions);
-    $this->assertEquals($count_before_conditions + 1, $count_after_conditions);
+    $this->assertEquals($count_before_conditions + $delta, $count_after_conditions);
 
     return $task;
   }

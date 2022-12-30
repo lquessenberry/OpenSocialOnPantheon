@@ -2,9 +2,12 @@
   "name": "drupal/admin_toolbar",
   "description": "Provides a drop-down menu interface to the core Drupal Toolbar.",
   "type": "drupal-module",
-  "keywords": ["Drupal", "Toolbar"],
+  "keywords": [
+    "Drupal",
+    "Toolbar"
+  ],
   "homepage": "http://drupal.org/project/admin_toolbar",
-  "license": "GPL-2.0+",
+  "license": "GPL-2.0-or-later",
   "authors": [
     {
       "name": "Wilfrid Roze (eme)",
@@ -26,10 +29,13 @@
       "name": "Mohamed Anis Taktak (matio89)",
       "homepage": "https://www.drupal.org/u/matio89",
       "role": "Maintainer"
-    }    
+    }
   ],
   "support": {
     "issues": "https://www.drupal.org/project/issues/admin_toolbar",
-    "source": "http://cgit.drupalcode.org/admin_toolbar"
+    "source": "https://git.drupalcode.org/project/admin_toolbar"
+  },
+  "require": {
+    "drupal/core": "^8.8.0 || ^9.0"
   }
 }

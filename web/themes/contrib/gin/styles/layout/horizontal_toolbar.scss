@@ -1,0 +1,261 @@
+// Toolbar Variables
+:root {
+  --ginToolbarSecondaryHeight: 48px;
+  --ginToolbarHeight: 39px;
+  --ginScrollOffset: 72px;
+  --ginHorizontalToolbarOffset: var(--ginToolbarHeight);
+  --ginVerticalToolbarOffset: 0px; // Needs px to work in calc() functions.
+  --ginStickyOffset: 0px; // Needs px to work in calc() functions.
+
+  @include mq($breakpointMedium) {
+    --ginToolbarSecondaryHeight: 60px;
+    --ginToolbarHeight: 53px;
+    --ginScrollOffset: 180px;
+    --iconGinToolbar: 18px;
+    --ginStickyOffset: var(--ginStickyHeight);
+  }
+}
+
+.gin-secondary-toolbar--frontend {
+  top: calc(var(--ginToolbarSecondaryHeight) * -1);
+}
+
+// Toolbar
+.toolbar {
+  .toolbar-bar {
+    background: #100f10;
+    box-shadow: none;
+
+    @include mq($breakpointMedium) {
+      display: flex;
+      background: none;
+    }
+
+    @include mq($breakpointMedium) {
+      height: 0;
+    }
+
+    .toolbar-menu-administration {
+      > .toolbar-menu {
+        > .menu-item {
+          > .toolbar-icon,
+          > .toolbar-box > .toolbar-icon {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            padding-left: 3em;
+            white-space: nowrap;
+
+            &::before {
+              margin-top: -1px;
+            }
+          }
+
+          > .toolbar-box > .toolbar-icon:not(.toolbar-handle)::before {
+            left: .75rem;
+          }
+        }
+
+        .toolbar-icon.toolbar-handle {
+          width: 48px;
+
+          &:before {
+            left: 1rem;
+          }
+        }
+      }
+    }
+
+    .toolbar-toggle-orientation {
+      display: none !important;
+    }
+  }
+}
+
+.toolbar-horizontal .toolbar-tray {
+  border-bottom: 0 none;
+}
+
+.toolbar .toolbar-menu,
+.toolbar-horizontal .toolbar-tray .menu-item--expanded.menu-item--expanded,
+.toolbar .toolbar-tray {
+  background-color: var(--colorGinLayerBackground);
+}
+
+.toolbar-horizontal .toolbar-tray .toolbar-toggle-orientation {
+  border-left: 1px solid var(--colorGinBorder);
+}
+
+.toolbar-tray a,
+.toolbar-tray span,
+.toolbar .toolbar-menu .toolbar-menu a,
+.toolbar .toolbar-menu .toolbar-menu span {
+  color: var(--colorGinText);
+
+  &:hover {
+    color: var(--colorGinTitle);
+  }
+}
+
+.toolbar .toolbar-tray .menu-item--active-trail > .toolbar-box a,
+.toolbar .toolbar-tray .menu-item > .toolbar-icon.is-active,
+.toolbar .toolbar-tray .menu-item > .toolbar-box > .toolbar-icon.is-active,
+.toolbar .toolbar-tray a.is-active {
+  color: var(--colorGinPrimary);
+  font-weight: 500;
+
+  &::before {
+    background: var(--colorGinPrimary);
+  }
+}
+
+.toolbar .toolbar-tray .hover-intent > .toolbar-icon {
+  color: var(--colorGinPrimaryHover);
+  background-color: var(--colorGinItemHover);
+
+  &::before {
+    background: var(--colorGinPrimary);
+  }
+}
+
+.toolbar-tray-horizontal a:focus,
+.toolbar-box a:focus,
+.toolbar .toolbar-icon.toolbar-handle:focus {
+  background-color: var(--colorGinLayer2Background);
+}
+
+.toolbar-menu__trigger,
+.toolbar .menu-item-title,
+.menu-item-sub-title {
+  display: none !important;
+}
+
+.toolbar .level-2 > ul,
+.gin--dark-mode .toolbar .toolbar-toggle-orientation {
+  background-color: var(--colorGinLayer2Background);
+}
+
+.toolbar .level-3 > ul {
+  background-color: var(--colorGinAppBackground);
+}
+
+.gin--classic-toolbar {
+  table.sticky-header {
+    @include mq($breakpointLarge) {
+      margin-top: 0;
+    }
+  }
+}
+
+#toolbar-item-administration-tray {
+  box-shadow: 0 0 4px rgba(0, 0, 0, .1),
+              0 2px 6px 2px rgba(0, 0, 0, .03);
+
+  .gin--dark-mode & {
+    box-shadow: 0 0 4px rgba(0, 0, 0, .3);
+  }
+
+  .toolbar-logo {
+    display: flex;
+    height: 100%;
+  }
+}
+
+.toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded,
+.toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus {
+  position: relative;
+
+  &:before {
+    top: 12px;
+    right: 12px;
+  }
+}
+
+.toolbar-tray-horizontal .menu-item:hover {
+  background-color: transparent;
+}
+
+.gin--horizontal-toolbar.gin--edit-form .page-wrapper__node-edit-form .layout-region-node-secondary {
+  @include mq($breakpointLarge) {
+    top: var(--ginToolbarHeight);
+    height: calc(100% - var(--ginToolbarHeight));
+  }
+}
+
+// Main horizontal nav
+.gin--horizontal-toolbar #toolbar-administration {
+  @include mq($breakpointMedium) {
+    z-index: 502;
+    position: fixed;
+    top: 0;
+    width: 100%;
+
+    &,
+    .toolbar-bar {
+      height: var(--ginToolbarHeight);
+      background: var(--colorGinLayerBackground);
+    }
+  }
+
+  // align with content nicely
+  .toolbar-lining {
+    @include mq($breakpointMedium) {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-right: 0;
+    }
+  }
+
+  // home tab
+  .menu-item__tools,
+  .menu-item__admin_toolbar_tools-help {
+    @include mq($breakpointMedium) {
+      margin-left: -16px;
+    }
+  }
+
+  // home logo
+  .toolbar-icon-admin-toolbar-tools-help {
+    width: auto;
+    height: 100%;
+    text-indent: -999em;
+
+    &:before {
+      mask-size: 20px 20px;
+    }
+
+    @include mq($breakpointMedium) {
+      padding-left: 2.875em;
+
+      &:before {
+        top: -1px;
+        left: 14px;
+        width: 24px;
+        mask-size: 28px 28px;
+      }
+
+      // Default
+      &.toolbar-icon-default {
+        margin-right: .5rem;
+      }
+    }
+  }
+
+  // target fist level only
+  .toolbar-menu-administration {
+    @include mq($breakpointMedium) {
+      margin-left: m#{i}n(5vw, 48px);
+      margin-right: m#{i}n(5vw, 48px);
+
+      > .toolbar-menu {
+        display: flex;
+        flex-wrap: nowrap;
+        width: 100%;
+      }
+    }
+
+    .menu-item .menu-item:hover > .toolbar-icon {
+      color: var(--colorGinPrimaryHover);
+      background: var(--colorGinPrimaryLight);
+    }
+  }
+}

@@ -11,6 +11,7 @@ class Sm implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{002B}\x{003C}\x{003D}\x{003E}\x{007C}\x{007E}\x{00AC}' .
       '\x{00B1}\x{00D7}\x{00F7}\x{03F6}\x{0606}\x{0607}\x{0608}' .
@@ -148,6 +149,7 @@ class Sm implements UnicodeCharacterPropertyInterface {
       '\x{FFE2}\x{FFE9}\x{FFEA}\x{FFEB}\x{FFEC}\x{1D6C1}\x{1D6DB}' .
       '\x{1D6FB}\x{1D715}\x{1D735}\x{1D74F}\x{1D76F}\x{1D789}\x{1D7A9}' .
       '\x{1D7C3}\x{1EEF0}\x{1EEF1}';
+    // phpcs:enable
   }
 
 }

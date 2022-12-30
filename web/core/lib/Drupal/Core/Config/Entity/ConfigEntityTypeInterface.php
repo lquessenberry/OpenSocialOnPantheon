@@ -65,11 +65,14 @@ interface ConfigEntityTypeInterface extends EntityTypeInterface {
   /**
    * Gets the config entity properties to export if declared on the annotation.
    *
+   * @param string $id
+   *   The ID of the configuration entity.
+   *
    * @return array|null
    *   The properties to export or NULL if they can not be determine from the
    *   config entity type annotation.
    */
-  public function getPropertiesToExport();
+  public function getPropertiesToExport($id = NULL);
 
   /**
    * Gets the keys that are available for fast lookup.

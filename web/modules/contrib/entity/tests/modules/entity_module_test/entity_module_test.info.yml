@@ -1,10 +1,10 @@
 name: Entity test
 type: module
 package: Testing
-# core: 8.x
+dependencies:
+  - drupal:field
 
-# Information added by Drupal.org packaging script on 2018-06-08
-version: '8.x-1.0-beta4'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-08-30
+version: '8.x-1.4'
 project: 'entity'
-datestamp: 1528452194
+datestamp: 1661898026

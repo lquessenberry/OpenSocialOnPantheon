@@ -6,7 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\CronInterface;
 use Drupal\Core\State\StateInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\PostResponseEvent;
+use Symfony\Component\HttpKernel\Event\TerminateEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
@@ -31,7 +31,7 @@ class AutomatedCron implements EventSubscriberInterface {
   /**
    * The state key value store.
    *
-   * @var \Drupal\Core\State\StateInterface;
+   * @var \Drupal\Core\State\StateInterface
    */
   protected $state;
 
@@ -54,10 +54,10 @@ class AutomatedCron implements EventSubscriberInterface {
   /**
    * Run the automated cron if enabled.
    *
-   * @param \Symfony\Component\HttpKernel\Event\PostResponseEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\TerminateEvent $event
    *   The Event to process.
    */
-  public function onTerminate(PostResponseEvent $event) {
+  public function onTerminate(TerminateEvent $event) {
     $interval = $this->config->get('interval');
     if ($interval > 0) {
       $cron_next = $this->state->get('system.cron_last', 0) + $interval;

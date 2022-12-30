@@ -13,7 +13,8 @@ use Drupal\Core\Entity\EntityInterface;
  * @ActionLinkType(
  *   id = "reload",
  *   label = @Translation("Normal link"),
- *   description = "A normal non-JavaScript request will be made and the current page will be reloaded.")
+ *   description = @Translation("A normal non-JavaScript request will be made and the current page will be reloaded.")
+ * )
  */
 class Reload extends ActionLinkTypeBase {
 

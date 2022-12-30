@@ -11,6 +11,7 @@ class Sk implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{005E}\x{0060}\x{00A8}\x{00AF}\x{00B4}\x{00B8}\x{02C2}' .
       '\x{02C3}\x{02C4}\x{02C5}\x{02D2}\x{02D3}\x{02D4}\x{02D5}' .
@@ -29,6 +30,7 @@ class Sk implements UnicodeCharacterPropertyInterface {
       '\x{FBB4}\x{FBB5}\x{FBB6}\x{FBB7}\x{FBB8}\x{FBB9}\x{FBBA}' .
       '\x{FBBB}\x{FBBC}\x{FBBD}\x{FBBE}\x{FBBF}\x{FBC0}\x{FBC1}' .
       '\x{FF3E}\x{FF40}\x{FFE3}';
+    // phpcs:enable
   }
 
 }

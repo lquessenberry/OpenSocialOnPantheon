@@ -11,7 +11,14 @@ use Drupal\votingapi\VoteTypeInterface;
  *
  * @ConfigEntityType(
  *   id = "vote_type",
- *   label = @Translation("Vote Type"),
+ *   label = @Translation("Vote type"),
+ *   label_collection = @Translation("Vote types"),
+ *   label_singular = @Translation("vote type"),
+ *   label_plural = @Translation("vote types"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count vote type",
+ *     plural = "@count vote types",
+ *   ),
  *   handlers = {
  *     "access" = "Drupal\votingapi\VoteTypeAccessControlHandler",
  *     "form" = {
@@ -31,6 +38,12 @@ use Drupal\votingapi\VoteTypeInterface;
  *     "edit-form" = "/admin/structure/vote-types/{vote_type}",
  *     "delete-form" = "/admin/structure/vote-types/{vote_type}/delete",
  *     "collection" = "/admin/structure/vote-types",
+ *   },
+ *   config_export = {
+ *     "id",
+ *     "label",
+ *     "value_type",
+ *     "description",
  *   }
  * )
  */

@@ -2,6 +2,9 @@
 
 namespace Drupal\database_test\Form;
 
+use Drupal\Core\Database\Database;
+use Drupal\Core\Database\Query\PagerSelectExtender;
+use Drupal\Core\Database\Query\TableSortExtender;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\user\Entity\User;
@@ -29,16 +32,16 @@ class DatabaseTestForm extends FormBase {
       'status' => ['data' => t('Status'), 'field' => 'u.status'],
     ];
 
-    $query = db_select('users_field_data', 'u');
+    $query = Database::getConnection()->select('users_field_data', 'u');
     $query->condition('u.uid', 0, '<>');
     $query->condition('u.default_langcode', 1);
 
     $count_query = clone $query;
-    $count_query->addExpression('COUNT(u.uid)');
+    $count_query->addExpression('COUNT([u].[uid])');
 
     $query = $query
-      ->extend('Drupal\Core\Database\Query\PagerSelectExtender')
-      ->extend('Drupal\Core\Database\Query\TableSortExtender');
+      ->extend(PagerSelectExtender::class)
+      ->extend(TableSortExtender::class);
     $query
       ->fields('u', ['uid'])
       ->limit(50)
@@ -52,8 +55,8 @@ class DatabaseTestForm extends FormBase {
 
     foreach (User::loadMultiple($uids) as $account) {
       $options[$account->id()] = [
-        'title' => ['data' => ['#title' => $account->getUsername()]],
-        'username' => $account->getUsername(),
+        'title' => ['data' => ['#title' => $account->getAccountName()]],
+        'username' => $account->getAccountName(),
         'status' => $account->isActive() ? t('active') : t('blocked'),
       ];
     }

@@ -1,0 +1,13 @@
+facet.widget.config.select2:
+  type: facet.widget.default_config
+  label: 'Select2 widget configuration'
+  mapping:
+    width:
+      type: string
+      label: 'Field width'
+    autocomplete:
+      type: boolean
+      label: 'Autocomplete'
+    match_operator:
+      type: string
+      label: 'Autocomplete matching'

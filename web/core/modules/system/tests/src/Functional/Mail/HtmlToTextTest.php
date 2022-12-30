@@ -3,7 +3,6 @@
 namespace Drupal\Tests\system\Functional\Mail;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Mail\MailFormatHelper;
 use Drupal\Core\Site\Settings;
 use Drupal\Tests\BrowserTestBase;
@@ -14,6 +13,12 @@ use Drupal\Tests\BrowserTestBase;
  * @group Mail
  */
 class HtmlToTextTest extends BrowserTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
   /**
    * Converts a string to its PHP source equivalent for display in test messages.
    *
@@ -36,35 +41,29 @@ class HtmlToTextTest extends BrowserTestBase {
   /**
    * Helper function to test \Drupal\Core\Mail\MailFormatHelper::htmlToText().
    *
-   * @param $html
+   * @param string $html
    *   The source HTML string to be converted.
-   * @param $text
+   * @param string $text
    *   The expected result of converting $html to text.
-   * @param $message
+   * @param string $message
    *   A text message to display in the assertion message.
-   * @param $allowed_tags
+   * @param array|null $allowed_tags
    *   (optional) An array of allowed tags, or NULL to default to the full
    *   set of tags supported by
    *   \Drupal\Core\Mail\MailFormatHelper::htmlToText().
+   *
+   * @internal
    */
-  protected function assertHtmlToText($html, $text, $message, $allowed_tags = NULL) {
-    preg_match_all('/<([a-z0-6]+)/', Unicode::strtolower($html), $matches);
+  protected function assertHtmlToText(string $html, string $text, string $message, ?array $allowed_tags = NULL): void {
+    preg_match_all('/<([a-z0-6]+)/', mb_strtolower($html), $matches);
     $tested_tags = implode(', ', array_unique($matches[1]));
     $message .= ' (' . $tested_tags . ')';
     $result = MailFormatHelper::htmlToText($html, $allowed_tags);
-    $pass = $this->assertEqual($result, $text, Html::escape($message));
-    $verbose = 'html = <pre>' . $this->stringToHtml($html)
-      . '</pre><br />' . 'result = <pre>' . $this->stringToHtml($result)
-      . '</pre><br />' . 'expected = <pre>' . $this->stringToHtml($text)
-      . '</pre>';
-    $this->verbose($verbose);
-    if (!$pass) {
-      $this->pass("Previous test verbose info:<br />$verbose");
-    }
+    $this->assertEquals($text, $result, Html::escape($message));
   }
 
   /**
-   * Test supported tags of \Drupal\Core\Mail\MailFormatHelper::htmlToText().
+   * Tests supported tags of \Drupal\Core\Mail\MailFormatHelper::htmlToText().
    */
   public function testTags() {
     global $base_path, $base_url;
@@ -88,10 +87,10 @@ class HtmlToTextTest extends BrowserTestBase {
       // @todo The <div> tag is currently not supported.
       '<div>Drupal</div><div>Drupal</div>' => "DrupalDrupal\n",
       '<em>Drupal</em>' => "/Drupal/\n",
-      '<h1>Drupal</h1>' => "======== DRUPAL ==============================================================\n\n",
-      '<h1>Drupal</h1><p>Drupal</p>' => "======== DRUPAL ==============================================================\n\nDrupal\n\n",
-      '<h2>Drupal</h2>' => "-------- DRUPAL --------------------------------------------------------------\n\n",
-      '<h2>Drupal</h2><p>Drupal</p>' => "-------- DRUPAL --------------------------------------------------------------\n\nDrupal\n\n",
+      '<h1>Drupal</h1>' => "======== Drupal ==============================================================\n\n",
+      '<h1>Drupal</h1><p>Drupal</p>' => "======== Drupal ==============================================================\n\nDrupal\n\n",
+      '<h2>Drupal</h2>' => "-------- Drupal --------------------------------------------------------------\n\n",
+      '<h2>Drupal</h2><p>Drupal</p>' => "-------- Drupal --------------------------------------------------------------\n\nDrupal\n\n",
       '<h3>Drupal</h3>' => ".... Drupal\n\n",
       '<h3>Drupal</h3><p>Drupal</p>' => ".... Drupal\n\nDrupal\n\n",
       '<h4>Drupal</h4>' => ".. Drupal\n\n",
@@ -193,7 +192,7 @@ class HtmlToTextTest extends BrowserTestBase {
   }
 
   /**
-   * Test that whitespace is collapsed.
+   * Tests that whitespace is collapsed.
    */
   public function testDrupalHtmltoTextCollapsesWhitespace() {
     $input = "<p>Drupal  Drupal\n\nDrupal<pre>Drupal  Drupal\n\nDrupal</pre>Drupal  Drupal\n\nDrupal</p>";
@@ -208,107 +207,98 @@ class HtmlToTextTest extends BrowserTestBase {
   }
 
   /**
-   * Test that text separated by block-level tags in HTML get separated by
+   * Tests that text separated by block-level tags in HTML get separated by
    * (at least) a newline in the plaintext version.
    */
   public function testDrupalHtmlToTextBlockTagToNewline() {
-    $input = '[text]'
-      . '<blockquote>[blockquote]</blockquote>'
-      . '<br />[br]'
-      . '<dl><dt>[dl-dt]</dt>'
-      . '<dt>[dt]</dt>'
-      . '<dd>[dd]</dd>'
-      . '<dd>[dd-dl]</dd></dl>'
-      . '<h1>[h1]</h1>'
-      . '<h2>[h2]</h2>'
-      . '<h3>[h3]</h3>'
-      . '<h4>[h4]</h4>'
-      . '<h5>[h5]</h5>'
-      . '<h6>[h6]</h6>'
-      . '<hr />[hr]'
-      . '<ol><li>[ol-li]</li>'
-      . '<li>[li]</li>'
-      . '<li>[li-ol]</li></ol>'
-      . '<p>[p]</p>'
-      . '<ul><li>[ul-li]</li>'
-      . '<li>[li-ul]</li></ul>'
-      . '[text]';
+    $input = <<<'EOT'
+[text]
+<blockquote>[blockquote]</blockquote>
+<br />[br]
+<dl><dt>[dl-dt]</dt>
+<dt>[dt]</dt>
+<dd>[dd]</dd>
+<dd>[dd-dl]</dd></dl>
+<h1>[h1]</h1>
+<h2>[h2]</h2>
+<h3>[h3]</h3>
+<h4>[h4]</h4>
+<h5>[h5]</h5>
+<h6>[h6]</h6>
+<hr />[hr]
+<ol><li>[ol-li]</li>
+<li>[li]</li>
+<li>[li-ol]</li></ol>
+<p>[p]</p>
+<ul><li>[ul-li]</li>
+<li>[li-ul]</li></ul>
+[text]
+EOT;
+    $input = str_replace(["\r", "\n"], '', $input);
     $output = MailFormatHelper::htmlToText($input);
-    $pass = $this->assertFalse(
-      preg_match('/\][^\n]*\[/s', $output),
-      'Block-level HTML tags should force newlines'
-    );
-    if (!$pass) {
-      $this->verbose($this->stringToHtml($output));
-    }
-    $output_upper = Unicode::strtoupper($output);
-    $upper_input = Unicode::strtoupper($input);
+    $this->assertDoesNotMatchRegularExpression('/\][^\n]*\[/s', $output, 'Block-level HTML tags should force newlines');
+    $output_upper = mb_strtoupper($output);
+    $upper_input = mb_strtoupper($input);
     $upper_output = MailFormatHelper::htmlToText($upper_input);
-    $pass = $this->assertEqual(
-      $upper_output,
-      $output_upper,
-      'Tag recognition should be case-insensitive'
-    );
-    if (!$pass) {
-      $this->verbose(
-        $upper_output
-        . '<br />should  be equal to <br />'
-        . $output_upper
-      );
-    }
+    $this->assertEquals($output_upper, $upper_output, 'Tag recognition should be case-insensitive');
   }
 
   /**
-   * Test that headers are properly separated from surrounding text.
+   * Tests that headers are properly separated from surrounding text.
    */
   public function testHeaderSeparation() {
     $html = 'Drupal<h1>Drupal</h1>Drupal';
     // @todo There should be more space above the header than below it.
-    $text = "Drupal\n======== DRUPAL ==============================================================\n\nDrupal\n";
+    $text = "Drupal\n======== Drupal ==============================================================\n\nDrupal\n";
     $this->assertHtmlToText($html, $text,
       'Text before and after <h1> tag');
     $html = '<p>Drupal</p><h1>Drupal</h1>Drupal';
     // @todo There should be more space above the header than below it.
-    $text = "Drupal\n\n======== DRUPAL ==============================================================\n\nDrupal\n";
+    $text = "Drupal\n\n======== Drupal ==============================================================\n\nDrupal\n";
     $this->assertHtmlToText($html, $text,
       'Paragraph before and text after <h1> tag');
     $html = 'Drupal<h1>Drupal</h1><p>Drupal</p>';
     // @todo There should be more space above the header than below it.
-    $text = "Drupal\n======== DRUPAL ==============================================================\n\nDrupal\n\n";
+    $text = "Drupal\n======== Drupal ==============================================================\n\nDrupal\n\n";
     $this->assertHtmlToText($html, $text,
       'Text before and paragraph after <h1> tag');
     $html = '<p>Drupal</p><h1>Drupal</h1><p>Drupal</p>';
-    $text = "Drupal\n\n======== DRUPAL ==============================================================\n\nDrupal\n\n";
+    $text = "Drupal\n\n======== Drupal ==============================================================\n\nDrupal\n\n";
     $this->assertHtmlToText($html, $text,
       'Paragraph before and after <h1> tag');
   }
 
   /**
-   * Test that footnote references are properly generated.
+   * Tests that footnote references are properly generated.
    */
   public function testFootnoteReferences() {
     global $base_path, $base_url;
-    $source = '<a href="http://www.example.com/node/1">Host and path</a>'
-      . '<br /><a href="http://www.example.com">Host, no path</a>'
-      . '<br /><a href="' . $base_path . 'node/1">Path, no host</a>'
-      . '<br /><a href="node/1">Relative path</a>';
+    $source = <<<EOT
+<a href="http://www.example.com/node/1">Host and path</a>
+<br /><a href="http://www.example.com">Host, no path</a>
+<br /><a href="{$base_path}node/1">Path, no host</a>
+<br /><a href="node/1">Relative path</a>
+EOT;
+    $source = str_replace(["\r", "\n"], '', $source);
     // @todo Footnote URLs should be absolute.
-    $tt = "Host and path [1]"
-      . "\nHost, no path [2]"
-      // @todo The following two references should be combined.
-      . "\nPath, no host [3]"
-      . "\nRelative path [4]"
-      . "\n"
-      . "\n[1] http://www.example.com/node/1"
-      . "\n[2] http://www.example.com"
-      // @todo The following two references should be combined.
-      . "\n[3] $base_url/node/1"
-      . "\n[4] node/1\n";
-    $this->assertHtmlToText($source, $tt, 'Footnotes');
+    // @todo The last two references should be combined.
+    $text = <<<EOT
+Host and path [1]
+Host, no path [2]
+Path, no host [3]
+Relative path [4]
+
+[1] http://www.example.com/node/1
+[2] http://www.example.com
+[3] $base_url/node/1
+[4] node/1
+
+EOT;
+    $this->assertHtmlToText($source, $text, 'Footnotes');
   }
 
   /**
-   * Test that combinations of paragraph breaks, line breaks, linefeeds,
+   * Tests that combinations of paragraph breaks, line breaks, linefeeds,
    * and spaces are properly handled.
    */
   public function testDrupalHtmlToTextParagraphs() {
@@ -347,12 +337,13 @@ class HtmlToTextTest extends BrowserTestBase {
 
     $maximum_line_length = 0;
     foreach (explode($eol, $output) as $line) {
-      // We must use strlen() rather than Unicode::strlen() in order to count
-      // octets rather than characters.
+      // We must use strlen() rather than mb_strlen() in order to count octets
+      // rather than characters.
       $maximum_line_length = max($maximum_line_length, strlen($line . $eol));
     }
-    $verbose = 'Maximum line length found was ' . $maximum_line_length . ' octets.';
-    $this->assertTrue($maximum_line_length <= 1000, $verbose);
+    // Verify that the maximum line length found was less than or equal to 1000
+    // characters as per RFC 821.
+    $this->assertLessThanOrEqual(1000, $maximum_line_length);
   }
 
   /**
@@ -363,7 +354,7 @@ class HtmlToTextTest extends BrowserTestBase {
   public function testRemoveTrailingWhitespace() {
     $text = "Hi there! \nHerp Derp";
     $mail_lines = explode("\n", MailFormatHelper::wrapMail($text));
-    $this->assertNotEqual(" ", substr($mail_lines[0], -1), 'Trailing whitespace removed.');
+    $this->assertNotEquals(" ", substr($mail_lines[0], -1), 'Trailing whitespace removed.');
   }
 
   /**
@@ -377,11 +368,11 @@ class HtmlToTextTest extends BrowserTestBase {
   public function testUsenetSignature() {
     $text = "Hi there!\n-- \nHerp Derp";
     $mail_lines = explode("\n", MailFormatHelper::wrapMail($text));
-    $this->assertEqual("-- ", $mail_lines[1], 'Trailing whitespace not removed for dash-dash-space signatures.');
+    $this->assertEquals("-- ", $mail_lines[1], 'Trailing whitespace not removed for dash-dash-space signatures.');
 
     $text = "Hi there!\n--  \nHerp Derp";
     $mail_lines = explode("\n", MailFormatHelper::wrapMail($text));
-    $this->assertEqual("--", $mail_lines[1], 'Trailing whitespace removed for incorrect dash-dash-space signatures.');
+    $this->assertEquals("--", $mail_lines[1], 'Trailing whitespace removed for incorrect dash-dash-space signatures.');
   }
 
 }

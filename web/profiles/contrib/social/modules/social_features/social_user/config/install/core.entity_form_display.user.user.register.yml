@@ -17,6 +17,7 @@ content:
     region: content
 hidden:
   contact: true
-  language: true
-  timezone: true
   groups: true
+  language: true
+  profile_profiles: true
+  timezone: true

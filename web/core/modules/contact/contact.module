@@ -5,6 +5,7 @@
  * Enables the use of personal and site-wide contact forms.
  */
 
+use Drupal\Core\Url;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\contact\Plugin\rest\resource\ContactMessageResource;
@@ -17,9 +18,9 @@ function contact_help($route_name, RouteMatchInterface $route_match) {
 
   switch ($route_name) {
     case 'help.page.contact':
-      $menu_page = \Drupal::moduleHandler()->moduleExists('menu_ui') ? \Drupal::url('entity.menu.collection') : '#';
-      $block_page = \Drupal::moduleHandler()->moduleExists('block') ? \Drupal::url('block.admin_display') : '#';
-      $contact_page = \Drupal::url('entity.contact_form.collection');
+      $menu_page = \Drupal::moduleHandler()->moduleExists('menu_ui') ? Url::fromRoute('entity.menu.collection')->toString() : '#';
+      $block_page = \Drupal::moduleHandler()->moduleExists('block') ? Url::fromRoute('block.admin_display')->toString() : '#';
+      $contact_page = Url::fromRoute('entity.contact_form.collection')->toString();
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('The Contact module allows visitors to contact registered users on your site, using the personal contact form, and also allows you to set up site-wide contact forms. For more information, see the <a href=":contact">online documentation for the Contact module</a>.', [':contact' => 'https://www.drupal.org/documentation/modules/contact']) . '</p>';
@@ -43,7 +44,7 @@ function contact_help($route_name, RouteMatchInterface $route_match) {
  * Implements hook_entity_type_alter().
  */
 function contact_entity_type_alter(array &$entity_types) {
-  /** @var $entity_types \Drupal\Core\Entity\EntityTypeInterface[] */
+  /** @var \Drupal\Core\Entity\EntityTypeInterface[] $entity_types */
   $entity_types['user']->setLinkTemplate('contact-form', '/user/{user}/contact');
 }
 
@@ -115,22 +116,22 @@ function contact_menu_local_tasks_alter(&$data, $route_name) {
  */
 function contact_mail($key, &$message, $params) {
   $contact_message = $params['contact_message'];
-  /** @var $sender \Drupal\user\UserInterface */
+  /** @var \Drupal\user\UserInterface $sender */
   $sender = $params['sender'];
   $language = \Drupal::languageManager()->getLanguage($message['langcode']);
 
   $variables = [
     '@site-name' => \Drupal::config('system.site')->get('name'),
     '@subject' => $contact_message->getSubject(),
-    '@form' => !empty($params['contact_form']) ? $params['contact_form']->label() : NULL,
-    '@form-url' => \Drupal::url('<current>', [], ['absolute' => TRUE, 'language' => $language]),
+    '@form' => !empty($params['contact_form']) ? $params['contact_form']->label() : '',
+    '@form-url' => Url::fromRoute('<current>', [], ['absolute' => TRUE, 'language' => $language])->toString(),
     '@sender-name' => $sender->getDisplayName(),
   ];
   if ($sender->isAuthenticated()) {
-    $variables['@sender-url'] = $sender->url('canonical', ['absolute' => TRUE, 'language' => $language]);
+    $variables['@sender-url'] = $sender->toUrl('canonical', ['absolute' => TRUE, 'language' => $language])->toString();
   }
   else {
-    $variables['@sender-url'] = $params['sender']->getEmail();
+    $variables['@sender-url'] = $params['sender']->getEmail() ?? '';
   }
 
   $options = ['langcode' => $language->getId()];
@@ -140,7 +141,9 @@ function contact_mail($key, &$message, $params) {
     case 'page_copy':
       $message['subject'] .= t('[@form] @subject', $variables, $options);
       $message['body'][] = t("@sender-name (@sender-url) sent a message using the contact form at @form-url.", $variables, $options);
-      $build = entity_view($contact_message, 'mail');
+      $build = \Drupal::entityTypeManager()
+        ->getViewBuilder('contact_message')
+        ->view($contact_message, 'mail');
       $message['body'][] = \Drupal::service('renderer')->renderPlain($build);
       break;
 
@@ -153,13 +156,15 @@ function contact_mail($key, &$message, $params) {
     case 'user_copy':
       $variables += [
         '@recipient-name' => $params['recipient']->getDisplayName(),
-        '@recipient-edit-url' => $params['recipient']->url('edit-form', ['absolute' => TRUE, 'language' => $language]),
+        '@recipient-edit-url' => $params['recipient']->toUrl('edit-form', ['absolute' => TRUE, 'language' => $language])->toString(),
       ];
       $message['subject'] .= t('[@site-name] @subject', $variables, $options);
       $message['body'][] = t('Hello @recipient-name,', $variables, $options);
       $message['body'][] = t("@sender-name (@sender-url) has sent you a message via your contact form at @site-name.", $variables, $options);
       $message['body'][] = t("If you don't want to receive such emails, you can change your settings at @recipient-edit-url.", $variables, $options);
-      $build = entity_view($contact_message, 'mail');
+      $build = \Drupal::entityTypeManager()
+        ->getViewBuilder('contact_message')
+        ->view($contact_message, 'mail');
       $message['body'][] = \Drupal::service('renderer')->renderPlain($build);
       break;
   }
@@ -186,7 +191,7 @@ function contact_form_user_form_alter(&$form, FormStateInterface $form_state) {
   $form['contact']['contact'] = [
     '#type' => 'checkbox',
     '#title' => t('Personal contact form'),
-    '#default_value' => isset($account_data) ? $account_data : \Drupal::config('contact.settings')->get('user_default_enabled'),
+    '#default_value' => $account_data ?? \Drupal::config('contact.settings')->get('user_default_enabled'),
     '#description' => t('Allow other users to contact you via a personal contact form which keeps your email address hidden. Note that some privileged users such as site administrators are still able to contact you even if you choose to disable this feature.'),
   ];
   $form['actions']['submit']['#submit'][] = 'contact_user_profile_form_submit';

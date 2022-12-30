@@ -2,31 +2,31 @@
 
 namespace Drush\Drupal\Commands\core;
 
+use Consolidation\AnnotatedCommand\AnnotatedCommand;
 use Drush\Commands\DrushCommands;
 use Drush\Drush;
-use Drush\Log\LogLevel;
 use Drush\Psysh\DrushCommand;
 use Drush\Psysh\DrushHelpCommand;
 use Drupal\Component\Assertion\Handle;
 use Drush\Psysh\Shell;
+use Drush\Runtime\Runtime;
+use Drush\Utils\FsUtils;
 use Psy\Configuration;
 use Psy\VersionUpdater\Checker;
-use Webmozart\PathUtil\Path;
 
 class CliCommands extends DrushCommands
 {
-
     /**
      * Drush's PHP Shell.
      *
      * @command docs:repl
      * @aliases docs-repl
      * @hidden
-     * @topic
+     * @topic ../../../../docs/repl.md
      */
-    public function docs()
+    public function docs(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/docs/repl.md');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -35,15 +35,24 @@ class CliCommands extends DrushCommands
      * @aliases php,core:cli,core-cli
      * @option $version-history Use command history based on Drupal version
      *   (Default is per site).
+     * @option $cwd A directory to change to before launching the shell. Default is the project root directory
      * @topics docs:repl
      * @remote-tty
      */
-    public function cli(array $options = ['version-history' => false])
+    public function cli(array $options = ['version-history' => false, 'cwd' => self::REQ]): void
     {
         $configuration = new Configuration();
 
         // Set the Drush specific history file path.
         $configuration->setHistoryFile($this->historyPath($options));
+
+        $configuration->setStartupMessage(
+            sprintf(
+                '<aside>%s (Drupal %s)</aside>',
+                \Drupal::config('system.site')->get('name'),
+                \Drupal::VERSION
+            )
+        );
 
         // Disable checking for updates. Our dependencies are managed with Composer.
         $configuration->setUpdateCheck(Checker::NEVER);
@@ -66,7 +75,7 @@ class CliCommands extends DrushCommands
         // PsySH will never return control to us, but our shutdown handler will still
         // run after the user presses ^D.  Mark this command as completed to avoid a
         // spurious error message.
-        drush_set_context('DRUSH_EXECUTION_COMPLETED', true);
+        Runtime::setCompleted();
 
         // Run the terminate event before the shell is run. Otherwise, if the shell
         // is forking processes (the default), any child processes will close the
@@ -79,15 +88,19 @@ class CliCommands extends DrushCommands
             $bootstrap->terminate();
         }
 
+        // If the cwd option is passed, lets change the current working directory to wherever
+        // the user wants to go before we launch psysh.
+        if ($options['cwd']) {
+            chdir($options['cwd']);
+        }
+
         $shell->run();
     }
 
     /**
      * Returns a filtered list of Drush commands used for CLI commands.
-     *
-     * @return array
      */
-    protected function getDrushCommands()
+    protected function getDrushCommands(): array
     {
         $application = Drush::getApplication();
         $commands = $application->all();
@@ -105,7 +118,7 @@ class CliCommands extends DrushCommands
         ];
         $php_keywords = $this->getPhpKeywords();
 
-        /** @var \Consolidation\AnnotatedCommand\AnnotatedCommand $command */
+        /** @var AnnotatedCommand $command */
         foreach ($commands as $name => $command) {
             $definition = $command->getDefinition();
 
@@ -137,7 +150,7 @@ class CliCommands extends DrushCommands
      * @return array.
      *   An array of caster callbacks keyed by class or interface.
      */
-    protected function getCasters()
+    protected function getCasters(): array
     {
         return [
         'Drupal\Core\Entity\ContentEntityInterface' => 'Drush\Psysh\Caster::castContentEntity',
@@ -159,9 +172,9 @@ class CliCommands extends DrushCommands
      *
      * @return string.
      */
-    protected function historyPath(array $options)
+    protected function historyPath(array $options): string
     {
-        $cli_directory = Path::join($this->getConfig()->cache(), 'cli');
+        $cli_directory = FsUtils::getBackupDirParent();
         $drupal_major_version = Drush::getMajorVersion();
 
         // If there is no drupal version (and thus no root). Just use the current
@@ -169,13 +182,13 @@ class CliCommands extends DrushCommands
         // @todo Could use a global file within drush?
         if (!$drupal_major_version) {
             $file_name = 'global-' . md5($this->getConfig()->cwd());
-        } // If only the Drupal version is being used for the history.
-        else if ($options['version-history']) {
+        } elseif ($options['version-history']) {
+            // If only the Drupal version is being used for the history.
             $file_name = "drupal-$drupal_major_version";
-        } // If there is an alias, use that in the site specific name. Otherwise,
-        // use a hash of the root path.
-        else {
-             $aliasRecord = Drush::aliasManager()->getSelf();
+        } else {
+            // If there is an alias, use that in the site specific name. Otherwise,
+            // use a hash of the root path.
+            $aliasRecord = Drush::aliasManager()->getSelf();
 
             if ($aliasRecord->name()) {
                 $site_suffix = ltrim($aliasRecord->name(), '@');
@@ -197,11 +210,9 @@ class CliCommands extends DrushCommands
     /**
      * Returns a list of PHP keywords.
      *
-     * This will act as a blacklist for command and alias names.
-     *
-     * @return array
+     * This will act as a blocklist for command and alias names.
      */
-    protected function getPhpKeywords()
+    protected function getPhpKeywords(): array
     {
         return [
         '__halt_compiler',

@@ -17,7 +17,17 @@ abstract class NormalizerTestBase extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['entity_test', 'field', 'hal', 'language', 'serialization', 'system', 'text', 'user', 'filter'];
+  protected static $modules = [
+    'entity_test',
+    'field',
+    'hal',
+    'language',
+    'serialization',
+    'system',
+    'text',
+    'user',
+    'filter',
+  ];
 
   /**
    * The mock serializer.
@@ -52,7 +62,7 @@ abstract class NormalizerTestBase extends KernelTestBase {
     // field configurations are installed. This is because the entity tables
     // need to be created before the body field storage tables. This prevents
     // trying to create the body field tables twice.
-    $class = get_class($this);
+    $class = static::class;
     while ($class) {
       if (property_exists($class, 'modules')) {
         // Only check the modules, if the $modules property was not inherited.
@@ -66,7 +76,6 @@ abstract class NormalizerTestBase extends KernelTestBase {
       $class = get_parent_class($class);
     }
     $this->installConfig(['field', 'language']);
-    \Drupal::service('router.builder')->rebuild();
 
     // Add German as a language.
     ConfigurableLanguage::create([

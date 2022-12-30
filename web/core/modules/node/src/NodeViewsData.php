@@ -178,12 +178,6 @@ class NodeViewsData extends EntityViewsData {
       ],
     ];
 
-    $data['node_field_data']['uid']['help'] = $this->t('The user authoring the content. If you need more fields than the uid add the content: author relationship');
-    $data['node_field_data']['uid']['filter']['id'] = 'user_name';
-    $data['node_field_data']['uid']['relationship']['title'] = $this->t('Content author');
-    $data['node_field_data']['uid']['relationship']['help'] = $this->t('Relate content to the user who created it.');
-    $data['node_field_data']['uid']['relationship']['label'] = $this->t('author');
-
     $data['node']['node_listing_empty'] = [
       'title' => $this->t('Empty Node Frontpage behavior'),
       'help' => $this->t('Provides a link to the node add overview page.'),
@@ -208,38 +202,19 @@ class NodeViewsData extends EntityViewsData {
       'id' => 'node_nid',
       'numeric' => TRUE,
     ];
-    // @todo the NID field needs different behaviour on revision/non-revision
+    // @todo the NID field needs different behavior on revision/non-revision
     //   tables. It would be neat if this could be encoded in the base field
     //   definition.
-    $data['node_field_revision']['nid']['relationship']['id'] = 'standard';
-    $data['node_field_revision']['nid']['relationship']['base'] = 'node_field_data';
-    $data['node_field_revision']['nid']['relationship']['base field'] = 'nid';
-    $data['node_field_revision']['nid']['relationship']['title'] = $this->t('Content');
-    $data['node_field_revision']['nid']['relationship']['label'] = $this->t('Get the actual content from a content revision.');
-
     $data['node_field_revision']['vid'] = [
       'argument' => [
         'id' => 'node_vid',
         'numeric' => TRUE,
       ],
-      'relationship' => [
-        'id' => 'standard',
-        'base' => 'node_field_data',
-        'base field' => 'vid',
-        'title' => $this->t('Content'),
-        'label' => $this->t('Get the actual content from a content revision.'),
-      ],
     ] + $data['node_field_revision']['vid'];
 
     $data['node_field_revision']['langcode']['help'] = $this->t('The language the original content is in.');
 
-    $data['node_revision']['revision_uid']['help'] = $this->t('Relate a content revision to the user who created the revision.');
-    $data['node_revision']['revision_uid']['relationship']['label'] = $this->t('revision user');
-
     $data['node_field_revision']['table']['wizard_id'] = 'node_field_revision';
-
-    $data['node_field_revision']['table']['join']['node_field_data']['left_field'] = 'vid';
-    $data['node_field_revision']['table']['join']['node_field_data']['field'] = 'vid';
 
     $data['node_field_revision']['status']['filter']['label'] = $this->t('Published');
     $data['node_field_revision']['status']['filter']['type'] = 'yes-no';
@@ -280,7 +255,7 @@ class NodeViewsData extends EntityViewsData {
 
     // Define the base group of this table. Fields that don't have a group defined
     // will go into this field by default.
-    $data['node_access']['table']['group']  = $this->t('Content access');
+    $data['node_access']['table']['group'] = $this->t('Content access');
 
     // For other base tables, explain how we join.
     $data['node_access']['table']['join'] = [
@@ -303,7 +278,7 @@ class NodeViewsData extends EntityViewsData {
     if (\Drupal::moduleHandler()->moduleExists('search')) {
       $enabled = FALSE;
       $search_page_repository = \Drupal::service('search.search_page_repository');
-      foreach ($search_page_repository->getActiveSearchpages() as $page) {
+      foreach ($search_page_repository->getActiveSearchPages() as $page) {
         if ($page->getPlugin()->getPluginId() == 'node_search') {
           $enabled = TRUE;
           break;
@@ -322,7 +297,7 @@ class NodeViewsData extends EntityViewsData {
             'field' => 'sid',
             'table' => 'search_index',
             'extra' => "node_search_index.type = 'node_search' AND node_search_index.langcode = node_field_data.langcode",
-          ]
+          ],
         ];
 
         $data['node_search_total']['table']['join'] = [

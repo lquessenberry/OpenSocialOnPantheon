@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\system\Kernel\Form;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Form\FormState;
 use Drupal\KernelTests\KernelTestBase;
 
@@ -17,10 +18,10 @@ class ProgrammaticTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['form_test'];
+  protected static $modules = ['form_test'];
 
   /**
-   * Test the programmatic form submission workflow.
+   * Tests the programmatic form submission workflow.
    */
   public function testSubmissionWorkflow() {
     // Backup the current batch status and reset it to avoid conflicts while
@@ -75,27 +76,27 @@ class ProgrammaticTest extends KernelTestBase {
     $valid_form = empty($errors);
     $args = [
       '%values' => print_r($values, TRUE),
-      '%errors' => $valid_form ? t('None') : implode(' ', $errors),
+      '%errors' => $valid_form ? 'None' : implode(' ', $errors),
     ];
-    $this->assertTrue($valid_input == $valid_form, format_string('Input values: %values<br />Validation handler errors: %errors', $args));
+    $this->assertSame($valid_form, $valid_input, new FormattableMarkup('Input values: %values<br />Validation handler errors: %errors', $args));
 
     // We check submitted values only if we have a valid input.
     if ($valid_input) {
       // Fetching the values that were set in the submission handler.
       $stored_values = $form_state->get('programmatic_form_submit');
       foreach ($values as $key => $value) {
-        $this->assertEqual($stored_values[$key], $value, format_string('Submission handler correctly executed: %stored_key is %stored_value', ['%stored_key' => $key, '%stored_value' => print_r($value, TRUE)]));
+        $this->assertEquals($value, $stored_values[$key], new FormattableMarkup('Submission handler correctly executed: %stored_key is %stored_value', ['%stored_key' => $key, '%stored_value' => print_r($value, TRUE)]));
       }
     }
   }
 
   /**
-   * Test the programmed_bypass_access_check flag.
+   * Tests the programmed_bypass_access_check flag.
    */
   public function testProgrammaticAccessBypass() {
     $form_state = (new FormState())->setValues([
       'textfield' => 'dummy value',
-      'field_restricted' => 'dummy value'
+      'field_restricted' => 'dummy value',
     ]);
 
     // Programmatically submit the form with a value for the restricted field.
@@ -103,7 +104,7 @@ class ProgrammaticTest extends KernelTestBase {
     // field is accessible and can be set.
     \Drupal::formBuilder()->submitForm('\Drupal\form_test\Form\FormTestProgrammaticForm', $form_state);
     $values = $form_state->get('programmatic_form_submit');
-    $this->assertEqual($values['field_restricted'], 'dummy value', 'The value for the restricted field is stored correctly.');
+    $this->assertEquals('dummy value', $values['field_restricted'], 'The value for the restricted field is stored correctly.');
 
     // Programmatically submit the form with a value for the restricted field
     // with programmed_bypass_access_check set to FALSE. Since access
@@ -112,7 +113,7 @@ class ProgrammaticTest extends KernelTestBase {
     $form_state->setProgrammedBypassAccessCheck(FALSE);
     \Drupal::formBuilder()->submitForm('\Drupal\form_test\Form\FormTestProgrammaticForm', $form_state);
     $values = $form_state->get('programmatic_form_submit');
-    $this->assertNotEqual($values['field_restricted'], 'dummy value', 'The value for the restricted field is not stored.');
+    $this->assertNotSame('dummy value', $values['field_restricted'], 'The value for the restricted field is not stored.');
 
   }
 

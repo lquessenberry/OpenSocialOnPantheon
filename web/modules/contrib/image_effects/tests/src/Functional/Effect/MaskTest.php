@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Mask effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class MaskTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class MaskTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Mask effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,16 +33,9 @@ class MaskTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testMaskEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Mask effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testMaskEffect() {
     // 1. Basic test. Apply the mask to a full fuchsia image, without resizing.
     $original_uri = $this->getTestImageCopyUri('/tests/images/fuchsia.png', 'image_effects');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);

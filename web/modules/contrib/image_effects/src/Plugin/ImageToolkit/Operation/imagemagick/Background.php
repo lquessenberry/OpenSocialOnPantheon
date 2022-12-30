@@ -25,9 +25,9 @@ class Background extends ImagemagickImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     // Background image local path.
-    $local_path = $arguments['background_image']->getToolkit()->getSourceLocalPath();
+    $local_path = $arguments['background_image']->getToolkit()->ensureSourceLocalPath();
     if ($local_path !== '') {
-      $image_path = $this->getToolkit()->escapeShellArg($local_path);
+      $image_path = $this->escapeArgument($local_path);
     }
     else {
       $source_path = $arguments['background_image']->getToolkit()->getSource();
@@ -64,8 +64,8 @@ class Background extends ImagemagickImageToolkitOperationBase {
       $op .= " -compose blend -define compose:args=100,{$arguments['opacity']} -composite";
     }
 
+    $this->addArgument($op);
     $this->getToolkit()
-      ->addArgument($op)
       ->setWidth($w)
       ->setHeight($h);
     return TRUE;

@@ -20,6 +20,11 @@ class HandlerFieldUserNameTest extends UserTestBase {
    */
   public static $testViews = ['test_views_handler_field_user_name'];
 
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
   public function testUserName() {
     /** @var \Drupal\Core\Render\RendererInterface $renderer */
     $renderer = \Drupal::service('renderer');
@@ -42,20 +47,20 @@ class HandlerFieldUserNameTest extends UserTestBase {
     $render = $renderer->executeInRenderContext(new RenderContext(), function () use ($view) {
       return $view->field['name']->advancedRender($view->result[0]);
     });
-    $this->assertTrue(strpos($render, $anon_name) !== FALSE, 'For user 0 it should use the default anonymous name by default.');
+    $this->assertStringContainsString($anon_name, $render, 'For user 0 it should use the default anonymous name by default.');
 
     $render = $renderer->executeInRenderContext(new RenderContext(), function () use ($view, $new_user) {
       return $view->field['name']->advancedRender($view->result[$new_user->id()]);
     });
-    $this->assertTrue(strpos($render, $new_user->getDisplayName()) !== FALSE, 'If link to user is checked the username should be part of the output.');
-    $this->assertTrue(strpos($render, 'user/' . $new_user->id()) !== FALSE, 'If link to user is checked the link to the user should appear as well.');
+    $this->assertStringContainsString($new_user->getDisplayName(), $render, 'If link to user is checked the username should be part of the output.');
+    $this->assertStringContainsString('user/' . $new_user->id(), $render, 'If link to user is checked the link to the user should appear as well.');
 
     $view->field['name']->options['link_to_user'] = FALSE;
     $view->field['name']->options['type'] = 'string';
     $render = $renderer->executeInRenderContext(new RenderContext(), function () use ($view, $new_user) {
       return $view->field['name']->advancedRender($view->result[$new_user->id()]);
     });
-    $this->assertEqual($render, $new_user->getDisplayName(), 'If the user is not linked the username should be printed out for a normal user.');
+    $this->assertEquals($new_user->getDisplayName(), $render, 'If the user is not linked the username should be printed out for a normal user.');
 
   }
 
@@ -75,7 +80,7 @@ class HandlerFieldUserNameTest extends UserTestBase {
     $render = $renderer->executeInRenderContext(new RenderContext(), function () use ($view) {
       return $view->field['name']->advancedRender($view->result[0]);
     });
-    $this->assertTrue(strpos($render, $username) !== FALSE, 'If link to user is checked the username should be part of the output.');
+    $this->assertStringContainsString($username, $render, 'If link to user is checked the username should be part of the output.');
   }
 
 }

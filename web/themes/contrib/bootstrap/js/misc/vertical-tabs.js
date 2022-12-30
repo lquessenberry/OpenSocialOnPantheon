@@ -7,6 +7,23 @@
   "use strict";
 
   /**
+   * Show the parent vertical tab pane of a targeted page fragment.
+   *
+   * In order to make sure a targeted element inside a vertical tab pane is
+   * visible on a hash change or fragment link click, show all parent panes.
+   *
+   * @param {jQuery.Event} e
+   *   The event triggered.
+   * @param {jQuery} $target
+   *   The targeted node as a jQuery object.
+   */
+  var handleFragmentLinkClickOrHashChange = function handleFragmentLinkClickOrHashChange(e, $target) {
+    $target.parents('.vertical-tabs-pane').each(function (index, pane) {
+      $(pane).data('verticalTab').focus();
+    });
+  };
+
+  /**
    * This script transforms a set of details into a stack of vertical
    * tabs. Another tab pane can be selected by clicking on the respective
    * tab.
@@ -25,6 +42,11 @@
       if (window.matchMedia(mq).matches) {
         return;
       }
+
+      /**
+       * Binds a listener to handle fragment link clicks and URL hash changes.
+       */
+      $('body').once('vertical-tabs-fragments').on('formFragmentLinkClickOrHashChange.verticalTabs', handleFragmentLinkClickOrHashChange);
 
       $(context).find('[data-vertical-tabs-panes]').once('vertical-tabs').each(function () {
         var $this = $(this).addClass('tab-content vertical-tabs-panes');

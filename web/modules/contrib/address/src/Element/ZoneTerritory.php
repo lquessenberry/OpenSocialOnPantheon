@@ -297,10 +297,8 @@ class ZoneTerritory extends FormElement {
    * Ajax callback.
    */
   public static function ajaxRefresh(array $form, FormStateInterface $form_state) {
-    $country_element = $form_state->getTriggeringElement();
-    $address_element = NestedArray::getValue($form, array_slice($country_element['#array_parents'], 0, -2));
-
-    return $address_element;
+    $triggering_element = $form_state->getTriggeringElement();
+    return NestedArray::getValue($form, array_slice($triggering_element['#array_parents'], 0, -2));
   }
 
   /**
@@ -316,16 +314,26 @@ class ZoneTerritory extends FormElement {
       return $element;
     }
 
-    $triggering_element_name = end($triggering_element['#parents']);
-    if ($triggering_element_name == 'country_code') {
-      $keys = [
+    $keys = [
+      'country_code' => [
         'dependent_locality', 'locality', 'administrative_area',
-      ];
+      ],
+      'administrative_area' => [
+        'dependent_locality', 'locality',
+      ],
+      'locality' => [
+        'dependent_locality',
+      ],
+    ];
+    $triggering_element_name = end($triggering_element['#parents']);
+    if (isset($keys[$triggering_element_name])) {
       $input = &$form_state->getUserInput();
-      foreach ($keys as $key) {
-        $parents = array_merge($element['#parents'], [$key]);
-        NestedArray::setValue($input, $parents, '');
-        $element[$key]['#value'] = '';
+      foreach ($keys[$triggering_element_name] as $key) {
+        if (isset($element[$key])) {
+          $parents = array_merge($element['#parents'], [$key]);
+          NestedArray::setValue($input, $parents, '');
+          $element[$key]['#value'] = '';
+        }
       }
     }
 

@@ -5,7 +5,6 @@
 
 (function (Drupal, ckeditor, editorSettings, $) {
   Drupal.behaviors.ajaxCssForm = {
-
     attach(context) {
       // Initialize an inline CKEditor on the #edit-inline element if it
       // isn't editable already.
@@ -17,4 +16,4 @@
         });
     },
   };
-}(Drupal, Drupal.editors.ckeditor, drupalSettings.editor, jQuery));
+})(Drupal, Drupal.editors.ckeditor, drupalSettings.editor, jQuery);

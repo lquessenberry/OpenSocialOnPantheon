@@ -19,12 +19,12 @@ class KeyValueContentEntityStorageTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['user', 'entity_test', 'keyvalue_test'];
+  protected static $modules = ['user', 'entity_test', 'keyvalue_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('user');
   }
@@ -42,27 +42,27 @@ class KeyValueContentEntityStorageTest extends KernelTestBase {
 
     // Verify default properties on a newly created empty entity.
     $empty = EntityTestLabel::create();
-    $this->assertIdentical($empty->id->value, NULL);
-    $this->assertIdentical($empty->name->value, NULL);
-    $this->assertTrue($empty->uuid->value);
-    $this->assertIdentical($empty->langcode->value, $default_langcode);
+    $this->assertNull($empty->id->value);
+    $this->assertNull($empty->name->value);
+    $this->assertNotEmpty($empty->uuid->value);
+    $this->assertSame($default_langcode, $empty->langcode->value);
 
     // Verify ConfigEntity properties/methods on the newly created empty entity.
-    $this->assertIdentical($empty->isNew(), TRUE);
-    $this->assertIdentical($empty->bundle(), 'entity_test_label');
-    $this->assertIdentical($empty->id(), NULL);
-    $this->assertTrue($empty->uuid());
-    $this->assertIdentical($empty->label(), NULL);
+    $this->assertTrue($empty->isNew());
+    $this->assertSame('entity_test_label', $empty->bundle());
+    $this->assertNull($empty->id());
+    $this->assertNotEmpty($empty->uuid());
+    $this->assertNull($empty->label());
 
     // Verify Entity properties/methods on the newly created empty entity.
-    $this->assertIdentical($empty->getEntityTypeId(), 'entity_test_label');
+    $this->assertSame('entity_test_label', $empty->getEntityTypeId());
     // The URI can only be checked after saving.
     try {
-      $empty->urlInfo();
+      $empty->toUrl();
       $this->fail('EntityMalformedException was thrown.');
     }
     catch (EntityMalformedException $e) {
-      $this->pass('EntityMalformedException was thrown.');
+      // Expected exception; just continue testing.
     }
 
     // Verify that an empty entity cannot be saved.
@@ -71,20 +71,20 @@ class KeyValueContentEntityStorageTest extends KernelTestBase {
       $this->fail('EntityMalformedException was thrown.');
     }
     catch (EntityMalformedException $e) {
-      $this->pass('EntityMalformedException was thrown.');
+      // Expected exception; just continue testing.
     }
 
     // Verify that an entity with an empty ID string is considered empty, too.
     $empty_id = EntityTestLabel::create([
       'id' => '',
     ]);
-    $this->assertIdentical($empty_id->isNew(), TRUE);
+    $this->assertTrue($empty_id->isNew());
     try {
       $empty_id->save();
       $this->fail('EntityMalformedException was thrown.');
     }
     catch (EntityMalformedException $e) {
-      $this->pass('EntityMalformedException was thrown.');
+      // Expected exception; just continue testing.
     }
 
     // Verify properties on a newly created entity.
@@ -92,23 +92,22 @@ class KeyValueContentEntityStorageTest extends KernelTestBase {
       'id' => $this->randomMachineName(),
       'name' => $this->randomString(),
     ]);
-    $this->assertIdentical($entity_test->id->value, $expected['id']);
-    $this->assertTrue($entity_test->uuid->value);
-    $this->assertNotEqual($entity_test->uuid->value, $empty->uuid->value);
-    $this->assertIdentical($entity_test->name->value, $expected['name']);
-    $this->assertIdentical($entity_test->langcode->value, $default_langcode);
+    $this->assertSame($expected['id'], $entity_test->id->value);
+    $this->assertNotEmpty($entity_test->uuid->value);
+    $this->assertNotEquals($empty->uuid->value, $entity_test->uuid->value);
+    $this->assertSame($expected['name'], $entity_test->name->value);
+    $this->assertSame($default_langcode, $entity_test->langcode->value);
 
     // Verify methods on the newly created entity.
-    $this->assertIdentical($entity_test->isNew(), TRUE);
-    $this->assertIdentical($entity_test->id(), $expected['id']);
-    $this->assertTrue($entity_test->uuid());
+    $this->assertTrue($entity_test->isNew());
+    $this->assertSame($expected['id'], $entity_test->id());
+    $this->assertNotEmpty($entity_test->uuid());
     $expected['uuid'] = $entity_test->uuid();
-    $this->assertIdentical($entity_test->label(), $expected['name']);
+    $this->assertSame($expected['name'], $entity_test->label());
 
     // Verify that the entity can be saved.
     try {
       $status = $entity_test->save();
-      $this->pass('EntityMalformedException was not thrown.');
     }
     catch (EntityMalformedException $e) {
       $this->fail('EntityMalformedException was not thrown.');
@@ -118,32 +117,32 @@ class KeyValueContentEntityStorageTest extends KernelTestBase {
     $this->assertTrue($storage->hasData());
 
     // Verify that the correct status is returned and properties did not change.
-    $this->assertIdentical($status, SAVED_NEW);
-    $this->assertIdentical($entity_test->id(), $expected['id']);
-    $this->assertIdentical($entity_test->uuid(), $expected['uuid']);
-    $this->assertIdentical($entity_test->label(), $expected['name']);
-    $this->assertIdentical($entity_test->isNew(), FALSE);
+    $this->assertSame(SAVED_NEW, $status);
+    $this->assertSame($expected['id'], $entity_test->id());
+    $this->assertSame($expected['uuid'], $entity_test->uuid());
+    $this->assertSame($expected['name'], $entity_test->label());
+    $this->assertFalse($entity_test->isNew());
 
     // Save again, and verify correct status and properties again.
     $status = $entity_test->save();
-    $this->assertIdentical($status, SAVED_UPDATED);
-    $this->assertIdentical($entity_test->id(), $expected['id']);
-    $this->assertIdentical($entity_test->uuid(), $expected['uuid']);
-    $this->assertIdentical($entity_test->label(), $expected['name']);
-    $this->assertIdentical($entity_test->isNew(), FALSE);
+    $this->assertSame(SAVED_UPDATED, $status);
+    $this->assertSame($expected['id'], $entity_test->id());
+    $this->assertSame($expected['uuid'], $entity_test->uuid());
+    $this->assertSame($expected['name'], $entity_test->label());
+    $this->assertFalse($entity_test->isNew());
 
     // Ensure that creating an entity with the same id as an existing one is not
     // possible.
     $same_id = EntityTestLabel::create([
       'id' => $entity_test->id(),
     ]);
-    $this->assertIdentical($same_id->isNew(), TRUE);
+    $this->assertTrue($same_id->isNew());
     try {
       $same_id->save();
       $this->fail('Not possible to overwrite an entity entity.');
     }
     catch (EntityStorageException $e) {
-      $this->pass('Not possible to overwrite an entity entity.');
+      // Expected exception; just continue testing.
     }
 
     // Verify that renaming the ID returns correct status and properties.
@@ -152,17 +151,17 @@ class KeyValueContentEntityStorageTest extends KernelTestBase {
       $old_id = $ids[$i - 1];
       $new_id = $ids[$i];
       // Before renaming, everything should point to the current ID.
-      $this->assertIdentical($entity_test->id(), $old_id);
+      $this->assertSame($old_id, $entity_test->id());
 
       // Rename.
       $entity_test->id = $new_id;
-      $this->assertIdentical($entity_test->id(), $new_id);
+      $this->assertSame($new_id, $entity_test->id());
       $status = $entity_test->save();
-      $this->assertIdentical($status, SAVED_UPDATED);
-      $this->assertIdentical($entity_test->isNew(), FALSE);
+      $this->assertSame(SAVED_UPDATED, $status);
+      $this->assertFalse($entity_test->isNew());
 
       // Verify that originalID points to new ID directly after renaming.
-      $this->assertIdentical($entity_test->id(), $new_id);
+      $this->assertSame($new_id, $entity_test->id());
     }
   }
 

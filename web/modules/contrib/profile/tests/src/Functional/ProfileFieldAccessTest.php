@@ -29,7 +29,7 @@ class ProfileFieldAccessTest extends ProfileTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->adminUser = $this->drupalCreateUser([
@@ -98,7 +98,7 @@ class ProfileFieldAccessTest extends ProfileTestBase {
 
     /** @var \Drupal\profile\ProfileStorageInterface $storage */
     $storage = $this->container->get('entity_type.manager')->getStorage('profile');
-    $web_user_profile = $storage->loadDefaultByUser($this->webUser, $this->type->id());
+    $web_user_profile = $storage->loadByUser($this->webUser, $this->type->id());
 
     // Verify that the private field value appears for the profile owner.
     $this->drupalGet($web_user_profile->toUrl());

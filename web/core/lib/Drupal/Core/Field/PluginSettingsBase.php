@@ -61,7 +61,7 @@ abstract class PluginSettingsBase extends PluginBase implements PluginSettingsIn
     if (!$this->defaultSettingsMerged && !array_key_exists($key, $this->settings)) {
       $this->mergeDefaults();
     }
-    return isset($this->settings[$key]) ? $this->settings[$key] : NULL;
+    return $this->settings[$key] ?? NULL;
   }
 
   /**
@@ -94,7 +94,7 @@ abstract class PluginSettingsBase extends PluginBase implements PluginSettingsIn
    */
   public function getThirdPartySettings($module = NULL) {
     if ($module) {
-      return isset($this->thirdPartySettings[$module]) ? $this->thirdPartySettings[$module] : [];
+      return $this->thirdPartySettings[$module] ?? [];
     }
     return $this->thirdPartySettings;
   }
@@ -103,7 +103,7 @@ abstract class PluginSettingsBase extends PluginBase implements PluginSettingsIn
    * {@inheritdoc}
    */
   public function getThirdPartySetting($module, $key, $default = NULL) {
-    return isset($this->thirdPartySettings[$module][$key]) ? $this->thirdPartySettings[$module][$key] : $default;
+    return $this->thirdPartySettings[$module][$key] ?? $default;
   }
 
   /**
@@ -141,7 +141,7 @@ abstract class PluginSettingsBase extends PluginBase implements PluginSettingsIn
     if (!empty($this->thirdPartySettings)) {
       // Create dependencies on any modules providing third party settings.
       return [
-        'module' => array_keys($this->thirdPartySettings)
+        'module' => array_keys($this->thirdPartySettings),
       ];
     }
     return [];

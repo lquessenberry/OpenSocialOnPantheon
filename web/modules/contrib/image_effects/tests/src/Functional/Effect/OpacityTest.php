@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Opacity effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class OpacityTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class OpacityTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Opacity effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,18 +33,11 @@ class OpacityTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testOpacityEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Opacity effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testOpacityEffect() {
     // Test on the PNG test image.
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     // Test data.
     $test_data = [

@@ -6,7 +6,7 @@ use Drupal\entity_test\Entity\EntityTestMulRevPub;
 use Drupal\entity_test\Entity\EntityTestRev;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\language\Entity\ConfigurableLanguage;
-use Drupal\workflows\Entity\Workflow;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
 
 /**
  * @coversDefaultClass \Drupal\content_moderation\ModerationInformation
@@ -14,10 +14,12 @@ use Drupal\workflows\Entity\Workflow;
  */
 class ModerationInformationTest extends KernelTestBase {
 
+  use ContentModerationTestTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'content_moderation',
     'entity_test',
     'user',
@@ -36,7 +38,7 @@ class ModerationInformationTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_rev');
@@ -48,7 +50,7 @@ class ModerationInformationTest extends KernelTestBase {
 
     ConfigurableLanguage::createFromLangcode('de')->save();
 
-    $workflow = Workflow::load('editorial');
+    $workflow = $this->createEditorialWorkflow();
     $workflow->getTypePlugin()->addEntityTypeAndBundle('entity_test_mulrevpub', 'entity_test_mulrevpub');
     $workflow->getTypePlugin()->addEntityTypeAndBundle('entity_test_rev', 'entity_test_rev');
     $workflow->save();
@@ -58,9 +60,8 @@ class ModerationInformationTest extends KernelTestBase {
 
   /**
    * @covers ::getDefaultRevisionId
-   * @covers ::getLatestRevisionId
    */
-  public function testDefaultAndLatestRevisionId() {
+  public function testGetDefaultRevisionId() {
     $entity_test_rev = EntityTestRev::create([
       'name' => 'Default Revision',
       'moderation_state' => 'published',
@@ -75,11 +76,6 @@ class ModerationInformationTest extends KernelTestBase {
     // revision ID.
     $default_revision_id = $this->moderationInformation->getDefaultRevisionId('entity_test_rev', $entity_test_rev->id());
     $this->assertSame(1, $default_revision_id);
-
-    // Check that moderation information service returns the correct latest
-    // revision ID.
-    $latest_revision_id = $this->moderationInformation->getLatestRevisionId('entity_test_rev', $entity_test_rev->id());
-    $this->assertSame(2, $latest_revision_id);
   }
 
   /**
@@ -149,7 +145,67 @@ class ModerationInformationTest extends KernelTestBase {
     // language in a draft state and a non-default language in a published
     // state. The method returns TRUE if any of the languages for the default
     // revision are in a published state.
-    $this->assertEquals(TRUE, $this->moderationInformation->isDefaultRevisionPublished($entity));
+    $this->assertTrue($this->moderationInformation->isDefaultRevisionPublished($entity));
+  }
+
+  /**
+   * @covers ::hasPendingRevision
+   */
+  public function testHasPendingRevision() {
+    $entity = EntityTestMulRevPub::create([
+      'moderation_state' => 'published',
+    ]);
+    $entity->save();
+
+    // Add a translation as a new revision.
+    $translated = $entity->addTranslation('de');
+    $translated->moderation_state = 'published';
+    $translated->setNewRevision(TRUE);
+
+    // Test a scenario where the default revision exists with the default
+    // language in a published state and a non-default language in an unsaved
+    // state.
+    $this->assertFalse($this->moderationInformation->hasPendingRevision($translated));
+
+    // Save the translation and assert there is no pending revision.
+    $translated->save();
+    $this->assertFalse($this->moderationInformation->hasPendingRevision($translated));
+
+    // Create a new draft for the translation and assert there is a pending
+    // revision.
+    $translated->moderation_state = 'draft';
+    $translated->setNewRevision(TRUE);
+    $translated->save();
+    $this->assertTrue($this->moderationInformation->hasPendingRevision($translated));
+  }
+
+  /**
+   * @covers ::getOriginalState
+   */
+  public function testGetOriginalState() {
+    $entity = EntityTestMulRevPub::create([
+      'moderation_state' => 'published',
+    ]);
+    $entity->save();
+    $entity->moderation_state = 'foo';
+    $this->assertEquals('published', $this->moderationInformation->getOriginalState($entity)->id());
+  }
+
+  /**
+   * @covers ::getOriginalState
+   */
+  public function testGetOriginalStateMultilingual() {
+    $entity = EntityTestMulRevPub::create([
+      'moderation_state' => 'draft',
+    ]);
+    $entity->save();
+
+    $translated = $entity->addTranslation('de', $entity->toArray());
+    $translated->moderation_state = 'published';
+    $translated->save();
+
+    $translated->moderation_state = 'foo';
+    $this->assertEquals('published', $this->moderationInformation->getOriginalState($translated)->id());
   }
 
 }

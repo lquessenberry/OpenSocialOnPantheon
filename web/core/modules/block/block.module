@@ -6,7 +6,9 @@
  */
 
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Installer\InstallerKernel;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\language\ConfigurableLanguageInterface;
 use Drupal\system\Entity\Menu;
@@ -18,20 +20,20 @@ use Drupal\block\Entity\Block;
 function block_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.block':
-      $block_content = \Drupal::moduleHandler()->moduleExists('block_content') ? \Drupal::url('help.page', ['name' => 'block_content']) : '#';
+      $block_content = \Drupal::moduleHandler()->moduleExists('block_content') ? Url::fromRoute('help.page', ['name' => 'block_content'])->toString() : '#';
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('The Block module allows you to place blocks in regions of your installed themes, and configure block settings. For more information, see the <a href=":blocks-documentation">online documentation for the Block module</a>.', [':blocks-documentation' => 'https://www.drupal.org/documentation/modules/block/']) . '</p>';
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Placing and moving blocks') . '</dt>';
-      $output .= '<dd>' . t('You can place a new block in a region by selecting <em>Place block</em> on the <a href=":blocks">Block layout page</a>. Once a block is placed, it can be moved to a different region by drag-and-drop or by using the <em>Region</em> drop-down list, and then clicking <em>Save blocks</em>.', [':blocks' => \Drupal::url('block.admin_display')]) . '</dd>';
+      $output .= '<dd>' . t('You can place a new block in a region by selecting <em>Place block</em> on the <a href=":blocks">Block layout page</a>. Once a block is placed, it can be moved to a different region by drag-and-drop or by using the <em>Region</em> drop-down list, and then clicking <em>Save blocks</em>.', [':blocks' => Url::fromRoute('block.admin_display')->toString()]) . '</dd>';
       $output .= '<dt>' . t('Toggling between different themes') . '</dt>';
       $output .= '<dd>' . t('Blocks are placed and configured specifically for each theme. The Block layout page opens with the default theme, but you can toggle to other installed themes.') . '</dd>';
       $output .= '<dt>' . t('Demonstrating block regions for a theme') . '</dt>';
-      $output .= '<dd>' . t('You can see where the regions are for the current theme by clicking the <em>Demonstrate block regions</em> link on the <a href=":blocks">Block layout page</a>. Regions are specific to each theme.', [':blocks' => \Drupal::url('block.admin_display')]) . '</dd>';
+      $output .= '<dd>' . t('You can see where the regions are for the current theme by clicking the <em>Demonstrate block regions</em> link on the <a href=":blocks">Block layout page</a>. Regions are specific to each theme.', [':blocks' => Url::fromRoute('block.admin_display')->toString()]) . '</dd>';
       $output .= '<dt>' . t('Configuring block settings') . '</dt>';
-      $output .= '<dd>' . t('To change the settings of an individual block click on the <em>Configure</em> link on the <a href=":blocks">Block layout page</a>. The available options vary depending on the module that provides the block. For all blocks you can change the block title and toggle whether to display it.', [':blocks' => Drupal::url('block.admin_display')]) . '</dd>';
+      $output .= '<dd>' . t('To change the settings of an individual block click on the <em>Configure</em> link on the <a href=":blocks">Block layout page</a>. The available options vary depending on the module that provides the block. For all blocks you can change the block title and toggle whether to display it.', [':blocks' => Url::fromRoute('block.admin_display')->toString()]) . '</dd>';
       $output .= '<dt>' . t('Controlling visibility') . '</dt>';
       $output .= '<dd>' . t('You can control the visibility of a block by restricting it to specific pages, content types, and/or roles by setting the appropriate options under <em>Visibility settings</em> of the block configuration.') . '</dd>';
       $output .= '<dt>' . t('Adding custom blocks') . '</dt>';
@@ -43,7 +45,7 @@ function block_help($route_name, RouteMatchInterface $route_match) {
     $demo_theme = $route_match->getParameter('theme') ?: \Drupal::config('system.theme')->get('default');
     $themes = \Drupal::service('theme_handler')->listInfo();
     $output = '<p>' . t('Block placement is specific to each theme on your site. Changes will not be saved until you click <em>Save blocks</em> at the bottom of the page.') . '</p>';
-    $output .= '<p>' . \Drupal::l(t('Demonstrate block regions (@theme)', ['@theme' => $themes[$demo_theme]->info['name']]), new Url('block.admin_demo', ['theme' => $demo_theme])) . '</p>';
+    $output .= '<p>' . Link::fromTextAndUrl(t('Demonstrate block regions (@theme)', ['@theme' => $themes[$demo_theme]->info['name']]), Url::fromRoute('block.admin_demo', ['theme' => $demo_theme]))->toString() . '</p>';
     return $output;
   }
 }
@@ -85,8 +87,18 @@ function block_page_top(array &$page_top) {
  *
  * @param $theme_list
  *   An array of theme names.
+ *
+ * @see block_modules_installed()
  */
 function block_themes_installed($theme_list) {
+  // Disable this functionality prior to install profile installation because
+  // block configuration is often optional or provided by the install profile
+  // itself. block_theme_initialize() will be called when the install profile is
+  // installed.
+  if (InstallerKernel::installationAttempted() && \Drupal::config('core.extension')->get('module.' . \Drupal::installProfile()) === NULL) {
+    return;
+  }
+
   foreach ($theme_list as $theme) {
     // Don't initialize themes that are not displayed in the UI.
     if (\Drupal::service('theme_handler')->hasUi($theme)) {
@@ -133,6 +145,24 @@ function block_theme_initialize($theme) {
 }
 
 /**
+ * Implements hook_modules_installed().
+ *
+ * @see block_themes_installed()
+ */
+function block_modules_installed($modules) {
+  // block_themes_installed() does not call block_theme_initialize() during site
+  // installation because block configuration can be optional or provided by the
+  // profile. Now, when the profile is installed, this configuration exists,
+  // call block_theme_initialize() for all installed themes.
+  $profile = \Drupal::installProfile();
+  if (in_array($profile, $modules, TRUE)) {
+    foreach (\Drupal::service('theme_handler')->listInfo() as $theme => $data) {
+      block_theme_initialize($theme);
+    }
+  }
+}
+
+/**
  * Implements hook_rebuild().
  */
 function block_rebuild() {
@@ -145,7 +175,11 @@ function block_rebuild() {
         // Disable blocks in invalid regions.
         if (!isset($regions[$block->getRegion()])) {
           if ($block->status()) {
-            drupal_set_message(t('The block %info was assigned to the invalid region %region and has been disabled.', ['%info' => $block_id, '%region' => $block->getRegion()]), 'warning');
+            \Drupal::messenger()
+              ->addWarning(t('The block %info was assigned to the invalid region %region and has been disabled.', [
+                '%info' => $block_id,
+                '%region' => $block->getRegion(),
+              ]));
           }
           $block
             ->setRegion(system_default_region($theme))
@@ -240,7 +274,7 @@ function template_preprocess_block(&$variables) {
  */
 function block_user_role_delete($role) {
   foreach (Block::loadMultiple() as $block) {
-    /** @var $block \Drupal\block\BlockInterface */
+    /** @var \Drupal\block\BlockInterface $block */
     $visibility = $block->getVisibility();
     if (isset($visibility['user_role']['roles'][$role->id()])) {
       unset($visibility['user_role']['roles'][$role->id()]);
@@ -271,7 +305,7 @@ function block_menu_delete(Menu $menu) {
 function block_configurable_language_delete(ConfigurableLanguageInterface $language) {
   // Remove the block visibility settings for the deleted language.
   foreach (Block::loadMultiple() as $block) {
-    /** @var $block \Drupal\block\BlockInterface */
+    /** @var \Drupal\block\BlockInterface $block */
     $visibility = $block->getVisibility();
     if (isset($visibility['language']['langcodes'][$language->id()])) {
       unset($visibility['language']['langcodes'][$language->id()]);

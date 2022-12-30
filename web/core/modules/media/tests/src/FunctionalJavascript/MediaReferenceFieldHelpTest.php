@@ -12,7 +12,12 @@ use Drupal\Component\Utility\Html;
 class MediaReferenceFieldHelpTest extends MediaJavascriptTestBase {
 
   /**
-   * Test our custom help texts when creating a field.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * Tests our custom help texts when creating a field.
    *
    * @see media_form_field_ui_field_storage_add_form_alter()
    */
@@ -49,7 +54,7 @@ class MediaReferenceFieldHelpTest extends MediaJavascriptTestBase {
       $page->selectFieldOption('edit-new-storage-type', $field_name);
       $field_description_element = $assert_session->elementExists('css', '#edit-description-' . Html::cleanCssIdentifier($field_name));
       $this->assertTrue($field_description_element->isVisible());
-      $this->assertEquals($help_text, $field_description_element->getText());
+      $this->assertSame($help_text, $field_description_element->getText());
     }
   }
 

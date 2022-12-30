@@ -1,10 +1,77 @@
+1.10.0 / 2022-03-28
+===================
+
+New features:
+
+* Added support for `symfony/css-selector` 6
+* Added `WebAssert::elementAttributeNotExists`
+
+Removed:
+
+* Removed support for PHP <7.2
+* Removed support for `symfony/css-selector` <4.4
+
+Bug fixes:
+
+* Fixed phpdoc for a bunch of arguments that were not properly marked as nullable
+
+1.9.0 / 2021-10-11
+==================
+
+New features:
+
+* Fixed deprecation warnings on PHP 8.1
+* Improved responsiveness of `Element::waitFor`
+* Allowed selectors and replacements to be registered late
+
+Removed:
+
+* Removed support for PHP 5.3
+
+Testsuite:
+
+* Added CI jobs for PHP 8.0 and 8.1
+
+1.8.1 / 2020-03-11
+==================
+
+Bug fixes:
+
+* Fixed the phpdoc of `NodeElement::getValue`. This method actually returns `null` in some cases (unchecked checkbox for instance)
+
+1.8.0 / 2020-03-11
+==================
+
+New features:
+
+* Auto-start the session on first call to `visit`. `Mink::getSession()` will no longer start the session automatically.
+* Added support for `symfony/css-selector` 4 and 5
+
+Bug fixes:
+
+* Fixed the message when reporting the deprecation of `ExpectationException::getSession()`
+* Fixed support for XPath selectors using `|` inside strings or conditions rather than as a top-level union
+* Fixed compatibility with PHP 7.2 not allowing to use `count` on strings
+
+Testsuite:
+
+* Added PHP 7.1, 7.2, 7.3 and 7.4 in the CI
+* Removed HHVM from CI as they stopped supporting PHP compatibility
+
+Driver testsuite:
+
+* The driver testsuite is no longer part of this package. Use `mink/driver-testsuite` to run driver tests instead.
+
+Misc:
+
+* Changed phpdoc types from `Boolean` to `boolean` to be compatible with psalm type checking
+
 1.7.1 / 2016-03-05
 ==================
 
 Bug fixes:
 
 * Refactored the CssSelector to use the new API of the Symfony CssSelector component to be compatible with Symfony 3
-
 
 Testsuite:
 

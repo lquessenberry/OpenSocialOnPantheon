@@ -11,12 +11,16 @@ paragraphs.paragraphs_type.*:
     icon_uuid:
       type: string
       label: 'Icon uuid'
+    icon_default:
+      type: string
+      label: 'Default icon'
     description:
       type: text
       label: 'Description'
     behavior_plugins:
       type: sequence
       label: 'Plugins'
+      orderby: key
       sequence:
         type: paragraphs.behavior.settings.[%key]
         label: 'Behavior plugins'
@@ -41,6 +45,7 @@ entity_reference_selection.default:paragraph:
       type: integer
     target_bundles_drag_drop:
       type: sequence
+      orderby: key
       sequence:
         type: mapping
         mapping:
@@ -53,9 +58,9 @@ entity_reference_selection.default:paragraph:
     edit_mode:
       type: string
     title:
-      type: string
+      type: label
     title_plural:
-      type: string
+      type: label
     default_paragraph_type:
       type: string
 
@@ -63,9 +68,9 @@ field.widget.settings.entity_reference_paragraphs:
   type: mapping
   mapping:
     title:
-      type: string
+      type: label
     title_plural:
-      type: string
+      type: label
     edit_mode:
       type: string
     add_mode:
@@ -79,18 +84,25 @@ field.widget.settings.paragraphs:
   type: mapping
   mapping:
     title:
-      type: string
+      type: label
     title_plural:
-      type: string
+      type: label
     edit_mode:
       type: string
     closed_mode:
       type: string
     autocollapse:
       type: string
+    closed_mode_threshold:
+      type: integer
     add_mode:
       type: string
     form_display_mode:
       type: string
     default_paragraph_type:
       type: string
+    features:
+      type: sequence
+      orderby: key
+      sequence:
+        type: string

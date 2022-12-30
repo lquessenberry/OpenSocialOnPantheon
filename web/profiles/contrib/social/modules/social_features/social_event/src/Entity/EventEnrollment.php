@@ -9,6 +9,8 @@ use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\social_event\EventEnrollmentInterface;
 use Drupal\user\UserInterface;
+use Drupal\Core\Cache\Cache;
+use Drupal\node\NodeInterface;
 
 /**
  * Defines the Event enrollment entity.
@@ -72,8 +74,47 @@ class EventEnrollment extends ContentEntityBase implements EventEnrollmentInterf
   /**
    * {@inheritdoc}
    */
+  public function preSave(EntityStorageInterface $storage) {
+    $tags = [
+      'event_content_list:user:' . $this->getAccount(),
+      'event_enrollment_list:' . $this->getFieldValue('field_event', 'target_id'),
+    ];
+    Cache::invalidateTags($tags);
+    parent::preSave($storage);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function preDelete(EntityStorageInterface $storage, array $entities) {
+    if (!empty($entities)) {
+      $tags = [];
+      foreach ($entities as $enrollment) {
+        $tags = [
+          'event_content_list:user:' . $enrollment->getAccount(),
+          'event_enrollment_list:' . $enrollment->getFieldValue('field_event', 'target_id'),
+        ];
+      }
+      Cache::invalidateTags($tags);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getName() {
     return $this->get('name')->value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function label() {
+    $label = $this->getName();
+    if (empty($label)) {
+      $label = $this->get('field_account')->entity->label();
+    }
+    return $label;
   }
 
   /**
@@ -116,6 +157,13 @@ class EventEnrollment extends ContentEntityBase implements EventEnrollmentInterf
   /**
    * {@inheritdoc}
    */
+  public function getAccount(): ?string {
+    return $this->get('field_account')->target_id;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function setOwnerId($uid) {
     $this->set('user_id', $uid);
     return $this;
@@ -132,6 +180,27 @@ class EventEnrollment extends ContentEntityBase implements EventEnrollmentInterf
   /**
    * {@inheritdoc}
    */
+  public function getEvent(): ?NodeInterface {
+    /** @var \Drupal\node\NodeInterface $node */
+    $node = $this->get('field_event')->entity;
+    return $node;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getEventStandaloneEnrollConfirmationStatus(): bool {
+    $event = $this->getEvent();
+    if ($event instanceof NodeInterface) {
+      return (bool) $event->get('field_event_send_confirmation')->getString();
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function isPublished() {
     return (bool) $this->getEntityKey('status');
   }
@@ -140,7 +209,7 @@ class EventEnrollment extends ContentEntityBase implements EventEnrollmentInterf
    * {@inheritdoc}
    */
   public function setPublished($published) {
-    $this->set('status', $published ? NODE_PUBLISHED : NODE_NOT_PUBLISHED);
+    $this->set('status', $published ? NodeInterface::PUBLISHED : NodeInterface::NOT_PUBLISHED);
     return $this;
   }
 
@@ -163,7 +232,7 @@ class EventEnrollment extends ContentEntityBase implements EventEnrollmentInterf
       ->setRevisionable(TRUE)
       ->setSetting('target_type', 'user')
       ->setSetting('handler', 'default')
-      ->setDefaultValueCallback('Drupal\node\Entity\Node::getCurrentUserId')
+      ->setDefaultValueCallback('Drupal\node\Entity\Node::getDefaultEntityOwner')
       ->setTranslatable(TRUE)
       ->setDisplayOptions('view', [
         'label' => 'hidden',

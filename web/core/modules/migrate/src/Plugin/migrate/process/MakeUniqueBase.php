@@ -6,7 +6,6 @@ use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Row;
 use Drupal\migrate\MigrateException;
-use Drupal\Component\Utility\Unicode;
 
 /**
  * This plugin ensures the source value is unique.
@@ -46,17 +45,17 @@ abstract class MakeUniqueBase extends ProcessPluginBase {
    */
   public function transform($value, MigrateExecutableInterface $migrate_executable, Row $row, $destination_property) {
     $i = 1;
-    $postfix = isset($this->configuration['postfix']) ? $this->configuration['postfix'] : '';
-    $start = isset($this->configuration['start']) ? $this->configuration['start'] : 0;
+    $postfix = $this->configuration['postfix'] ?? '';
+    $start = $this->configuration['start'] ?? 0;
     if (!is_int($start)) {
       throw new MigrateException('The start position configuration key should be an integer. Omit this key to capture from the beginning of the string.');
     }
-    $length = isset($this->configuration['length']) ? $this->configuration['length'] : NULL;
+    $length = $this->configuration['length'] ?? NULL;
     if (!is_null($length) && !is_int($length)) {
       throw new MigrateException('The character length configuration key should be an integer. Omit this key to capture the entire string.');
     }
     // Use optional start or length to return a portion of the unique value.
-    $value = Unicode::substr($value, $start, $length);
+    $value = mb_substr($value, $start, $length);
     $new_value = $value;
     while ($this->exists($new_value)) {
       $new_value = $value . $postfix . $i++;

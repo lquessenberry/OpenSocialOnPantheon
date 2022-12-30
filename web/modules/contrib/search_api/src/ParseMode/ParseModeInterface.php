@@ -5,6 +5,7 @@ namespace Drupal\search_api\ParseMode;
 use Drupal\Component\Plugin\DerivativeInspectionInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\search_api\Plugin\HideablePluginInterface;
 
 /**
  * Defines an interface for parse mode plugins.
@@ -14,7 +15,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
  * @see \Drupal\search_api\ParseMode\ParseModePluginBase
  * @see plugin_api
  */
-interface ParseModeInterface extends PluginInspectionInterface, DerivativeInspectionInterface, ContainerFactoryPluginInterface {
+interface ParseModeInterface extends HideablePluginInterface, PluginInspectionInterface, DerivativeInspectionInterface, ContainerFactoryPluginInterface {
 
   /**
    * Returns the label of the parse mode.

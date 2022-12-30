@@ -1,0 +1,13 @@
+name: Select2 Facets
+type: module
+description: Provides a Select2 Facet widget.
+package: Search
+core_version_requirement: ^8.8 || ^9
+dependencies:
+- facets:facets (>=8.x-1.5)
+- select2:select2
+
+# Information added by Drupal.org packaging script on 2021-03-01
+version: '8.x-1.13'
+project: 'select2'
+datestamp: 1614609949

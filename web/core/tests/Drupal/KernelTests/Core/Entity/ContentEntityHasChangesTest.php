@@ -22,16 +22,16 @@ class ContentEntityHasChangesTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system', 'user', 'entity_test'];
+  protected static $modules = ['system', 'user', 'entity_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('user');
-    $this->installEntitySchema('entity_test_mulrev_chnged_revlog');
+    $this->installEntitySchema('entity_test_mulrev_changed_rev');
     $this->installSchema('system', 'sequences');
   }
 
@@ -53,7 +53,7 @@ class ContentEntityHasChangesTest extends KernelTestBase {
 
     /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
     $storage = $this->container->get('entity_type.manager')
-      ->getStorage('entity_test_mulrev_chnged_revlog');
+      ->getStorage('entity_test_mulrev_changed_rev');
     /** @var \Drupal\entity_test\Entity\EntityTestMulRevChangedWithRevisionLog $entity */
     $entity = $storage->create([
       'name' => $this->randomString(),

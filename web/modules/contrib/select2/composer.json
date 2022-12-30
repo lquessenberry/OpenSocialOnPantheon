@@ -1,0 +1,18 @@
+{
+    "name": "drupal/select2",
+    "description": "Integration with the select2 JavaScript library.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Christian Fritsch",
+            "email": "christian.fritsch@burda.com"
+        }
+    ],
+    "require-dev": {
+        "drupal/facets": "^1.5",
+        "drupal/search_api": "^1.17",
+        "drupal/form_options_attributes": "^1.2",
+        "drupal/better_exposed_filters": "^5.0"
+    }
+}

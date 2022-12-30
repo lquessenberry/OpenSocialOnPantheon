@@ -5,8 +5,10 @@
  * data_policy.module
  */
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
+use Drupal\Core\Render\Markup;
 use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
@@ -33,6 +35,16 @@ function data_policy_help($route_name, RouteMatchInterface $route_match) {
         '@url' => $url->toString(),
       ]) . '</p>';
   }
+}
+
+/**
+ * Implements hook_hook_info().
+ */
+function data_policy_hook_info() {
+  $hooks = [
+    'data_policy_destination_alter',
+  ];
+  return array_fill_keys($hooks, ['group' => 'data_policy']);
 }
 
 /**
@@ -79,17 +91,21 @@ function data_policy_views_data_alter(array &$data) {
  * Implements hook_form_FORM_ID_alter().
  */
 function data_policy_form_user_register_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  /** @var \Drupal\data_policy\DataPolicyManagerInterface $data_policy_manager */
+  /** @var \Drupal\data_policy\DataPolicyConsentManagerInterface $data_policy_manager */
   $data_policy_manager = \Drupal::service('data_policy.manager');
 
   if (!$data_policy_manager->isDataPolicy()) {
     return;
   }
 
+  if (\Drupal::routeMatch()->getRouteName() === 'user.admin_create') {
+    return;
+  }
+
   $data_policy_manager->addCheckbox($form);
 
   $form['actions']['submit']['#submit'][] = '_data_policy_user_register_form_submit';
-
+  array_unshift($form['#validate'], '_data_policy_user_register_form_validate');
 }
 
 /**
@@ -101,6 +117,96 @@ function data_policy_form_user_register_form_alter(&$form, FormStateInterface $f
  *   The current state of the form.
  */
 function _data_policy_user_register_form_submit(array &$form, FormStateInterface $form_state) {
-  $values = $form_state->getValues();
-  \Drupal::service('data_policy.manager')->saveConsent($values['uid'], !empty($values['data_policy']));
+  /** @var \Drupal\data_policy\DataPolicyConsentManager $data_policy_manager */
+  $data_policy_manager = \Drupal::service('data_policy.manager');
+  $values = $form_state->getValue('data_policy');
+
+  // @todo Need to find the real reason why the empty value comes. $values
+  //   should not be empty.
+  if (empty($values)) {
+    return;
+  }
+
+  $result = [];
+
+  foreach ($values as $name => $value) {
+    $result[$name] = [
+      'value' => $value,
+      'entity_id' => (int) filter_var($name, FILTER_SANITIZE_NUMBER_INT),
+      'state' => !empty($values[$name]),
+    ];
+  }
+
+  if ($uid = $form_state->getValue('uid')) {
+    $data_policy_manager->saveConsent($uid, 'submit', $result);
+  }
+}
+
+/**
+ * Validate user consent link.
+ *
+ * @param array $form
+ *   An associative array containing the structure of the form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The current state of the form.
+ */
+function _data_policy_user_register_form_validate(array &$form, FormStateInterface $form_state) {
+  $errors = $form_state->getErrors();
+
+  if (!empty($errors)) {
+    $form_state->clearErrors();
+
+    foreach ($errors as $id => $error) {
+      /** @var \Drupal\Core\StringTranslation\TranslatableMarkup $g */
+      if (strpos($id, 'data_policy') !== FALSE) {
+        $name = Markup::create($error->getArguments()['@name']);
+        $form_state->setErrorByName($id, t('@name field is required.', ['@name' => $name]));
+        continue;
+      }
+
+      $form_state->setErrorByName($id, $error);
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_operation().
+ */
+function data_policy_entity_operation(EntityInterface $entity) {
+  $operations = [];
+
+  if ($entity->getEntityTypeId() === 'data_policy') {
+    $operations['revisions'] = [
+      'title' => t('Revisions'),
+      'weight' => 1,
+      'url' => $entity->toUrl('version-history')
+        ->setRouteParameter('entity_id', $entity->id()),
+    ];
+  }
+
+  return $operations;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_delete().
+ */
+function data_policy_data_policy_delete(EntityInterface $entity) {
+  \Drupal::configFactory()->getEditable('data_policy.data_policy')
+    ->set('entity_id', 0)
+    ->save();
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function data_policy_preprocess_status_messages(&$variables) {
+  if (isset($variables['message_list']['error'])) {
+    $error_messages = $variables['message_list']['error'];
+    foreach ($error_messages as $delta => $message) {
+      /** @var \Drupal\Core\Render\Markup $message */
+      if (strpos((string) $message, '<a href="#edit-data-policy-data-policy-') !== FALSE) {
+        $variables['message_list']['error'][$delta] = Markup::create(html_entity_decode((string) $message));
+      }
+    }
+  }
 }

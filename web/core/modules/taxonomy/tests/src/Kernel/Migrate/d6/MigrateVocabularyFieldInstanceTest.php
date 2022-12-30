@@ -15,12 +15,12 @@ class MigrateVocabularyFieldInstanceTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['taxonomy', 'menu_ui'];
+  protected static $modules = ['taxonomy', 'menu_ui'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Execute Dependency Migrations.
@@ -39,36 +39,78 @@ class MigrateVocabularyFieldInstanceTest extends MigrateDrupal6TestBase {
   public function testVocabularyFieldInstance() {
     $this->executeMigration('d6_vocabulary_field_instance');
 
-    // Test that the field exists.
+    // Test that the field exists. Tags has a multilingual option of 'None'.
     $field_id = 'node.article.field_tags';
     $field = FieldConfig::load($field_id);
     $this->assertSame($field_id, $field->id(), 'Field instance exists on article bundle.');
     $this->assertSame('Tags', $field->label());
     $this->assertTrue($field->isRequired(), 'Field is required');
+    $this->assertFalse($field->isTranslatable());
+    $this->assertTargetBundles($field_id, ['tags' => 'tags']);
 
-    // Test the page bundle as well.
+    // Test the page bundle as well. Tags has a multilingual option of 'None'.
     $field_id = 'node.page.field_tags';
     $field = FieldConfig::load($field_id);
     $this->assertSame($field_id, $field->id(), 'Field instance exists on page bundle.');
     $this->assertSame('Tags', $field->label());
     $this->assertTrue($field->isRequired(), 'Field is required');
+    $this->assertFalse($field->isTranslatable());
 
     $settings = $field->getSettings();
     $this->assertSame('default:taxonomy_term', $settings['handler'], 'The handler plugin ID is correct.');
-    $this->assertSame(['field_tags'], $settings['handler_settings']['target_bundles'], 'The target_bundles handler setting is correct.');
-    $this->assertSame(TRUE, $settings['handler_settings']['auto_create'], 'The "auto_create" setting is correct.');
+    $this->assertTargetBundles($field_id, ['tags' => 'tags']);
+    $this->assertTrue($settings['handler_settings']['auto_create'], 'The "auto_create" setting is correct.');
 
-    $this->assertSame(['node', 'article', 'field_tags'], $this->getMigration('d6_vocabulary_field_instance')->getIdMap()->lookupDestinationId([4, 'article']));
+    $this->assertSame([['node', 'article', 'field_tags']], $this->getMigration('d6_vocabulary_field_instance')->getIdMap()->lookupDestinationIds([4, 'article']));
 
-    // Test the the field vocabulary_1_i_0_.
+    // Test the field vocabulary_1_i_0_ with multilingual option,
+    // 'per language terms'.
     $field_id = 'node.story.field_vocabulary_1_i_0_';
     $field = FieldConfig::load($field_id);
     $this->assertFalse($field->isRequired(), 'Field is not required');
+    $this->assertTrue($field->isTranslatable());
+    $this->assertTargetBundles($field_id, ['vocabulary_1_i_0_' => 'vocabulary_1_i_0_']);
+
+    // Test the field vocabulary_2_i_0_ with multilingual option,
+    // 'Set language to vocabulary'.
+    $field_id = 'node.story.field_vocabulary_2_i_1_';
+    $field = FieldConfig::load($field_id);
+    $this->assertFalse($field->isRequired(), 'Field is not required');
+    $this->assertFalse($field->isTranslatable());
+    $this->assertTargetBundles($field_id, ['vocabulary_2_i_1_' => 'vocabulary_2_i_1_']);
+
+    // Test the field vocabulary_3_i_0_ with multilingual option,
+    // 'Localize terms'.
+    $field_id = 'node.story.field_vocabulary_3_i_2_';
+    $field = FieldConfig::load($field_id);
+    $this->assertFalse($field->isRequired(), 'Field is not required');
+    $this->assertTrue($field->isTranslatable());
+    $this->assertTargetBundles($field_id, ['vocabulary_3_i_2_' => 'vocabulary_3_i_2_']);
 
     // Tests that a vocabulary named like a D8 base field will be migrated and
     // prefixed with 'field_' to avoid conflicts.
     $field_type = FieldConfig::load('node.sponsor.field_type');
     $this->assertInstanceOf(FieldConfig::class, $field_type);
+    $this->assertTrue($field->isTranslatable());
+    $this->assertTargetBundles($field_id, ['vocabulary_3_i_2_' => 'vocabulary_3_i_2_']);
+
+    $this->assertTargetBundles('node.employee.field_vocabulary_3_i_2_', ['vocabulary_3_i_2_' => 'vocabulary_3_i_2_']);
+
+  }
+
+  /**
+   * Asserts the settings of an entity reference field config entity.
+   *
+   * @param string $id
+   *   The entity ID in the form ENTITY_TYPE.BUNDLE.FIELD_NAME.
+   * @param string[] $target_bundles
+   *   An array of expected target bundles.
+   */
+  protected function assertTargetBundles($id, array $target_bundles) {
+    $field = FieldConfig::load($id);
+    $handler_settings = $field->getSetting('handler_settings');
+    $this->assertArrayHasKey('target_bundles', $handler_settings);
+    $this->assertSame($handler_settings['target_bundles'], $target_bundles);
   }
 
   /**

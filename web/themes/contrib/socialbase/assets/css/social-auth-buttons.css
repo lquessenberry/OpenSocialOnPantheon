@@ -1,0 +1,13 @@
+.social-auth-buttons .btn {
+  display: inline-block;
+}
+
+@media (max-width: 599px) {
+  .social-auth-buttons .btn {
+    display: block;
+    margin-left: 0;
+  }
+  .social-auth-buttons .btn:not(:last-child) {
+    margin-bottom: .75rem;
+  }
+}

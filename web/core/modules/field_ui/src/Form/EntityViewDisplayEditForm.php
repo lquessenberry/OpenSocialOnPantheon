@@ -27,7 +27,9 @@ class EntityViewDisplayEditForm extends EntityDisplayFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('plugin.manager.field.field_type'),
-      $container->get('plugin.manager.field.formatter')
+      $container->get('plugin.manager.field.formatter'),
+      $container->get('entity_display.repository'),
+      $container->get('entity_field.manager')
     );
   }
 
@@ -73,8 +75,8 @@ class EntityViewDisplayEditForm extends EntityDisplayFormBase {
     // Insert an empty placeholder for the label column.
     $label = [
       'empty_cell' => [
-        '#markup' => '&nbsp;'
-      ]
+        '#markup' => '&nbsp;',
+      ],
     ];
     $label_position = array_search('plugin', array_keys($extra_field_row));
     $extra_field_row = array_slice($extra_field_row, 0, $label_position, TRUE) + $label + array_slice($extra_field_row, $label_position, count($extra_field_row) - 1, TRUE);
@@ -86,28 +88,28 @@ class EntityViewDisplayEditForm extends EntityDisplayFormBase {
    * {@inheritdoc}
    */
   protected function getEntityDisplay($entity_type_id, $bundle, $mode) {
-    return entity_get_display($entity_type_id, $bundle, $mode);
+    return $this->entityDisplayRepository->getViewDisplay($entity_type_id, $bundle, $mode);
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getDefaultPlugin($field_type) {
-    return isset($this->fieldTypes[$field_type]['default_formatter']) ? $this->fieldTypes[$field_type]['default_formatter'] : NULL;
+    return $this->fieldTypes[$field_type]['default_formatter'] ?? NULL;
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getDisplayModes() {
-    return $this->entityManager->getViewModes($this->entity->getTargetEntityTypeId());
+    return $this->entityDisplayRepository->getViewModes($this->entity->getTargetEntityTypeId());
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getDisplayModeOptions() {
-    return $this->entityManager->getViewModeOptions($this->entity->getTargetEntityTypeId());
+    return $this->entityDisplayRepository->getViewModeOptions($this->entity->getTargetEntityTypeId());
   }
 
   /**
@@ -116,7 +118,7 @@ class EntityViewDisplayEditForm extends EntityDisplayFormBase {
   protected function getDisplayModesLink() {
     return [
       '#type' => 'link',
-      '#title' => t('Manage view modes'),
+      '#title' => $this->t('Manage view modes'),
       '#url' => Url::fromRoute('entity.entity_view_mode.collection'),
     ];
   }
@@ -139,7 +141,7 @@ class EntityViewDisplayEditForm extends EntityDisplayFormBase {
    * {@inheritdoc}
    */
   protected function getOverviewUrl($mode) {
-    $entity_type = $this->entityManager->getDefinition($this->entity->getTargetEntityTypeId());
+    $entity_type = $this->entityTypeManager->getDefinition($this->entity->getTargetEntityTypeId());
     return Url::fromRoute('entity.entity_view_display.' . $this->entity->getTargetEntityTypeId() . '.view_mode', [
       'view_mode_name' => $mode,
     ] + FieldUI::getRouteBundleParameter($entity_type, $this->entity->getTargetBundle()));
@@ -167,15 +169,18 @@ class EntityViewDisplayEditForm extends EntityDisplayFormBase {
     $settings_form = [];
     // Invoke hook_field_formatter_third_party_settings_form(), keying resulting
     // subforms by module name.
-    foreach ($this->moduleHandler->getImplementations('field_formatter_third_party_settings_form') as $module) {
-      $settings_form[$module] = $this->moduleHandler->invoke($module, 'field_formatter_third_party_settings_form', [
-        $plugin,
-        $field_definition,
-        $this->entity->getMode(),
-        $form,
-        $form_state,
-      ]);
-    }
+    $this->moduleHandler->invokeAllWith(
+      'field_formatter_third_party_settings_form',
+      function (callable $hook, string $module) use (&$settings_form, &$plugin, &$field_definition, &$form, &$form_state) {
+        $settings_form[$module] = $hook(
+          $plugin,
+          $field_definition,
+          $this->entity->getMode(),
+          $form,
+          $form_state,
+        );
+      }
+    );
     return $settings_form;
   }
 

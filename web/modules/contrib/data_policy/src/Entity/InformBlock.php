@@ -21,6 +21,14 @@ use Drupal\data_policy\InformBlockInterface;
  *     }
  *   },
  *   config_prefix = "informblock",
+ *   config_export = {
+ *     "id",
+ *     "label",
+ *     "page",
+ *     "status",
+ *     "summary",
+ *     "body",
+ *   },
  *   admin_permission = "administer inform and consent settings",
  *   entity_keys = {
  *     "id" = "id",

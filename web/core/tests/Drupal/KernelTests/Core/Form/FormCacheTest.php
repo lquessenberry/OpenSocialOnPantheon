@@ -21,7 +21,7 @@ class FormCacheTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['system', 'user'];
+  protected static $modules = ['system', 'user'];
 
   /**
    * @var string
@@ -38,9 +38,8 @@ class FormCacheTest extends KernelTestBase {
    */
   protected $formState;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-    $this->installSchema('system', ['key_value_expire']);
 
     $this->formBuildId = $this->randomMachineName();
     $this->form = [
@@ -59,9 +58,9 @@ class FormCacheTest extends KernelTestBase {
 
     $cached_form_state = new FormState();
     $cached_form = \Drupal::formBuilder()->getCache($this->formBuildId, $cached_form_state);
-    $this->assertEqual($this->form['#property'], $cached_form['#property']);
-    $this->assertTrue(!empty($cached_form['#cache_token']), 'Form has a cache token');
-    $this->assertEqual($this->formState->get('example'), $cached_form_state->get('example'));
+    $this->assertEquals($this->form['#property'], $cached_form['#property']);
+    $this->assertNotEmpty($cached_form['#cache_token'], 'Form has a cache token');
+    $this->assertEquals($this->formState->get('example'), $cached_form_state->get('example'));
 
     // Test that the form cache isn't loaded when the session/token has changed.
     // Change the private key. (We cannot change the session ID because this
@@ -69,23 +68,23 @@ class FormCacheTest extends KernelTestBase {
     \Drupal::state()->set('system.private_key', 'invalid');
     $cached_form_state = new FormState();
     $cached_form = \Drupal::formBuilder()->getCache($this->formBuildId, $cached_form_state);
-    $this->assertFalse($cached_form, 'No form returned from cache');
+    $this->assertNull($cached_form, 'No form returned from cache');
     $cached_form_state_example = $cached_form_state->get('example');
-    $this->assertTrue(empty($cached_form_state_example));
+    $this->assertEmpty($cached_form_state_example);
 
     // Test that loading the cache with a different form_id fails.
     $wrong_form_build_id = $this->randomMachineName(9);
     $cached_form_state = new FormState();
-    $this->assertFalse(\Drupal::formBuilder()->getCache($wrong_form_build_id, $cached_form_state), 'No form returned from cache');
+    $this->assertNull(\Drupal::formBuilder()->getCache($wrong_form_build_id, $cached_form_state), 'No form returned from cache');
     $cached_form_state_example = $cached_form_state->get('example');
-    $this->assertTrue(empty($cached_form_state_example), 'Cached form state was not loaded');
+    $this->assertEmpty($cached_form_state_example, 'Cached form state was not loaded');
   }
 
   /**
    * Tests the form cache without a logged-in user.
    */
   public function testNoCacheToken() {
-    // Switch to a anonymous user account.
+    // Switch to an anonymous user account.
     $account_switcher = \Drupal::service('account_switcher');
     $account_switcher->switchTo(new AnonymousUserSession());
 
@@ -94,9 +93,9 @@ class FormCacheTest extends KernelTestBase {
 
     $cached_form_state = new FormState();
     $cached_form = \Drupal::formBuilder()->getCache($this->formBuildId, $cached_form_state);
-    $this->assertEqual($this->form['#property'], $cached_form['#property']);
-    $this->assertTrue(empty($cached_form['#cache_token']), 'Form has no cache token');
-    $this->assertEqual($this->formState->get('example'), $cached_form_state->get('example'));
+    $this->assertEquals($this->form['#property'], $cached_form['#property']);
+    $this->assertArrayNotHasKey('#cache_token', $cached_form, 'Form has no cache token');
+    $this->assertEquals($this->formState->get('example'), $cached_form_state->get('example'));
 
     // Restore user account.
     $account_switcher->switchBack();
@@ -111,7 +110,7 @@ class FormCacheTest extends KernelTestBase {
     \Drupal::formBuilder()->setCache($this->formBuildId, $this->form, $this->formState);
 
     $cached_form_state = new FormState();
-    $this->assertFalse(\Drupal::formBuilder()->getCache($this->formBuildId, $cached_form_state), 'Expired form not returned from cache');
+    $this->assertNull(\Drupal::formBuilder()->getCache($this->formBuildId, $cached_form_state), 'Expired form not returned from cache');
   }
 
 }

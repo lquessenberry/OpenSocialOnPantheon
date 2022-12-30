@@ -2,7 +2,7 @@
   "name": "drupal/bootstrap",
   "description": "Built to use Bootstrap, a sleek, intuitive, and powerful front-end framework for faster and easier web development.",
   "type": "drupal-theme",
-  "license": "GPL-2.0",
+  "license": "GPL-2.0-or-later",
   "homepage": "https://www.drupal.org/project/bootstrap",
   "authors": [
     {
@@ -19,12 +19,20 @@
       "name": "Fabiano Sant'Ana (wundo)",
       "homepage": "https://www.drupal.org/u/wundo",
       "role": "Co-maintainer"
-    }
+    },
+      {
+          "name": "Shelane French (shelane)",
+          "homepage": "https://www.drupal.org/u/shelane",
+          "role": "Co-maintainer"
+      }
   ],
   "support": {
     "docs": "https://drupal-bootstrap.org",
     "issues": "https://www.drupal.org/project/issues/bootstrap",
     "irc": "irc://irc.freenode.org/drupal-bootstrap",
-    "source": "http://cgit.drupalcode.org/bootstrap"
+    "source": "https://git.drupalcode.org/project/bootstrap"
+  },
+  "require": {
+    "drupal/core": "^9.3 || ^10"
   }
 }

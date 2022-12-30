@@ -2,8 +2,8 @@
 
 namespace Drupal\Core\StreamWrapper;
 
-use Drupal\Core\Routing\UrlGeneratorTrait;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\Url;
 
 /**
  * Drupal private (private://) stream wrapper class.
@@ -12,8 +12,6 @@ use Drupal\Core\Site\Settings;
  * interface.
  */
 class PrivateStream extends LocalStream {
-
-  use UrlGeneratorTrait;
 
   /**
    * {@inheritdoc}
@@ -48,7 +46,7 @@ class PrivateStream extends LocalStream {
    */
   public function getExternalUrl() {
     $path = str_replace('\\', '/', $this->getTarget());
-    return $this->url('system.private_file_download', ['filepath' => $path], ['absolute' => TRUE, 'path_processing' => FALSE]);
+    return Url::fromRoute('system.private_file_download', ['filepath' => $path], ['absolute' => TRUE, 'path_processing' => FALSE])->toString();
   }
 
   /**
@@ -58,8 +56,9 @@ class PrivateStream extends LocalStream {
    * so you should alter that form or substitute a different form if you change
    * the class providing the stream_wrapper.private service.
    *
-   * @return string
-   *   The base path for private://.
+   * @return string|null
+   *   The base path for private://. NULL means the private directory is not
+   *   set.
    */
   public static function basePath() {
     return Settings::get('file_private_path');

@@ -3,6 +3,7 @@
 namespace Drupal\group\Plugin\Block;
 
 use Drupal\Core\Block\BlockBase;
+use Drupal\Core\Cache\CacheableMetadata;
 
 /**
  * Provides a block with operations the user can perform on a group.
@@ -10,7 +11,7 @@ use Drupal\Core\Block\BlockBase;
  * @Block(
  *   id = "group_operations",
  *   admin_label = @Translation("Group operations"),
- *   context = {
+ *   context_definitions = {
  *     "group" = @ContextDefinition("entity:group", required = FALSE)
  *   }
  * )
@@ -21,31 +22,26 @@ class GroupOperationsBlock extends BlockBase {
    * {@inheritdoc}
    */
   public function build() {
-    // This block varies per group type and per current user's group membership
-    // permissions. Different group types could have different content plugins
-    // enabled, influencing which group operations are available to them. The
-    // active user's group permissions define which actions are accessible.
-    //
-    // We do not need to specify the current user or group as cache contexts
-    // because, in essence, a group membership is a union of both.
-    $build['#cache']['contexts'] = ['group.type', 'group_membership.roles.permissions'];
+    $build = [];
 
-    // Of special note is the cache context 'group_membership.audience'. Where
-    // the above cache contexts should suffice if everything is ran through the
-    // permission system, group operations are an exception. Some operations
-    // such as 'join' and 'leave' not only check for a permission, but also the
-    // audience the user belongs to. I.e.: whether they're a 'member', an
-    // 'outsider' or 'anonymous'.
-    $build['#cache']['contexts'][] = 'group_membership.audience';
+    // The operations available in this block vary per the current user's group
+    // permissions. It obviously also varies per group, but we cannot know for
+    // sure how we got that group as it is up to the context provider to
+    // implement that. This block will then inherit the appropriate cacheable
+    // metadata from the context, as set by the context provider.
+    $cacheable_metadata = new CacheableMetadata();
+    $cacheable_metadata->setCacheContexts(['user.group_permissions']);
 
     /** @var \Drupal\group\Entity\GroupInterface $group */
     if (($group = $this->getContextValue('group')) && $group->id()) {
       $links = [];
 
-      // Retrieve the operations from the installed content plugins.
+      // Retrieve the operations and cacheable metadata from the installed
+      // content plugins.
       foreach ($group->getGroupType()->getInstalledContentPlugins() as $plugin) {
         /** @var \Drupal\group\Plugin\GroupContentEnablerInterface $plugin */
         $links += $plugin->getGroupOperations($group);
+        $cacheable_metadata = $cacheable_metadata->merge($plugin->getGroupOperationsCacheableMetadata());
       }
 
       if ($links) {
@@ -57,13 +53,13 @@ class GroupOperationsBlock extends BlockBase {
 
         // Create an operations element with all of the links.
         $build['#type'] = 'operations';
-        // @todo We should have operation links provide cacheable metadata that
-        // we could then merge in here.
         $build['#links'] = $links;
       }
     }
 
-    // If no group was found, cache the empty result on the route.
+    // Set the cacheable metadata on the build.
+    $cacheable_metadata->applyTo($build);
+
     return $build;
   }
 

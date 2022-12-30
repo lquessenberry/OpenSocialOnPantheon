@@ -1,0 +1,8 @@
+name: 'Social Event Invite Enrolments'
+description: 'Provides ability to invite enroll to an event.'
+type: module
+core_version_requirement: ^9
+package: Social
+dependencies:
+  - social:social_event
+  - social:social_event_managers

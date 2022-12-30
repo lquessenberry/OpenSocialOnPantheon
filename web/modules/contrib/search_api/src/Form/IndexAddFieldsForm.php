@@ -10,6 +10,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\TypedData\EntityDataDefinitionInterface;
 use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\TypedData\ComplexDataDefinitionInterface;
 use Drupal\Core\TypedData\DataReferenceDefinitionInterface;
@@ -75,24 +76,17 @@ class IndexAddFieldsForm extends EntityForm {
   protected $formIdAttribute;
 
   /**
-   * {@inheritdoc}
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
    */
-  public function getFormId() {
-    return 'search_api_index_add_fields';
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getBaseFormId() {
-    return NULL;
-  }
+  protected $messenger;
 
   /**
    * Constructs an IndexAddFieldsForm object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity manager.
+   *   The entity type manager.
    * @param \Drupal\search_api\Utility\FieldsHelperInterface $fields_helper
    *   The fields helper.
    * @param \Drupal\search_api\Utility\DataTypeHelperInterface $data_type_helper
@@ -101,15 +95,18 @@ class IndexAddFieldsForm extends EntityForm {
    *   The renderer to use.
    * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
    *   The date formatter.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
    * @param array $parameters
    *   The parameters for this page request.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, FieldsHelperInterface $fields_helper, DataTypeHelperInterface $data_type_helper, RendererInterface $renderer, DateFormatterInterface $date_formatter, array $parameters) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, FieldsHelperInterface $fields_helper, DataTypeHelperInterface $data_type_helper, RendererInterface $renderer, DateFormatterInterface $date_formatter, MessengerInterface $messenger, array $parameters) {
     $this->entityTypeManager = $entity_type_manager;
     $this->fieldsHelper = $fields_helper;
     $this->dataTypeHelper = $data_type_helper;
     $this->renderer = $renderer;
     $this->dateFormatter = $date_formatter;
+    $this->messenger = $messenger;
     $this->parameters = $parameters;
   }
 
@@ -123,9 +120,24 @@ class IndexAddFieldsForm extends EntityForm {
     $renderer = $container->get('renderer');
     $date_formatter = $container->get('date.formatter');
     $request_stack = $container->get('request_stack');
+    $messenger = $container->get('messenger');
     $parameters = $request_stack->getCurrentRequest()->query->all();
 
-    return new static($entity_type_manager, $fields_helper, $data_type_helper, $renderer, $date_formatter, $parameters);
+    return new static($entity_type_manager, $fields_helper, $data_type_helper, $renderer, $date_formatter, $messenger, $parameters);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getBaseFormId() {
+    return NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFormId() {
+    return 'search_api_index_add_fields';
   }
 
   /**
@@ -140,7 +152,7 @@ class IndexAddFieldsForm extends EntityForm {
    *   The parameter value.
    */
   public function getParameter($name, $default = NULL) {
-    return isset($this->parameters[$name]) ? $this->parameters[$name] : $default;
+    return $this->parameters[$name] ?? $default;
   }
 
   /**
@@ -307,6 +319,15 @@ class IndexAddFieldsForm extends EntityForm {
             }
           }
         }
+
+        // Remove hidden properties right away so we don't even show a "+" link
+        // in case all sub-properties are hidden.
+        foreach ($nested_properties as $nested_key => $nested_property) {
+          if ($nested_property instanceof ProcessorPropertyInterface
+              && $nested_property->isHidden()) {
+            unset($nested_properties[$nested_key]);
+          }
+        }
       }
 
       // Don't allow indexing of properties with unmapped types. Also, prefer
@@ -345,6 +366,7 @@ class IndexAddFieldsForm extends EntityForm {
           $item['expand_link'] = [
             '#type' => 'link',
             '#title' => '(-) ',
+            '#attributes' => ['data-disable-refocus' => ['true']],
             '#url' => $link_url,
             '#ajax' => [
               'wrapper' => $this->formIdAttribute,
@@ -360,6 +382,7 @@ class IndexAddFieldsForm extends EntityForm {
           $item['expand_link'] = [
             '#type' => 'link',
             '#title' => '(+) ',
+            '#attributes' => ['data-disable-refocus' => ['true']],
             '#url' => $link_url,
             '#ajax' => [
               'wrapper' => $this->formIdAttribute,
@@ -379,6 +402,7 @@ class IndexAddFieldsForm extends EntityForm {
           '#name' => Utility::createCombinedId($datasource_id, $this_path),
           '#value' => $this->t('Add'),
           '#submit' => ['::addField', '::save'],
+          '#attributes' => ['data-disable-refocus' => ['true']],
           '#property' => $property,
           '#prefixed_label' => $label_prefix . $label,
           '#data_type' => $type_mapping[$type],
@@ -480,7 +504,7 @@ class IndexAddFieldsForm extends EntityForm {
     }
 
     $args['%label'] = $field->getLabel();
-    drupal_set_message($this->t('Field %label was added to the index.', $args));
+    $this->messenger->addStatus($this->t('Field %label was added to the index.', $args));
   }
 
 }

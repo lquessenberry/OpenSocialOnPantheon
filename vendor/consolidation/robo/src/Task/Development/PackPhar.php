@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Task\Development;
 
 use Robo\Contract\ProgressIndicatorAwareInterface;
@@ -129,7 +130,7 @@ EOF;
     {
         // run() will call advanceProgressIndicator() once for each
         // file, one after calling stopBuffering, and again after compression.
-        return count($this->files)+2;
+        return count($this->files) + 2;
     }
 
     /**
@@ -232,8 +233,12 @@ EOF;
             if (is_string($token)) {
                 $output .= $token;
             } elseif (in_array($token[0], array(T_COMMENT, T_DOC_COMMENT))) {
-                // $output .= $token[1];
-                $output .= str_repeat("\n", substr_count($token[1], "\n"));
+                if (substr($token[1], 0, 2) === '#[') {
+                    // Don't strip annotations
+                    $output .= $token[1];
+                } else {
+                    $output .= str_repeat("\n", substr_count($token[1], "\n"));
+                }
             } elseif (T_WHITESPACE === $token[0]) {
                 // reduce wide spaces
                 $whitespace = preg_replace('{[ \t]+}', ' ', $token[1]);

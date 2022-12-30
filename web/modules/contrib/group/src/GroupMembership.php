@@ -88,12 +88,7 @@ class GroupMembership implements CacheableDependencyInterface {
    *   Whether the member has the requested permission.
    */
   public function hasPermission($permission) {
-    foreach ($this->getRoles() as $group_role) {
-      if ($group_role->hasPermission($permission)) {
-        return TRUE;
-      }
-    }
-    return FALSE;
+    return $this->groupPermissionChecker()->hasPermissionInGroup($permission, $this->getUser(), $this->getGroup());
   }
 
   /**
@@ -115,6 +110,15 @@ class GroupMembership implements CacheableDependencyInterface {
    */
   public function getCacheMaxAge() {
     return $this->getGroupContent()->getCacheMaxAge();
+  }
+
+  /**
+   * Gets the group permission checker.
+   *
+   * @return \Drupal\group\Access\GroupPermissionCheckerInterface
+   */
+  protected function groupPermissionChecker() {
+    return \Drupal::service('group_permission.checker');
   }
 
 }

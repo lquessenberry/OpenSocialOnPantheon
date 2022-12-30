@@ -4,12 +4,14 @@ namespace Drupal\Core\Condition;
 
 use Drupal\Component\Plugin\CategorizingPluginManagerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Executable\ExecutableException;
 use Drupal\Core\Executable\ExecutableManagerInterface;
 use Drupal\Core\Executable\ExecutableInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\CategorizingPluginManagerTrait;
-use Drupal\Core\Plugin\Context\ContextAwarePluginManagerTrait;
 use Drupal\Core\Plugin\DefaultPluginManager;
+use Drupal\Core\Plugin\FilteredPluginManagerInterface;
+use Drupal\Core\Plugin\FilteredPluginManagerTrait;
 
 /**
  * A plugin manager for condition plugins.
@@ -20,10 +22,10 @@ use Drupal\Core\Plugin\DefaultPluginManager;
  *
  * @ingroup plugin_api
  */
-class ConditionManager extends DefaultPluginManager implements ExecutableManagerInterface, CategorizingPluginManagerInterface {
+class ConditionManager extends DefaultPluginManager implements ExecutableManagerInterface, CategorizingPluginManagerInterface, FilteredPluginManagerInterface {
 
   use CategorizingPluginManagerTrait;
-  use ContextAwarePluginManagerTrait;
+  use FilteredPluginManagerTrait;
 
   /**
    * Constructs a ConditionManager object.
@@ -46,11 +48,19 @@ class ConditionManager extends DefaultPluginManager implements ExecutableManager
   /**
    * {@inheritdoc}
    */
+  protected function getType() {
+    return 'condition';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function createInstance($plugin_id, array $configuration = []) {
     $plugin = $this->getFactory()->createInstance($plugin_id, $configuration);
 
     // If we receive any context values via config set it into the plugin.
     if (!empty($configuration['context'])) {
+      @trigger_error('Passing context values to plugins via configuration is deprecated in drupal:9.1.0 and will be removed before drupal:10.0.0. Instead, call ::setContextValue() on the plugin itself. See https://www.drupal.org/node/3120980', E_USER_DEPRECATED);
       foreach ($configuration['context'] as $name => $context) {
         $plugin->setContextValue($name, $context);
       }
@@ -63,8 +73,11 @@ class ConditionManager extends DefaultPluginManager implements ExecutableManager
    * {@inheritdoc}
    */
   public function execute(ExecutableInterface $condition) {
-    $result = $condition->evaluate();
-    return $condition->isNegated() ? !$result : $result;
+    if ($condition instanceof ConditionInterface) {
+      $result = $condition->evaluate();
+      return $condition->isNegated() ? !$result : $result;
+    }
+    throw new ExecutableException("This manager object can only execute condition plugins");
   }
 
 }

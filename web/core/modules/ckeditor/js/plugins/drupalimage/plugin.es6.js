@@ -14,6 +14,82 @@
  */
 
 (function ($, Drupal, CKEDITOR) {
+  /**
+   * Gets the focused widget, if of the type specific for this plugin.
+   *
+   * @param {CKEDITOR.editor} editor
+   *   A CKEditor instance.
+   *
+   * @return {?CKEDITOR.plugins.widget}
+   *   The focused image2 widget instance, or null.
+   */
+  function getFocusedWidget(editor) {
+    const widget = editor.widgets.focused;
+
+    if (widget && widget.name === 'image') {
+      return widget;
+    }
+
+    return null;
+  }
+
+  /**
+   * Integrates the drupalimage widget with the drupallink plugin.
+   *
+   * Makes images linkable.
+   *
+   * @param {CKEDITOR.editor} editor
+   *   A CKEditor instance.
+   */
+  function linkCommandIntegrator(editor) {
+    // Nothing to integrate with if the drupallink plugin is not loaded.
+    if (!editor.plugins.drupallink) {
+      return;
+    }
+
+    CKEDITOR.plugins.drupallink.registerLinkableWidget('image');
+
+    // Override default behavior of 'drupalunlink' command.
+    editor.getCommand('drupalunlink').on('exec', function (evt) {
+      const widget = getFocusedWidget(editor);
+
+      // Override 'drupalunlink' only when link truly belongs to the widget. If
+      // wrapped inline widget in a link, let default unlink work.
+      // @see https://dev.ckeditor.com/ticket/11814
+      if (!widget || !widget.parts.link) {
+        return;
+      }
+
+      widget.setData('link', null);
+
+      // Selection (which is fake) may not change if unlinked image in focused
+      // widget, i.e. if captioned image. Let's refresh command state manually
+      // here.
+      this.refresh(editor, editor.elementPath());
+
+      evt.cancel();
+    });
+
+    // Override default refresh of 'drupalunlink' command.
+    editor.getCommand('drupalunlink').on('refresh', function (evt) {
+      const widget = getFocusedWidget(editor);
+
+      if (!widget) {
+        return;
+      }
+
+      // Note that widget may be wrapped in a link, which
+      // does not belong to that widget (#11814).
+      this.setState(
+        widget.data.link || widget.wrapper.getAscendant('a')
+          ? CKEDITOR.TRISTATE_OFF
+          : CKEDITOR.TRISTATE_DISABLED,
+      );
+
+      evt.cancel();
+    });
+  }
+
   CKEDITOR.plugins.add('drupalimage', {
     requires: 'image2',
     icons: 'drupalimage',
@@ -65,19 +141,26 @@
         // CKEDITOR.style is an immutable object: we cannot modify its
         // definition to extend requiredContent. Hence we get the definition,
         // modify it, and pass it to a new CKEDITOR.style instance.
-        const requiredContent = widgetDefinition.requiredContent.getDefinition();
+        const requiredContent =
+          widgetDefinition.requiredContent.getDefinition();
         requiredContent.attributes['data-entity-type'] = '';
         requiredContent.attributes['data-entity-uuid'] = '';
         widgetDefinition.requiredContent = new CKEDITOR.style(requiredContent);
-        widgetDefinition.allowedContent.img.attributes['!data-entity-type'] = true;
-        widgetDefinition.allowedContent.img.attributes['!data-entity-uuid'] = true;
+        widgetDefinition.allowedContent.img.attributes[
+          '!data-entity-type'
+        ] = true;
+        widgetDefinition.allowedContent.img.attributes[
+          '!data-entity-uuid'
+        ] = true;
 
         // Override downcast(): since we only accept <img> in our upcast method,
         // the element is already correct. We only need to update the element's
         // data-entity-uuid attribute.
         widgetDefinition.downcast = function (element) {
-          element.attributes['data-entity-type'] = this.data['data-entity-type'];
-          element.attributes['data-entity-uuid'] = this.data['data-entity-uuid'];
+          element.attributes['data-entity-type'] =
+            this.data['data-entity-type'];
+          element.attributes['data-entity-uuid'] =
+            this.data['data-entity-uuid'];
         };
 
         // We want to upcast <img> elements to a DOM structure required by the
@@ -88,7 +171,7 @@
             return;
           }
           // Don't initialize on pasted fake objects.
-          else if (element.attributes['data-cke-realelement']) {
+          if (element.attributes['data-cke-realelement']) {
             return;
           }
 
@@ -113,7 +196,9 @@
         const originalGetClasses = widgetDefinition.getClasses;
         widgetDefinition.getClasses = function () {
           const classes = originalGetClasses.call(this);
-          const captionedClasses = (this.editor.config.image2_captionedClass || '').split(/\s+/);
+          const captionedClasses = (
+            this.editor.config.image2_captionedClass || ''
+          ).split(/\s+/);
 
           if (captionedClasses.length && classes) {
             for (let i = 0; i < captionedClasses.length; i++) {
@@ -181,7 +266,9 @@
             // Set the updated widget data, after the necessary conversions from
             // the dialog's return values.
             // Note: on widget#setData this widget instance might be destroyed.
-            const data = widgetDefinition._dialogValuesToData(dialogReturnValues.attributes);
+            const data = widgetDefinition._dialogValuesToData(
+              dialogReturnValues.attributes,
+            );
             widget.setData(data);
 
             // Retrieve the widget once again. It could've been destroyed
@@ -215,7 +302,13 @@
           // discovered.
           // @see plugins/image2/plugin.js/init() in CKEditor; this is similar.
           if (this.parts.link) {
-            this.setData('link', CKEDITOR.plugins.image2.getLinkAttributesParser()(editor, this.parts.link));
+            this.setData(
+              'link',
+              CKEDITOR.plugins.image2.getLinkAttributesParser()(
+                editor,
+                this.parts.link,
+              ),
+            );
           }
         };
       });
@@ -239,11 +332,16 @@
           // Open drupalimage dialog.
           editor.execCommand('editdrupalimage', {
             existingValues: widget.definition._dataToDialogValues(widget.data),
-            saveCallback: widget.definition._createDialogSaveCallback(editor, widget),
+            saveCallback: widget.definition._createDialogSaveCallback(
+              editor,
+              widget,
+            ),
             // Drupal.t() will not work inside CKEditor plugins because CKEditor
             // loads the JavaScript file instead of Drupal. Pull translated
             // strings from the plugin settings that are translated server-side.
-            dialogTitle: widget.data.src ? editor.config.drupalImage_dialogTitleEdit : editor.config.drupalImage_dialogTitleAdd,
+            dialogTitle: widget.data.src
+              ? editor.config.drupalImage_dialogTitleEdit
+              : editor.config.drupalImage_dialogTitleAdd,
           });
         });
       });
@@ -251,7 +349,8 @@
       // Register the "editdrupalimage" command, which essentially just replaces
       // the "image" command's CKEditor dialog with a Drupal-native dialog.
       editor.addCommand('editdrupalimage', {
-        allowedContent: 'img[alt,!src,width,height,!data-entity-type,!data-entity-uuid]',
+        allowedContent:
+          'img[alt,!src,width,height,!data-entity-type,!data-entity-uuid]',
         requiredContent: 'img[alt,src,data-entity-type,data-entity-uuid]',
         modes: { wysiwyg: 1 },
         canUndo: true,
@@ -260,7 +359,13 @@
             title: data.dialogTitle,
             dialogClass: 'editor-image-dialog',
           };
-          Drupal.ckeditor.openDialog(editor, Drupal.url(`editor/dialog/image/${editor.config.drupal.format}`), data.existingValues, data.saveCallback, dialogSettings);
+          Drupal.ckeditor.openDialog(
+            editor,
+            Drupal.url(`editor/dialog/image/${editor.config.drupal.format}`),
+            data.existingValues,
+            data.saveCallback,
+            dialogSettings,
+          );
         },
       });
 
@@ -277,7 +382,6 @@
     afterInit(editor) {
       linkCommandIntegrator(editor);
     },
-
   });
 
   // Override image2's integration with the official CKEditor link plugin:
@@ -289,79 +393,8 @@
     return CKEDITOR.plugins.drupallink.getLinkAttributes;
   };
 
-  /**
-   * Integrates the drupalimage widget with the drupallink plugin.
-   *
-   * Makes images linkable.
-   *
-   * @param {CKEDITOR.editor} editor
-   *   A CKEditor instance.
-   */
-  function linkCommandIntegrator(editor) {
-    // Nothing to integrate with if the drupallink plugin is not loaded.
-    if (!editor.plugins.drupallink) {
-      return;
-    }
-
-    // Override default behaviour of 'drupalunlink' command.
-    editor.getCommand('drupalunlink').on('exec', function (evt) {
-      const widget = getFocusedWidget(editor);
-
-      // Override 'drupalunlink' only when link truly belongs to the widget. If
-      // wrapped inline widget in a link, let default unlink work.
-      // @see https://dev.ckeditor.com/ticket/11814
-      if (!widget || !widget.parts.link) {
-        return;
-      }
-
-      widget.setData('link', null);
-
-      // Selection (which is fake) may not change if unlinked image in focused
-      // widget, i.e. if captioned image. Let's refresh command state manually
-      // here.
-      this.refresh(editor, editor.elementPath());
-
-      evt.cancel();
-    });
-
-    // Override default refresh of 'drupalunlink' command.
-    editor.getCommand('drupalunlink').on('refresh', function (evt) {
-      const widget = getFocusedWidget(editor);
-
-      if (!widget) {
-        return;
-      }
-
-      // Note that widget may be wrapped in a link, which
-      // does not belong to that widget (#11814).
-      this.setState(widget.data.link || widget.wrapper.getAscendant('a') ?
-        CKEDITOR.TRISTATE_OFF : CKEDITOR.TRISTATE_DISABLED);
-
-      evt.cancel();
-    });
-  }
-
-  /**
-   * Gets the focused widget, if of the type specific for this plugin.
-   *
-   * @param {CKEDITOR.editor} editor
-   *   A CKEditor instance.
-   *
-   * @return {?CKEDITOR.plugins.widget}
-   *   The focused image2 widget instance, or null.
-   */
-  function getFocusedWidget(editor) {
-    const widget = editor.widgets.focused;
-
-    if (widget && widget.name === 'image') {
-      return widget;
-    }
-
-    return null;
-  }
-
   // Expose an API for other plugins to interact with drupalimage widgets.
   CKEDITOR.plugins.drupalimage = {
     getFocusedWidget,
   };
-}(jQuery, Drupal, CKEDITOR));
+})(jQuery, Drupal, CKEDITOR);

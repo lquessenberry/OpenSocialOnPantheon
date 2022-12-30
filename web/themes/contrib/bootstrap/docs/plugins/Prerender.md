@@ -33,7 +33,7 @@ $build['my_button'] = [
 Replace all following instances of `THEMENAME` with the actual machine name of
 your sub-theme.
 
-Create a file at `./THEMENAME/src/Plugin/Prerender/Link.php` with the
+Create a file at `./themes/THEMENAME/src/Plugin/Prerender/Link.php` with the
 following contents:
 
 ```php

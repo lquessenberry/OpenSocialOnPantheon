@@ -171,10 +171,10 @@ class CropTypeForm extends EntityForm {
     $t_args = ['%name' => $type->label()];
 
     if ($status == SAVED_UPDATED) {
-      drupal_set_message($this->t('The crop type %name has been updated.', $t_args));
+      $this->messenger()->addMessage($this->t('The crop type %name has been updated.', $t_args));
     }
     elseif ($status == SAVED_NEW) {
-      drupal_set_message($this->t('The crop type %name has been added.', $t_args));
+      $this->messenger()->addMessage($this->t('The crop type %name has been added.', $t_args));
       $context = array_merge($t_args, ['link' => Link::createFromRoute($this->t('View'), 'crop.overview_types')->toString()]);
       $this->logger('crop')->notice('Added crop type %name.', $context);
     }

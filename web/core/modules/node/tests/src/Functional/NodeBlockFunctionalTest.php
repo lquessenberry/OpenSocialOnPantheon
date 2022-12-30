@@ -3,7 +3,9 @@
 namespace Drupal\Tests\node\Functional;
 
 use Drupal\block\Entity\Block;
+use Drupal\Core\Database\Database;
 use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
+use Drupal\Core\Url;
 use Drupal\Tests\system\Functional\Cache\AssertPageCacheContextsAndTagsTrait;
 use Drupal\user\RoleInterface;
 
@@ -15,6 +17,11 @@ use Drupal\user\RoleInterface;
 class NodeBlockFunctionalTest extends NodeTestBase {
 
   use AssertPageCacheContextsAndTagsTrait;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * An administrative user for testing.
@@ -35,14 +42,23 @@ class NodeBlockFunctionalTest extends NodeTestBase {
    *
    * @var array
    */
-  public static $modules = ['block', 'views'];
+  protected static $modules = ['block', 'views', 'node_block_test'];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Create users and test node.
-    $this->adminUser = $this->drupalCreateUser(['administer content types', 'administer nodes', 'administer blocks', 'access content overview']);
-    $this->webUser = $this->drupalCreateUser(['access content', 'create article content']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer content types',
+      'administer nodes',
+      'bypass node access',
+      'administer blocks',
+      'access content overview',
+    ]);
+    $this->webUser = $this->drupalCreateUser([
+      'access content',
+      'create article content',
+    ]);
   }
 
   /**
@@ -61,7 +77,7 @@ class NodeBlockFunctionalTest extends NodeTestBase {
 
     // Test that block is not visible without nodes.
     $this->drupalGet('');
-    $this->assertText(t('No content available.'), 'Block with "No content available." found.');
+    $this->assertSession()->pageTextContains('No content available.');
 
     // Add some test nodes.
     $default_settings = ['uid' => $this->webUser->id(), 'type' => 'article'];
@@ -69,14 +85,21 @@ class NodeBlockFunctionalTest extends NodeTestBase {
     $node2 = $this->drupalCreateNode($default_settings);
     $node3 = $this->drupalCreateNode($default_settings);
 
+    // Create a second revision of node1.
+    $node1_revision_1 = $node1;
+    $node1->setNewRevision(TRUE);
+    $node1->setTitle('Node revision 2 title');
+    $node1->save();
+
+    $connection = Database::getConnection();
     // Change the changed time for node so that we can test ordering.
-    db_update('node_field_data')
+    $connection->update('node_field_data')
       ->fields([
         'changed' => $node1->getChangedTime() + 100,
       ])
       ->condition('nid', $node2->id())
       ->execute();
-    db_update('node_field_data')
+    $connection->update('node_field_data')
       ->fields([
         'changed' => $node1->getChangedTime() + 200,
       ])
@@ -87,16 +110,16 @@ class NodeBlockFunctionalTest extends NodeTestBase {
     // see the block.
     $this->drupalLogout();
     $this->drupalGet('');
-    $this->assertNoText($block->label(), 'Block was not found.');
+    $this->assertSession()->pageTextNotContains($block->label());
 
     // Test that only the 2 latest nodes are shown.
     $this->drupalLogin($this->webUser);
-    $this->assertNoText($node1->label(), 'Node not found in block.');
-    $this->assertText($node2->label(), 'Node found in block.');
-    $this->assertText($node3->label(), 'Node found in block.');
+    $this->assertSession()->pageTextNotContains($node1->label());
+    $this->assertSession()->pageTextContains($node2->label());
+    $this->assertSession()->pageTextContains($node3->label());
 
     // Check to make sure nodes are in the right order.
-    $this->assertTrue($this->xpath('//div[@id="block-test-block"]//div[@class="item-list"]/ul/li[1]/div/span/a[text() = "' . $node3->label() . '"]'), 'Nodes were ordered correctly in block.');
+    $this->assertSession()->elementExists('xpath', '//div[@id="block-test-block"]//div[@class="item-list"]/ul/li[1]/div/span/a[text() = "' . $node3->label() . '"]');
 
     $this->drupalLogout();
     $this->drupalLogin($this->adminUser);
@@ -110,25 +133,28 @@ class NodeBlockFunctionalTest extends NodeTestBase {
 
     // Test that all four nodes are shown.
     $this->drupalGet('');
-    $this->assertText($node1->label(), 'Node found in block.');
-    $this->assertText($node2->label(), 'Node found in block.');
-    $this->assertText($node3->label(), 'Node found in block.');
-    $this->assertText($node4->label(), 'Node found in block.');
+    $this->assertSession()->pageTextContains($node1->label());
+    $this->assertSession()->pageTextContains($node2->label());
+    $this->assertSession()->pageTextContains($node3->label());
+    $this->assertSession()->pageTextContains($node4->label());
 
-    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'user']);
+    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'url.site', 'user']);
 
     // Enable the "Powered by Drupal" block only on article nodes.
+    $theme = \Drupal::service('theme_handler')->getDefault();
+    $this->drupalGet("admin/structure/block/add/system_powered_by_block/{$theme}");
+    $this->assertSession()->pageTextContains('Content type');
+    $this->assertSession()->pageTextNotContains('Content types (Deprecated)');
     $edit = [
       'id' => strtolower($this->randomMachineName()),
       'region' => 'sidebar_first',
-      'visibility[node_type][bundles][article]' => 'article',
+      'visibility[entity_bundle:node][bundles][article]' => 'article',
     ];
-    $theme = \Drupal::service('theme_handler')->getDefault();
-    $this->drupalPostForm("admin/structure/block/add/system_powered_by_block/$theme", $edit, t('Save block'));
+    $this->submitForm($edit, 'Save block');
 
     $block = Block::load($edit['id']);
     $visibility = $block->getVisibility();
-    $this->assertTrue(isset($visibility['node_type']['bundles']['article']), 'Visibility settings were saved to configuration');
+    $this->assertTrue(isset($visibility['entity_bundle:node']['bundles']['article']), 'Visibility settings were saved to configuration');
 
     // Create a page node.
     $node5 = $this->drupalCreateNode(['uid' => $this->adminUser->id(), 'type' => 'page']);
@@ -139,22 +165,102 @@ class NodeBlockFunctionalTest extends NodeTestBase {
     // Verify visibility rules.
     $this->drupalGet('');
     $label = $block->label();
-    $this->assertNoText($label, 'Block was not displayed on the front page.');
-    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'user', 'route']);
+    // Check that block is not displayed on the front page.
+    $this->assertSession()->pageTextNotContains($label);
+    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'url.site', 'user', 'route']);
+
+    // Ensure that a page that does not have a node context can still be cached,
+    // the front page is the user page which is already cached from the login
+    // request above.
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Dynamic-Cache', 'HIT');
+
     $this->drupalGet('node/add/article');
-    $this->assertText($label, 'Block was displayed on the node/add/article page.');
+    // Check that block is displayed on the add article page.
+    $this->assertSession()->pageTextContains($label);
     $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'session', 'theme', 'url.path', 'url.query_args', 'user', 'route']);
+
+    // The node/add/article page is an admin path and currently uncacheable.
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Dynamic-Cache', 'UNCACHEABLE');
+
     $this->drupalGet('node/' . $node1->id());
-    $this->assertText($label, 'Block was displayed on the node/N when node is of type article.');
-    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'user', 'route', 'timezone']);
+    // Check that block is displayed on the node page when node is of type
+    // 'article'.
+    $this->assertSession()->pageTextContains($label);
+    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'url.site', 'user', 'route', 'timezone']);
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Dynamic-Cache', 'MISS');
+    $this->drupalGet('node/' . $node1->id());
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Dynamic-Cache', 'HIT');
+
     $this->drupalGet('node/' . $node5->id());
-    $this->assertNoText($label, 'Block was not displayed on nodes of type page.');
-    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'user', 'route', 'timezone']);
+    // Check that block is not displayed on the node page when node is of type
+    // 'page'.
+    $this->assertSession()->pageTextNotContains($label);
+    $this->assertCacheContexts(['languages:language_content', 'languages:language_interface', 'theme', 'url.query_args:' . MainContentViewSubscriber::WRAPPER_FORMAT, 'url.site', 'user', 'route', 'timezone']);
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Dynamic-Cache', 'MISS');
+    $this->drupalGet('node/' . $node5->id());
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Dynamic-Cache', 'HIT');
+
+    // Place a block to determine which revision is provided as context
+    // to blocks.
+    $this->drupalPlaceBlock('node_block_test_context', [
+      'context_mapping' => ['node' => '@node.node_route_context:node'],
+    ]);
 
     $this->drupalLogin($this->adminUser);
+
+    $this->drupalGet('node/' . $node1->id());
+    $this->assertSession()->pageTextContains($label);
+    $this->assertSession()->pageTextContains('Displaying node #' . $node1->id() . ', revision #' . $node1->getRevisionId() . ': Node revision 2 title');
+
+    // Assert that the preview page displays the block as well.
+    $this->drupalGet('node/' . $node1->id() . '/edit');
+    $this->submitForm([], 'Preview');
+    $this->assertSession()->pageTextContains($label);
+    // The previewed node object has no revision ID.
+    $this->assertSession()->pageTextContains('Displaying node #' . $node1->id() . ', revision #: Node revision 2 title');
+
+    // Assert that the revision page for both revisions displays the block.
+    $this->drupalGet(Url::fromRoute('entity.node.revision', ['node' => $node1->id(), 'node_revision' => $node1_revision_1->getRevisionId()]));
+    $this->assertSession()->pageTextContains($label);
+    $this->assertSession()->pageTextContains('Displaying node #' . $node1->id() . ', revision #' . $node1_revision_1->getRevisionId() . ': ' . $node1_revision_1->label());
+
+    $this->drupalGet(Url::fromRoute('entity.node.revision', ['node' => $node1->id(), 'node_revision' => $node1->getRevisionId()]));
+    $this->assertSession()->pageTextContains($label);
+    $this->assertSession()->pageTextContains('Displaying node #' . $node1->id() . ', revision #' . $node1->getRevisionId() . ': Node revision 2 title');
+
     $this->drupalGet('admin/structure/block');
-    $this->assertText($label, 'Block was displayed on the admin/structure/block page.');
-    $this->assertLinkByHref($block->url());
+    // Check that block is displayed on the admin/structure/block page.
+    $this->assertSession()->pageTextContains($label);
+    $this->assertSession()->linkByHrefExists($block->toUrl()->toString());
+  }
+
+  /**
+   * Tests customization of deprecated node type condition.
+   *
+   * @group legacy
+   */
+  public function testDeprecatedNodeTypeCondition() {
+    $this->expectDeprecation('\Drupal\node\Plugin\Condition\NodeType is deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use \Drupal\Core\Entity\Plugin\Condition\EntityBundle instead. See https://www.drupal.org/node/2983299');
+    $this->expectDeprecation("The 'condition.plugin.node_type' config schema is deprecated in drupal:9.3.0 and is removed from drupal 10.0.0. Use the 'entity_bundle:node_type' key instead to define a node type condition. See https://www.drupal.org/node/2983299.");
+    $this->drupalLogin($this->adminUser);
+    $this->drupalPlaceBlock('system_powered_by_block', [
+      'id' => 'powered_by_deprecated',
+      'visibility' => [
+        'node_type' => [
+          'bundles' => [
+            'article' => 'article',
+          ],
+        ],
+      ],
+      'context_mapping' => ['node' => '@node.node_route_context:node'],
+    ]);
+
+    // On an existing block with the deprecated plugin, the deprecated
+    // label is shown.
+    $this->drupalGet("admin/structure/block/manage/powered_by_deprecated");
+    $this->assertSession()->pageTextContains('Content type');
+    $this->assertSession()->pageTextContains('Content types (Deprecated)');
+    $this->submitForm([], 'Save');
   }
 
 }

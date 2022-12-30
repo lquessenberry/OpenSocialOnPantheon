@@ -11,9 +11,9 @@
  */
 
 /**
- * Alter the information provided in \Drupal\votingapi\Annotation\VoteResult.
+ * Alters the information provided in \Drupal\votingapi\Annotation\VoteResult.
  *
- * @param $results
+ * @param array $results
  *   The array of vote results, keyed on the machine-readable name.
  */
 function hook_vote_result_info_alter(&$results) {
@@ -26,104 +26,100 @@ function hook_vote_result_info_alter(&$results) {
  */
 
 /**
- * Adds to or changes the calculated vote results for a piece of content.
+ * Adds to or changes the calculated vote results for an entity.
  *
  * VotingAPI calculates a number of common aggregate functions automatically,
- * including the average vote and total number of votes cast. Results are grouped
- * by 'tag', 'value_type', and then 'function' in the following format:
+ * including the average vote and total number of votes cast.
  *
- *   $results[$tag][$value_type][$aggregate_function] = $value;
- *
- * If no custom tag is being used for votes, the catch-all "vote" tag should be
- * used. In cases where custom tags are used to vote on different aspects of a
- * piece of content, a catch-all "vote" value should still be calculated for use
- * on summary screens, etc.
- *
- * @param $vote_results
+ * @param array $vote_results
  *   An alterable array of aggregate vote results.
- * @param $content_type
- *   A string identifying the type of content being rated. Node, comment,
+ * @param string $entity_type
+ *   A string identifying the type of entity being rated. Node, comment,
  *   aggregator item, etc.
- * @param $content_id
- *   The key ID of the content being rated.
+ * @param int $entity_id
+ *   The key ID of the entity being rated.
  *
- * @see votingapi_recalculate_results()
+ * @see VoteResultFunctionManager::recalculateResults()
  */
-function hook_votingapi_results_alter(&$vote_results, $content_type, $content_id) {
-  // We're using a MySQLism (STDDEV isn't ANSI SQL), but it's OK because this is
-  // an example. And no one would ever base real code on sample code. Ever. Never.
+function hook_votingapi_results_alter(array &$vote_results, $entity_type, $entity_id) {
+  // Calculate a standard deviation for votes cast on an entity.
+  $query = Database::getConnection()->select('votingapi_vote', 'v');
+  $query->addExpression('STDDEV(v.value)', 'standard_deviation');
+  $query->condition('v.entity_type', $entity_type);
+  $query->condition('v.entity_id', $entity_id);
+  $query->groupBy('v.tag');
 
-  $sql = "SELECT v.tag, STDDEV(v.value) as standard_deviation ";
-  $sql .= "FROM {votingapi_vote} v ";
-  $sql .= "WHERE v.content_type = '%s' AND v.content_id = %d AND v.value_type = 'percent' ";
-  $sql .= "GROUP BY v.tag";
+  $aggregate = $query->execute()->fetchObject();
 
-  $aggregates = db_query($sql, $content_type, $content_id);
-
-  // VotingAPI wants the data in the following format:
-  // $vote_results[$tag][$value_type][$aggregate_function] = $value;
-
-  while ($aggregate = db_fetch_array($aggregates)) {
-    $vote_results[$result['tag']]['percent']['standard_deviation'] = $result['standard_deviation'];
-  }
+  // Add the standard deviation to the voted entity results.
+  $vote_results[] = [
+    'entity_id' => $entity_id,
+    'entity_type' => $entity_type,
+    'type' => $vote_results[0]->bundle(),
+    'function' => 'standard_deviation',
+    'value' => $aggregate->standard_deviation,
+    'value_type' => $vote_results[0]->get('value_type')->value,
+    'timestamp' => \Drupal::time()->getRequestTime(),
+  ];
 }
 
 /**
- * Adds to or alters metadata describing Voting tags, value_types, and functions.
+ * Allows altering metadata describing Voting tags, value_types, and functions.
  *
- * If your module uses custom tags or value_types, or calculates custom aggregate
- * functions, please implement this hook so other modules can properly interperet
- * and display your data.
+ * If your module uses custom tags or value_types, or calculates custom
+ * aggregate functions, please implement this hook so other modules can properly
+ * interperet and display your data.
  *
  * Three major bins of data are stored: tags, value_types, and aggregate result
- * functions. Each entry in these bins is keyed by the value stored in the actual
- * VotingAPI tables, and contains an array with (minimally) 'name' and
+ * functions. Each entry in these bins is keyed by the value stored in the
+ * actual Voting API tables, and contains an array with (minimally) 'name' and
  * 'description' keys. Modules can add extra keys to their entries if desired.
  *
- * @param $data
+ * @param array $data
  *   An alterable array of aggregate vote results.
  *
  * @see votingapi_metadata()
  */
 function hook_votingapi_metadata_alter(&$data) {
   // Document several custom tags for rating restaurants and meals.
-  $data['tags']['bread'] = array(
+  $data['tags']['bread'] = [
     'name' => t('Bread'),
     'description' => t('The quality of the food at a restaurant.'),
     'module' => 'mymodule',
     // This is optional; we can add it for our own purposes.
-  );
-  $data['tags']['circuses'] = array(
+  ];
+  $data['tags']['circuses'] = [
     'name' => t('Circuses'),
     'description' => t('The quality of the presentation and atmosphere at a restaurant.'),
     'module' => 'mymodule',
-  );
+  ];
 
   // Document two custom aggregate function.
-  $data['functions']['standard_deviation'] = array(
+  $data['functions']['standard_deviation'] = [
     'name' => t('Standard deviation'),
     'description' => t('The standard deviation of all votes cast on a given piece of content. Use this to find controversial content.'),
     'module' => 'mymodule',
-  );
-  $data['functions']['median'] = array(
+  ];
+  $data['functions']['median'] = [
     'name' => t('Median vote'),
     'description' => t('The median vote value cast on a given piece of content. More accurate than a pure average when there are a few outlying votes.'),
     'module' => 'mymodule',
-  );
+  ];
 }
 
 /**
- * Returns callback functions and descriptions to format a VotingAPI Views field.
+ * Declares callback functions for formatting a Voting API Views field.
  *
  * Loads all votes for a given piece of content, then calculates and caches the
  * aggregate vote results. This is only intended for modules that have assumed
  * responsibility for the full voting cycle: the votingapi_set_vote() function
  * recalculates automatically.
  *
- * @param $field
+ * @param mixed $field
  *   A Views field object. This can be used to expose formatters only for tags,
  *   vote values, aggregate functions, etc.
- * @return
+ *
+ * @return array
  *   An array of key-value pairs, in which each key is a callback function and
  *   each value is a human-readable description of the formatter.
  *
@@ -131,62 +127,69 @@ function hook_votingapi_metadata_alter(&$data) {
  */
 function hook_votingapi_views_formatters($field) {
   if ($field->field == 'value') {
-    return array('mymodule_funky_formatter' => t('MyModule value formatter'));
+    return ['mymodule_funky_formatter' => t('MyModule value formatter')];
   }
   if ($field->field == 'tag') {
-    return array('mymodule_funky_tags' => t('MyModule tag formatter'));
+    return ['mymodule_funky_tags' => t('MyModule tag formatter')];
   }
 }
 
 /**
- * VotingApi's vote storage can be overriden by pointing setting the
- * 'votingapi_vote_storage' state to an alternative class.
+ * Voting API's vote storage can be overridden by setting the
+ * 'votingapi_vote_storage' state variable to an alternative class.
  */
 \Drupal::state()->set('votingapi_vote_storage', 'Mongodb_VoteStorage');
 
+/**
+ *
+ */
 class Mongodb_VoteStorage {
 
   /**
    * Save a vote in the database.
    *
-   * @param $vote instance of VotingApi_Vote.
+   * @param $vote
+   *   instance of VotingApi_Vote.
    */
-  function addVote(&$vote) {
+  public function addVote(&$vote) {
     mongodb_collection('votingapi_vote')->insert($vote);
   }
 
   /**
-   * Delete votes from the database.
+   * Deletes votes from the database.
    *
-   * @param $votes An array of VotingApi_Vote instances to delete.
+   * @param $votes
+   *   An array of VotingApi_Vote instances to delete.
    *   Minimally, each vote must have the 'vote_id' key set.
    * @param $vids
    *   A list of the 'vote_id' values from $votes.
    */
-  function deleteVotes($votes, $vids) {
-    mongodb_collection('votingapi_vote')->delete(array('vote_id' => array('$in' => array_map('intval', $vids))));
+  public function deleteVotes($votes, $vids) {
+    mongodb_collection('votingapi_vote')->delete(['vote_id' => ['$in' => array_map('intval', $vids)]]);
   }
 
   /**
    * Select individual votes from the database.
    *
-   * @param $criteria instance of VotingApi_Criteria.
+   * @param $criteria
+   *   instance of VotingApi_Criteria.
    * @param $limit
    *   An integer specifying the maximum number of votes to return. 0 means
    *   unlimited and is the default.
+   *
    * @return
    *   An array of VotingApi_Vote objects matching the criteria.
    */
-  function selectVotes($criteria, $limit) {
-    $find = array();
+  public function selectVotes($criteria, $limit) {
+    $find = [];
     foreach ($criteria as $key => $value) {
-      $find[$key] = is_array($value) ? array('$in' => $value) : $value;
+      $find[$key] = is_array($value) ? ['$in' => $value] : $value;
     }
     $cursor = mongodb_collection('votingapi_vote')->find($find);
     if (!empty($limit)) {
       $cursor->limit($limit);
     }
-    $votes = array();
+    $votes = [];
     foreach ($cursor as $vote) {
       $votes[] = $vote;
     }
@@ -194,10 +197,10 @@ class Mongodb_VoteStorage {
   }
 
   /**
-   * TODO
-   *
+   * TODO.
    */
-  function standardResults($entity_id, $entity) {
-    // TODO
+  public function standardResults($entity_id, $entity) {
+    // TODO.
   }
+
 }

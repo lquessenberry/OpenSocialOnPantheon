@@ -22,10 +22,11 @@ class AutocompleteTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'entity_test',
     'field',
     'system',
+    'filter',
     'text',
     'user',
     'search_api',
@@ -53,11 +54,10 @@ class AutocompleteTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->installSchema('search_api', ['search_api_item']);
-    $this->installSchema('system', ['router']);
     $this->installSchema('user', ['users_data']);
     $this->installEntitySchema('entity_test_mulrev_changed');
     $this->installEntitySchema('search_api_task');
@@ -130,13 +130,7 @@ class AutocompleteTest extends KernelTestBase {
   protected function assertSuggestionsEqual(array $expected, array $suggestions) {
     $terms = [];
     foreach ($suggestions as $suggestion) {
-      $keys = $suggestion->getSuggestedKeys();
-      if ($keys === NULL) {
-        $keys = $suggestion->getSuggestionPrefix();
-        $keys .= $suggestion->getUserInput();
-        $keys .= $suggestion->getSuggestionSuffix();
-      }
-      $terms[$keys] = $suggestion->getResultsCount();
+      $terms[$suggestion->getSuggestedKeys()] = $suggestion->getResultsCount();
     }
     $this->assertEquals($expected, $terms);
   }

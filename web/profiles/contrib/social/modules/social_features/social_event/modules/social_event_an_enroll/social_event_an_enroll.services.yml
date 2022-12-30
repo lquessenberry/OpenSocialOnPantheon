@@ -1,5 +1,21 @@
 services:
+  social_event_an_enroll.manager:
+    class: \Drupal\social_event_an_enroll\EventAnEnrollManager
   social_event_an_enroll.overrider:
     class: \Drupal\social_event_an_enroll\EventAnEnrollOverride
     tags:
       - {name: config.factory.override, priority: 5}
+  social_event_an_enroll.service:
+    class: Drupal\social_event_an_enroll\EventAnEnrollService
+    arguments:
+      - '@current_user'
+      - '@current_route_match'
+      - '@database'
+
+  # We added a custom context in order to manage cache of enrollment button.
+  # This is specially for AN enrollment routes.
+  cache_context.event_an_enroll_route:
+    class: Drupal\social_event_an_enroll\EventAnEnrollCacheContext
+    arguments: ['@current_route_match']
+    tags:
+      - { name: cache.context }

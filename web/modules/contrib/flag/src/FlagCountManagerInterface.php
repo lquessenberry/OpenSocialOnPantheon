@@ -4,7 +4,6 @@ namespace Drupal\flag;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\flag\FlagInterface;
 
 /**
  * Interface FlagCountManagerInterface.

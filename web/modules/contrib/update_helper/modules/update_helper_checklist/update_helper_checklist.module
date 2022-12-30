@@ -1,0 +1,197 @@
+<?php
+
+/**
+ * @file
+ * Update helper checklist hooks.
+ *
+ * TODO:
+ *   - This requires refactoring, moving things in classes and finding
+ *     duplicate code.
+ */
+
+use Drupal\Core\Url;
+use Drupal\update_helper_checklist\UpdateChecklist;
+use Symfony\Component\Yaml\Yaml;
+use Drupal\update_helper_checklist\Entity\Update;
+
+/**
+ * Implements hook_checklistapi_checklist_info().
+ */
+function update_helper_checklist_checklistapi_checklist_info() {
+
+  $definitions = [];
+  $definitions['update_helper_checklist'] = [
+    '#title' => t('Update helper instructions'),
+    '#path' => '/admin/config/development/update-helper',
+    '#description' => t('Provides steps to keep your site up to date.'),
+    '#callback' => '_update_helper_checklist_checklistapi_checklist_items',
+    '#storage' => 'state',
+  ];
+
+  return $definitions;
+}
+
+/**
+ * Implements a callback update_helper_checklist_checklistapi_checklist_info().
+ *
+ * @return array
+ *   Return the items for the update_helper_checklist list.
+ */
+function _update_helper_checklist_checklistapi_checklist_items() {
+  /** @var \Drupal\Core\Extension\ModuleHandler $module_handler */
+  $module_handler = \Drupal::service('module_handler');
+
+  $module_directories = $module_handler->getModuleDirectories();
+
+  $all_tasks = [];
+  foreach ($module_directories as $module_name => $module_directory) {
+    $updates_file = $module_directory . DIRECTORY_SEPARATOR . UpdateChecklist::$updateChecklistFileName;
+
+    if (!is_file($updates_file)) {
+      // If there is no "updates_checklist.yml" file in module directory, go for
+      // next module.
+      continue;
+    }
+
+    $module_tasks = Yaml::parse(file_get_contents($updates_file));
+    foreach ($module_tasks as $version_key => $updates) {
+      $version_updates = [];
+      foreach ($updates as $update_key => $update) {
+        if (is_array($update)) {
+          // Change update key to contain module name.
+          $update_key = str_replace('.', '_', $module_name . ':' . $update_key);
+          $entry = Update::load($update_key);
+
+          $status = ($entry && $entry->wasSuccessfulByHook()) ? TRUE : FALSE;
+          if ($status && !empty($update['#description_successful'])) {
+            $update['#description'] .= $update['#description_successful'];
+          }
+          elseif (!$status && !empty($update['#description_failed'])) {
+            $update['#description'] .= $update['#description_failed'];
+          }
+        }
+
+        $version_updates[$update_key] = $update;
+      }
+
+      // Create unique key for version updates.
+      $all_tasks[$module_name . '-' . $version_key] = $version_updates;
+    }
+  }
+
+  // Prepare tasks for front-end representation.
+  array_walk_recursive($all_tasks, function (&$value, $key) {
+    if ($key == '#url') {
+      $value = Url::fromUri($value);
+      if ($value->isExternal()) {
+        $value->setOption('attributes', ['target' => '_blank']);
+      }
+    }
+    elseif (in_array($key, ['#title', '#weight'])) {
+      // @codingStandardsIgnoreStart
+      $value = t($value);
+      // @codingStandardsIgnoreEnd
+    }
+  });
+
+  return array_reverse($all_tasks);
+}
+
+/**
+ * Mark all updates as successful for fresh installed module.
+ *
+ * Implements hook_modules_installed().
+ *
+ * @param array $modules
+ *   List of installed modules.
+ */
+function update_helper_checklist_modules_installed(array $modules) {
+  /** @var \Drupal\Core\Extension\ModuleHandler $module_handler */
+  $module_handler = \Drupal::service('module_handler');
+
+  $modules_checklist = [];
+  $module_directories = $module_handler->getModuleDirectories();
+  foreach ($modules as $module_name) {
+    $updates_file = $module_directories[$module_name] . DIRECTORY_SEPARATOR . UpdateChecklist::$updateChecklistFileName;
+    if (!is_file($updates_file)) {
+      continue;
+    }
+
+    $updates_checklist = Yaml::parse(file_get_contents($updates_file));
+    foreach ($updates_checklist as $version_items) {
+      foreach ($version_items as $update_hook_name => $checklist_definition) {
+        if (is_array($checklist_definition)) {
+          if (!isset($modules_checklist[$module_name])) {
+            $modules_checklist[$module_name] = [];
+          }
+
+          $modules_checklist[$module_name][] = $update_hook_name;
+        }
+      }
+    }
+  }
+
+  if (!empty($modules_checklist)) {
+    \Drupal::service('update_helper_checklist.update_checklist')
+      ->markUpdatesSuccessful($modules_checklist);
+  }
+}
+
+/**
+ * Implements hook_toolbar().
+ */
+function update_helper_checklist_toolbar() {
+  $items['update_helper_checklist'] = [
+    '#cache' => [
+      'contexts' => [
+        'user.permissions',
+      ],
+    ],
+  ];
+
+  if (!\Drupal::currentUser()->hasPermission('view update_helper_checklist checklistapi checklist')) {
+    return $items;
+  }
+
+  /** @var Drupal\checklistapi\ChecklistapiChecklist $checklist */
+  $checklist = checklistapi_checklist_load('update_helper_checklist');
+
+  $items = [];
+  // We are varying our cache by path and by permission.
+  $items['update_helper_checklist'] = [
+    '#cache' => [
+      'keys' => ['toolbar', 'updater_helper'],
+      'contexts' => ['user.permissions'],
+    ],
+  ];
+
+  /** @var \Drupal\checklistapi\Storage\StateStorage $state_storage */
+  $state_storage = \Drupal::service('checklistapi_storage.state');
+
+  \Drupal::service('renderer')->addCacheableDependency(
+    $items['update_helper_checklist'],
+    $state_storage->setChecklistId($checklist->id)->getSavedProgress()
+  );
+
+  if ($checklist->getPercentComplete() < 100) {
+    $items['update_helper_checklist'] += [
+      '#type' => 'toolbar_item',
+      'tab' => [
+        '#type' => 'link',
+        '#title' => t('Pending updates'),
+        '#url' => Url::fromRoute($checklist->getRouteName()),
+        '#attributes' => [
+          'class' => ['toolbar-icon', 'update-helper-checklist__toolbar-icon'],
+          'aria-pressed' => 'false',
+        ],
+      ],
+      '#weight' => 500,
+      '#attached' => [
+        'library' => [
+          'update_helper_checklist/toolbar-button',
+        ],
+      ],
+    ];
+  }
+  return $items;
+}

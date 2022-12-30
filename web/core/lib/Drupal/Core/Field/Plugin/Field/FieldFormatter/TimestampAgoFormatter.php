@@ -2,14 +2,14 @@
 
 namespace Drupal\Core\Field\Plugin\Field\FieldFormatter;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Datetime\DateFormatterInterface;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\Request;
  *   }
  * )
  */
-class TimestampAgoFormatter extends FormatterBase implements ContainerFactoryPluginInterface {
+class TimestampAgoFormatter extends FormatterBase {
 
   /**
    * The date formatter service.
@@ -104,7 +104,7 @@ class TimestampAgoFormatter extends FormatterBase implements ContainerFactoryPlu
    * {@inheritdoc}
    */
   public function settingsForm(array $form, FormStateInterface $form_state) {
-    $elements = parent::settingsForm($form, $form_state);
+    $form = parent::settingsForm($form, $form_state);
 
     $form['future_format'] = [
       '#type' => 'textfield',
@@ -120,7 +120,7 @@ class TimestampAgoFormatter extends FormatterBase implements ContainerFactoryPlu
       '#description' => $this->t('Use <em>@interval</em> where you want the formatted interval text to appear.'),
     ];
 
-    $elements['granularity'] = [
+    $form['granularity'] = [
       '#type' => 'number',
       '#title' => $this->t('Granularity'),
       '#description' => $this->t('How many time interval units should be shown in the formatted output.'),
@@ -129,7 +129,7 @@ class TimestampAgoFormatter extends FormatterBase implements ContainerFactoryPlu
       '#max' => 6,
     ];
 
-    return $elements;
+    return $form;
   }
 
   /**
@@ -138,10 +138,19 @@ class TimestampAgoFormatter extends FormatterBase implements ContainerFactoryPlu
   public function settingsSummary() {
     $summary = parent::settingsSummary();
 
-    $future_date = strtotime('1 year 1 month 1 week 1 day 1 hour 1 minute');
-    $past_date = strtotime('-1 year -1 month -1 week -1 day -1 hour -1 minute');
-    $summary[] = $this->t('Future date: %display', ['%display' => $this->formatTimestamp($future_date)]);
-    $summary[] = $this->t('Past date: %display', ['%display' => $this->formatTimestamp($past_date)]);
+    $future_date = new DrupalDateTime('1 year 1 month 1 week 1 day 1 hour 1 minute');
+    $past_date = new DrupalDateTime('-1 year -1 month -1 week -1 day -1 hour -1 minute');
+    $granularity = $this->getSetting('granularity');
+    $options = [
+      'granularity' => $granularity,
+      'return_as_object' => FALSE,
+    ];
+
+    $future_date_interval = new FormattableMarkup($this->getSetting('future_format'), ['@interval' => $this->dateFormatter->formatTimeDiffUntil($future_date->getTimestamp(), $options)]);
+    $past_date_interval = new FormattableMarkup($this->getSetting('past_format'), ['@interval' => $this->dateFormatter->formatTimeDiffSince($past_date->getTimestamp(), $options)]);
+
+    $summary[] = $this->t('Future date: %display', ['%display' => $future_date_interval]);
+    $summary[] = $this->t('Past date: %display', ['%display' => $past_date_interval]);
 
     return $summary;
   }
@@ -187,13 +196,13 @@ class TimestampAgoFormatter extends FormatterBase implements ContainerFactoryPlu
     if ($this->request->server->get('REQUEST_TIME') > $timestamp) {
       $result = $this->dateFormatter->formatTimeDiffSince($timestamp, $options);
       $build = [
-        '#markup' => SafeMarkup::format($this->getSetting('past_format'), ['@interval' => $result->getString()]),
+        '#markup' => new FormattableMarkup($this->getSetting('past_format'), ['@interval' => $result->getString()]),
       ];
     }
     else {
       $result = $this->dateFormatter->formatTimeDiffUntil($timestamp, $options);
       $build = [
-        '#markup' => SafeMarkup::format($this->getSetting('future_format'), ['@interval' => $result->getString()]),
+        '#markup' => new FormattableMarkup($this->getSetting('future_format'), ['@interval' => $result->getString()]),
       ];
     }
     CacheableMetadata::createFromObject($result)->applyTo($build);

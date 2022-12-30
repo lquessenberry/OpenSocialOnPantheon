@@ -2,18 +2,15 @@ swiftmailer.message:
   type: config_object
   label: 'Swift Mailer message settings'
   mapping:
-    format:
+    content_type:
       type: string
-      label: 'Message format'
-    filter_format:
+      label: 'Content type'
+    text_format:
       type: string
-      label: 'Filter format'
-    respect_format:
+      label: 'Text format'
+    generate_plain:
       type: boolean
-      label: 'Respect format'
-    convert_mode:
-      type: boolean
-      label: 'Respect format'
+      label: 'Generate alternative plain text version'
     character_set:
       type: string
       label: 'Character set'

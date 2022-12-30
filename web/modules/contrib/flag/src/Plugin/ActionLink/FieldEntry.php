@@ -13,7 +13,7 @@ use Drupal\Core\Entity\EntityInterface;
  * @ActionLinkType(
  *  id = "field_entry",
  *  label = @Translation("Field Entry Form"),
- *  description = "Redirects the user to a field entry form."
+ *  description = @Translation("Redirects the user to a field entry form.")
  * )
  */
 class FieldEntry extends FormEntryTypeBase {
@@ -28,6 +28,7 @@ class FieldEntry extends FormEntryTypeBase {
           'flag' => $flag->id(),
           'entity_id' => $entity->id(),
         ]);
+
       default:
         return Url::fromRoute('flag.field_entry.edit', [
           'flag' => $flag->id(),

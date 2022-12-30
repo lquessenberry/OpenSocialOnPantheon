@@ -4,12 +4,56 @@ namespace Drupal\search_api\Controller;
 
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\search_api\ServerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides block routines for search server-specific routes.
  */
 class ServerController extends ControllerBase {
+
+  /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface|null
+   */
+  protected $messenger;
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    /** @var static $controller */
+    $controller = parent::create($container);
+
+    $controller->setMessenger($container->get('messenger'));
+
+    return $controller;
+  }
+
+  /**
+   * Retrieves the messenger.
+   *
+   * @return \Drupal\Core\Messenger\MessengerInterface
+   *   The messenger.
+   */
+  public function getMessenger() {
+    return $this->messenger ?: \Drupal::service('messenger');
+  }
+
+  /**
+   * Sets the messenger.
+   *
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The new messenger.
+   *
+   * @return $this
+   */
+  public function setMessenger(MessengerInterface $messenger) {
+    $this->messenger = $messenger;
+    return $this;
+  }
 
   /**
    * Displays information about a search server.
@@ -65,7 +109,7 @@ class ServerController extends ControllerBase {
     $search_api_server->setStatus(TRUE)->save();
 
     // Notify the user about the status change.
-    drupal_set_message($this->t('The search server %name has been enabled.', ['%name' => $search_api_server->label()]));
+    $this->getMessenger()->addStatus($this->t('The search server %name has been enabled.', ['%name' => $search_api_server->label()]));
 
     // Redirect to the server's "View" page.
     $url = $search_api_server->toUrl('canonical');

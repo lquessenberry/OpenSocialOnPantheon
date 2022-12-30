@@ -2,7 +2,7 @@
 
 namespace Drupal\options\Plugin\Field\FieldType;
 
-use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Field\FieldFilteredMarkup;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\TypedData\DataDefinition;
 
@@ -57,7 +57,7 @@ class ListStringItem extends ListItemBase {
     $description .= '<br/>' . t('The key is the stored value. The label will be used in displayed values and edit forms.');
     $description .= '<br/>' . t('The label is optional: if a line contains a single string, it will be used as key and label.');
     $description .= '</p>';
-    $description .= '<p>' . t('Allowed HTML tags in labels: @tags', ['@tags' => $this->displayAllowedTags()]) . '</p>';
+    $description .= '<p>' . t('Allowed HTML tags in labels: @tags', ['@tags' => FieldFilteredMarkup::displayAllowedTags()]) . '</p>';
     return $description;
   }
 
@@ -65,7 +65,7 @@ class ListStringItem extends ListItemBase {
    * {@inheritdoc}
    */
   protected static function validateAllowedValue($option) {
-    if (Unicode::strlen($option) > 255) {
+    if (mb_strlen($option) > 255) {
       return t('Allowed values list: each key must be a string at most 255 characters long.');
     }
   }

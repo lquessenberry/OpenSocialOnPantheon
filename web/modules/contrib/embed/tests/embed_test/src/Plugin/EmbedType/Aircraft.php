@@ -59,7 +59,7 @@ class Aircraft extends EmbedTypeBase {
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     if ($form_state->getValue('aircraft_type') === 'helicopters') {
-      drupal_set_message($this->t('Helicopters are just rotorcraft.'), 'warning');
+      $this->messenger()->addWarning($this->t('Helicopters are just rotorcraft.'));
       $form_state->setValue('aircraft_type', 'rotorcraft');
     }
 

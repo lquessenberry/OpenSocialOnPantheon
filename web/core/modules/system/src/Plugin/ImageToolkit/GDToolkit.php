@@ -3,15 +3,19 @@
 namespace Drupal\system\Plugin\ImageToolkit;
 
 use Drupal\Component\Utility\Color;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\File\Exception\FileException;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
 use Drupal\Core\StreamWrapper\StreamWrapperInterface;
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+
+// cspell:ignore rrggbb
 
 /**
  * Defines the GD2 toolkit for image manipulation within Drupal.
@@ -26,7 +30,7 @@ class GDToolkit extends ImageToolkitBase {
   /**
    * A GD image resource.
    *
-   * @var resource|null
+   * @var resource|\GdImage|null
    */
   protected $resource = NULL;
 
@@ -60,6 +64,13 @@ class GDToolkit extends ImageToolkitBase {
   protected $streamWrapperManager;
 
   /**
+   * The file system.
+   *
+   * @var \Drupal\Core\File\FileSystemInterface
+   */
+  protected $fileSystem;
+
+  /**
    * Constructs a GDToolkit object.
    *
    * @param array $configuration
@@ -76,16 +87,21 @@ class GDToolkit extends ImageToolkitBase {
    *   The config factory.
    * @param \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface $stream_wrapper_manager
    *   The StreamWrapper manager.
+   * @param \Drupal\Core\File\FileSystemInterface $file_system
+   *   The file system.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, StreamWrapperManagerInterface $stream_wrapper_manager) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, StreamWrapperManagerInterface $stream_wrapper_manager, FileSystemInterface $file_system) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
     $this->streamWrapperManager = $stream_wrapper_manager;
+    $this->fileSystem = $file_system;
   }
 
   /**
    * Destructs a GDToolkit object.
    *
    * Frees memory associated with a GD image resource.
+   *
+   * @todo Remove the method for PHP 8.0+ https://www.drupal.org/node/3173031
    */
   public function __destruct() {
     if (is_resource($this->resource)) {
@@ -104,22 +120,28 @@ class GDToolkit extends ImageToolkitBase {
       $container->get('image.toolkit.operation.manager'),
       $container->get('logger.channel.image'),
       $container->get('config.factory'),
-      $container->get('stream_wrapper_manager')
+      $container->get('stream_wrapper_manager'),
+      $container->get('file_system')
     );
   }
 
   /**
    * Sets the GD image resource.
    *
-   * @param resource $resource
+   * @param resource|\GdImage $resource
    *   The GD image resource.
    *
-   * @return \Drupal\system\Plugin\ImageToolkit\GDToolkit
+   * @return $this
    *   An instance of the current toolkit object.
    */
   public function setResource($resource) {
-    if (!is_resource($resource) || get_resource_type($resource) != 'gd') {
-      throw new \InvalidArgumentException('Invalid resource argument');
+    if (!(is_object($resource) && $resource instanceof \GdImage)) {
+      // Since PHP 8.0 resource should be \GdImage, for previous versions it
+      // should be resource.
+      // @TODO clean-up for PHP 8.0+ https://www.drupal.org/node/3173031
+      if (!is_resource($resource) || get_resource_type($resource) != 'gd') {
+        throw new \InvalidArgumentException('Invalid resource argument');
+      }
     }
     $this->preLoadInfo = NULL;
     $this->resource = $resource;
@@ -129,11 +151,12 @@ class GDToolkit extends ImageToolkitBase {
   /**
    * Retrieves the GD image resource.
    *
-   * @return resource|null
+   * @return resource|\GdImage|null
    *   The GD image resource, or NULL if not available.
    */
   public function getResource() {
-    if (!is_resource($this->resource)) {
+    // @TODO clean-up for PHP 8.0+ https://www.drupal.org/node/3173031
+    if (!(is_resource($this->resource) || (is_object($this->resource) && $this->resource instanceof \GdImage))) {
       $this->load();
     }
     return $this->resource;
@@ -214,17 +237,17 @@ class GDToolkit extends ImageToolkitBase {
    * {@inheritdoc}
    */
   public function save($destination) {
-    $scheme = file_uri_scheme($destination);
+    $scheme = StreamWrapperManager::getScheme($destination);
     // Work around lack of stream wrapper support in imagejpeg() and imagepng().
-    if ($scheme && file_stream_wrapper_valid_scheme($scheme)) {
+    if ($scheme && $this->streamWrapperManager->isValidScheme($scheme)) {
       // If destination is not local, save image to temporary local file.
       $local_wrappers = $this->streamWrapperManager->getWrappers(StreamWrapperInterface::LOCAL);
       if (!isset($local_wrappers[$scheme])) {
         $permanent_destination = $destination;
-        $destination = drupal_tempnam('temporary://', 'gd_');
+        $destination = $this->fileSystem->tempnam('temporary://', 'gd_');
       }
       // Convert stream wrapper URI to normal path.
-      $destination = \Drupal::service('file_system')->realpath($destination);
+      $destination = $this->fileSystem->realpath($destination);
     }
 
     $function = 'image' . image_type_to_extension($this->getType(), FALSE);
@@ -235,8 +258,8 @@ class GDToolkit extends ImageToolkitBase {
       $success = $function($this->getResource(), $destination, $this->configFactory->get('system.image.gd')->get('jpeg_quality'));
     }
     else {
-      // Always save PNG images with full transparency.
-      if ($this->getType() == IMAGETYPE_PNG) {
+      // Image types that support alpha need to be saved accordingly.
+      if (in_array($this->getType(), [IMAGETYPE_PNG, IMAGETYPE_WEBP], TRUE)) {
         imagealphablending($this->getResource(), FALSE);
         imagesavealpha($this->getResource(), TRUE);
       }
@@ -244,7 +267,13 @@ class GDToolkit extends ImageToolkitBase {
     }
     // Move temporary local file to remote destination.
     if (isset($permanent_destination) && $success) {
-      return (bool) file_unmanaged_move($destination, $permanent_destination, FILE_EXISTS_REPLACE);
+      try {
+        $this->fileSystem->move($destination, $permanent_destination, FileSystemInterface::EXISTS_REPLACE);
+        return TRUE;
+      }
+      catch (FileException $e) {
+        return FALSE;
+      }
     }
     return $success;
   }
@@ -395,7 +424,7 @@ class GDToolkit extends ImageToolkitBase {
     foreach (static::supportedTypes() as $image_type) {
       // @todo Automatically fetch possible extensions for each mime type.
       // @see https://www.drupal.org/node/2311679
-      $extension = Unicode::strtolower(image_type_to_extension($image_type, FALSE));
+      $extension = mb_strtolower(image_type_to_extension($image_type, FALSE));
       $extensions[] = $extension;
       // Add some known similar extensions.
       if ($extension === 'jpeg') {
@@ -440,7 +469,7 @@ class GDToolkit extends ImageToolkitBase {
    *   IMAGETYPE_* constant (e.g. IMAGETYPE_JPEG, IMAGETYPE_PNG, etc.).
    */
   protected static function supportedTypes() {
-    return [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_GIF];
+    return [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_GIF, IMAGETYPE_WEBP];
   }
 
 }

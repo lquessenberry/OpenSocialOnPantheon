@@ -1,5 +1,8 @@
 <?php
+
 namespace Robo\Common;
+
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
 /**
  * Wrapper around \Symfony\Component\Console\Helper\ProgressBar
@@ -55,7 +58,9 @@ class ProgressIndicator
     public function __construct($progressBar, \Symfony\Component\Console\Output\OutputInterface $output)
     {
         $this->progressBar = $progressBar;
-        $this->output = $output;
+        $this->output = $output instanceof ConsoleOutputInterface ?
+            $output->getErrorOutput()
+            : $output;
     }
 
     /**

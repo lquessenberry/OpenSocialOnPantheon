@@ -4,7 +4,6 @@ namespace Drupal\votingapi;
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\user\EntityOwnerInterface;
-use Drupal\user\UserInterface;
 
 /**
  * Provides an interface defining a vote entity.
@@ -20,7 +19,12 @@ interface VoteInterface extends ContentEntityInterface, EntityOwnerInterface {
   public function getVotedEntityType();
 
   /**
-   * {@inheritdoc}
+   * Sets the type of entity that the vote was cast on.
+   *
+   * @param string $name
+   *   The entity type.
+   *
+   * @return $this
    */
   public function setVotedEntityType($name);
 
@@ -33,14 +37,19 @@ interface VoteInterface extends ContentEntityInterface, EntityOwnerInterface {
   public function getVotedEntityId();
 
   /**
-   * {@inheritdoc}
+   * Sets the ID of the entity that the vote was cast on.
+   *
+   * @param int $id
+   *   The entity ID.
+   *
+   * @return $this
    */
   public function setVotedEntityId($id);
 
   /**
    * Returns the vote value.
    *
-   * @return int
+   * @return float
    *   The numeric value of the vote.
    */
   public function getValue();
@@ -51,43 +60,48 @@ interface VoteInterface extends ContentEntityInterface, EntityOwnerInterface {
    * @param float $value
    *   The vote value.
    *
-   * @return \Drupal\votingapi\VoteInterface
-   *   The called vote entity.
+   * @return $this
    */
   public function setValue($value);
 
   /**
-   * {@inheritdoc}
+   * Returns the vote value type.
+   *
+   * @return string
+   *   The value type of the vote.
    */
   public function getValueType();
 
   /**
-   * {@inheritdoc}
+   * Sets the vote value type.
+   *
+   * @param string $value_type
+   *   The vote value type.
+   *
+   * @return $this
    */
   public function setValueType($value_type);
 
   /**
-   * {@inheritdoc}
+   * Gets the vote creation timestamp.
+   *
+   * @return int
+   *   Creation timestamp of the vote.
    */
-  public function getOwner();
+  public function getCreatedTime();
 
   /**
-   * {@inheritdoc}
+   * Sets the vote creation timestamp.
+   *
+   * @param int $timestamp
+   *   The vote creation timestamp.
+   *
+   * @return $this
    */
-  public function setOwner(UserInterface $account);
+  public function setCreatedTime($timestamp);
 
   /**
-   * {@inheritdoc}
-   */
-  public function getOwnerId();
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setOwnerId($uid);
-
-  /**
-   * Returns the source of the vote.  By default, this is the user's IP address.
+   * Returns the source of the vote.  It is the user's IP address hash.
    *
    * @return string
    *   The vote source.
@@ -95,13 +109,13 @@ interface VoteInterface extends ContentEntityInterface, EntityOwnerInterface {
   public function getSource();
 
   /**
-   * Sets the source of the vote. By default, this is the user's IP address.
+   * Sets the source of the vote. It is the user's IP address hash.
    *
    * @param string $source
    *   The source of the vote.
    *
-   * @return \Drupal\votingapi\VoteInterface
-   *   The called vote entity.
+   * @return $this
    */
   public function setSource($source);
+
 }

@@ -19,7 +19,7 @@ class UserNameFormatterTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['field', 'user', 'system'];
+  protected static $modules = ['field', 'user', 'system'];
 
   /**
    * @var string
@@ -39,7 +39,7 @@ class UserNameFormatterTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installConfig(['field']);
@@ -78,21 +78,21 @@ class UserNameFormatterTest extends KernelTestBase {
     $user->save();
 
     $result = $user->{$this->fieldName}->view(['type' => 'user_name']);
-    $this->assertEqual('username', $result[0]['#theme']);
-    $this->assertEqual(spl_object_hash($user), spl_object_hash($result[0]['#account']));
+    $this->assertEquals('username', $result[0]['#theme']);
+    $this->assertEquals(spl_object_hash($user), spl_object_hash($result[0]['#account']));
 
     $result = $user->{$this->fieldName}->view(['type' => 'user_name', 'settings' => ['link_to_entity' => FALSE]]);
-    $this->assertEqual($user->getDisplayName(), $result[0]['#markup']);
+    $this->assertEquals($user->getDisplayName(), $result[0]['#markup']);
 
     $user = User::getAnonymousUser();
 
     $result = $user->{$this->fieldName}->view(['type' => 'user_name']);
-    $this->assertEqual('username', $result[0]['#theme']);
-    $this->assertEqual(spl_object_hash($user), spl_object_hash($result[0]['#account']));
+    $this->assertEquals('username', $result[0]['#theme']);
+    $this->assertEquals(spl_object_hash($user), spl_object_hash($result[0]['#account']));
 
     $result = $user->{$this->fieldName}->view(['type' => 'user_name', 'settings' => ['link_to_entity' => FALSE]]);
-    $this->assertEqual($user->getDisplayName(), $result[0]['#markup']);
-    $this->assertEqual($this->config('user.settings')->get('anonymous'), $result[0]['#markup']);
+    $this->assertEquals($user->getDisplayName(), $result[0]['#markup']);
+    $this->assertEquals($this->config('user.settings')->get('anonymous'), $result[0]['#markup']);
   }
 
 }

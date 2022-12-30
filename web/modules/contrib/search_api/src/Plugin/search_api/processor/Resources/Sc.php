@@ -11,6 +11,7 @@ class Sc implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{0024}\x{00A2}\x{00A3}\x{00A4}\x{00A5}\x{058F}\x{060B}' .
       '\x{09F2}\x{09F3}\x{09FB}\x{0AF1}\x{0BF9}\x{0E3F}\x{17DB}' .
@@ -19,6 +20,7 @@ class Sc implements UnicodeCharacterPropertyInterface {
       '\x{20AE}\x{20AF}\x{20B0}\x{20B1}\x{20B2}\x{20B3}\x{20B4}' .
       '\x{20B5}\x{20B6}\x{20B7}\x{20B8}\x{20B9}\x{20BA}\x{A838}' .
       '\x{FDFC}\x{FE69}\x{FF04}\x{FFE0}\x{FFE1}\x{FFE5}\x{FFE6}';
+    // phpcs:enable
   }
 
 }

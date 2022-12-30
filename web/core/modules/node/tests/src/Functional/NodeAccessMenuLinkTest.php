@@ -16,7 +16,12 @@ class NodeAccessMenuLinkTest extends NodeTestBase {
    *
    * @var array
    */
-  public static $modules = ['menu_ui', 'block'];
+  protected static $modules = ['menu_ui', 'block'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with permission to manage menu links and create nodes.
@@ -25,7 +30,7 @@ class NodeAccessMenuLinkTest extends NodeTestBase {
    */
   protected $contentAdminUser;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->drupalPlaceBlock('system_menu_block:main');
@@ -33,7 +38,8 @@ class NodeAccessMenuLinkTest extends NodeTestBase {
     $this->contentAdminUser = $this->drupalCreateUser([
       'access content',
       'administer content types',
-      'administer menu'
+      'bypass node access',
+      'administer menu',
     ]);
 
     $this->config('user.role.' . RoleInterface::ANONYMOUS_ID)->set('permissions', [])->save();
@@ -53,20 +59,21 @@ class NodeAccessMenuLinkTest extends NodeTestBase {
       'menu[enabled]' => 1,
       'menu[title]' => $menu_link_title,
     ];
-    $this->drupalPostForm('node/add/page', $edit, t('Save'));
-    $this->assertLink($menu_link_title);
+    $this->drupalGet('node/add/page');
+    $this->submitForm($edit, 'Save');
+    $this->assertSession()->linkExists($menu_link_title);
 
     // Ensure anonymous users without "access content" permission do not see
     // this menu link.
     $this->drupalLogout();
     $this->drupalGet('');
-    $this->assertNoLink($menu_link_title);
+    $this->assertSession()->linkNotExists($menu_link_title);
 
     // Ensure anonymous users with "access content" permission see this menu
     // link.
     $this->config('user.role.' . RoleInterface::ANONYMOUS_ID)->set('permissions', ['access content'])->save();
     $this->drupalGet('');
-    $this->assertLink($menu_link_title);
+    $this->assertSession()->linkExists($menu_link_title);
   }
 
 }

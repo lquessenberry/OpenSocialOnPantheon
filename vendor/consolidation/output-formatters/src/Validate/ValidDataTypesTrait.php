@@ -1,4 +1,5 @@
 <?php
+
 namespace Consolidation\OutputFormatters\Validate;
 
 /**
@@ -13,7 +14,7 @@ trait ValidDataTypesTrait
      *
      * @return \ReflectionClass[]
      */
-    public abstract function validDataTypes();
+    abstract public function validDataTypes();
 
     /**
      * Return the list of data types acceptable to this formatter

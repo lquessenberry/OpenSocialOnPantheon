@@ -3,7 +3,7 @@
 namespace Drupal\Core\Session;
 
 /**
- * Wraps another SessionHandlerInterface to prevent writes when not allowed.
+ * Wraps the session handler to prevent writes when not necessary or allowed.
  */
 class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSessionHandlerInterface {
 
@@ -18,6 +18,14 @@ class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSess
    * @var bool
    */
   protected $sessionWritable;
+
+  /**
+   * The read sessions.
+   *
+   * @var array
+   *   Session data keyed by the session ID.
+   */
+  private $readSessions;
 
   /**
    * Constructs a new write safe session handler.
@@ -35,6 +43,7 @@ class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSess
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function close() {
     return $this->wrappedSessionHandler->close();
   }
@@ -42,6 +51,7 @@ class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSess
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function destroy($session_id) {
     return $this->wrappedSessionHandler->destroy($session_id);
   }
@@ -49,6 +59,7 @@ class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSess
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function gc($max_lifetime) {
     return $this->wrappedSessionHandler->gc($max_lifetime);
   }
@@ -56,6 +67,7 @@ class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSess
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function open($save_path, $session_id) {
     return $this->wrappedSessionHandler->open($save_path, $session_id);
   }
@@ -63,20 +75,26 @@ class WriteSafeSessionHandler implements \SessionHandlerInterface, WriteSafeSess
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function read($session_id) {
-    return $this->wrappedSessionHandler->read($session_id);
+    $value = $this->wrappedSessionHandler->read($session_id);
+    $this->readSessions[$session_id] = $value;
+    return $value;
   }
 
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function write($session_id, $session_data) {
+    // Only write the session when it has been modified.
+    if (isset($this->readSessions[$session_id]) && $this->readSessions[$session_id] === $session_data) {
+      return TRUE;
+    }
     if ($this->isSessionWritable()) {
       return $this->wrappedSessionHandler->write($session_id, $session_data);
     }
-    else {
-      return TRUE;
-    }
+    return TRUE;
   }
 
   /**

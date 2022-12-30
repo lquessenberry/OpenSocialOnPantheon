@@ -13,7 +13,7 @@ use Drupal\KernelTests\KernelTestBase;
  */
 abstract class DatabaseTestBase extends KernelTestBase {
 
-  public static $modules = ['database_test'];
+  protected static $modules = ['database_test'];
 
   /**
    * The database connection for testing.
@@ -27,6 +27,7 @@ abstract class DatabaseTestBase extends KernelTestBase {
     $this->connection = Database::getConnection();
     $this->installSchema('database_test', [
       'test',
+      'test_classtype',
       'test_people',
       'test_people_copy',
       'test_one_blob',
@@ -34,8 +35,9 @@ abstract class DatabaseTestBase extends KernelTestBase {
       'test_task',
       'test_null',
       'test_serialized',
-      'test_special_columns',
       'TEST_UPPERCASE',
+      'select',
+      'virtual',
     ]);
     self::addSampleData();
   }
@@ -100,6 +102,15 @@ abstract class DatabaseTestBase extends KernelTestBase {
       ])
       ->execute();
 
+    $connection->insert('test_classtype')
+      ->fields([
+        'classname' => 'Drupal\Tests\system\Functional\Database\FakeRecord',
+        'name' => 'Kay',
+        'age' => 26,
+        'job' => 'Web Developer',
+      ])
+      ->execute();
+
     $connection->insert('test_people')
       ->fields([
         'name' => 'Meredith',
@@ -147,10 +158,17 @@ abstract class DatabaseTestBase extends KernelTestBase {
       ])
       ->execute();
 
-    $connection->insert('test_special_columns')
+    $connection->insert('select')
       ->fields([
         'id' => 1,
-        'offset' => 'Offset value 1',
+        'update' => 'Update value 1',
+      ])
+      ->execute();
+
+    $connection->insert('virtual')
+      ->fields([
+        'id' => 1,
+        'function' => 'Function value 1',
       ])
       ->execute();
   }

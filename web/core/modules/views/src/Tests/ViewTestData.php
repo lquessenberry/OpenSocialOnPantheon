@@ -31,10 +31,10 @@ class ViewTestData {
       $class = get_parent_class($class);
     }
     if (!empty($views)) {
-      $storage = \Drupal::entityManager()->getStorage('view');
+      $storage = \Drupal::entityTypeManager()->getStorage('view');
       $module_handler = \Drupal::moduleHandler();
       foreach ($modules as $module) {
-        $config_dir = drupal_get_path('module', $module) . '/test_views';
+        $config_dir = \Drupal::service('extension.list.module')->getPath($module) . '/test_views';
         if (!is_dir($config_dir) || !$module_handler->moduleExists($module)) {
           continue;
         }
@@ -108,7 +108,7 @@ class ViewTestData {
       ],
       'primary key' => ['id'],
       'unique keys' => [
-        'name' => ['name']
+        'name' => ['name'],
       ],
       'indexes' => [
         'ages' => ['age'],

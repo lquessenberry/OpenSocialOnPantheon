@@ -12,6 +12,11 @@ use Drupal\Tests\BrowserTestBase;
 class LocaleNonInteractiveInstallTest extends BrowserTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Gets the version string to use in the translation file.
    *
    * @return string
@@ -51,6 +56,7 @@ ENDPO;
    */
   public function testInstallerTranslations() {
     $this->drupalGet('user/login');
+    // cSpell:disable-next-line
     $this->assertSession()->responseContains('Geben sie das Passwort für ihren Benutzernamen ein.');
   }
 

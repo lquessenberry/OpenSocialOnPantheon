@@ -35,7 +35,7 @@ function dynamic_entity_reference_entity_bundle_delete($entity_type_id, $bundle)
   foreach (FieldConfig::loadMultiple($ids) as $field_config) {
     $settings = $field_config->getSettings();
     $target_types = DynamicEntityReferenceItem::getTargetTypes($settings);
-    if (in_array($entity_type_id, $target_types, TRUE)) {
+    if (in_array($entity_type_id, $target_types, TRUE) && isset($settings[$entity_type_id]['handler_settings'])) {
       $handler_settings = $settings[$entity_type_id]['handler_settings'];
       if (isset($handler_settings['target_bundles'][$bundle])) {
         unset($handler_settings['target_bundles'][$bundle]);

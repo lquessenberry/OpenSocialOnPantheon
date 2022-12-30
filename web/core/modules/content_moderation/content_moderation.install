@@ -6,11 +6,8 @@
  */
 
 /**
- * Remove the 'content_revision_tracker' table.
+ * Implements hook_update_last_removed().
  */
-function content_moderation_update_8401() {
-  $database_schema = \Drupal::database()->schema();
-  if ($database_schema->tableExists('content_revision_tracker')) {
-    $database_schema->dropTable('content_revision_tracker');
-  }
+function content_moderation_update_last_removed() {
+  return 8700;
 }

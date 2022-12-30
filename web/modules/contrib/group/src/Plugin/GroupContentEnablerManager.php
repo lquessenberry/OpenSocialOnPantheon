@@ -2,12 +2,15 @@
 
 namespace Drupal\group\Plugin;
 
+use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\group\Entity\GroupTypeInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 
 /**
  * Manages GroupContentEnabler plugin implementations.
@@ -18,7 +21,16 @@ use Drupal\group\Entity\GroupTypeInterface;
  * @see \Drupal\group\Plugin\GroupContentEnablerBase
  * @see plugin_api
  */
-class GroupContentEnablerManager extends DefaultPluginManager implements GroupContentEnablerManagerInterface {
+class GroupContentEnablerManager extends DefaultPluginManager implements GroupContentEnablerManagerInterface, ContainerAwareInterface {
+
+  use ContainerAwareTrait;
+
+  /**
+   * Contains instantiated handlers keyed by handler type and plugin ID.
+   *
+   * @var array
+   */
+  protected $handlers = [];
 
   /**
    * The entity type manager.
@@ -93,7 +105,7 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
    *   Cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler to invoke the alter hook with.
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, EntityTypeManagerInterface $entity_type_manager) {
@@ -106,9 +118,66 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function hasHandler($plugin_id, $handler_type) {
+    if ($definition = $this->getDefinition($plugin_id, FALSE)) {
+      if (isset($definition['handlers'][$handler_type])) {
+        return class_exists($definition['handlers'][$handler_type]);
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getHandler($plugin_id, $handler_type) {
+    if (!isset($this->handlers[$handler_type][$plugin_id])) {
+      $definition = $this->getDefinition($plugin_id);
+      if (!isset($definition['handlers'][$handler_type])) {
+        throw new InvalidPluginDefinitionException($plugin_id, sprintf('The "%s" plugin did not specify a %s handler.', $plugin_id, $handler_type));
+      }
+      $this->handlers[$handler_type][$plugin_id] = $this->createHandlerInstance($definition['handlers'][$handler_type], $plugin_id, $definition);
+    }
+
+    return $this->handlers[$handler_type][$plugin_id];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function createHandlerInstance($class, $plugin_id, array $definition = NULL) {
+    if (!is_subclass_of($class, 'Drupal\group\Plugin\GroupContentHandlerInterface')) {
+      throw new InvalidPluginDefinitionException($plugin_id, 'Trying to instantiate a handler that does not implement \Drupal\group\Plugin\GroupContentHandlerInterface.');
+    }
+
+    $handler = $class::createInstance($this->container, $plugin_id, $definition);
+    if (method_exists($handler, 'setModuleHandler')) {
+      $handler->setModuleHandler($this->moduleHandler);
+    }
+    return $handler;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getAccessControlHandler($plugin_id) {
+    return $this->getHandler($plugin_id, 'access');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPermissionProvider($plugin_id) {
+    return $this->getHandler($plugin_id, 'permission_provider');
+  }
+
+  /**
    * Returns the group type storage handler.
    *
    * @return \Drupal\Core\Config\Entity\ConfigEntityStorageInterface
+   *   The group type storage handler.
    */
   protected function getGroupTypeStorage() {
     if (!isset($this->groupTypeStorage)) {
@@ -121,6 +190,7 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
    * Returns the group content type storage handler.
    *
    * @return \Drupal\group\Entity\Storage\GroupContentTypeStorageInterface
+   *   The group content type storage handler.
    */
   protected function getGroupContentTypeStorage() {
     if (!isset($this->groupContentTypeStorage)) {
@@ -128,7 +198,7 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
     }
     return $this->groupContentTypeStorage;
   }
-  
+
   /**
    * {@inheritdoc}
    */
@@ -237,8 +307,14 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
   /**
    * {@inheritdoc}
    */
-  public function clearCachedInstalledIds() {
-    $this->clearCachedPluginMaps();
+  public function getPluginIdsByEntityTypeAccess($entity_type_id) {
+    $plugin_ids = [];
+    foreach ($this->getDefinitions() as $plugin_id => $plugin_info) {
+      if (!empty($plugin_info['entity_access']) && $plugin_info['entity_type_id'] == $entity_type_id) {
+        $plugin_ids[] = $plugin_id;
+      }
+    }
+    return $plugin_ids;
   }
 
   /**
@@ -300,13 +376,6 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
   }
 
   /**
-   * {@inheritdoc}
-   */
-  public function clearCachedGroupContentTypeIdMap() {
-    $this->clearCachedPluginMaps();
-  }
-
-  /**
    * Returns the cached group content type ID map.
    *
    * @return array|null
@@ -327,7 +396,7 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
    * @param array $map
    *   The group content type ID map to store in cache.
    */
-  protected function setCachedPluginGroupContentTypeMap($map) {
+  protected function setCachedPluginGroupContentTypeMap(array $map) {
     $this->cacheSet($this->pluginGroupContentTypeMapCacheKey, $map, Cache::PERMANENT);
     $this->pluginGroupContentTypeMap = $map;
   }
@@ -374,7 +443,7 @@ class GroupContentEnablerManager extends DefaultPluginManager implements GroupCo
    * @param array $map
    *   The group type plugin map to store in cache.
    */
-  protected function setCachedGroupTypePluginMap($map) {
+  protected function setCachedGroupTypePluginMap(array $map) {
     $this->cacheSet($this->groupTypePluginMapCacheKey, $map, Cache::PERMANENT);
     $this->groupTypePluginMap = $map;
   }

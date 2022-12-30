@@ -22,12 +22,12 @@ class NodeTokenReplaceTest extends TokenReplaceKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'filter'];
+  protected static $modules = ['node', 'filter'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installConfig(['filter', 'node']);
 
@@ -47,7 +47,7 @@ class NodeTokenReplaceTest extends TokenReplaceKernelTestBase {
 
     // Create a user and a node.
     $account = $this->createUser();
-    /* @var $node \Drupal\node\NodeInterface */
+    /** @var \Drupal\node\NodeInterface $node */
     $node = Node::create([
       'type' => 'article',
       'tnid' => 0,
@@ -67,13 +67,15 @@ class NodeTokenReplaceTest extends TokenReplaceKernelTestBase {
     $tests['[node:body]'] = $node->body->processed;
     $tests['[node:summary]'] = $node->body->summary_processed;
     $tests['[node:langcode]'] = $node->language()->getId();
-    $tests['[node:url]'] = $node->url('canonical', $url_options);
-    $tests['[node:edit-url]'] = $node->url('edit-form', $url_options);
-    $tests['[node:author]'] = $account->getUsername();
+    $tests['[node:url]'] = $node->toUrl('canonical', $url_options)->toString();
+    $tests['[node:edit-url]'] = $node->toUrl('edit-form', $url_options)->toString();
+    $tests['[node:author]'] = $account->getAccountName();
     $tests['[node:author:uid]'] = $node->getOwnerId();
-    $tests['[node:author:name]'] = $account->getUsername();
-    $tests['[node:created:since]'] = \Drupal::service('date.formatter')->formatTimeDiffSince($node->getCreatedTime(), ['langcode' => $this->interfaceLanguage->getId()]);
-    $tests['[node:changed:since]'] = \Drupal::service('date.formatter')->formatTimeDiffSince($node->getChangedTime(), ['langcode' => $this->interfaceLanguage->getId()]);
+    $tests['[node:author:name]'] = $account->getAccountName();
+    /** @var \Drupal\Core\Datetime\DateFormatterInterface $date_formatter */
+    $date_formatter = $this->container->get('date.formatter');
+    $tests['[node:created:since]'] = $date_formatter->formatTimeDiffSince($node->getCreatedTime(), ['langcode' => $this->interfaceLanguage->getId()]);
+    $tests['[node:changed:since]'] = $date_formatter->formatTimeDiffSince($node->getChangedTime(), ['langcode' => $this->interfaceLanguage->getId()]);
 
     $base_bubbleable_metadata = BubbleableMetadata::createFromObject($node);
 
@@ -97,13 +99,13 @@ class NodeTokenReplaceTest extends TokenReplaceKernelTestBase {
     $metadata_tests['[node:changed:since]'] = $bubbleable_metadata;
 
     // Test to make sure that we generated something for each token.
-    $this->assertFalse(in_array(0, array_map('strlen', $tests)), 'No empty tokens generated.');
+    $this->assertNotContains(0, array_map('strlen', $tests), 'No empty tokens generated.');
 
     foreach ($tests as $input => $expected) {
       $bubbleable_metadata = new BubbleableMetadata();
       $output = $this->tokenService->replace($input, ['node' => $node], ['langcode' => $this->interfaceLanguage->getId()], $bubbleable_metadata);
-      $this->assertEqual($output, $expected, format_string('Node token %token replaced.', ['%token' => $input]));
-      $this->assertEqual($bubbleable_metadata, $metadata_tests[$input]);
+      $this->assertEquals($expected, $output, new FormattableMarkup('Node token %token replaced.', ['%token' => $input]));
+      $this->assertEquals($metadata_tests[$input], $bubbleable_metadata);
     }
 
     // Repeat for a node without a summary.
@@ -120,11 +122,11 @@ class NodeTokenReplaceTest extends TokenReplaceKernelTestBase {
     $tests['[node:summary]'] = $node->body->processed;
 
     // Test to make sure that we generated something for each token.
-    $this->assertFalse(in_array(0, array_map('strlen', $tests)), 'No empty tokens generated for node without a summary.');
+    $this->assertNotContains(0, array_map('strlen', $tests), 'No empty tokens generated for node without a summary.');
 
     foreach ($tests as $input => $expected) {
       $output = $this->tokenService->replace($input, ['node' => $node], ['language' => $this->interfaceLanguage]);
-      $this->assertEqual($output, $expected, new FormattableMarkup('Node token %token replaced for node without a summary.', ['%token' => $input]));
+      $this->assertEquals($expected, $output, new FormattableMarkup('Node token %token replaced for node without a summary.', ['%token' => $input]));
     }
   }
 

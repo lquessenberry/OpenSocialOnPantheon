@@ -1,0 +1,111 @@
+.contextual {
+  z-index: 100;
+
+  .trigger {
+    width: 32px !important;
+    height: 32px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .15);
+    border-radius: 50%;
+    box-sizing: border-box;
+
+    // Icon
+    &::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: block;
+      width: .75rem;
+      height: .75rem;
+      mask-image: icon('media-edit');
+      mask-size: 0.75rem 0.75rem;
+      mask-position: 100% 100%;
+      background: var(--colorGinPrimary);
+    }
+
+    &,
+    &:hover,
+    &:focus {
+      background: var(--colorGinLayer3Background);
+      border: 1px solid var(--colorGinLayer2Border);
+    }
+
+    &:hover,
+    &:focus {
+      box-shadow: 0 0 0 1px var(--colorGinFocusBorder),
+                  0 0 0 4px var(--colorGinFocus);
+    }
+  }
+
+  // Open trigger
+  &.open .trigger {
+    border-radius: 50%;
+    border-bottom: 0 none;
+  }
+}
+
+.contextual-region .contextual {
+  // Contextual Link list
+  .contextual-links {
+    top: 4px;
+    padding: .5em;
+    margin: 0;
+    min-width: 120px;
+    background: var(--colorGinLayer3Background);
+    border: 0 none;
+    border-radius: var(--ginBorderMedium);
+    box-shadow: var(--ginShadowLevel2);
+
+    li {
+      background: transparent;
+
+      a {
+        font-family: var(--ginFont);
+        color: var(--colorGinPrimary);
+        line-height: 1;
+        white-space: nowrap;
+        padding: .5rem 1rem;
+        margin: 0;
+        background: transparent;
+        border-radius: var(--ginBorderSmall);
+
+        &:hover, &:active {
+          color: var(--colorGinButtonText);
+          background: var(--colorGinPrimary);
+        }
+
+        &:focus {
+          outline: none;
+          box-shadow: 0 0 0 1px var(--colorGinFocusBorder),
+                      0 0 0 4px var(--colorGinFocus);
+        }
+      }
+    }
+
+    // Throbber
+    .ajax-progress-throbber {
+      top: .125rem;
+      background: var(--colorGinPrimary);
+      border-radius: 50%;
+
+      &::before {
+        top: .25rem;
+        left: .25rem;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid var(--colorGinButtonText);
+        border-right: 2px dotted transparent;
+      }
+    }
+  }
+}
+
+.no-touchevents .contextual-region .contextual {
+  .contextual-links li a {
+    &:hover, &:active {
+      color: var(--colorGinButtonText);
+      background: var(--colorGinPrimary);
+    }
+  }
+}

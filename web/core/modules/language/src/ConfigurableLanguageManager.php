@@ -90,11 +90,11 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
   protected $initialized = FALSE;
 
   /**
-   * Whether already in the process of language initialization.
+   * Whether language types are in the process of language initialization.
    *
-   * @var bool
+   * @var bool[]
    */
-  protected $initializing = FALSE;
+  protected $initializing = [];
 
   /**
    * {@inheritdoc}
@@ -201,7 +201,7 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
     if (isset($values['all'])) {
       $config->set('all', $values['all']);
     }
-    $config->save();
+    $config->save(TRUE);
   }
 
   /**
@@ -213,12 +213,12 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
       $this->negotiatedLanguages[$type] = $this->getDefaultLanguage();
 
       if ($this->negotiator && $this->isMultilingual()) {
-        if (!$this->initializing) {
-          $this->initializing = TRUE;
+        if (!isset($this->initializing[$type])) {
+          $this->initializing[$type] = TRUE;
           $negotiation = $this->negotiator->initializeType($type);
           $this->negotiatedLanguages[$type] = reset($negotiation);
           $this->negotiatedMethods[$type] = key($negotiation);
-          $this->initializing = FALSE;
+          unset($this->initializing[$type]);
         }
         // If the current interface language needs to be retrieved during
         // initialization we return the system language. This way string
@@ -403,8 +403,6 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
    * {@inheritdoc}
    */
   public function getLanguageSwitchLinks($type, Url $url) {
-    $links = FALSE;
-
     if ($this->negotiator) {
       foreach ($this->negotiator->getNegotiationMethods($type) as $method_id => $method) {
         $reflector = new \ReflectionClass($method['class']);
@@ -422,7 +420,7 @@ class ConfigurableLanguageManager extends LanguageManager implements Configurabl
       }
     }
 
-    return $links;
+    return $links ?? NULL;
   }
 
   /**

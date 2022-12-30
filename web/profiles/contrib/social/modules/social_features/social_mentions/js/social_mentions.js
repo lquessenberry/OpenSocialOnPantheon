@@ -2,16 +2,19 @@
  * @file
  */
 
-(function ($) {
+(function ($, once) {
 
   "use strict";
 
-  var CKEDITOR = window.CKEDITOR || {
-    on: function(event, callback) {
-      callback();
-    },
-    instances: {}
-  };
+  // Get CKEditor object.
+  var getCkeditor = function (){
+    return window.CKEDITOR || {
+      on: function(event, callback) {
+        callback();
+      },
+      instances: {}
+    };
+  }
 
   // Render Mention Item.
   var renderMentionItem = function (ul, item) {
@@ -35,13 +38,14 @@
 
   // Adds mention input config for the textarea.
   var initMentions = function(element, context, settings) {
-    $(element).mentionsInput({
+    const $textarea = $(element).mentionsInput({
       source: settings.path.baseUrl + "mentions-autocomplete",
       autocomplete: {
         renderItem: function(ul, item) {
           return renderMentionItem(ul, item);
         },
         open: function(event, ui) {
+          var CKEDITOR = getCkeditor();
           if (!CKEDITOR.instances[this.id]) {
 
             if (window.matchMedia("(min-width: 600px)").matches) {
@@ -68,8 +72,18 @@
       }
     });
 
+    // Init existing mentions.
+    if (settings.socialMentions.initMentions?.mentions?.length) {
+      const mentionsInput = $textarea.data("mentionsInput");
+      $(settings.socialMentions.initMentions.mentions).each(function () {
+        mentionsInput._addMention(this);
+      });
+      mentionsInput._setValue(settings.socialMentions.initMentions.text);
+      mentionsInput.input.trigger('change.mentionsInput');
+    }
+
     // Hook up the autogrow resize event to the highligher resize event handler.
-    $(element).on('autosize:resized', function () { $(element).trigger('resize.mentionsInput'); });
+    $textarea.on('autosize:resized', function () { $(element).trigger('resize.mentionsInput'); });
   };
 
   // Adds mention input config for the textarea.
@@ -81,6 +95,7 @@
           return renderMentionItem(ul, item);
         },
         open: function(event, ui) {
+          var CKEDITOR = getCkeditor();
           if (!CKEDITOR.instances[this.id]) {
             var menu = $(this).data("ui-mentionsAutocomplete").menu;
             menu.focus(null, $("li", menu.element).eq(0));
@@ -114,9 +129,10 @@
   Drupal.behaviors.socialMentions = {
     attach: function(context, settings) {
       var formIds = ".comment-form, #social-post-entity-form";
-
+      var CKEDITOR = getCkeditor();
       CKEDITOR.on("instanceReady", function () {
-        $(formIds).once("socialMentions").each(function (i, element) {
+        const $socialMentionsOnce = $(once('socialMentions', formIds));
+        $socialMentionsOnce.each(function (i, element) {
           $.each($(".form-textarea", element), function (i, textarea) {
             if (typeof CKEDITOR.instances[$(textarea).attr('id')] === 'undefined') {
               initMentions(textarea, context, settings);
@@ -133,23 +149,53 @@
   // Adds a custom behaviour for clicking on the reply button.
   Drupal.behaviors.socialMentionsReply = {
     attach: function (context, settings) {
+      var CKEDITOR = getCkeditor();
       CKEDITOR.on("instanceReady", function () {
-        $(".comment-form").once("socialMentionsReply").each(function (i, e) {
+        const $socialMentionsReplyOnce =  $(once('socialMentionsReply', '.comment-form', context));
+        $socialMentionsReplyOnce.each(function (i, e) {
           var form = e,
             $textarea = $(".form-textarea", form),
             mentionsInput = $textarea.data("mentionsInput"),
             editor = CKEDITOR.instances[$textarea.attr("id")];
 
+          if (typeof $("[data-drupal-selector=\"comment-form\"]").offset() !== "undefined") {
+            $(".comments .comment__reply-btn a").on("click", function () {
+              $("html, body").animate({
+                scrollTop: $("[data-drupal-selector=\"comment-form\"]").offset().top
+              }, 1000);
+            });
+          }
+
+          // Make sure we remove any open reply comment forms,
+          // we want to add "replying" to main comment form.
+          // we ensure this class is only added to reply forms in
+          // socialbase/includes/form.inc.
+          $(".js-comment .comment__reply-btn a").on("click", function () {
+            const $socialMentionsReplyFormCloseOnce = $(once('socialMentionsReplyFormClose', '.ajax-comments-form-reply'));
+            $socialMentionsReplyFormCloseOnce.each(function (i, e) {
+              $(this).parent('.comments').remove();
+              $(this).remove();
+            });
+          });
+
           $(".mention-reply").on("click", function (e) {
             e.preventDefault();
+            // Make sure we remove any open reply comment forms,
+            // we want to add "replying" to main comment form.
+            // we ensure this class is only added to reply forms in
+            // socialbase/includes/form.inc.
+            const $socialMentionsReplyOnReplyFormCloseOnce = $(once('socialMentionsReplyOnReplyFormClose', '.ajax-comments-form-reply'));
+            $socialMentionsReplyOnReplyFormCloseOnce.each(function (i, e) {
+              $(this).remove();
+            });
 
-            var author = $(this).data("author"),
-              empty = editor ? !editor.getData().length : !$textarea.val().length;
+            var author = $(this).data("author");
 
-            if (author && empty) {
+            if (author) {
               if (!editor) {
-                $textarea.val(author.value);
+                $textarea.val(author.value + ' ');
 
+                mentionsInput.mentions.length = 0;
                 mentionsInput._updateMentions();
                 mentionsInput._addMention({
                   name: author.value,
@@ -162,6 +208,14 @@
                 $textarea.focus();
               }
               else {
+                if(editor.getData().length) {
+                  $("[data-drupal-selector=\"comment-form\"]")
+                    .find('iframe')
+                    .contents()
+                    .find('body')
+                    .empty();
+                  editor.updateElement();
+                }
                 mentionsInput.handler.refreshMentions();
 
                 mentionsInput.handler.editor.focus();
@@ -192,4 +246,4 @@
     }
   };
 
-})(jQuery);
+})(jQuery, once);

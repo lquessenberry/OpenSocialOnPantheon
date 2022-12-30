@@ -3,8 +3,6 @@
 namespace Drupal\Tests\search_api\Kernel\System;
 
 use Drupal\Component\Serialization\Yaml;
-use Drupal\Core\Entity\EntityStorageInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\search_api\Entity\Index;
 use Drupal\search_api\Entity\Server;
@@ -28,7 +26,7 @@ class SerializationTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'search_api',
     'search_api_test',
     'node',
@@ -37,10 +35,36 @@ class SerializationTest extends KernelTestBase {
   ];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+
+    $this->installSchema('search_api', ['search_api_item']);
+    $this->installEntitySchema('search_api_task');
+    $this->installEntitySchema('node');
+    $this->installConfig('search_api');
+
+    // As our test index, just use the one from the DB Defaults module.
+    $path = __DIR__ . '/../../../../modules/search_api_db/search_api_db_defaults/config/optional/search_api.index.default_index.yml';
+    $index_values = Yaml::decode(file_get_contents($path));
+    $this->index = Index::create($index_values);
+    $server = Server::create([
+      'id' => 'test_server',
+      'name' => 'Test Server',
+      'status' => TRUE,
+      'backend' => 'search_api_test',
+    ]);
+    $server->save();
+    $this->index->setServer($server)->save();
+    $this->index = Index::load($this->index->id());
+  }
+
+  /**
    * Tests that serialization of index entities doesn't lead to data loss.
    */
   public function testIndexSerialization() {
-    $index = $this->createTestIndex();
+    $index = $this->index;
 
     // Make some changes to the index to ensure they're saved, too.
     $field_helper = \Drupal::getContainer()->get('search_api.fields_helper');
@@ -77,7 +101,7 @@ class SerializationTest extends KernelTestBase {
         return TRUE;
       }
       if (is_array($var)) {
-        foreach ($var as $key => $value) {
+        foreach ($var as $value) {
           if ($contains_object($value)) {
             return TRUE;
           }
@@ -111,7 +135,6 @@ class SerializationTest extends KernelTestBase {
    */
   public function testQuerySerialization() {
     $query = $this->createTestQuery();
-    $this->setMockIndexStorage();
 
     $serialized = unserialize(serialize($query));
 
@@ -132,7 +155,7 @@ class SerializationTest extends KernelTestBase {
     $query = $this->createTestQuery();
     // Since Drupal's DB layer sometimes has problems with side-effects of
     // __toString(), we here try to make sure this won't happen to us.
-    $this->assertInternalType('string', (string) $query);
+    $this->assertIsString((string) $query);
 
     $clone = clone $query;
 
@@ -157,6 +180,44 @@ class SerializationTest extends KernelTestBase {
     $this->assertNotSame($query->getConditionGroup(), $query_2->getConditionGroup());
     $this->assertNotSame($query->getParseMode(), $clone->getParseMode());
     $this->assertNotSame($query->getParseMode(), $query_2->getParseMode());
+  }
+
+  /**
+   * Tests that serialization of search results works correctly.
+   */
+  public function testResultSerialization() {
+    $item = $this->createTestItem();
+    $results = $this->createTestQuery()->getResults()
+      ->setResultCount(3)
+      ->setResultItems([
+        $item->getId() => $item,
+      ])
+      ->addIgnoredSearchKey('test')
+      ->addWarning('Something went a bit wrong.')
+      ->setExtraData('test', ['foo' => 'bar']);
+
+    /** @var \Drupal\search_api\Query\ResultSetInterface $serialized */
+    $serialized = unserialize(serialize($results));
+
+    // Call serialize() on the restored results to make "equals" work correctly.
+    serialize($serialized);
+
+    $this->assertEquals($results, $serialized);
+  }
+
+  /**
+   * Tests that serialization of items works correctly.
+   */
+  public function testItemSerialization() {
+    $item = $this->createTestItem();
+
+    /** @var \Drupal\search_api\Query\ResultSetInterface $serialized */
+    $serialized = unserialize(serialize($item));
+
+    // Call serialize() on the restored item to make "equals" work correctly.
+    serialize($serialized);
+
+    $this->assertEquals($item, $serialized);
   }
 
   /**
@@ -187,13 +248,13 @@ class SerializationTest extends KernelTestBase {
    */
   public function testFieldSerialization() {
     $field = $this->createTestField('test', 'entity:entity:entity_test_mulrev_changed');
-    $this->setMockIndexStorage();
 
     $serialized = unserialize(serialize($field));
 
-    // Call serialize() on the restored query to make "equals" work correctly.
-    // (__sleep() sets some properties as a by-product which the serialized
-    // version doesn't have – $indexId, in this case.)
+    // Call getIndex() and serialize() on the restored field to make "equals"
+    // work correctly. (__sleep() sets some properties as a by-product which the
+    // serialized version doesn't have – $indexId, in this case.)
+    $serialized->getIndex();
     serialize($serialized);
 
     $this->assertEquals($field, $serialized);
@@ -206,7 +267,7 @@ class SerializationTest extends KernelTestBase {
    *   A test query.
    */
   protected function createTestQuery() {
-    $query = $this->createTestIndex()->query([
+    $query = $this->index->query([
       'foo' => 'bar',
     ]);
 
@@ -238,11 +299,7 @@ class SerializationTest extends KernelTestBase {
    *   A test item.
    */
   protected function createTestItem() {
-    $index = $this->createTestIndex();
-    $datasource = \Drupal::getContainer()
-      ->get('search_api.plugin_helper')
-      ->createDatasourcePlugin($index, 'entity:user');
-    $item = new Item($index, 'id', $datasource);
+    $item = new Item($this->index, 'entity:node/id');
 
     $item->setBoost(2);
     $item->setExcerpt('Foo bar baz');
@@ -271,9 +328,7 @@ class SerializationTest extends KernelTestBase {
    *   A test field.
    */
   protected function createTestField($id = 'test', $datasource_id = NULL) {
-    $index = $this->createTestIndex();
-
-    $field = new Field($index, $id);
+    $field = new Field($this->index, $id);
     $field->setDatasourceId($datasource_id);
     $field->setPropertyPath($id);
     $field->setLabel('Foo');
@@ -288,41 +343,6 @@ class SerializationTest extends KernelTestBase {
     $field->setValues([1, 3, 5]);
 
     return $field;
-  }
-
-  /**
-   * Creates an index entity object for testing purposes.
-   *
-   * @return \Drupal\search_api\Entity\Index
-   *   A test index.
-   */
-  protected function createTestIndex() {
-    if (!$this->index) {
-      // As our test index, just use the one from the DB Defaults module.
-      $path = __DIR__ . '/../../../../modules/search_api_db/search_api_db_defaults/config/optional/search_api.index.default_index.yml';
-      $index_values = Yaml::decode(file_get_contents($path));
-      $index = new Index($index_values, 'search_api_index');
-      $this->index = $index;
-    }
-
-    return $this->index;
-  }
-
-  /**
-   * Sets a mock entity type manager to be able to load the test index.
-   */
-  protected function setMockIndexStorage() {
-    $index = $this->createTestIndex();
-
-    $storage = $this->getMock(EntityStorageInterface::class);
-    $storage->method('load')->willReturnMap([
-      [$index->id(), $index],
-    ]);
-    $entity_type_manager = $this->getMock(EntityTypeManagerInterface::class);
-    $entity_type_manager->method('getStorage')->willReturnMap([
-      ['search_api_index', $storage],
-    ]);
-    \Drupal::getContainer()->set('entity_type.manager', $entity_type_manager);
   }
 
 }

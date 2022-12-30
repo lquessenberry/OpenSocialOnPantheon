@@ -1,0 +1,99 @@
+simple_oauth.oauth2_token.bundle.*:
+  type: config_entity
+  label: 'OAuth2 token type'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    description:
+      type: text
+      label: 'Description'
+    locked:
+      type: boolean
+      label: 'Locked'
+
+simple_oauth.oauth2_scope.*:
+  type: config_entity
+  label: 'OAuth2 scope'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    name:
+      type: string
+      label: 'Name'
+    description:
+      type: text
+      label: 'Description'
+    grant_types:
+      type: sequence
+      label: 'Grant types'
+      sequence:
+        type: grant_type.[%key]
+    umbrella:
+      type: boolean
+      label: 'Umbrella'
+    parent:
+      type: string
+      label: 'Parent'
+    granularity:
+      type: string
+      label: 'Granularity'
+    permission:
+      type: string
+      label: 'Permission'
+    role:
+      type: string
+      label: 'Role'
+    langcode:
+      type: string
+      label: 'Language code'
+
+grant_type.authorization_code:
+  type: grant_type.settings
+  label: 'Authorization code'
+
+grant_type.client_credentials:
+  type: grant_type.settings
+  label: 'Client credentials'
+
+grant_type.refresh_token:
+  type: grant_type.settings
+  label: 'Refresh Token'
+
+grant_type.settings:
+  type: mapping
+  mapping:
+    status:
+      type: boolean
+      label: 'Enabled'
+    description:
+      type: text
+      label: 'Description'
+
+simple_oauth.settings:
+  type: config_object
+  label: 'Simple OAuth Settings'
+  mapping:
+    scope_provider:
+      type: string
+      label: 'Scope provider'
+    token_cron_batch_size:
+      type: integer
+      label: 'Token batch size'
+      description: 'The number of expired token to delete per batch during cron cron'
+    public_key:
+      type: path
+      label: 'Public Key'
+      description: 'The path to the public file.'
+    private_key:
+      type: path
+      label: 'Private Key'
+      description: 'The path to the private file.'
+    disable_openid_connect:
+      type: boolean
+      label: 'Disable OpenID Connect?'
+      description: 'OpenID Connect will be enabled, unless this flag is active.'

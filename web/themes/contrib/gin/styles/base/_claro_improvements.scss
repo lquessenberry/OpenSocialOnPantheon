@@ -1,0 +1,35 @@
+// Summary
+details summary {
+  padding: 16px;
+  background-color: rgba(#e6e4df, .2);
+}
+
+// Claro form--inline fixes
+.form--inline,
+[data-drupal-selector*="-bulk-form"],
+.layout-region-node-footer__content {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding-top: 16px;
+
+  .form-item,
+  .form-actions {
+    margin: .5rem .5rem .5rem 0;
+    align-self: flex-start;
+  }
+
+  .button,
+  .action-link {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .form-actions {
+    align-self: flex-end;
+  }
+
+  .field-add-more-submit {
+    margin-top: .75rem;
+  }
+}

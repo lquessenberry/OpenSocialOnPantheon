@@ -6,6 +6,7 @@ use Drupal\Tests\rest\Functional\CookieResourceTestTrait;
 
 /**
  * @group rest
+ * @group legacy
  */
 class ItemJsonCookieTest extends ItemResourceTestBase {
 
@@ -25,5 +26,10 @@ class ItemJsonCookieTest extends ItemResourceTestBase {
    * {@inheritdoc}
    */
   protected static $auth = 'cookie';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
 }

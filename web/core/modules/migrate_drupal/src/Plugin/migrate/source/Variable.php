@@ -2,15 +2,78 @@
 
 namespace Drupal\migrate_drupal\Plugin\migrate\source;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\State\StateInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 
 /**
- * Drupal variable source from database.
+ * Drupal 6/7 variable source from database.
  *
- * This source class always returns a single row and as such is not a good
- * example for any normal source class returning multiple rows.
+ * This source class fetches variables from the source Drupal database.
+ * Depending on the configuration, this returns zero or a single row and as such
+ * is not a good example for any normal source class returning multiple rows.
+ *
+ * Available configuration keys (one of which must be defined):
+ * - variables: (optional) The list of variables to retrieve from the source
+ *   database. Specified variables are retrieved in a single row.
+ * - variables_no_row_if_missing: (optional) The list of variables to retrieve
+ *   from the source database. If any of the variables listed here are missing
+ *   in the source, then the source will return zero rows.
+ *
+ * Examples:
+ *
+ * With this configuration, the source will return one row even when the
+ * "filter_fallback_format" variable isn't available:
+ * @code
+ * source:
+ *   plugin: variable
+ *   variables:
+ *     - filter_fallback_format
+ * @endcode
+ *
+ * With this configuration, the source will return one row if the variable is
+ * available, and zero if it isn't:
+ * @code
+ * source:
+ *   plugin: variable
+ *   variables_no_row_if_missing:
+ *     - filter_fallback_format
+ * @endcode
+ *
+ * The variables and the variables_no_row_if_missing lists are always merged
+ * together. All of the following configurations are valid:
+ * @code
+ * source:
+ *   plugin: variable
+ *   variables:
+ *     - book_child_type
+ *     - book_block_mode
+ *     - book_allowed_types
+ *   variables_no_row_if_missing:
+ *     - book_child_type
+ *     - book_block_mode
+ *     - book_allowed_types
+ *
+ * source:
+ *   plugin: variable
+ *   variables:
+ *     - book_child_type
+ *     - book_block_mode
+ *   variables_no_row_if_missing:
+ *     - book_allowed_types
+ *
+ * source:
+ *   plugin: variable
+ *   variables_no_row_if_missing:
+ *     - book_child_type
+ *     - book_block_mode
+ *     - book_allowed_types
+ * @endcode
+ *
+ * For additional configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
  *
  * @MigrateSource(
  *   id = "variable",
@@ -27,18 +90,31 @@ class Variable extends DrupalSqlBase {
   protected $variables;
 
   /**
+   * The variables that result in no row if any are missing from the source.
+   *
+   * @var array
+   */
+  protected $variablesNoRowIfMissing;
+
+  /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, StateInterface $state, EntityManagerInterface $entity_manager) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition, $migration, $state, $entity_manager);
-    $this->variables = $this->configuration['variables'];
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, StateInterface $state, EntityTypeManagerInterface $entity_type_manager) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $migration, $state, $entity_type_manager);
+    $this->variablesNoRowIfMissing = $this->configuration['variables_no_row_if_missing'] ?? [];
+    $variables = $this->configuration['variables'] ?? [];
+    $this->variables = array_unique(array_merge(array_values($variables), array_values($this->variablesNoRowIfMissing)));
   }
 
   /**
    * {@inheritdoc}
    */
   protected function initializeIterator() {
-    return new \ArrayIterator([$this->values()]);
+    if ($this->count()) {
+      return new \ArrayIterator([$this->values()]);
+    }
+
+    return new \ArrayIterator();
   }
 
   /**
@@ -59,8 +135,16 @@ class Variable extends DrupalSqlBase {
   /**
    * {@inheritdoc}
    */
-  public function count($refresh = FALSE) {
-    return intval($this->query()->countQuery()->execute()->fetchField() > 0);
+  protected function doCount() {
+    if (empty($this->variablesNoRowIfMissing)) {
+      return 1;
+    }
+    $variable_names = array_keys($this->query()->execute()->fetchAllAssoc('name'));
+
+    if (!empty(array_diff($this->variablesNoRowIfMissing, $variable_names))) {
+      return 0;
+    }
+    return 1;
   }
 
   /**

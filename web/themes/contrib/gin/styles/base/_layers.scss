@@ -1,0 +1,77 @@
+.page-content {
+  margin-top: 0;
+
+  > .help,
+  > .region-content,
+  > .region-highlighted {
+    @include mq($breakpointSmall) {
+      margin-top: 1.5rem;
+    }
+  }
+}
+
+.layer-wrapper,
+.block-system > form,
+.view-content .views-form,
+.panel,
+.admin-list,
+.view-watchdog .view-content,
+.views-exposed-form.views-exposed-form,
+.system-status-counter,
+.system-status-general-info,
+.system-status-report,
+.views-edit-view,
+.views-preview-wrapper,
+.view-block-content .view-content,
+.view-files .view-content,
+.system-themes-list,
+.modules-tabs,
+#views-entity-list,
+.admin.my-workbench
+{
+  margin-top: 0;
+  box-shadow: var(--ginShadowLevel1);
+  border-radius: var(--ginBorderMedium);
+
+  .gin--dark-mode & {
+    box-shadow: 0 6px 16px var(--colorGinLayerBorder);
+  }
+
+  .gin--high-contrast-mode & {
+    box-shadow: none;
+  }
+}
+
+.layer-wrapper,
+.block-system > form,
+.view-content .views-form,
+.views-exposed-form.views-exposed-form,
+.panel,
+.admin-list,
+.update,
+.view-files .view-content,
+.view-watchdog .view-content,
+.system-status-general-info,
+.system-status-report,
+.views-edit-view,
+.views-preview-wrapper,
+.view-block-content .view-content,
+.system-themes-list,
+#views-entity-list,
+.admin.my-workbench
+{
+  width: 100%;
+  padding: .75rem;
+  background: var(--colorGinLayerBackground);
+  border: 1px solid var(--colorGinLayerBorder);
+  box-sizing: border-box;
+
+  @include mq($breakpointSmall) {
+    padding: 1.5rem;
+  }
+
+  @include mq($breakpointLarge) {
+    min-width: 100%;
+    width: fit-content;
+  }
+}

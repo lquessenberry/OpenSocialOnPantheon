@@ -2,14 +2,28 @@
 
 namespace Drupal\Tests\image_effects\Functional\Effect;
 
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 
 /**
  * Text overlay effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class TextOverlayTest extends ImageEffectsTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
+    static::$modules = array_merge(static::$modules, [
+      'file_mdm',
+      'file_mdm_font',
+      'file_test',
+      'vendor_stream_wrapper',
+    ]);
+    parent::setUp();
+  }
 
   /**
    * {@inheritdoc}
@@ -22,7 +36,7 @@ class TextOverlayTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Text overlay effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,22 +47,20 @@ class TextOverlayTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testTextOverlayEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Text overlay effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testTextOverlayEffect() {
-    // Add Text overlay effect to the test image style.
+    // Copy the font file to the test path.
+    $this->fileSystem->copy('vendor://fileeye/linuxlibertine-fonts/LinLibertine_Rah.ttf', 'dummy-remote://', FileSystemInterface::EXISTS_REPLACE);
+
+    // Add Text overlay effects to the test image style.
+    // Different ways to access the same font file, via URI (local and remote),
+    // and local path.
     $effect_config = [
       'id' => 'image_effects_text_overlay',
       'data' => [
         'text_default][text_string' => 'the quick brown fox jumps over the lazy dog',
-        'font][uri' => drupal_get_path('module', 'image_effects') . '/tests/fonts/LinLibertineTTF_5.3.0_2012_07_02/LinLibertine_Rah.ttf',
+        'font][uri' => $this->fileSystem->realpath('vendor://fileeye/linuxlibertine-fonts/LinLibertine_Rah.ttf'),
         'font][size' => 40,
         'layout][position][extended_color][container][transparent' => FALSE,
         'layout][position][extended_color][container][hex' => '#FF00FF',
@@ -56,10 +68,40 @@ class TextOverlayTest extends ImageEffectsTestBase {
       ],
     ];
     $this->addEffectToTestStyle($effect_config);
+    $effect_config = [
+      'id' => 'image_effects_text_overlay',
+      'data' => [
+        'text_default][text_string' => 'the quick brown fox jumps over the lazy dog',
+        'font][uri' => 'vendor://fileeye/linuxlibertine-fonts/LinLibertine_Rah.ttf',
+        'font][size' => 10,
+        'layout][position][extended_color][container][transparent' => FALSE,
+        'layout][position][extended_color][container][hex' => '#FF00FF',
+        'layout][position][extended_color][container][opacity' => 100,
+      ],
+    ];
+    $this->addEffectToTestStyle($effect_config);
+    $effect_config = [
+      'id' => 'image_effects_text_overlay',
+      'data' => [
+        'text_default][text_string' => 'the quick brown fox jumps over the lazy dog',
+        'font][uri' => 'dummy-remote://LinLibertine_Rah.ttf',
+        'font][size' => 10,
+        'layout][position][extended_color][container][transparent' => FALSE,
+        'layout][position][extended_color][container][hex' => '#FF00FF',
+        'layout][position][extended_color][container][opacity' => 100,
+      ],
+    ];
+    $this->addEffectToTestStyle($effect_config);
+
+    // Check that no temporary files are left in Imagemagick.
+    if ($toolkit_id === 'imagemagick') {
+      $directory_scan = $this->fileSystem->scanDirectory('temporary://', '/ifx.*/');
+      $this->assertEquals(0, count($directory_scan));
+    }
 
     $test_data = [
       [
-        'test_file' => $this->getTestImageCopyUri('/files/image-test.png', 'simpletest'),
+        'test_file' => $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png'),
         'derivative_width' => 984,
         'derivative_height' => 61,
       ],
@@ -94,7 +136,7 @@ class TextOverlayTest extends ImageEffectsTestBase {
         '#width' => $image->getWidth(),
         '#height' => $image->getHeight(),
       ];
-      $this->assertEqual('<img src="' . $derivative_url . '" width="' . $derivative_image->getWidth() . '" height="' . $derivative_image->getHeight() . '" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+      $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"{$derivative_image->getWidth()}\" height=\"{$derivative_image->getHeight()}\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
     }
   }
 
@@ -107,7 +149,7 @@ class TextOverlayTest extends ImageEffectsTestBase {
       'id' => 'image_effects_text_overlay',
       'data' => [
         'text_default][text_string' => 'the quick brown fox jumps over the lazy dog',
-        'font][uri' => drupal_get_path('module', 'image_effects') . '/tests/fonts/LinLibertineTTF_5.3.0_2012_07_02/LinLibertine_Rah.ttf',
+        'font][uri' => 'vendor://fileeye/linuxlibertine-fonts/LinLibertine_Rah.ttf',
         'font][size' => 40,
         'layout][position][extended_color][container][transparent' => FALSE,
         'layout][position][extended_color][container][hex' => '#FF00FF',
@@ -118,9 +160,9 @@ class TextOverlayTest extends ImageEffectsTestBase {
 
     // Test text and HTML tags and entities.
     $effect = $this->testImageStyle->getEffect($uuid);
-    $this->assertEqual('the quick brown fox jumps over the lazy dog', $effect->getAlteredText($effect->getConfiguration()['data']['text_string']));
-    $this->assertEqual('Para1 Para2', $effect->getAlteredText('<p>Para1</p><!-- Comment --> Para2'));
-    $this->assertEqual('"Title" One …', $effect->getAlteredText('&quot;Title&quot; One &hellip;'));
+    $this->assertEquals('the quick brown fox jumps over the lazy dog', $effect->getAlteredText($effect->getConfiguration()['data']['text_string']));
+    $this->assertEquals('Para1 Para2', $effect->getAlteredText('<p>Para1</p><!-- Comment --> Para2'));
+    $this->assertEquals('"Title" One …', $effect->getAlteredText('&quot;Title&quot; One &hellip;'));
     $this->removeEffectFromTestStyle($uuid);
     $effect_config['data'] += [
       'text_default][strip_tags' => FALSE,
@@ -128,8 +170,8 @@ class TextOverlayTest extends ImageEffectsTestBase {
     ];
     $uuid = $this->addEffectToTestStyle($effect_config);
     $effect = $this->testImageStyle->getEffect($uuid);
-    $this->assertEqual('<p>Para1</p><!-- Comment --> Para2', $effect->getAlteredText('<p>Para1</p><!-- Comment --> Para2'));
-    $this->assertEqual('&quot;Title&quot; One &hellip;', $effect->getAlteredText('&quot;Title&quot; One &hellip;'));
+    $this->assertEquals('<p>Para1</p><!-- Comment --> Para2', $effect->getAlteredText('<p>Para1</p><!-- Comment --> Para2'));
+    $this->assertEquals('&quot;Title&quot; One &hellip;', $effect->getAlteredText('&quot;Title&quot; One &hellip;'));
 
     // Test converting to uppercase and trimming text.
     $this->removeEffectFromTestStyle($uuid);
@@ -139,7 +181,22 @@ class TextOverlayTest extends ImageEffectsTestBase {
     ];
     $uuid = $this->addEffectToTestStyle($effect_config);
     $effect = $this->testImageStyle->getEffect($uuid);
-    $this->assertEqual('THE QUICK…', $effect->getAlteredText($effect->getConfiguration()['data']['text_string']));
+    $this->assertEquals('THE QUICK…', $effect->getAlteredText($effect->getConfiguration()['data']['text_string']));
+
+    // Test converting to each word starting uppercase.
+    $this->removeEffectFromTestStyle($uuid);
+    $effect_config['data']['text][case_format'] = 'ucwords';
+    $effect_config['data']['text][maximum_chars'] = '';
+    $uuid = $this->addEffectToTestStyle($effect_config);
+    $effect = $this->testImageStyle->getEffect($uuid);
+    $this->assertEquals('The Quick Brown Fox Jumps Over The Lazy Dog', $effect->getAlteredText($effect->getConfiguration()['data']['text_string']));
+
+    // Test converting to starting uppercase.
+    $this->removeEffectFromTestStyle($uuid);
+    $effect_config['data']['text][case_format'] = 'ucfirst';
+    $uuid = $this->addEffectToTestStyle($effect_config);
+    $effect = $this->testImageStyle->getEffect($uuid);
+    $this->assertEquals('The quick brown fox jumps over the lazy dog', $effect->getAlteredText($effect->getConfiguration()['data']['text_string']));
   }
 
 }

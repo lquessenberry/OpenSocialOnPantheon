@@ -4,9 +4,9 @@ namespace Drupal\Tests\content_moderation\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\node\Entity\NodeType;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
 use Drupal\Tests\node\Traits\NodeCreationTrait;
 use Drupal\Tests\user\Traits\UserCreationTrait;
-use Drupal\workflows\Entity\Workflow;
 
 /**
  * Tests with node access enabled.
@@ -17,6 +17,7 @@ class NodeAccessTest extends KernelTestBase {
 
   use NodeCreationTrait;
   use UserCreationTrait;
+  use ContentModerationTestTrait;
 
   /**
    * The moderation information service.
@@ -28,7 +29,7 @@ class NodeAccessTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'content_moderation',
     'filter',
     'node',
@@ -41,7 +42,7 @@ class NodeAccessTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('content_moderation_state');
@@ -58,7 +59,7 @@ class NodeAccessTest extends KernelTestBase {
       'label' => 'Page',
     ]);
     $node_type->save();
-    $workflow = Workflow::load('editorial');
+    $workflow = $this->createEditorialWorkflow();
     $workflow->getTypePlugin()->addEntityTypeAndBundle('node', 'page');
     $workflow->save();
 
@@ -66,9 +67,9 @@ class NodeAccessTest extends KernelTestBase {
   }
 
   /**
-   * Tests for moderation information methods with node access.
+   * @covers \Drupal\content_moderation\ModerationInformation::getDefaultRevisionId
    */
-  public function testModerationInformation() {
+  public function testGetDefaultRevisionId() {
     // Create an admin user.
     $user = $this->createUser([], NULL, TRUE);
     \Drupal::currentUser()->setAccount($user);
@@ -76,13 +77,11 @@ class NodeAccessTest extends KernelTestBase {
     // Create a node.
     $node = $this->createNode(['type' => 'page']);
     $this->assertEquals($node->getRevisionId(), $this->moderationInformation->getDefaultRevisionId('node', $node->id()));
-    $this->assertEquals($node->getRevisionId(), $this->moderationInformation->getLatestRevisionId('node', $node->id()));
 
     // Create a non-admin user.
     $user = $this->createUser();
     \Drupal::currentUser()->setAccount($user);
     $this->assertEquals($node->getRevisionId(), $this->moderationInformation->getDefaultRevisionId('node', $node->id()));
-    $this->assertEquals($node->getRevisionId(), $this->moderationInformation->getLatestRevisionId('node', $node->id()));
   }
 
 }

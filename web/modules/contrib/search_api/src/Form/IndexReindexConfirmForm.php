@@ -4,14 +4,42 @@ namespace Drupal\search_api\Form;
 
 use Drupal\Core\Entity\EntityConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Utility\Error;
 use Drupal\search_api\SearchApiException;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Defines a confirm form for reindexing an index.
  */
 class IndexReindexConfirmForm extends EntityConfirmFormBase {
+
+  /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
+   * Constructs an IndexReindexConfirmForm object.
+   *
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
+   */
+  public function __construct(MessengerInterface $messenger) {
+    $this->messenger = $messenger;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    $messenger = $container->get('messenger');
+
+    return new static($messenger);
+  }
 
   /**
    * {@inheritdoc}
@@ -43,11 +71,11 @@ class IndexReindexConfirmForm extends EntityConfirmFormBase {
 
     try {
       $index->reindex();
-      drupal_set_message($this->t('The search index %name was successfully reindexed.', ['%name' => $index->label()]));
+      $this->messenger->addStatus($this->t('The search index %name was successfully queued for reindexing.', ['%name' => $index->label()]));
     }
     catch (SearchApiException $e) {
-      drupal_set_message($this->t('Failed to reindex items for the search index %name.', ['%name' => $index->label()]), 'error');
-      $message = '%type while trying to reindex items on index %name: @message in %function (line %line of %file)';
+      $this->messenger->addError($this->t('Failed to queue items for reindexing on search index %name.', ['%name' => $index->label()]));
+      $message = '%type while trying to queue items for reindexing on index %name: @message in %function (line %line of %file)';
       $variables = [
         '%name' => $index->label(),
       ];

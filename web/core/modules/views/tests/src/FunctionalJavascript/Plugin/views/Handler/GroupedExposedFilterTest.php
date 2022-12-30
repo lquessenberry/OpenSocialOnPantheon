@@ -3,7 +3,7 @@
 namespace Drupal\Tests\views\FunctionalJavascript\Plugin\views\Handler;
 
 use Drupal\field\Entity\FieldConfig;
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\node\Entity\NodeType;
 use Drupal\views\Tests\ViewTestData;
 
@@ -12,12 +12,23 @@ use Drupal\views\Tests\ViewTestData;
  *
  * @group views
  */
-class GroupedExposedFilterTest extends JavascriptTestBase {
+class GroupedExposedFilterTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_ui', 'user', 'views_test_config'];
+  protected static $modules = [
+    'node',
+    'views',
+    'views_ui',
+    'user',
+    'views_test_config',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -36,10 +47,10 @@ class GroupedExposedFilterTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    ViewTestData::createTestViews(get_class($this), ['views_test_config']);
+    ViewTestData::createTestViews(static::class, ['views_test_config']);
 
     // Disable automatic live preview to make the sequence of calls clearer.
     \Drupal::configFactory()->getEditable('views.settings')->set('ui.always_live_preview', FALSE)->save();
@@ -60,7 +71,7 @@ class GroupedExposedFilterTest extends JavascriptTestBase {
   }
 
   /**
-   * Test if the right fields are shown and the right values set.
+   * Tests if the right fields are shown and the right values set.
    */
   public function testGroupedFilterValuesUI() {
     $web_assert = $this->assertSession();
@@ -85,21 +96,21 @@ class GroupedExposedFilterTest extends JavascriptTestBase {
     $weight = $page->findField('options[group_info][group_items][1][weight]');
 
     // If there are 3 items, values from -3 to 3 should be available.
-    $this->assertFalse($weight->find('named', ['option', -4]));
+    $this->assertNull($weight->find('named', ['option', -4]));
     foreach (range(-3, 3) as $value) {
-      $this->assertTrue($weight->find('named', ['option', $value]));
+      $this->assertNotEmpty($weight->find('named', ['option', $value]));
     }
-    $this->assertFalse($weight->find('named', ['option', 4]));
+    $this->assertEmpty($weight->find('named', ['option', 4]));
 
     $page->pressButton("Add another item");
     $web_assert->waitForField('options[group_info][group_items][4][title]');
 
     // A new items was added, weight options should now be -4 to 4.
-    $this->assertFalse($weight->find('named', ['option', -5]));
+    $this->assertEmpty($weight->find('named', ['option', -5]));
     foreach (range(-4, 4) as $value) {
-      $this->assertTrue($weight->find('named', ['option', $value]));
+      $this->assertNotEmpty($weight->find('named', ['option', $value]));
     }
-    $this->assertFalse($weight->find('named', ['option', 5]));
+    $this->assertEmpty($weight->find('named', ['option', 5]));
   }
 
 }

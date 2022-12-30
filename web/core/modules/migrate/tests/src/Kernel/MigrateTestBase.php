@@ -3,11 +3,11 @@
 namespace Drupal\Tests\migrate\Kernel;
 
 use Drupal\Core\Database\Database;
+use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate\MigrateMessageInterface;
 use Drupal\migrate\Plugin\MigrateIdMapInterface;
-use Drupal\migrate\Plugin\Migration;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\Row;
 
@@ -47,7 +47,18 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
    */
   protected $sourceDatabase;
 
-  public static $modules = ['migrate'];
+  /**
+   * A logger prophecy object.
+   *
+   * Using ::setTestLogger(), this prophecy will be configured and injected into
+   * the container. Using $this->logger->function(args)->shouldHaveBeenCalled()
+   * you can assert that the logger was called.
+   *
+   * @var \Prophecy\Prophecy\ObjectProphecy
+   */
+  protected $logger;
+
+  protected static $modules = ['migrate'];
 
   /**
    * {@inheritdoc}
@@ -56,6 +67,9 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
     parent::setUp();
     $this->createMigrationConnection();
     $this->sourceDatabase = Database::getConnection('default', 'migrate');
+    // Attach the original test prefix as a database, for SQLite to attach its
+    // database file.
+    $this->sourceDatabase->attachDatabase(substr($this->sourceDatabase->getConnectionOptions()['prefix'], 0, -1));
   }
 
   /**
@@ -79,14 +93,10 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
     }
     $connection_info = Database::getConnectionInfo('default');
     foreach ($connection_info as $target => $value) {
-      $prefix = is_array($value['prefix']) ? $value['prefix']['default'] : $value['prefix'];
+      $prefix = $value['prefix'];
       // Simpletest uses 7 character prefixes at most so this can't cause
       // collisions.
-      $connection_info[$target]['prefix']['default'] = $prefix . '0';
-
-      // Add the original simpletest prefix so SQLite can attach its database.
-      // @see \Drupal\Core\Database\Driver\sqlite\Connection::init()
-      $connection_info[$target]['prefix'][$value['prefix']['default']] = $value['prefix']['default'];
+      $connection_info[$target]['prefix'] = $prefix . '0';
     }
     Database::addConnectionInfo('migrate', 'default', $connection_info['default']);
   }
@@ -97,7 +107,6 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
   protected function tearDown() {
     $this->cleanupMigrateConnection();
     parent::tearDown();
-    $this->databaseDumpFiles = [];
     $this->collectMessages = FALSE;
     unset($this->migration, $this->migrateMessages);
   }
@@ -173,13 +182,15 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
    * Executes a set of migrations in dependency order.
    *
    * @param string[] $ids
-   *   Array of migration IDs, in any order.
+   *   Array of migration IDs, in any order. If any of these migrations use a
+   *   deriver, the derivatives will be made before execution.
    */
   protected function executeMigrations(array $ids) {
     $manager = $this->container->get('plugin.manager.migration');
     array_walk($ids, function ($id) use ($manager) {
       // This is possibly a base plugin ID and we want to run all derivatives.
       $instances = $manager->createInstances($id);
+      $this->assertNotEmpty($instances, sprintf("No migrations created for id '%s'.", $id));
       array_walk($instances, [$this, 'executeMigration']);
     });
   }
@@ -192,7 +203,7 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
       $this->migrateMessages[$type][] = $message;
     }
     else {
-      $this->assert($type == 'status', $message, 'migrate');
+      $this->assertEquals('status', $type, $message);
     }
   }
 
@@ -248,6 +259,15 @@ abstract class MigrateTestBase extends KernelTestBase implements MigrateMessageI
    */
   protected function getMigration($plugin_id) {
     return $this->container->get('plugin.manager.migration')->createInstance($plugin_id);
+  }
+
+  /**
+   * Injects the test logger into the container.
+   */
+  protected function setTestLogger() {
+    $this->logger = $this->prophesize(LoggerChannelInterface::class);
+    $this->container->set('logger.channel.migrate', $this->logger->reveal());
+    \Drupal::setContainer($this->container);
   }
 
 }

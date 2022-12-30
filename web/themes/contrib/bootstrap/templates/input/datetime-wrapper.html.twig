@@ -25,6 +25,11 @@
   <label{{ title_attributes.addClass(title_classes) }}>{{ title }}</label>
 {% endif %}
 {{ content }}
+{% if errors %}
+  <div class="form-item--error-message alert alert-danger alert-sm">
+    {{ errors }}
+  </div>
+{% endif %}
 {% if description %}
   <p class="help-block">{{ description }}</p>
 {% endif %}

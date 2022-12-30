@@ -5,10 +5,7 @@
  * The Flag module.
  */
 
-define('FLAG_API_VERSION', 3);
 
-use Drupal\Core\Access\AccessResult;
-use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Entity\ContentEntityFormInterface;
 use Drupal\Core\Form\ConfirmFormInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -22,7 +19,6 @@ use Drupal\system\Entity\Action;
 use Drupal\user\UserInterface;
 use Drupal\flag\FlagInterface;
 use Drupal\Core\Url;
-use Drupal\Core\Plugin\DefaultSingleLazyPluginCollection;
 
 /**
  * Implements hook_help().
@@ -50,9 +46,11 @@ function flag_help($route_name, RouteMatchInterface $route_match) {
 
       $output .= '<p>' . t('To learn about the various ways to use flags, please check out the <a href="@handbook-url">Flag module handbook</a>.', ['@handbook-url' => 'http://drupal.org/handbook/modules/flag']) . '</p>';
       return $output;
+
     case 'flag.add_page':
       $output = '<p>' . t('Select the type of flag to create.') . '</p>';
       return $output;
+
     case 'field_ui.overview_flagging':
       // @todo: Doesn't make sense at the moment, implement when form
       // functionality is available.
@@ -122,52 +120,66 @@ function flag_help($route_name, RouteMatchInterface $route_match) {
  */
 function flag_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   $object = $form_state->getFormObject();
+
+  // We only want to operate on content entity forms.
   if (!($object instanceof ContentEntityFormInterface) || ($object instanceof ConfirmFormInterface)) {
     return;
   }
+
+  // Get the flags for the entity being edited by the form.
   $flag_service = \Drupal::service('flag');
   $entity = $object->getEntity();
-
   $flags = $flag_service->getAllFlags($entity->getEntityTypeId(), $entity->bundle());
+
+  // Check the first flag and return early if the form isn't considered to be
+  // an edit form.
+  if (!empty($flags) && isset($flags[0]) && $flags[0] instanceof FlagInterface) {
+    if (!$flags[0]->getFlagTypePlugin()->isAddEditForm($object->getOperation())) {
+      return;
+    }
+  }
+
   // Filter the flags to those that apply here:
   //  - the flag uses the entity type plugin.
   //  - the plugin is configured to output the flag in the entity form.
-  //  - the form is considered to be an edit form.
   //  - the current user has access to the flag.
-  $filtered_flags = array_filter($flags, function(FlagInterface $flag) use ($flag_service, $object) {
+  $filtered_flags = array_filter($flags, function(FlagInterface $flag) use ($object) {
     $plugin = $flag->getFlagTypePlugin();
     $entity = $object->getEntity();
-    $flagging = $flag_service->getFlagging($flag, $entity);
-    $action = is_null($flagging) ? 'flag' : 'unflag';
+    $action = $flag->isFlagged($entity) ? 'unflag' : 'flag';
     $access = $flag->actionAccess($action, NULL, $entity);
 
     return ($plugin instanceof EntityFlagType)
       && $plugin->showOnForm()
-      && $plugin->isAddEditForm($object->getOperation())
       && $access->isAllowed();
   });
+
+  // If we still have any flags...
   if (!empty($filtered_flags)) {
-    $form['flag'] = array(
+
+    // Add a container to the form.
+    $form['flag'] = [
       '#type' => 'details',
       '#title' => t('Flags'),
-      '#attached' => array('library' => array('flag/flag.admin')),
+      '#attached' => ['library' => ['flag/flag.admin']],
       '#group' => 'advanced',
       '#tree' => TRUE,
-    );
-    foreach ($filtered_flags as $flag) {
-      // TODO: refactor so we don't check this twice per flag.
-      $flagging = $flag_service->getFlagging($flag, $entity);
+    ];
 
-      $form['flag'][$flag->id()] = array(
+    /** @var FlagInterface $flag */
+    foreach ($filtered_flags as $flag) {
+      // Add each flag to the form.
+      $form['flag'][$flag->id()] = [
         '#type' => 'checkbox',
         '#title' => $flag->label(),
         '#description' => $flag->getLongText('flag'),
-        '#default_value' => is_null($flagging)? NULL: 1,
+        '#default_value' => $flag->isFlagged($entity) ? 1 : 0,
         '#return_value' => 1,
         // Used by our drupalSetSummary() on vertical tabs.
-        '#attributes' => array('title' => $flag->label()),
-      );
+        '#attributes' => ['title' => $flag->label()],
+      ];
     }
+
     foreach (array_keys($form['actions']) as $action) {
       if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
         $form['actions'][$action]['#submit'][] = 'flag_form_submit';
@@ -178,6 +190,7 @@ function flag_form_alter(&$form, FormStateInterface $form_state, $form_id) {
 
 /**
  * Form submission handler for the flag module.
+ *
  * @see flag_form_alter()
  */
 function flag_form_submit($form, FormStateInterface $form_state) {
@@ -192,9 +205,9 @@ function flag_form_submit($form, FormStateInterface $form_state) {
  * Performs flagging/unflagging for the entity edit form.
  *
  * @param \Drupal\Core\Entity\EntityInterface $entity
- *  The entity being saved.
+ *   The entity being saved.
  * @param $values
- *  The flag entity form values.
+ *   The flag entity form values.
  *
  * @see flag_form_submit()
  */
@@ -203,30 +216,41 @@ function flag_form_save(EntityInterface $entity, $values) {
   $account = \Drupal::currentUser();
 
   // For existing entities, get any existing flaggings per flag.
-  $flagging_ids = array();
+  $flagging_ids = [];
   if (!$entity->isNew()) {
     $flaggings = $flag_service->getAllEntityFlaggings($entity, $account);
-    $flagging_ids = array_map(function($flagging) {
+    $flagging_ids = array_map(function ($flagging) {
       return $flagging->getFlagId();
     }, $flaggings);
   }
 
-  // Iterate through each flag on the entity form.
-  foreach ($values as $flag_id => $value) {
-    // Get the flag from the Flag Service.
-    $flag = $flag_service->getFlagById($flag_id);
+  // Load all the flags for the entity.
+  $flags = $flag_service->getAllFlags($entity->getEntityTypeId(), $entity->bundle());
+
+  /** @var FlagInterface $flag */
+  foreach ($flags as $flag) {
+    // Get the flag_id from the Flag.
+    $flag_id = $flag->id();
+
+    // If the flag_id is not part of the form values, no need to do anything.
+    if (!isset($values[$flag_id])) {
+      continue;
+    }
+
+    // Get the form flag value.
+    $value = $values[$flag_id];
 
     // Determine if the flagging exists.
-    $flag_exists = in_array($flag_id, $flagging_ids);
+    $flagging_exists = in_array($flag_id, $flagging_ids);
 
     // If the flag is checked in the form, and the flagging doesn't exist...
-    if ($value && !$flag_exists) {
+    if ($value && !$flagging_exists) {
       // ...flag the entity.
       $flag_service->flag($flag, $entity);
     }
 
     // If the flag is not checked in the form, and the flagging exists..
-    if (!$value && $flag_exists) {
+    if (!$value && $flagging_exists) {
       // ...unflag the entity.
       $flag_service->unflag($flag, $entity);
     }
@@ -240,6 +264,8 @@ function flag_entity_extra_field_info() {
   $extra = [];
   $flag_service = \Drupal::service('flag');
   $flags = $flag_service->getAllFlags();
+
+  /** @var FlagInterface $flag */
   foreach ($flags as $flag) {
     // Skip flags that aren't on entities.
     $flag_type_plugin = $flag->getFlagTypePlugin();
@@ -307,7 +333,8 @@ function flag_theme_suggestions_flag(array $variables) {
  * Implements hook_node_links_alter().
  */
 function flag_node_links_alter(array &$links, NodeInterface $entity, array &$context) {
-  //@todo: Define this for handling the showOnLinks() flag mode.
+  // @todo: Define this for handling the showOnLinks() flag mode.
+  // see https://www.drupal.org/project/flag/issues/2703229
 }
 
 /**
@@ -479,11 +506,12 @@ function flag_contextual_links_alter(array &$links, $group, array $route_paramet
 
     $flag_url = $flag_link->getUrl();
 
-    $links["flag_{$flag->id()}"] = array(
+    $links["flag_{$flag->id()}"] = [
       'route_name' => $flag_url->getRouteName(),
       'route_parameters' => $flag_url->getRouteParameters(),
       'title' => $flag_link->getText(),
-    );
+      'localized_options' => [],
+    ];
   }
 }
 
@@ -492,7 +520,6 @@ function flag_contextual_links_alter(array &$links, $group, array $route_paramet
  */
 function flag_entity_predelete(EntityInterface $entity) {
   // User flags handle things through user entity hooks.
-  // @todo: make this configurable in the flag type definition?
   if ($entity->getEntityTypeId() == 'user') {
     return;
   }
@@ -552,14 +579,14 @@ function flag_entity_operation(\Drupal\Core\Entity\EntityInterface $entity) {
  * Flag alter hooks should be defined in a MODULE.flag.inc file.
  */
 function flag_hook_info() {
-  $hooks = array();
+  $hooks = [];
 
-  $hooks['flag_type_info_alter'] = array(
+  $hooks['flag_type_info_alter'] = [
     'group' => 'flag',
-  );
-  $hooks['flag_link_type_info_alter'] = array(
+  ];
+  $hooks['flag_link_type_info_alter'] = [
     'group' => 'flag',
-  );
+  ];
 
   return $hooks;
 }
@@ -578,30 +605,30 @@ function flag_flag_insert(FlagInterface $flag) {
   $action_manager->clearCachedDefinitions();
 
   // Add the flag/unflag actions for this flag and entity combination.
-  $flag_id = 'flag_action.' . $flag->id() . '.flag';
+  $flag_id = 'flag_action.' . $flag->id() . '_flag';
   if (!Action::load($flag_id)) {
     $action = Action::create([
       'id' => $flag_id,
       'type' => $flag->getFlaggableEntityTypeId(),
       'label' => $flag->getShortText('flag'),
-      'plugin' => 'flag_action:' . $flag->id() . '.flag',
+      'plugin' => 'flag_action:' . $flag->id() . '_flag',
       'configuration' => [
         'flag_id' => $flag->id(),
-        'flag_action' => 'flag'
+        'flag_action' => 'flag',
       ],
     ]);
     $action->trustData()->save();
   }
-  $unflag_id = 'flag_action.' . $flag->id() . '.unflag';
+  $unflag_id = 'flag_action.' . $flag->id() . '_unflag';
   if (!Action::load($unflag_id)) {
     $action = Action::create([
       'id' => $unflag_id,
       'type' => $flag->getFlaggableEntityTypeId(),
       'label' => $flag->getShortText('unflag'),
-      'plugin' => 'flag_action:' . $flag->id() . '.unflag',
+      'plugin' => 'flag_action:' . $flag->id() . '_unflag',
       'configuration' => [
         'flag_id' => $flag->id(),
-        'flag_action' => 'unflag'
+        'flag_action' => 'unflag',
       ],
     ]);
     $action->trustData()->save();
@@ -612,15 +639,17 @@ function flag_flag_insert(FlagInterface $flag) {
  * Implements hook_ENTITY_TYPE_delete().
  */
 function flag_flag_delete(FlagInterface $flag) {
+  // Do not delete actions when config is progress of synchronization.
   if ($flag->isSyncing()) {
-    // Do not delete actions when config is progress of synchronization.
     return;
   }
-  // Remove the flag/unflag actions for this flag and entity combination.
+
   $actions = Action::loadMultiple([
-    'flag_action.' . $flag->id() . '.flag',
-    'flag_action.' . $flag->id() . '.unflag',
+    'flag_action.' . $flag->id() . '_flag',
+    'flag_action.' . $flag->id() . '_unflag',
   ]);
+
+  // Remove the flag/unflag actions for this flag and entity combination.
   foreach ($actions as $action) {
     $action->delete();
   }

@@ -23,8 +23,8 @@ class SkipRowIfNotSetTest extends MigrateProcessTestCase {
       'index' => 'some_key',
     ];
     $process = new SkipRowIfNotSet($configuration, 'skip_row_if_not_set', []);
-    $this->setExpectedException(MigrateSkipRowException::class);
-    $process->transform('', $this->migrateExecutable, $this->row, 'destinationproperty');
+    $this->expectException(MigrateSkipRowException::class);
+    $process->transform('', $this->migrateExecutable, $this->row, 'destination_property');
   }
 
   /**
@@ -38,8 +38,9 @@ class SkipRowIfNotSetTest extends MigrateProcessTestCase {
       'message' => "The 'some_key' key is not set",
     ];
     $process = new SkipRowIfNotSet($configuration, 'skip_row_if_not_set', []);
-    $this->setExpectedException(MigrateSkipRowException::class, "The 'some_key' key is not set");
-    $process->transform('', $this->migrateExecutable, $this->row, 'destinationproperty');
+    $this->expectException(MigrateSkipRowException::class);
+    $this->expectExceptionMessage("The 'some_key' key is not set");
+    $process->transform('', $this->migrateExecutable, $this->row, 'destination_property');
   }
 
 }

@@ -5,106 +5,36 @@
  * Main module file for override_node_options.
  */
 
-use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\node\NodeForm;
+use Drupal\override_node_options\Access\FieldAccess\GrantAuthoredByAccess;
+use Drupal\override_node_options\Access\FieldAccess\GrantCreatedAccess;
+use Drupal\override_node_options\Access\FieldAccess\GrantPromoteAccess;
+use Drupal\override_node_options\Access\FieldAccess\GrantPublishedStatusAccess;
+use Drupal\override_node_options\Access\FieldAccess\GrantRevisionLogAccess;
+use Drupal\override_node_options\Access\FieldAccess\GrantStickyAccess;
+use Drupal\override_node_options\Access\FormAccess\GrantRevisionAccess;
 
 /**
  * Implements hook_form_alter().
  */
 function override_node_options_form_alter(array &$form, FormStateInterface $form_state) {
-  $form_object = $form_state->getFormObject();
-
-  if ($form_object instanceof NodeForm) {
-    /** @var Drupal\Core\Session\AccountProxyInterface $user */
-    $user = \Drupal::currentUser();
-
-    if ($user->hasPermission('administer nodes')) {
-      return;
-    }
-
-    $node_type = $form_object->getEntity()->bundle();
-
-    $form['revision']['#access'] = $user->hasPermission("override $node_type revision option")
-      || $user->hasPermission('override all revision option');
-  }
+  GrantRevisionAccess::access($form, $form_state);
 }
 
 /**
  * Implements hook_entity_field_access_alter().
  */
 function override_node_options_entity_field_access_alter(array &$grants, array $context) {
-  $entity_type = $context['field_definition']->getTargetEntityTypeId();
+  $fieldAccessOverrides = [
+    GrantAuthoredByAccess::class,
+    GrantCreatedAccess::class,
+    GrantPromoteAccess::class,
+    GrantPublishedStatusAccess::class,
+    GrantRevisionLogAccess::class,
+    GrantStickyAccess::class,
+  ];
 
-  if ($entity_type == 'node' && $context['operation'] == 'edit' && !$context['account']->hasPermission('administer nodes')) {
-    $bundle = $context['items']->getEntity()->bundle();
-
-    switch ($context['field_definition']->getName()) {
-      case 'promote':
-        $grants[':default'] = AccessResult::allowedIfHasPermissions(
-          $context['account'],
-          [
-            'override all promote to front page option',
-            "override $bundle promote to front page option",
-          ],
-          'OR'
-        );
-        break;
-
-      case 'sticky':
-        $grants[':default'] = AccessResult::allowedIfHasPermissions(
-          $context['account'],
-          [
-            'override all sticky option',
-            "override $bundle sticky option",
-          ],
-          'OR'
-        );
-        break;
-
-      case 'revision_log':
-        $grants[':default'] = AccessResult::allowedIfHasPermissions(
-          $context['account'],
-          [
-  //          'override all revision log entry',
-            "override $bundle revision log entry",
-          ],
-          'OR'
-        );
-        break;
-
-      case 'created':
-        $grants[':default'] = AccessResult::allowedIfHasPermissions(
-          $context['account'],
-          [
-            'override all authored on option',
-            "override $bundle authored on option",
-          ],
-          'OR'
-        );
-        break;
-
-      case 'uid':
-        $grants[':default'] = AccessResult::allowedIfHasPermissions(
-          $context['account'],
-          [
-            'override all authored by option',
-            "override $bundle authored by option",
-          ],
-          'OR'
-        );
-        break;
-
-      case 'status':
-        $grants[':default'] = AccessResult::allowedIfHasPermissions(
-          $context['account'],
-          [
-            'override all published option',
-            "override $bundle published option",
-          ],
-          'OR'
-        );
-        break;
-    }
+  foreach ($fieldAccessOverrides as $override) {
+    $override::access($grants, $context);
   }
 }

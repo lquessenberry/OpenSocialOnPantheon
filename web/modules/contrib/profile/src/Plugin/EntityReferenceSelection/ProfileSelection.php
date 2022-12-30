@@ -3,10 +3,13 @@
 namespace Drupal\profile\Plugin\EntityReferenceSelection;
 
 use Drupal\Core\Entity\Plugin\EntityReferenceSelection\DefaultSelection;
-use Drupal\Core\Form\FormStateInterface;
 
 /**
  * Provides specific access control for the profile entity type.
+ *
+ * @deprecated in profile:8.x-1.0 and is removed from profile:2.0.0. Use the
+ *  default selection instead.
+ * @see https://www.drupal.org/node/3068777
  *
  * @EntityReferenceSelection(
  *   id = "default:profile",
@@ -16,15 +19,4 @@ use Drupal\Core\Form\FormStateInterface;
  *   weight = 1
  * )
  */
-class ProfileSelection extends DefaultSelection {
-
-  /**
-   * {@inheritdoc}
-   */
-  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    $form = parent::buildConfigurationForm($form, $form_state);
-    $form['target_bundles']['#title'] = $this->t('Profile types');
-    return $form;
-  }
-
-}
+class ProfileSelection extends DefaultSelection {}

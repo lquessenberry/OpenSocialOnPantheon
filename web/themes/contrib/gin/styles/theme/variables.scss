@@ -1,0 +1,207 @@
+:root {
+  // Buttons
+  --colorGinButtonShadow: #00000033;
+  --colorGinButtonText: #fff;
+
+  // Focus
+  --colorGinFocus: rgba(0, 125, 250, .6); // #059fad; //#00a590; //#0ba77d; //#2297c7;
+  --colorGinFocusBorder: rgba(0, 0, 0, .2); //rgb(0, 125, 250);
+  --colorGinFocusNeutralRGB: rgba(0, 0, 0, .4);
+
+  // Disabled
+  --colorGinDisabled: #bbb;
+  --colorGinDisabledText: #8d8d8d;
+
+  // Messages
+  --colorGinWarning: #d8b234;
+  --colorGinWarningLight: #efcf64;
+  --colorGinWarningBackground: #{mix(black, #efcf64, 60%)};
+  --colorGinWarningLightBackground: rgba(226, 151, 0, .08);
+  --colorGinDanger: #cc3d3d;
+  --colorGinDangerLightest: #fdd9d9;
+  --colorGinDangerLight: #f39b9d;
+  --colorGinDangerBackground: #{mix(black, #dc7f7f, 60%)};
+  --colorGinDangerLightBackground: rgba(222, 117, 96, .1);
+  --colorGinGreen: #058260;
+  --colorGinGreenLight: #32cea4;
+  --colorGinGreenLightest:  #{mix(white, #32cea4, 60%)};
+  --colorGinGreenBackground: #{mix(black, #32cea4, 60%)};
+  --colorGinGreenLightBackground: rgba(72, 171, 123, .1);
+
+  // Info
+  --colorGinInfo: #082538;
+  --colorGinInfoLight: #589ac5;
+  --colorGinInfoBackground: #{mix(black, #2d6c96, 60%)};
+
+  // Input
+  --colorGinInputBackground: #fff;
+
+  // Layers
+  --colorGinLayerBackground: #fff;
+  --colorGinLayer2Background: #edeff5;
+  --colorGinLayer3Background: #fff;
+  --colorGinLayer4Background: #e2e5ec;
+  --colorGinSecondaryBackground: var(--colorGinLayerBackground);
+
+  // Context
+  --colorGinContextual: var(--colorGinText);
+  --colorGinContextualText: #eee;
+
+  // Borders
+  --colorGinBorder: #d4d4d8;
+  --colorGinSecondaryBorder: rgba(0, 0, 0, .08);
+  --colorGinLayerBorder: rgba(0, 0, 0, .08);
+  --colorGinLayer2Border: #d4d4d8;
+  --colorGinTableBorder: rgba(0, 0, 0, .15);
+  --colorGinTabsBorder: rgba(0, 0, 0, .2);
+  --colorGinFormElementBorder: #8E929C;
+
+  // Font
+  --ginFont: Ginter, Inter, 'Helvetica Neue', BlinkMacSystemFont, -apple-system, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+  --ginFontSizeSmall: small;
+
+  // Text
+  --colorGinTitle:#222330;
+  --colorGinText: #222330;
+  --colorGinTextLight: #545560;
+
+  // Table
+  --colorGinTableHeader: #eeeff3; //#e6e8ef;
+
+  // Toggle
+  --colorGinSwitch: #0e9888; //#26a769;
+  --colorGinSwitchShadow: rgba(38, 167, 105, .3);
+
+  // Icons
+  --colorGinIcons: #414247; //#5d6069;
+
+  // Color pattern
+  --colorGinPatternFallback: var(--colorGinLayer2Background);
+  --colorGinPattern: var(--colorGinBorder);
+  --ginSizePatternSquare: .5rem;
+
+  // Sticky bar
+  --ginStickyHeight: 72px;
+  --colorGinStickyBg: #c8cdd8;
+
+  // Toolbar
+  --ginToolbarWidthCollapsed: 66px;
+  --ginToolbarWidth: 240px;
+
+  // Sidebar
+  --ginSidebarWidth: 300px;
+  @include mq($breakpointWide) {
+    --ginSidebarWidth: 360px;
+  }
+
+  // Shadows
+  --ginShadowLevel1: 0 1px 2px rgb(20 45 82 / 2%),
+               0 3px 4px rgb(20 45 82 / 3%),
+               0 5px 8px rgb(20 45 82 / 4%);
+  --ginShadowLevel2: 0 1px 2px rgb(20 45 82 / 2%),
+                0 3px 4px rgb(20 45 82 / 3%),
+                0 5px 8px rgb(20 45 82 / 4%),
+                0 20px 24px rgb(20 45 82 / 12%);
+
+  // Transitions / Animations
+  --ginEasing: cubic-bezier(.19, 1, .22, 1);
+  --ginTransition: .15s var(--ginEasing);
+  --ginTransitionFast: .3s var(--ginEasing);
+
+  // Spacings
+  --ginBorderTiny: 2px;
+  --ginBorderXSmall: 4px;
+  --ginBorderSmall: 6px;
+  --ginBorderDefault: 8px;
+  --ginBorderMedium: 12px;
+  --ginBorderBig: 16px;
+
+  // Icons
+  --iconGinSecondaryToolbar: 17px;
+  --iconGinToolbar: 17px;
+
+  @include mq($breakpointMedium) {
+    --iconGinToolbar: 20px;
+  }
+}
+
+.gin--dark-mode {
+  // Buttons
+  --colorGinButtonShadow: rgba(#111, .9);
+  --colorGinButtonText: #111;
+
+  // Focus
+  --colorGinFocus: rgb(81, 168, 255);
+  --colorGinFocusNeutralRGB: rgba(255, 255, 255, .8);
+  --colorGinFocusBorder: rgba(0, 0, 0, .8); //rgba(81, 168, 255, .6);
+
+  // Disabled
+  --colorGinDisabled: #555;
+  --colorGinDisabledText: #{$colorDarkAppBackground};
+
+  // Messages
+  --colorGinWarning: #dec15f;
+  --colorGinWarningLightBackground: rgba(222, 193, 95, .1);
+  --colorGinDanger: #ce6060;
+  --colorGinDangerLightest: #483439;
+  --colorGinGreen: #32cea4;
+  --colorGinInfo: #559bca;
+
+  // Input
+  --colorGinInputBackground: var(--colorGinLayer2Background);
+
+  // Layers
+  --colorGinAppBackground: #{$colorDarkAppBackground};
+  --colorGinLayerBackground: #2A2A2D;
+  --colorGinLayer2Background: #3B3B3F;
+  --colorGinLayer3Background: #47474c;
+  --colorGinLayer4Background: #19191b;
+  --colorGinSecondaryBackground: var(--colorGinAppBackground);
+
+  // Context
+  --colorGinContextual: var(--colorGinLayer3Background);
+
+  // Borders
+  --colorGinBorder: #43454a;
+  --colorGinSecondaryBorder: rgba(255, 255, 255, .075);
+  --colorGinLayerBorder: rgba(0, 0, 0, .05);
+  --colorGinLayer2Border: #76777B;
+  --colorGinTableBorder: #43454a;
+
+  // Tabs
+  --colorGinTabsBorder: rgba(255, 255, 255, .12);
+
+  // Form element
+  --colorGinFormElementBorder: var(--colorGinLayer2Border);
+
+  // Text
+  --colorGinTitle: #fff;
+  --colorGinText: #d2d3d3;
+  --colorGinTextLight: #9e9fa0;
+
+  // Table
+  --colorGinTableHeader: #{$colorDarkAppBackground};
+
+  // Toggle
+  --colorGinSwitch: var(--colorGinPrimary);
+  --colorGinSwitchShadow: var(--colorGinPrimaryLight);
+
+  // Shadows
+  --ginShadowLevel1: 0 1px 2px rgb(0 0 0 / 2%),
+               0 3px 4px rgb(0 0 0 / 3%),
+               0 5px 8px rgb(0 0 0 / 4%);
+  --ginShadowLevel2: 0 1px 2px rgb(0 0 0 / 2%),
+                0 3px 4px rgb(0 0 0 / 3%),
+                0 5px 8px rgb(0 0 0 / 4%),
+                0 20px 24px rgb(0 0 0 / 12%);
+
+  // Icons
+  --colorGinIcons: #888;
+
+  // Color pattern
+  --colorGinPatternFallback: var(--colorGinLayer2Background);
+  --colorGinPattern: var(--colorGinBorder);
+
+  // Sticky bg
+  --colorGinStickyBg: var(--colorGinLayer4Background);
+}

@@ -1,0 +1,58 @@
+@import "svg-sprite";
+
+@function icon($name) {
+  @return url(map-get($sprites, $name));
+}
+
+@mixin visually-hidden {
+  position: absolute !important;
+  clip: rect(1px, 1px, 1px, 1px);
+  overflow: hidden;
+  height: 1px;
+  width: 1px;
+  word-wrap: normal;
+}
+
+@mixin color-pattern {
+  background-color: var(--colorGinPatternFallback);
+  background-image:
+    linear-gradient(-45deg, var(--colorGinPattern) 25%, transparent 26%),
+    linear-gradient(-45deg, var(--colorGinPattern) 25%, transparent 26%),
+    linear-gradient(135deg, var(--colorGinPattern) 25%, transparent 26%),
+    linear-gradient(135deg, var(--colorGinPattern) 25%, transparent 26%);
+  background-position:
+    0 0,
+    var(--ginSizePatternSquare) var(--ginSizePatternSquare),
+    var(--ginSizePatternSquare) var(--ginSizePatternSquare),
+    0 0;
+  background-size: calc(var(--ginSizePatternSquare) * 2) calc(var(--ginSizePatternSquare) * 2);
+
+  @media screen and (-ms-high-contrast: active) {
+    background: none;
+  }
+}
+
+@mixin custom-icon-button($name) {
+  all: unset;
+
+  background-color: white;
+  background-image: icon($name);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 15px;
+
+  border-radius: 50%;
+  border-color: transparent !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+
+  color: transparent;
+  width: 29px;
+  height: 29px;
+  margin: .75rem;
+
+  &:hover,
+  &:focus {
+    border-color: var(--colorGinPrimary) !important;
+    cursor: pointer;
+  }
+}

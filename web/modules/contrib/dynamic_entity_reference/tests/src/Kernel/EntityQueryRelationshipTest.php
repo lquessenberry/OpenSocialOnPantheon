@@ -21,7 +21,7 @@ class EntityQueryRelationshipTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['dynamic_entity_reference'];
+  protected static $modules = ['dynamic_entity_reference'];
 
   /**
    * The entity type used in this test.
@@ -52,13 +52,6 @@ class EntityQueryRelationshipTest extends EntityKernelTestBase {
   protected $fieldName = 'field_test';
 
   /**
-   * The entity field query factory.
-   *
-   * @var \Drupal\Core\Entity\Query\QueryFactory
-   */
-  protected $factory;
-
-  /**
    * The results returned by EntityQuery.
    *
    * @var array
@@ -75,7 +68,7 @@ class EntityQueryRelationshipTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_rev');
@@ -101,7 +94,6 @@ class EntityQueryRelationshipTest extends EntityKernelTestBase {
       'label' => 'Field test',
       'settings' => [],
     ])->save();
-    $this->factory = \Drupal::service('entity.query');
   }
 
   /**
@@ -131,7 +123,10 @@ class EntityQueryRelationshipTest extends EntityKernelTestBase {
     $this->entities[] = $entity;
     // This returns the 0th entity as that's only one pointing to the 0th
     // account.
-    $this->queryResults = $this->factory->get('entity_test')
+    $this->queryResults = $this->container->get('entity_type.manager')
+      ->getStorage('entity_test')
+      ->getQuery()
+      ->accessCheck(FALSE)
       ->condition("field_test.0.entity:entity_test_rev.name", 'Foobar')
       ->condition("field_test.1.entity:entity_test_rev.name", 'Barfoo')
       ->execute();

@@ -1,0 +1,42 @@
+add simple_oauth entities:
+  title: 'Create new Access Token entities'
+
+administer simple_oauth entities:
+  title: 'Administer Access Token entities'
+  description: 'Allow to access the administration form to configure Access Token entities.'
+
+delete own simple_oauth entities:
+  title: 'Delete Access Token entities'
+
+update own simple_oauth entities:
+  title: 'Edit Access Token entities'
+
+view own simple_oauth entities:
+  title: 'View Access Token entities'
+
+debug simple_oauth tokens:
+  title: 'Debug OAuth2 tokens'
+  description: 'Allows accessing to extended information about the token and the access it grants under /oauth/debug.'
+  restrict access: TRUE
+
+grant simple_oauth codes:
+  title: 'Grant OAuth2 codes'
+  description: 'Allow using the AuthCode grant'
+
+view oauth2 scopes:
+  title: 'View OAuth2 scopes'
+  description: 'Allows to view OAuth2 scopes'
+
+add oauth2 scopes:
+  title: 'Create new OAuth2 scopes'
+
+edit oauth2 scopes:
+  title: 'Edit OAuth2 scopes'
+
+delete oauth scopes:
+  title: 'Delete OAuth2 scopes'
+
+administer oauth2 scopes:
+  title: 'Administer OAuth2 scopes'
+  description: 'Allow to manage the OAuth2 scopes.'
+  restrict access: TRUE

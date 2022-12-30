@@ -9,19 +9,54 @@
   margin-top: 1em;
 }
 
-.cropper--height-soft-limit-reached .cropper-point,
+.cropper--width-soft-limit-reached .point-n,
+.cropper--width-soft-limit-reached .point-s,
+.cropper--width-soft-limit-reached .point-ne,
+.cropper--width-soft-limit-reached .point-se,
+.cropper--width-soft-limit-reached .point-sw,
+.cropper--width-soft-limit-reached .point-nw {
+  background-color: #a51b00;
+}
+
+.cropper--height-soft-limit-reached .point-w,
+.cropper--height-soft-limit-reached .point-e,
+.cropper--height-soft-limit-reached .point-ne,
+.cropper--height-soft-limit-reached .point-se,
+.cropper--height-soft-limit-reached .point-nw,
+.cropper--height-soft-limit-reached .point-sw {
+  background-color: #a51b00;
+}
+
 .cropper--width-soft-limit-reached .cropper-point {
   background-color: #a51b00;
 }
-.cropper--height-soft-limit-reached .line-w,
+
+.cropper--height-soft-limit-reached .line-w {
+  background-color: #ff0000;
+  opacity: 1;
+  width: 1px;
+  left: -1px;
+}
+
 .cropper--height-soft-limit-reached .line-e {
   background-color: #ff0000;
-  opacity: 0.2;
+  opacity: 1;
+  width: 1px;
+  right: -1px;
 }
-.cropper--width-soft-limit-reached .line-n,
+
+.cropper--width-soft-limit-reached .line-n {
+  background-color: #ff0000;
+  opacity: 1;
+  height: 1px;
+  top: -1px;
+}
+
 .cropper--width-soft-limit-reached .line-s {
   background-color: #ff0000;
-  opacity: 0.2;
+  opacity: 1;
+  height: 1px;
+  bottom: -1px;
 }
 
 @media screen and (max-width: 480px) {

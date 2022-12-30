@@ -1,3 +1,15 @@
+field.formatter.settings.social_profile_avatar:
+  type: field.formatter.settings.image
+  label: 'Avatar settings'
+
+field.formatter.settings.social_profile_text:
+  type: field.formatter.settings.text_trimmed
+  label: 'Trimmed plain text display format settings'
+
+field.widget.settings.social_profile_string_textarea:
+  type: field.widget.settings.string_textfield
+  label: 'Text area display format settings'
+
 social_profile.settings:
   type: config_object
   label: 'Social Profile Settings'
@@ -5,3 +17,26 @@ social_profile.settings:
     social_profile_show_email:
       type: boolean
       label: 'Whether to show e-mail addresses on user profiles.'
+    social_profile_show_language:
+      type: boolean
+      label: 'Whether to show preferred language on user profiles.'
+    enable_profile_tagging:
+      type: boolean
+      label: 'Whether to allow add profile tags'
+    allow_category_split:
+      type: boolean
+      label: 'Whether to allow splitting profile tags'
+    use_category_parent:
+      type: boolean
+      label: 'Whether to use first level of profile tags'
+    allow_tagging_for_lu:
+      type: boolean
+      label: 'Whether to allow profile tagging for LU'
+
+views.field.profile_entity_sortable:
+  type: views_field
+  label: 'Profile entity sortable'
+  mapping:
+    view_mode:
+      type: string
+      label: 'View mode'

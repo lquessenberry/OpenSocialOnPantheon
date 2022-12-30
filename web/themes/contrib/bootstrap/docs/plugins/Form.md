@@ -16,7 +16,7 @@ how to remove `#input_group_button` from `search_block_form`.
 Replace all following instances of `THEMENAME` with the actual machine name of
 your sub-theme.
 
-Create a file at `./THEMENAME/src/Plugin/Form/SearchBlockForm.php` with the
+Create a file at `./themes/THEMENAME/src/Plugin/Form/SearchBlockForm.php` with the
 following contents:
 
 ```php

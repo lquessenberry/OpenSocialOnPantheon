@@ -15,21 +15,15 @@ abstract class NamedSelectorTest extends TestCase
         $selector->registerNamedXpath('some', 'my_xpath');
         $this->assertEquals('my_xpath', $selector->translateToXPath('some'));
 
-        if (method_exists($this, 'expectException')) {
-            $this->expectException('InvalidArgumentException');
-        } else {
-            // BC with PHPUnit 4 used for PHP 5.5 and older
-            $this->setExpectedException('InvalidArgumentException');
-        }
+        $this->expectException('InvalidArgumentException');
 
         $selector->translateToXPath('custom');
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testInvalidLocator()
     {
+        $this->expectException('\InvalidArgumentException');
+
         $namedSelector = $this->getSelector();
 
         $namedSelector->translateToXPath(array('foo', 'bar', 'baz'));
@@ -49,6 +43,37 @@ abstract class NamedSelectorTest extends TestCase
         $dom->loadHTML(file_get_contents(__DIR__.'/fixtures/'.$fixtureFile));
 
         $namedSelector = $this->getSelector();
+
+        $xpath = $namedSelector->translateToXPath(array($selector, $locator));
+
+        $domXpath = new \DOMXPath($dom);
+        $nodeList = $domXpath->query($xpath);
+
+        $this->assertEquals($expectedCount, $nodeList->length);
+    }
+
+    /**
+     * @dataProvider getLateRegisteredReplacements
+     */
+    public function testLateRegisteredReplacements($fixtureFile, $replacements, $selectors, $selector, $locator, $expectedExactCount, $expectedPartialCount = null)
+    {
+        $expectedCount = $this->allowPartialMatch() && null !== $expectedPartialCount
+            ? $expectedPartialCount
+            : $expectedExactCount;
+
+        // Don't use "loadHTMLFile" due HHVM 3.3.0 issue.
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $dom->loadHTML(file_get_contents(__DIR__.'/fixtures/'.$fixtureFile));
+
+        $namedSelector = $this->getSelector();
+
+        foreach ($replacements as $from => $to) {
+            $namedSelector->registerReplacement($from, $to);
+        }
+
+        foreach ($selectors as $from => $to) {
+            $namedSelector->registerNamedXpath($from, $to);
+        }
 
         $xpath = $namedSelector->translateToXPath(array($selector, $locator));
 
@@ -159,6 +184,114 @@ abstract class NamedSelectorTest extends TestCase
 
             'id' => array('test.html', 'id', 'bad-link-text', 1),
             'id or name' => array('test.html', 'id_or_name', 'the-table', 2),
+        );
+    }
+
+    public function getLateRegisteredReplacements()
+    {
+        // The following tests all use `test.html` from the fixtures directory.
+        return array(
+            // Search for `testSpanWithRole` using locator `link`.
+            //
+            // Selectors:
+            // testSpanWithRole => `.//span[%testRoleMatch%]`
+            //
+            // Replacements:
+            // %testRoleMatch%  => `contains(./@role, %locator%)`
+            // %locator%        => `link`
+            //
+            // Result:
+            // .//span[%testRoleMatch%]
+            // .//span[contains(./@role, %locator%)]
+            // .//span[contains(./@role, 'link')]
+            //
+            // Expectation:
+            // Exactly three results will match with an attribute of `role="link"`
+            'lateSelectorUsingLateReplacement' => array(
+                'file' => 'test.html',
+                'replacements' => array(
+                    '%testRoleMatch%' => 'contains(./@role, %locator%)'
+                ),
+                'selectors' => array(
+                    'testSpanWithRole' => './/span[%testRoleMatch%]'
+                ),
+                'selector' => 'testSpanWithRole',
+                'locator' => 'link',
+                'expectedExactCount' => 3,
+                'expectedPartialCount' => 3
+            ),
+
+            // Search for `testIdMatch` using locator `late-registered-input-with-matching-name`.
+            //
+            // Selectors:
+            // testIdOrNameMatch    => `.//input[%testIdOrNameMatch%]`
+            //
+            // Replacements:
+            // %testIdMatch%       => `./@id = %locator%`,
+            // %testNameMatch%     => `contains(./@name, %locator%)`,
+            // %testIdOrNameMatch% => `(%testIdMatch% or %testNameMatch%)`,
+            // %locator%           => `late-registered-input-with-matching-name`
+            //
+            // Result:
+            // .//input[%testIdOrNameMatch%]
+            // .//input[(%testIdMatch% or %testNameMatch%)]
+            // .//input[./@id = %locator% or contains(./@name, %locator%)]
+            // .//input[./@id = 'late-registered-input-with-matching-name' or contains(./@name, 'late-registered-input-with-matching-name')]
+            //
+            // Expectation:
+            // Exactly one result is found with a matching id or name.
+            'lateSelectorUsingRecursiveLateReplacementMatchingId' => array(
+                'file' => 'test.html',
+                'replacements' => array(
+                    '%testIdMatch%' => './@id = %locator%',
+                    '%testNameMatch%' => 'contains(./@name, %locator%)',
+                    '%testIdOrNameMatch%' => '(%testIdMatch% or %testNameMatch%)',
+                ),
+                'selectors' => array(
+                    'testIdOrNameMatch' => './/input[%testIdOrNameMatch%]'
+                ),
+                'selector' => 'testIdOrNameMatch',
+                'locator' => 'late-registered-input-with-matching-name',
+                'expectedExactCount' => 1,
+                'expectedPartialCount' => 1
+            ),
+
+            // Search for `testIdMatch` using locator `late-registered-input`.
+            //
+            // Selectors:
+            // testIdOrNameMatch    => `.//input[%testIdOrNameMatch%]`
+            //
+            // Replacements:
+            // %testIdMatch%       => `./@id = %locator%`,
+            // %testNameMatch%     => `@name = %locator%`,
+            // %testIdOrNameMatch% => `(%testIdMatch% or %testNameMatch%)`,
+            // %locator%           => `late-registered-input`
+            //
+            // Result:
+            // .//input[%testIdOrNameMatch%]
+            // .//input[(%testIdMatch% or %testNameMatch%)]
+            // .//input[(./@id = %locator% or %testNameMatch%)]
+            // .//input[./@id = %locator% or @name = %locator%]
+            // .//input[./@id = 'late-registered-input' or @name = 'late-registered-input']
+            //
+            // Expectation:
+            // Exactly one result will match with an id of `late-registered-input`.
+            // Exactly one result will match with a name of `late-registered-input`.
+            'lateSelectorUsingRecursiveLateReplacementMatchingBoth' => array(
+                'file' => 'test.html',
+                'replacements' => array(
+                    '%testIdMatch%' => './@id = %locator%',
+                    '%testNameMatch%' => '@name = %locator%',
+                    '%testIdOrNameMatch%' => '(%testIdMatch% or %testNameMatch%)',
+                ),
+                'selectors' => array(
+                    'testIdOrNameMatch' => './/input[%testIdOrNameMatch%]'
+                ),
+                'selector' => 'testIdOrNameMatch',
+                'locator' => 'late-registered-input',
+                'expectedExactCount' => 2,
+                'expectedPartialCount' => 2
+            ),
         );
     }
 

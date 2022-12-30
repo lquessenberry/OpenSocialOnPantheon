@@ -26,7 +26,7 @@ class EditorSelectionTest extends QuickEditTestBase {
    */
   protected $editorSelector;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->editorManager = $this->container->get('plugin.manager.quickedit.editor');
@@ -41,7 +41,9 @@ class EditorSelectionTest extends QuickEditTestBase {
     $storage->resetCache([$entity_id]);
     $entity = $storage->load($entity_id);
     $items = $entity->get($field_name);
-    $options = entity_get_display('entity_test', 'entity_test', $view_mode)->getComponent($field_name);
+    $options = \Drupal::service('entity_display.repository')
+      ->getViewDisplay('entity_test', 'entity_test', $view_mode)
+      ->getComponent($field_name);
     return $this->editorSelector->getEditor($options['type'], $items);
   }
 
@@ -68,12 +70,12 @@ class EditorSelectionTest extends QuickEditTestBase {
     $entity->save();
 
     // With cardinality 1.
-    $this->assertEqual('plain_text', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, the 'plain_text' editor is selected.");
+    $this->assertEquals('plain_text', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, the 'plain_text' editor is selected.");
 
     // With cardinality >1
     $this->fields->field_text_field_storage->setCardinality(2);
     $this->fields->field_text_field_storage->save();
-    $this->assertEqual('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality >1, the 'form' editor is selected.");
+    $this->assertEquals('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality >1, the 'form' editor is selected.");
 
   }
 
@@ -108,17 +110,17 @@ class EditorSelectionTest extends QuickEditTestBase {
     $entity->save();
 
     // Editor selection w/ cardinality 1, text format w/o associated text editor.
-    $this->assertEqual('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, and the filtered_html text format, the 'form' editor is selected.");
+    $this->assertEquals('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, and the filtered_html text format, the 'form' editor is selected.");
 
     // Editor selection w/ cardinality 1, text format w/ associated text editor.
     $entity->{$field_name}->format = 'full_html';
     $entity->save();
-    $this->assertEqual('wysiwyg', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, and the full_html text format, the 'wysiwyg' editor is selected.");
+    $this->assertEquals('wysiwyg', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, and the full_html text format, the 'wysiwyg' editor is selected.");
 
     // Editor selection with text field, cardinality >1.
     $this->fields->field_textarea_field_storage->setCardinality(2);
     $this->fields->field_textarea_field_storage->save();
-    $this->assertEqual('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality >1, and both items using the full_html text format, the 'form' editor is selected.");
+    $this->assertEquals('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality >1, and both items using the full_html text format, the 'form' editor is selected.");
   }
 
   /**
@@ -144,12 +146,12 @@ class EditorSelectionTest extends QuickEditTestBase {
     $entity->save();
 
     // Editor selection with cardinality 1.
-    $this->assertEqual('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, the 'form' editor is selected.");
+    $this->assertEquals('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality 1, the 'form' editor is selected.");
 
     // Editor selection with cardinality >1.
     $this->fields->field_nr_field_storage->setCardinality(2);
     $this->fields->field_nr_field_storage->save();
-    $this->assertEqual('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality >1, the 'form' editor is selected.");
+    $this->assertEquals('form', $this->getSelectedEditor($entity->id(), $field_name), "With cardinality >1, the 'form' editor is selected.");
   }
 
 }

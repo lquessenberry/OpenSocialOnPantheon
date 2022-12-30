@@ -6,13 +6,14 @@ use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Block\BlockPluginInterface;
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\private_message\Service\PrivateMessageServiceInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 
 /**
  * Provides the private message inbox block.
@@ -42,9 +43,9 @@ class PrivateMessageInboxBlock extends BlockBase implements BlockPluginInterface
   /**
    * The entity manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The CSRF token generator service.
@@ -52,6 +53,13 @@ class PrivateMessageInboxBlock extends BlockBase implements BlockPluginInterface
    * @var \Drupal\Core\Access\CsrfTokenGenerator
    */
   protected $csrfToken;
+
+  /**
+   * The private message configuration.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $privateMessageConfig;
 
   /**
    * Constructs a PrivateMessageForm object.
@@ -66,18 +74,21 @@ class PrivateMessageInboxBlock extends BlockBase implements BlockPluginInterface
    *   The current user.
    * @param \Drupal\private_message\Service\PrivateMessageServiceInterface $privateMessageService
    *   The private message service.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entityManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity manager service.
    * @param \Drupal\Core\Access\CsrfTokenGenerator $csrfToken
    *   The CSRF token generator service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config
+   *   The config service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, AccountProxyInterface $currentUser, PrivateMessageServiceInterface $privateMessageService, EntityManagerInterface $entityManager, CsrfTokenGenerator $csrfToken) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, AccountProxyInterface $currentUser, PrivateMessageServiceInterface $privateMessageService, EntityTypeManagerInterface $entityTypeManager, CsrfTokenGenerator $csrfToken, ConfigFactoryInterface $config) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
     $this->currentUser = $currentUser;
     $this->privateMessageService = $privateMessageService;
-    $this->entityManager = $entityManager;
+    $this->entityTypeManager = $entityTypeManager;
     $this->csrfToken = $csrfToken;
+    $this->privateMessageConfig = $config->get('private_message.settings');
   }
 
   /**
@@ -90,8 +101,9 @@ class PrivateMessageInboxBlock extends BlockBase implements BlockPluginInterface
       $plugin_definition,
       $container->get('current_user'),
       $container->get('private_message.service'),
-      $container->get('entity.manager'),
-      $container->get('csrf_token')
+      $container->get('entity_type.manager'),
+      $container->get('csrf_token'),
+      $container->get('config.factory')
     );
   }
 
@@ -102,23 +114,28 @@ class PrivateMessageInboxBlock extends BlockBase implements BlockPluginInterface
     if ($this->currentUser->isAuthenticated() && $this->currentUser->hasPermission('use private messaging system')) {
       $config = $this->getConfiguration();
       $thread_info = $this->privateMessageService->getThreadsForUser($config['thread_count']);
+      $total_thread = $this->privateMessageService->getCountThreadsForUser();
       if (count($thread_info['threads'])) {
-        $view_builder = $this->entityManager->getViewBuilder('private_message_thread');
+        $view_builder = $this->entityTypeManager->getViewBuilder('private_message_thread');
         $threads = $thread_info['threads'];
 
         foreach ($threads as $thread) {
           $block[$thread->id()] = $view_builder->view($thread, 'inbox');
         }
 
-        $block['#attached']['library'][] = 'private_message/inbox_block';
+        $block['#attached']['library'][] = 'private_message/inbox_block_script';
+        $style_disabled = $this->privateMessageConfig->get('remove_css');
+        if (!$style_disabled) {
+          $block['#attached']['library'][] = 'private_message/inbox_block_style';
+        }
         if (count($threads) && $thread_info['next_exists']) {
           $prev_url = Url::fromRoute('private_message.ajax_callback', ['op' => 'get_old_inbox_threads']);
           $prev_token = $this->csrfToken->get($prev_url->getInternalPath());
-          $prev_url->setOptions(['absolute' => TRUE, 'query' => ['token' => $prev_token]]);
+          $prev_url->setOptions(['query' => ['token' => $prev_token]]);
 
           $new_url = Url::fromRoute('private_message.ajax_callback', ['op' => 'get_new_inbox_threads']);
           $new_token = $this->csrfToken->get($new_url->getInternalPath());
-          $new_url->setOptions(['absolute' => TRUE, 'query' => ['token' => $new_token]]);
+          $new_url->setOptions(['query' => ['token' => $new_token]]);
 
           $last_thread = array_pop($threads);
           $block['#attached']['drupalSettings']['privateMessageInboxBlock'] = [
@@ -144,18 +161,23 @@ class PrivateMessageInboxBlock extends BlockBase implements BlockPluginInterface
 
       $new_url = Url::fromRoute('private_message.ajax_callback', ['op' => 'get_new_inbox_threads']);
       $new_token = $this->csrfToken->get($new_url->getInternalPath());
-      $new_url->setOptions(['absolute' => TRUE, 'query' => ['token' => $new_token]]);
+      $new_url->setOptions(['query' => ['token' => $new_token]]);
 
       $block['#attached']['drupalSettings']['privateMessageInboxBlock']['loadNewUrl'] = $new_url->toString();
 
       $config = $this->getConfiguration();
       $block['#attached']['drupalSettings']['privateMessageInboxBlock']['ajaxRefreshRate'] = $config['ajax_refresh_rate'];
-
+      $block['#attached']['drupalSettings']['privateMessageInboxBlock']['totalThreads'] = $total_thread;
+      $block['#attached']['drupalSettings']['privateMessageInboxBlock']['itemsToShow'] = $config['thread_count'];
       // Add the default classes, as these are not added when the block output
       // is overridden with a template.
       $block['#attributes']['class'][] = 'block';
       $block['#attributes']['class'][] = 'block-private-message';
       $block['#attributes']['class'][] = 'block-private-message-inbox-block';
+
+      // Wrapper using in js to place Load Previous button for multiple threads.
+      $block['#prefix'] = '<div class="private-message-thread--full-container">';
+      $block['#suffix'] = '</div>';
 
       return $block;
     }

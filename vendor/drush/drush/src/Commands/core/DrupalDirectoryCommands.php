@@ -1,19 +1,15 @@
 <?php
+
 namespace Drush\Commands\core;
 
-use Consolidation\OutputFormatters\StructuredData\PropertyList;
 use Drush\Commands\DrushCommands;
-use Drush\Drush;
-use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 use Consolidation\SiteAlias\HostPath;
 use Consolidation\SiteAlias\SiteAliasManagerAwareInterface;
 use Consolidation\SiteAlias\SiteAliasManagerAwareTrait;
-
 use Drush\Backend\BackendPathEvaluator;
 
 class DrupalDirectoryCommands extends DrushCommands implements SiteAliasManagerAwareInterface
 {
-
     use SiteAliasManagerAwareTrait;
 
     /** @var BackendPathEvaluator */
@@ -21,8 +17,6 @@ class DrupalDirectoryCommands extends DrushCommands implements SiteAliasManagerA
 
     public function __construct()
     {
-        // TODO: once the BackendInvoke service exists, inject it here
-        // and use it to get the path evaluator
         $this->pathEvaluator = new BackendPathEvaluator();
     }
 
@@ -30,22 +24,21 @@ class DrupalDirectoryCommands extends DrushCommands implements SiteAliasManagerA
      * Return the filesystem path for modules/themes and other key folders.
      *
      * @command drupal:directory
-     * @param string $target A module/theme name, or special names like root, files, private, or an alias : path alias string such as @alias:%files. Defaults to root.
-     * @option component The portion of the evaluated path to return.  Defaults to 'path'; 'name' returns the site alias of the target.
+     * @param string $target A module/theme name, or special names like root, files, private, or an <info>alias:path</info> string such as @alias:%files.
      * @option local-only Reject any target that specifies a remote site.
-     * @usage cd `drush dd devel`
+     * @usage cd $(drush dd devel)
      *   Navigate into the devel module directory
-     * @usage cd `drush dd`
+     * @usage cd $(drush dd)
      *   Navigate to the root of your Drupal site
-     * @usage cd `drush dd files`
+     * @usage cd $(drush dd files)
      *   Navigate to the files directory.
      * @usage drush dd @alias:%files
      *   Print the path to the files directory on the site @alias.
-     * @usage edit `drush dd devel`/devel.module
-     *   Open devel module in your editor (customize 'edit' for your editor)
+     * @usage edit $(drush dd devel)/devel.module
+     *   Open devel module in your editor
      * @aliases dd,drupal-directory
      */
-    public function drupalDirectory($target = 'root', $options = ['local-only' => false])
+    public function drupalDirectory(string $target = 'root', $options = ['local-only' => false])
     {
         $path = $this->getPath($target, $options['local-only']);
 
@@ -53,7 +46,7 @@ class DrupalDirectoryCommands extends DrushCommands implements SiteAliasManagerA
         // %blah into the path to the item referred to by the key 'blah'.
         // If there is no such key, then no replacement is done.  In the
         // case of the dd command, we will consider it an error if
-        // any keys are -not- replaced in _drush_core_directory.
+        // any keys are -not- replaced.
         if ($path && (strpos($path, '%') === false)) {
             return $path;
         } else {

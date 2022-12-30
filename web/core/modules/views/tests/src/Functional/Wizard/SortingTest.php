@@ -9,8 +9,13 @@ namespace Drupal\Tests\views\Functional\Wizard;
  */
 class SortingTest extends WizardTestBase {
 
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->drupalPlaceBlock('page_title_block');
   }
@@ -35,21 +40,23 @@ class SortingTest extends WizardTestBase {
     $view1['page[create]'] = 1;
     $view1['page[title]'] = $this->randomMachineName(16);
     $view1['page[path]'] = $this->randomMachineName(16);
-    $this->drupalPostForm('admin/structure/views/add', $view1, t('Save and edit'));
+    $this->drupalGet('admin/structure/views/add');
+    $this->submitForm($view1, 'Save and edit');
     $this->drupalGet($view1['page[path]']);
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
 
     // Make sure the view shows the nodes in the expected order.
-    $this->assertUrl($view1['page[path]']);
-    $this->assertText($view1['page[title]']);
-    $content = $this->getRawContent();
-    $this->assertText($node1->label());
-    $this->assertText($node2->label());
-    $this->assertText($node3->label());
+    $this->assertSession()->addressEquals($view1['page[path]']);
+    $this->assertSession()->pageTextContains($view1['page[title]']);
+    $content = $this->getSession()->getPage()->getContent();
+    $this->assertSession()->pageTextContains($node1->label());
+    $this->assertSession()->pageTextContains($node2->label());
+    $this->assertSession()->pageTextContains($node3->label());
     $pos1 = strpos($content, $node1->label());
     $pos2 = strpos($content, $node2->label());
     $pos3 = strpos($content, $node3->label());
-    $this->assertTrue($pos1 < $pos2 && $pos2 < $pos3, 'The nodes appear in the expected order in a view that sorts by oldest first.');
+    $this->assertGreaterThan($pos1, $pos2);
+    $this->assertGreaterThan($pos2, $pos3);
 
     // Create a view that sorts newest first.
     $view2 = [];
@@ -60,21 +67,23 @@ class SortingTest extends WizardTestBase {
     $view2['page[create]'] = 1;
     $view2['page[title]'] = $this->randomMachineName(16);
     $view2['page[path]'] = $this->randomMachineName(16);
-    $this->drupalPostForm('admin/structure/views/add', $view2, t('Save and edit'));
+    $this->drupalGet('admin/structure/views/add');
+    $this->submitForm($view2, 'Save and edit');
     $this->drupalGet($view2['page[path]']);
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
 
     // Make sure the view shows the nodes in the expected order.
-    $this->assertUrl($view2['page[path]']);
-    $this->assertText($view2['page[title]']);
-    $content = $this->getRawContent();
-    $this->assertText($node3->label());
-    $this->assertText($node2->label());
-    $this->assertText($node1->label());
+    $this->assertSession()->addressEquals($view2['page[path]']);
+    $this->assertSession()->pageTextContains($view2['page[title]']);
+    $content = $this->getSession()->getPage()->getContent();
+    $this->assertSession()->pageTextContains($node3->label());
+    $this->assertSession()->pageTextContains($node2->label());
+    $this->assertSession()->pageTextContains($node1->label());
     $pos3 = strpos($content, $node3->label());
     $pos2 = strpos($content, $node2->label());
     $pos1 = strpos($content, $node1->label());
-    $this->assertTrue($pos3 < $pos2 && $pos2 < $pos1, 'The nodes appear in the expected order in a view that sorts by newest first.');
+    $this->assertGreaterThan($pos3, $pos2);
+    $this->assertGreaterThan($pos2, $pos1);
   }
 
 }

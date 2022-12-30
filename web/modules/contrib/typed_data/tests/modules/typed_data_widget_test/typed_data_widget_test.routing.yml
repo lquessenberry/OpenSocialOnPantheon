@@ -1,0 +1,14 @@
+typed_data_widget_test.examples:
+  path: '/admin/config/user-interface/typed-data-widgets'
+  defaults:
+    _controller: '\Drupal\typed_data_widget_test\FormWidgetExampleController:listWidgetExamples'
+    _title: 'Widget examples'
+  requirements:
+    _permission: 'administer site configuration'
+typed_data_widget_test.examples.form:
+  path: '/admin/config/user-interface/typed-data-widgets/{widget_id}'
+  defaults:
+    _form: '\Drupal\typed_data_widget_test\FormWidgetExampleForm'
+    _title: 'Widget examples'
+  requirements:
+    _permission: 'administer site configuration'

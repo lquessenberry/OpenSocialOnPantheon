@@ -16,28 +16,36 @@ class BlockDemoTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['block'];
+  protected static $modules = ['block'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Check for the accessibility of the admin block demo page.
    */
   public function testBlockDemo() {
     // Create administrative user.
-    $admin_user = $this->drupalCreateUser(['administer blocks', 'administer themes']);
+    $admin_user = $this->drupalCreateUser([
+      'administer blocks',
+      'administer themes',
+    ]);
     $this->drupalLogin($admin_user);
 
     // Confirm we have access to the block demo page for the default theme.
     $config = $this->container->get('config.factory')->get('system.theme');
     $default_theme = $config->get('default');
     $this->drupalGet('admin/structure/block/demo/' . $default_theme);
-    $this->assertResponse(200);
-    $this->assertLinkByHref('admin/structure/block');
-    $this->assertNoLinkByHref('admin/structure/block/list/' . $default_theme);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->linkByHrefExists('admin/structure/block');
+    $this->assertSession()->linkByHrefNotExists('admin/structure/block/list/' . $default_theme);
 
     // All available themes in core.
     $available_themes = [
       'bartik',
-      'classy',
+      'olivero',
       'seven',
       'stark',
     ];
@@ -47,17 +55,17 @@ class BlockDemoTest extends BrowserTestBase {
 
     foreach ($themes as $theme) {
       // Install theme.
-      $this->container->get('theme_handler')->install([$theme]);
+      $this->container->get('theme_installer')->install([$theme]);
       // Confirm access to the block demo page for the theme.
       $this->drupalGet('admin/structure/block/demo/' . $theme);
-      $this->assertResponse(200);
+      $this->assertSession()->statusCodeEquals(200);
       // Confirm existence of link for "Exit block region demonstration".
-      $this->assertLinkByHref('admin/structure/block/list/' . $theme);
+      $this->assertSession()->linkByHrefExists('admin/structure/block/list/' . $theme);
     }
 
     // Confirm access to the block demo page is denied for an invalid theme.
     $this->drupalGet('admin/structure/block/demo/invalid_theme');
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
   }
 
 }

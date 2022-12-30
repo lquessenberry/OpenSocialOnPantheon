@@ -7,6 +7,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -53,7 +54,7 @@ class AccountSettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('module_handler'),
-      $container->get('entity.manager')->getStorage('user_role')
+      $container->get('entity_type.manager')->getStorage('user_role')
     );
   }
 
@@ -100,34 +101,6 @@ class AccountSettingsForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
-    // Administrative role option.
-    $form['admin_role'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Administrator role'),
-      '#open' => TRUE,
-    ];
-    // Do not allow users to set the anonymous or authenticated user roles as the
-    // administrator role.
-    $roles = user_role_names(TRUE);
-    unset($roles[RoleInterface::AUTHENTICATED_ID]);
-
-    $admin_roles = $this->roleStorage->getQuery()
-      ->condition('is_admin', TRUE)
-      ->execute();
-    $default_value = reset($admin_roles);
-
-    $form['admin_role']['user_admin_role'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Administrator role'),
-      '#empty_value' => '',
-      '#default_value' => $default_value,
-      '#options' => $roles,
-      '#description' => $this->t('This role will be automatically assigned new permissions whenever a module is enabled. Changing this setting will not affect existing permissions.'),
-      // Don't allow to select a single admin role in case multiple roles got
-      // marked as admin role already.
-      '#access' => count($admin_roles) <= 1,
-    ];
-
     // @todo Remove this check once language settings are generalized.
     if ($this->moduleHandler->moduleExists('content_translation')) {
       $form['language'] = [
@@ -151,16 +124,16 @@ class AccountSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Who can register accounts?'),
       '#default_value' => $config->get('register'),
       '#options' => [
-        USER_REGISTER_ADMINISTRATORS_ONLY => $this->t('Administrators only'),
-        USER_REGISTER_VISITORS => $this->t('Visitors'),
-        USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL => $this->t('Visitors, but administrator approval is required'),
-      ]
+        UserInterface::REGISTER_ADMINISTRATORS_ONLY => $this->t('Administrators only'),
+        UserInterface::REGISTER_VISITORS => $this->t('Visitors'),
+        UserInterface::REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL => $this->t('Visitors, but administrator approval is required'),
+      ],
     ];
     $form['registration_cancellation']['user_email_verification'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Require email verification when a visitor creates an account'),
       '#default_value' => $config->get('verify_mail'),
-      '#description' => $this->t('New users will be required to validate their email address prior to logging into the site, and will be assigned a system-generated password. With this setting disabled, users will be logged in immediately upon registering, and may select their own passwords during registration.')
+      '#description' => $this->t('New users will be required to validate their email address prior to logging into the site, and will be assigned a system-generated password. With this setting disabled, users will be logged in immediately upon registering, and may select their own passwords during registration.'),
     ];
     $form['registration_cancellation']['user_password_strength'] = [
       '#type' => 'checkbox',
@@ -171,7 +144,7 @@ class AccountSettingsForm extends ConfigFormBase {
       '#type' => 'radios',
       '#title' => $this->t('When cancelling a user account'),
       '#default_value' => $config->get('cancel_method'),
-      '#description' => $this->t('Users with the %select-cancel-method or %administer-users <a href=":permissions-url">permissions</a> can override this default method.', ['%select-cancel-method' => $this->t('Select method for cancelling account'), '%administer-users' => $this->t('Administer users'), ':permissions-url' => $this->url('user.admin_permissions')]),
+      '#description' => $this->t('Users with the %select-cancel-method or %administer-users <a href=":permissions-url">permissions</a> can override this default method.', ['%select-cancel-method' => $this->t('Select method for cancelling account'), '%administer-users' => $this->t('Administer users'), ':permissions-url' => Url::fromRoute('user.admin_permissions')->toString()]),
     ];
     $form['registration_cancellation']['user_cancel_method'] += user_cancel_methods();
     foreach (Element::children($form['registration_cancellation']['user_cancel_method']) as $key) {
@@ -203,7 +176,7 @@ class AccountSettingsForm extends ConfigFormBase {
     $form['email_admin_created'] = [
       '#type' => 'details',
       '#title' => $this->t('Welcome (new user created by administrator)'),
-      '#open' => $config->get('register') == USER_REGISTER_ADMINISTRATORS_ONLY,
+      '#open' => $config->get('register') == UserInterface::REGISTER_ADMINISTRATORS_ONLY,
       '#description' => $this->t('Edit the welcome email messages sent to new member accounts created by an administrator.') . ' ' . $email_token_help,
       '#group' => 'email',
     ];
@@ -223,7 +196,7 @@ class AccountSettingsForm extends ConfigFormBase {
     $form['email_pending_approval'] = [
       '#type' => 'details',
       '#title' => $this->t('Welcome (awaiting approval)'),
-      '#open' => $config->get('register') == USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL,
+      '#open' => $config->get('register') == UserInterface::REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL,
       '#description' => $this->t('Edit the welcome email messages sent to new members upon registering, when administrative approval is required.') . ' ' . $email_token_help,
       '#group' => 'email',
     ];
@@ -243,7 +216,7 @@ class AccountSettingsForm extends ConfigFormBase {
     $form['email_pending_approval_admin'] = [
       '#type' => 'details',
       '#title' => $this->t('Admin (user awaiting approval)'),
-      '#open' => $config->get('register') == USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL,
+      '#open' => $config->get('register') == UserInterface::REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL,
       '#description' => $this->t('Edit the email notifying the site administrator that there are new members awaiting administrative approval.') . ' ' . $email_token_help,
       '#group' => 'email',
     ];
@@ -263,7 +236,7 @@ class AccountSettingsForm extends ConfigFormBase {
     $form['email_no_approval_required'] = [
       '#type' => 'details',
       '#title' => $this->t('Welcome (no approval required)'),
-      '#open' => $config->get('register') == USER_REGISTER_VISITORS,
+      '#open' => $config->get('register') == UserInterface::REGISTER_VISITORS,
       '#description' => $this->t('Edit the welcome email messages sent to new members upon registering, when no administrator approval is required.') . ' ' . $email_token_help,
       '#group' => 'email',
     ];
@@ -460,22 +433,6 @@ class AccountSettingsForm extends ConfigFormBase {
     $this->config('system.site')
       ->set('mail_notification', $form_state->getValue('mail_notification_address'))
       ->save();
-
-    // Change the admin role.
-    if ($form_state->hasValue('user_admin_role')) {
-      $admin_roles = $this->roleStorage->getQuery()
-        ->condition('is_admin', TRUE)
-        ->execute();
-
-      foreach ($admin_roles as $rid) {
-        $this->roleStorage->load($rid)->setIsAdmin(FALSE)->save();
-      }
-
-      $new_admin_role = $form_state->getValue('user_admin_role');
-      if ($new_admin_role) {
-        $this->roleStorage->load($new_admin_role)->setIsAdmin(TRUE)->save();
-      }
-    }
   }
 
 }

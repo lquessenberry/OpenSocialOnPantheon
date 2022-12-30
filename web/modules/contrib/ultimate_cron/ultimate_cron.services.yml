@@ -1,0 +1,45 @@
+services:
+  cache.signal:
+      class: Drupal\Core\Cache\CacheBackendInterface
+      tags:
+        - { name: cache.bin }
+      factory: cache_factory:get
+      arguments: [signal]
+  cache.ultimate_cron_logger:
+      class: Drupal\Core\Cache\CacheBackendInterface
+      tags:
+        - { name: cache.bin }
+      factory: cache_factory:get
+      arguments: [ultimate_cron_logger]
+  plugin.manager.ultimate_cron.launcher:
+    class: Drupal\ultimate_cron\Launcher\LauncherManager
+    parent: default_plugin_manager
+  plugin.manager.ultimate_cron.logger:
+    class: Drupal\ultimate_cron\Logger\LoggerManager
+    parent: default_plugin_manager
+  plugin.manager.ultimate_cron.scheduler:
+    class: Drupal\ultimate_cron\Scheduler\SchedulerManager
+    parent: default_plugin_manager
+  ultimate_cron.lock:
+    class: Drupal\ultimate_cron\Lock\Lock
+    arguments: ['@ultimate_cron.database_factory']
+  ultimate_cron.progress:
+    class: Drupal\ultimate_cron\Progress\Progress
+    arguments: ['@keyvalue']
+  ultimate_cron.signal:
+    class: Drupal\ultimate_cron\Signal\SignalCache
+    arguments: ['@cache.signal', '@lock']
+  ultimate_cron.discovery:
+    class: Drupal\ultimate_cron\CronJobDiscovery
+    arguments: ['@module_handler', '@plugin.manager.queue_worker', '@config.factory', '@extension.list.module']
+  logger.ultimate_cron:
+    class: Drupal\ultimate_cron\Logger\WatchdogLogger
+    arguments: ['@logger.log_message_parser']
+    tags:
+      - { name: logger }
+  ultimate_cron.queue_worker:
+    class: Drupal\ultimate_cron\QueueWorker
+    arguments: ["@plugin.manager.queue_worker", "@queue", "@config.factory"]
+  ultimate_cron.database_factory:
+    class: Drupal\Core\Database\Connection
+    factory: Drupal\ultimate_cron\UltimateCronDatabaseFactory::getConnection

@@ -14,7 +14,7 @@ class ReferenceAccessConstraintValidator extends ConstraintValidator {
    * {@inheritdoc}
    */
   public function validate($value, Constraint $constraint) {
-    /* @var \Drupal\Core\Field\FieldItemInterface $value */
+    /** @var \Drupal\Core\Field\FieldItemInterface $value */
     if (!isset($value)) {
       return;
     }
@@ -23,13 +23,13 @@ class ReferenceAccessConstraintValidator extends ConstraintValidator {
     if (empty($id)) {
       return;
     }
-    /* @var \Drupal\Core\Entity\FieldableEntityInterface $referenced_entity */
+    /** @var \Drupal\Core\Entity\FieldableEntityInterface $referenced_entity */
     $referenced_entity = $value->entity;
     if ($referenced_entity) {
       $entity = $value->getEntity();
       $check_permission = TRUE;
       if (!$entity->isNew()) {
-        $existing_entity = \Drupal::entityManager()->getStorage($entity->getEntityTypeId())->loadUnchanged($entity->id());
+        $existing_entity = \Drupal::entityTypeManager()->getStorage($entity->getEntityTypeId())->loadUnchanged($entity->id());
         $referenced_entities = $existing_entity->{$value->getFieldDefinition()->getName()}->referencedEntities();
         // Check permission if we are not already referencing the entity.
         foreach ($referenced_entities as $ref) {

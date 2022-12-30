@@ -3,13 +3,13 @@
 namespace Drupal\Component\DependencyInjection;
 
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\DependencyInjection\ResettableContainerInterface;
 use Symfony\Component\DependencyInjection\Exception\LogicException;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
 use Symfony\Component\DependencyInjection\Exception\ParameterNotFoundException;
 use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
 use Symfony\Component\DependencyInjection\Exception\ServiceCircularReferenceException;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Provides a container optimized for Drupal's needs.
@@ -44,7 +44,7 @@ use Symfony\Component\DependencyInjection\Exception\ServiceCircularReferenceExce
  *
  * @ingroup container
  */
-class Container implements ContainerInterface, ResettableContainerInterface {
+class Container implements ContainerInterface, ResetInterface {
 
   /**
    * The parameters of the container.
@@ -115,10 +115,10 @@ class Container implements ContainerInterface, ResettableContainerInterface {
       throw new InvalidArgumentException('The non-optimized format is not supported by this class. Use an optimized machine-readable format instead, e.g. as produced by \Drupal\Component\DependencyInjection\Dumper\OptimizedPhpArrayDumper.');
     }
 
-    $this->aliases = isset($container_definition['aliases']) ? $container_definition['aliases'] : [];
-    $this->parameters = isset($container_definition['parameters']) ? $container_definition['parameters'] : [];
-    $this->serviceDefinitions = isset($container_definition['services']) ? $container_definition['services'] : [];
-    $this->frozen = isset($container_definition['frozen']) ? $container_definition['frozen'] : FALSE;
+    $this->aliases = $container_definition['aliases'] ?? [];
+    $this->parameters = $container_definition['parameters'] ?? [];
+    $this->serviceDefinitions = $container_definition['services'] ?? [];
+    $this->frozen = $container_definition['frozen'] ?? FALSE;
 
     // Register the service_container with itself.
     $this->services['service_container'] = $this;
@@ -128,6 +128,11 @@ class Container implements ContainerInterface, ResettableContainerInterface {
    * {@inheritdoc}
    */
   public function get($id, $invalid_behavior = ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE) {
+    if ($this->hasParameter('_deprecated_service_list')) {
+      if ($deprecation = $this->getParameter('_deprecated_service_list')[$id] ?? '') {
+        @trigger_error($deprecation, E_USER_DEPRECATED);
+      }
+    }
     if (isset($this->aliases[$id])) {
       $id = $this->aliases[$id];
     }
@@ -141,11 +146,11 @@ class Container implements ContainerInterface, ResettableContainerInterface {
       throw new ServiceCircularReferenceException($id, array_keys($this->loading));
     }
 
-    $definition = isset($this->serviceDefinitions[$id]) ? $this->serviceDefinitions[$id] : NULL;
+    $definition = $this->serviceDefinitions[$id] ?? NULL;
 
     if (!$definition && $invalid_behavior === ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE) {
       if (!$id) {
-        throw new ServiceNotFoundException($id);
+        throw new ServiceNotFoundException('');
       }
 
       throw new ServiceNotFoundException($id, NULL, NULL, $this->getServiceAlternatives($id));
@@ -187,7 +192,12 @@ class Container implements ContainerInterface, ResettableContainerInterface {
   }
 
   /**
-   * {@inheritdoc}
+   * Resets shared services from the container.
+   *
+   * The container is not intended to be used again after being reset in a
+   * normal workflow. This method is meant as a way to release references for
+   * ref-counting. A subsequent call to ContainerInterface::get() will recreate
+   * a new instance of the shared service.
    */
   public function reset() {
     if (!empty($this->scopedServices)) {
@@ -249,60 +259,7 @@ class Container implements ContainerInterface, ResettableContainerInterface {
     }
     else {
       $class = $this->frozen ? $definition['class'] : current($this->resolveServicesAndParameters([$definition['class']]));
-      $length = isset($definition['arguments_count']) ? $definition['arguments_count'] : count($arguments);
-
-      // Optimize class instantiation for services with up to 10 parameters as
-      // ReflectionClass is noticeably slow.
-      switch ($length) {
-        case 0:
-          $service = new $class();
-          break;
-
-        case 1:
-          $service = new $class($arguments[0]);
-          break;
-
-        case 2:
-          $service = new $class($arguments[0], $arguments[1]);
-          break;
-
-        case 3:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2]);
-          break;
-
-        case 4:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3]);
-          break;
-
-        case 5:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4]);
-          break;
-
-        case 6:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4], $arguments[5]);
-          break;
-
-        case 7:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4], $arguments[5], $arguments[6]);
-          break;
-
-        case 8:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4], $arguments[5], $arguments[6], $arguments[7]);
-          break;
-
-        case 9:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4], $arguments[5], $arguments[6], $arguments[7], $arguments[8]);
-          break;
-
-        case 10:
-          $service = new $class($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4], $arguments[5], $arguments[6], $arguments[7], $arguments[8], $arguments[9]);
-          break;
-
-        default:
-          $r = new \ReflectionClass($class);
-          $service = $r->newInstanceArgs($arguments);
-          break;
-      }
+      $service = new $class(...$arguments);
     }
 
     if (!isset($definition['shared']) || $definition['shared'] !== FALSE) {
@@ -368,7 +325,7 @@ class Container implements ContainerInterface, ResettableContainerInterface {
   public function getParameter($name) {
     if (!(isset($this->parameters[$name]) || array_key_exists($name, $this->parameters))) {
       if (!$name) {
-        throw new ParameterNotFoundException($name);
+        throw new ParameterNotFoundException('');
       }
 
       throw new ParameterNotFoundException($name, NULL, NULL, NULL, $this->getParameterAlternatives($name));
@@ -409,7 +366,7 @@ class Container implements ContainerInterface, ResettableContainerInterface {
   /**
    * Resolves arguments that represent services or variables to the real values.
    *
-   * @param array|\stdClass $arguments
+   * @param array|object $arguments
    *   The arguments to resolve.
    *
    * @return array
@@ -510,6 +467,11 @@ class Container implements ContainerInterface, ResettableContainerInterface {
           else {
             $arguments[$key] = $value;
           }
+
+          continue;
+        }
+        elseif ($type == 'raw') {
+          $arguments[$key] = $argument->value;
 
           continue;
         }

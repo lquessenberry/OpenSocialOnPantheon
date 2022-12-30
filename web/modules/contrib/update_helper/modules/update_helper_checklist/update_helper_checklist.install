@@ -1,0 +1,68 @@
+<?php
+
+/**
+ * @file
+ * Install and update hooks for update_helper_checklist module.
+ */
+
+/**
+ * Installation hoot for update helper checklist module.
+ */
+function update_helper_checklist_install() {
+  /** @var \Drupal\update_helper_checklist\UpdateChecklist $checkList */
+  $checkList = \Drupal::service('update_helper_checklist.update_checklist');
+
+  // Mark all updates as successful on install.
+  // TODO: Improve - Get information from executed update hooks, what to mark.
+  $checkList->markAllUpdates();
+}
+
+/**
+ * The update helper checklist update dependencies.
+ *
+ * - The update 8001 migrates data to new API and we have to ensure it's
+ *   executed before any other update hook in order to ensure that potential
+ *   update helper hooks are triggered after data has been migrated.
+ */
+function update_helper_checklist_update_dependencies() {
+  $updates = update_get_update_list();
+
+  if (empty($updates['update_helper_checklist']['start']) || $updates['update_helper_checklist']['start'] != 8001) {
+    return [];
+  }
+
+  $dependencies = [];
+  foreach ($updates as $module => $info) {
+    if ($module === 'update_helper_checklist') {
+      continue;
+    }
+
+    $dependencies[$module][$info['start']] = [
+      'update_helper_checklist' => 8001,
+    ];
+  }
+
+  return $dependencies;
+}
+
+/**
+ * Change to new checklist API.
+ */
+function update_helper_checklist_update_8001() {
+  $checklist_id = 'update_helper_checklist';
+
+  // Get saved progress from old config storage.
+  /** @var \Drupal\checklistapi\Storage\ConfigStorage $old_config_storage */
+  $old_config_storage = \Drupal::service('checklistapi_storage.config');
+  $saved_progress = $old_config_storage->setChecklistId($checklist_id)
+    ->getSavedProgress();
+
+  // Copy saved progress to new state storage.
+  /** @var \Drupal\checklistapi\Storage\StateStorage $new_state_storage */
+  $new_state_storage = \Drupal::service('checklistapi_storage.state');
+  $new_state_storage->setChecklistId($checklist_id)
+    ->setSavedProgress($saved_progress);
+
+  // Delete old config storage.
+  $old_config_storage->deleteSavedProgress();
+}

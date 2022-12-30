@@ -8,7 +8,7 @@ use Drupal\Core\Form\FormState;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
-use Drupal\workflows\Entity\Workflow;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
 
 /**
  * @coversDefaultClass \Drupal\content_moderation\Plugin\Field\FieldWidget\ModerationStateWidget
@@ -16,12 +16,14 @@ use Drupal\workflows\Entity\Workflow;
  */
 class ModerationStateWidgetTest extends KernelTestBase {
 
+  use ContentModerationTestTrait;
+
   /**
    * Modules to install.
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'system',
     'user',
     'workflows',
@@ -32,7 +34,7 @@ class ModerationStateWidgetTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('content_moderation_state');
@@ -46,13 +48,13 @@ class ModerationStateWidgetTest extends KernelTestBase {
       'type' => 'unmoderated',
     ])->save();
 
-    $workflow = Workflow::load('editorial');
+    $workflow = $this->createEditorialWorkflow();
     $workflow->getTypePlugin()->addEntityTypeAndBundle('node', 'moderated');
     $workflow->save();
   }
 
   /**
-   * Test the widget does not impact a non-moderated entity.
+   * Tests the widget does not impact a non-moderated entity.
    */
   public function testWidgetNonModeratedEntity() {
     // Create an unmoderated entity and build a form display which will include

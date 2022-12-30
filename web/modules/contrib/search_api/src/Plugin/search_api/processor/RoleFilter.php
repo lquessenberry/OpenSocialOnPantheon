@@ -2,12 +2,12 @@
 
 namespace Drupal\search_api\Plugin\search_api\processor;
 
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Plugin\PluginFormTrait;
 use Drupal\search_api\Processor\ProcessorPluginBase;
+use Drupal\search_api\Utility\Utility;
 use Drupal\user\RoleInterface;
 use Drupal\user\UserInterface;
 
@@ -56,7 +56,7 @@ class RoleFilter extends ProcessorPluginBase implements PluginFormInterface {
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $options = array_map(function (RoleInterface $role) {
-      return Html::escape($role->label());
+      return Utility::escapeHtml($role->label());
     }, user_roles());
 
     $form['default'] = [

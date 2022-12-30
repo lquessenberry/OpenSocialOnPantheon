@@ -1,16 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace League\Container\ServiceProvider;
 
-use League\Container\ContainerAwareInterface;
-use League\Container\ContainerAwareTrait;
+use Generator;
+use League\Container\Exception\ContainerException;
+use League\Container\{ContainerAwareInterface, ContainerAwareTrait};
 
 class ServiceProviderAggregate implements ServiceProviderAggregateInterface
 {
     use ContainerAwareTrait;
 
     /**
-     * @var array
+     * @var ServiceProviderInterface[]
      */
     protected $providers = [];
 
@@ -19,13 +22,10 @@ class ServiceProviderAggregate implements ServiceProviderAggregateInterface
      */
     protected $registered = [];
 
-    /**
-     * {@inheritdoc}
-     */
-    public function add($provider)
+    public function add(ServiceProviderInterface $provider): ServiceProviderAggregateInterface
     {
-        if (is_string($provider) && class_exists($provider)) {
-            $provider = new $provider;
+        if (in_array($provider, $this->providers, true)) {
+            return $this;
         }
 
         if ($provider instanceof ContainerAwareInterface) {
@@ -36,53 +36,43 @@ class ServiceProviderAggregate implements ServiceProviderAggregateInterface
             $provider->boot();
         }
 
-        if ($provider instanceof ServiceProviderInterface) {
-            foreach ($provider->provides() as $service) {
-                $this->providers[$service] = $provider;
-            }
+        $this->providers[] = $provider;
+        return $this;
+    }
 
-            return $this;
+    public function provides(string $service): bool
+    {
+        foreach ($this->getIterator() as $provider) {
+            if ($provider->provides($service)) {
+                return true;
+            }
         }
 
-        throw new \InvalidArgumentException(
-            'A service provider must be a fully qualified class name or instance ' .
-            'of (\League\Container\ServiceProvider\ServiceProviderInterface)'
-        );
+        return false;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function provides($service)
+    public function getIterator(): Generator
     {
-        return array_key_exists($service, $this->providers);
+        yield from $this->providers;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function register($service)
+    public function register(string $service): void
     {
-        if (! array_key_exists($service, $this->providers)) {
-            throw new \InvalidArgumentException(
+        if (false === $this->provides($service)) {
+            throw new ContainerException(
                 sprintf('(%s) is not provided by a service provider', $service)
             );
         }
 
-        $provider  = $this->providers[$service];
-        $signature = get_class($provider);
+        foreach ($this->getIterator() as $provider) {
+            if (in_array($provider->getIdentifier(), $this->registered, true)) {
+                continue;
+            }
 
-        if ($provider instanceof SignatureServiceProviderInterface) {
-            $signature = $provider->getSignature();
+            if ($provider->provides($service)) {
+                $provider->register();
+                $this->registered[] = $provider->getIdentifier();
+            }
         }
-
-        // ensure that the provider hasn't already been invoked by any other service request
-        if (in_array($signature, $this->registered)) {
-            return;
-        }
-
-        $provider->register();
-
-        $this->registered[] = $signature;
     }
 }

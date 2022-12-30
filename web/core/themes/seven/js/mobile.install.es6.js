@@ -26,4 +26,4 @@
   if (document.addEventListener) {
     document.addEventListener('DOMContentLoaded', installStepsSetup);
   }
-}());
+})();

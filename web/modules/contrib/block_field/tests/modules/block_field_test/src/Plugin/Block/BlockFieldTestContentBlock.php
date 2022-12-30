@@ -51,6 +51,10 @@ class BlockFieldTestContentBlock extends BlockBase {
     return [
       '#type' => 'markup',
       '#markup' => $this->configuration['content'],
+      '#attributes' => [
+        'class' => ['block-field-test-content-block--custom-class'],
+        'data-custom-attr' => 'block-field-test-content-block--custom-data-attribute',
+      ],
     ];
   }
 

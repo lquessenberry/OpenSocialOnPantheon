@@ -42,6 +42,9 @@
  *   parent: system.admin_reports
  *   description: 'View events that have recently been logged.'
  *   route_name: dblog.overview
+ *   options:
+ *     query:
+ *       uid: 1
  *   weight: -1
  * @endcode
  * Some notes:
@@ -50,6 +53,9 @@
  * - parent: The machine name of the menu link that is the parent in the
  *   administrative hierarchy. See system.links.menu.yml to find the main
  *   skeleton of the hierarchy.
+ * - options: Define additional route options such as query parameters. See
+ *   https://www.drupal.org/docs/8/api/menu-api/providing-module-defined-menu-links
+ *   for more information.
  * - weight: Lower (negative) numbers come before higher (positive) numbers,
  *   for menu items with the same parent.
  *
@@ -323,7 +329,7 @@ function hook_menu_local_tasks_alter(&$data, $route_name, \Drupal\Core\Cache\Ref
       ],
   ];
   // The tab we're adding is dependent on a user's access to add content.
-  $cacheability->addCacheTags(['user.permissions']);
+  $cacheability->addCacheContexts(['user.permissions']);
 }
 
 /**
@@ -394,7 +400,7 @@ function hook_contextual_links_alter(array &$links, $group, array $route_paramet
   if ($group == 'menu') {
     // Dynamically use the menu name for the title of the menu_edit contextual
     // link.
-    $menu = \Drupal::entityManager()->getStorage('menu')->load($route_parameters['menu']);
+    $menu = \Drupal::entityTypeManager()->getStorage('menu')->load($route_parameters['menu']);
     $links['menu_edit']['title'] = t('Edit menu: @label', ['@label' => $menu->label()]);
   }
 }
@@ -450,7 +456,7 @@ function hook_system_breadcrumb_alter(\Drupal\Core\Breadcrumb\Breadcrumb &$bread
  *   The following keys can be altered:
  *   - text: The link text for the anchor tag. If the hook implementation
  *     changes this text it needs to preserve the safeness of the original text.
- *     Using t() or \Drupal\Component\Utility\SafeMarkup::format() with
+ *     Using t() or \Drupal\Component\Render\FormattableMarkup with
  *     @placeholder is recommended as this will escape the original text if
  *     necessary. If the resulting text is not marked safe it will be escaped.
  *   - url_is_active: Whether or not the link points to the currently active
@@ -479,7 +485,9 @@ function hook_system_breadcrumb_alter(\Drupal\Core\Breadcrumb\Breadcrumb &$bread
  */
 function hook_link_alter(&$variables) {
   // Add a warning to the end of route links to the admin section.
-  if (isset($variables['route_name']) && strpos($variables['route_name'], 'admin') !== FALSE) {
+  /** @var \Drupal\Core\Url $url */
+  $url = $variables['url'];
+  if ($url->isRouted() && strpos($url->getRouteName(), 'admin') !== FALSE) {
     $variables['text'] = t('@text (Warning!)', ['@text' => $variables['text']]);
   }
 }

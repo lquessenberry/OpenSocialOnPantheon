@@ -10,7 +10,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaSourceEntityConstraintsInterface;
 use Drupal\media\MediaSourceFieldConstraintsInterface;
-use Drupal\user\UserInterface;
+use Drupal\user\EntityOwnerTrait;
 
 /**
  * Defines the media entity class.
@@ -29,7 +29,7 @@ use Drupal\user\UserInterface;
  *   ),
  *   bundle_label = @Translation("Media type"),
  *   handlers = {
- *     "storage" = "Drupal\Core\Entity\Sql\SqlContentEntityStorage",
+ *     "storage" = "Drupal\media\MediaStorage",
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
  *     "list_builder" = "Drupal\media\MediaListBuilder",
  *     "access" = "Drupal\media\MediaAccessControlHandler",
@@ -38,11 +38,11 @@ use Drupal\user\UserInterface;
  *       "add" = "Drupal\media\MediaForm",
  *       "edit" = "Drupal\media\MediaForm",
  *       "delete" = "Drupal\Core\Entity\ContentEntityDeleteForm",
+ *       "delete-multiple-confirm" = "Drupal\Core\Entity\Form\DeleteMultipleForm",
  *     },
- *     "translation" = "Drupal\content_translation\ContentTranslationHandler",
  *     "views_data" = "Drupal\media\MediaViewsData",
  *     "route_provider" = {
- *       "html" = "Drupal\Core\Entity\Routing\AdminHtmlRouteProvider",
+ *       "html" = "Drupal\media\Routing\MediaRouteProvider",
  *     }
  *   },
  *   base_table = "media",
@@ -59,6 +59,7 @@ use Drupal\user\UserInterface;
  *     "langcode" = "langcode",
  *     "uuid" = "uuid",
  *     "published" = "status",
+ *     "owner" = "uid",
  *   },
  *   revision_metadata_keys = {
  *     "revision_user" = "revision_user",
@@ -73,9 +74,10 @@ use Drupal\user\UserInterface;
  *   links = {
  *     "add-page" = "/media/add",
  *     "add-form" = "/media/add/{media_type}",
- *     "canonical" = "/media/{media}",
+ *     "canonical" = "/media/{media}/edit",
  *     "collection" = "/admin/content/media",
  *     "delete-form" = "/media/{media}/delete",
+ *     "delete-multiple-form" = "/media/delete",
  *     "edit-form" = "/media/{media}/edit",
  *     "revision" = "/media/{media}/revisions/{media_revision}/view",
  *   }
@@ -83,21 +85,21 @@ use Drupal\user\UserInterface;
  */
 class Media extends EditorialContentEntityBase implements MediaInterface {
 
+  use EntityOwnerTrait;
   use StringTranslationTrait;
 
   /**
    * {@inheritdoc}
    */
   public function getName() {
-    $name = $this->get('name');
+    $name = $this->getEntityKey('label');
 
-    if ($name->isEmpty()) {
+    if (empty($name)) {
       $media_source = $this->getSource();
       return $media_source->getMetadata($this, $media_source->getPluginDefinition()['default_name_metadata_attribute']);
     }
-    else {
-      return $name->value;
-    }
+
+    return $name;
   }
 
   /**
@@ -131,34 +133,6 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
   /**
    * {@inheritdoc}
    */
-  public function getOwner() {
-    return $this->get('uid')->entity;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setOwner(UserInterface $account) {
-    return $this->set('uid', $account->id());
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getOwnerId() {
-    return $this->get('uid')->target_id;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setOwnerId($uid) {
-    return $this->set('uid', $uid);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function getSource() {
     return $this->bundle->entity->getSource();
   }
@@ -179,45 +153,64 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
    *   https://www.drupal.org/node/2878119
    */
   protected function updateThumbnail($from_queue = FALSE) {
-    $file_storage = \Drupal::service('entity_type.manager')->getStorage('file');
-    $thumbnail_uri = $this->getThumbnailUri($from_queue);
-    $existing = $file_storage->getQuery()
-      ->condition('uri', $thumbnail_uri)
-      ->execute();
+    $this->thumbnail->target_id = $this->loadThumbnail($this->getThumbnailUri($from_queue))->id();
 
+    // Set the thumbnail alt.
+    $media_source = $this->getSource();
+    $plugin_definition = $media_source->getPluginDefinition();
+
+    $this->thumbnail->alt = '';
+    if (!empty($plugin_definition['thumbnail_alt_metadata_attribute'])) {
+      $this->thumbnail->alt = $media_source->getMetadata($this, $plugin_definition['thumbnail_alt_metadata_attribute']);
+    }
+
+    return $this;
+  }
+
+  /**
+   * Loads the file entity for the thumbnail.
+   *
+   * If the file entity does not exist, it will be created.
+   *
+   * @param string $thumbnail_uri
+   *   (optional) The URI of the thumbnail, used to load or create the file
+   *   entity. If omitted, the default thumbnail URI will be used.
+   *
+   * @return \Drupal\file\FileInterface
+   *   The thumbnail file entity.
+   */
+  protected function loadThumbnail($thumbnail_uri = NULL) {
+    $values = [
+      'uri' => $thumbnail_uri ?: $this->getDefaultThumbnailUri(),
+    ];
+
+    $file_storage = $this->entityTypeManager()->getStorage('file');
+
+    $existing = $file_storage->loadByProperties($values);
     if ($existing) {
-      $this->thumbnail->target_id = reset($existing);
+      $file = reset($existing);
     }
     else {
       /** @var \Drupal\file\FileInterface $file */
-      $file = $file_storage->create(['uri' => $thumbnail_uri]);
+      $file = $file_storage->create($values);
       if ($owner = $this->getOwner()) {
         $file->setOwner($owner);
       }
       $file->setPermanent();
       $file->save();
-      $this->thumbnail->target_id = $file->id();
     }
+    return $file;
+  }
 
-    // Set the thumbnail alt.
-    $media_source = $this->getSource();
-    $plugin_definition = $media_source->getPluginDefinition();
-    if (!empty($plugin_definition['thumbnail_alt_metadata_attribute'])) {
-      $this->thumbnail->alt = $media_source->getMetadata($this, $plugin_definition['thumbnail_alt_metadata_attribute']);
-    }
-    else {
-      $this->thumbnail->alt = $this->t('Thumbnail', [], ['langcode' => $this->langcode->value]);
-    }
-
-    // Set the thumbnail title.
-    if (!empty($plugin_definition['thumbnail_title_metadata_attribute'])) {
-      $this->thumbnail->title = $media_source->getMetadata($this, $plugin_definition['thumbnail_title_metadata_attribute']);
-    }
-    else {
-      $this->thumbnail->title = $this->label();
-    }
-
-    return $this;
+  /**
+   * Returns the URI of the default thumbnail.
+   *
+   * @return string
+   *   The default thumbnail URI.
+   */
+  protected function getDefaultThumbnailUri() {
+    $default_thumbnail_filename = $this->getSource()->getPluginDefinition()['default_thumbnail_filename'];
+    return \Drupal::config('media.settings')->get('icon_base_uri') . '/' . $default_thumbnail_filename;
   }
 
   /**
@@ -255,31 +248,32 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
   protected function getThumbnailUri($from_queue) {
     $thumbnails_queued = $this->bundle->entity->thumbnailDownloadsAreQueued();
     if ($thumbnails_queued && $this->isNew()) {
-      $default_thumbnail_filename = $this->getSource()->getPluginDefinition()['default_thumbnail_filename'];
-      $thumbnail_uri = \Drupal::service('config.factory')->get('media.settings')->get('icon_base_uri') . '/' . $default_thumbnail_filename;
+      return $this->getDefaultThumbnailUri();
     }
     elseif ($thumbnails_queued && !$from_queue) {
-      $thumbnail_uri = $this->get('thumbnail')->entity->getFileUri();
-    }
-    else {
-      $thumbnail_uri = $this->getSource()->getMetadata($this, $this->getSource()->getPluginDefinition()['thumbnail_uri_metadata_attribute']);
+      return $this->get('thumbnail')->entity->getFileUri();
     }
 
-    return $thumbnail_uri;
+    $source = $this->getSource();
+    return $source->getMetadata($this, $source->getPluginDefinition()['thumbnail_uri_metadata_attribute']);
   }
 
   /**
    * Determines if the source field value has changed.
    *
+   * The comparison uses MediaSourceInterface::getSourceFieldValue() to ensure
+   * that the correct property from the source field is used.
+   *
    * @return bool
    *   TRUE if the source field value changed, FALSE otherwise.
+   *
+   * @see \Drupal\media\MediaSourceInterface::getSourceFieldValue()
    *
    * @internal
    */
   protected function hasSourceFieldChanged() {
-    $source_field_name = $this->getSource()->getConfiguration()['source_field'];
-    $current_items = $this->get($source_field_name);
-    return isset($this->original) && !$current_items->equals($this->original->get($source_field_name));
+    $source = $this->getSource();
+    return isset($this->original) && $source->getSourceFieldValue($this) !== $source->getSourceFieldValue($this->original);
   }
 
   /**
@@ -303,30 +297,13 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
   public function preSave(EntityStorageInterface $storage) {
     parent::preSave($storage);
 
-    $media_source = $this->getSource();
-    foreach ($this->translations as $langcode => $data) {
-      if ($this->hasTranslation($langcode)) {
-        $translation = $this->getTranslation($langcode);
-        // Try to set fields provided by the media source and mapped in
-        // media type config.
-        foreach ($translation->bundle->entity->getFieldMap() as $metadata_attribute_name => $entity_field_name) {
-          // Only save value in entity field if empty. Do not overwrite existing
-          // data.
-          if ($translation->hasField($entity_field_name) && ($translation->get($entity_field_name)->isEmpty() || $translation->hasSourceFieldChanged())) {
-            $translation->set($entity_field_name, $media_source->getMetadata($translation, $metadata_attribute_name));
-          }
-        }
+    if (!$this->getOwner()) {
+      $this->setOwnerId(0);
+    }
 
-        // Try to set a default name for this media item if no name is provided.
-        if ($translation->get('name')->isEmpty()) {
-          $translation->setName($translation->getName());
-        }
-
-        // Set thumbnail.
-        if ($translation->shouldUpdateThumbnail()) {
-          $translation->updateThumbnail();
-        }
-      }
+    // If no thumbnail has been explicitly set, use the default thumbnail.
+    if ($this->get('thumbnail')->isEmpty()) {
+      $this->thumbnail->target_id = $this->loadThumbnail()->id();
     }
   }
 
@@ -368,6 +345,61 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
   }
 
   /**
+   * Sets the media entity's field values from the source's metadata.
+   *
+   * Fetching the metadata could be slow (e.g., if requesting it from a remote
+   * API), so this is called by \Drupal\media\MediaStorage::save() prior to it
+   * beginning the database transaction, whereas static::preSave() executes
+   * after the transaction has already started.
+   *
+   * @internal
+   *   Expose this as an API in
+   *   https://www.drupal.org/project/drupal/issues/2992426.
+   */
+  public function prepareSave() {
+    // @todo If the source plugin talks to a remote API (e.g. oEmbed), this code
+    // might be performing a fair number of HTTP requests. This is dangerously
+    // brittle and should probably be handled by a queue, to avoid doing HTTP
+    // operations during entity save. See
+    // https://www.drupal.org/project/drupal/issues/2976875 for more.
+
+    // In order for metadata to be mapped correctly, $this->original must be
+    // set. However, that is only set once parent::save() is called, so work
+    // around that by setting it here.
+    if (!isset($this->original) && $id = $this->id()) {
+      $this->original = $this->entityTypeManager()
+        ->getStorage('media')
+        ->loadUnchanged($id);
+    }
+
+    $media_source = $this->getSource();
+    foreach ($this->translations as $langcode => $data) {
+      if ($this->hasTranslation($langcode)) {
+        $translation = $this->getTranslation($langcode);
+        // Try to set fields provided by the media source and mapped in
+        // media type config.
+        foreach ($translation->bundle->entity->getFieldMap() as $metadata_attribute_name => $entity_field_name) {
+          // Only save value in the entity if the field is empty or if the
+          // source field changed.
+          if ($translation->hasField($entity_field_name) && ($translation->get($entity_field_name)->isEmpty() || $translation->hasSourceFieldChanged())) {
+            $translation->set($entity_field_name, $media_source->getMetadata($translation, $metadata_attribute_name));
+          }
+        }
+
+        // Try to set a default name for this media item if no name is provided.
+        if ($translation->get('name')->isEmpty()) {
+          $translation->setName($translation->getName());
+        }
+
+        // Set thumbnail.
+        if ($translation->shouldUpdateThumbnail($this->isNew())) {
+          $translation->updateThumbnail();
+        }
+      }
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function validate() {
@@ -392,6 +424,7 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
    */
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
+    $fields += static::ownerBaseFieldDefinitions($entity_type);
 
     $fields['name'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Name'))
@@ -423,13 +456,10 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
       ->setDisplayConfigurable('view', TRUE)
       ->setReadOnly(TRUE);
 
-    $fields['uid'] = BaseFieldDefinition::create('entity_reference')
+    $fields['uid']
       ->setLabel(t('Authored by'))
       ->setDescription(t('The user ID of the author.'))
       ->setRevisionable(TRUE)
-      ->setDefaultValueCallback(static::class . '::getCurrentUserId')
-      ->setSetting('target_type', 'user')
-      ->setTranslatable(TRUE)
       ->setDisplayOptions('form', [
         'type' => 'entity_reference_autocomplete',
         'weight' => 5,
@@ -483,18 +513,6 @@ class Media extends EditorialContentEntityBase implements MediaInterface {
       ->setRevisionable(TRUE);
 
     return $fields;
-  }
-
-  /**
-   * Default value callback for 'uid' base field definition.
-   *
-   * @see ::baseFieldDefinitions()
-   *
-   * @return int[]
-   *   An array of default values.
-   */
-  public static function getCurrentUserId() {
-    return [\Drupal::currentUser()->id()];
   }
 
   /**

@@ -3,7 +3,8 @@
 namespace Drupal\Tests\Core\Database\Stub;
 
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Database\StatementEmpty;
+use Drupal\Core\Database\Log;
+use Drupal\Core\Database\StatementWrapper;
 
 /**
  * A stub of the abstract Connection class for testing purposes.
@@ -11,6 +12,16 @@ use Drupal\Core\Database\StatementEmpty;
  * Includes minimal implementations of Connection's abstract methods.
  */
 class StubConnection extends Connection {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $statementClass = NULL;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $statementWrapperClass = StatementWrapper::class;
 
   /**
    * Public property so we can test driver loading mechanism.
@@ -21,10 +32,31 @@ class StubConnection extends Connection {
   public $driver = 'stub';
 
   /**
+   * Constructs a Connection object.
+   *
+   * @param \PDO $connection
+   *   An object of the PDO class representing a database connection.
+   * @param array $connection_options
+   *   An array of options for the connection.
+   * @param string[]|null $identifier_quotes
+   *   The identifier quote characters. Defaults to an empty strings.
+   * @param string|null $statement_class
+   *   A class to use as a statement class for deprecation testing.
+   */
+  public function __construct(\PDO $connection, array $connection_options, $identifier_quotes = ['', ''], $statement_class = NULL) {
+    $this->identifierQuotes = $identifier_quotes;
+    if ($statement_class) {
+      $this->statementClass = $statement_class;
+      $this->statementWrapperClass = NULL;
+    }
+    parent::__construct($connection, $connection_options);
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function queryRange($query, $from, $count, array $args = [], array $options = []) {
-    return new StatementEmpty();
+    return NULL;
   }
 
   /**
@@ -51,9 +83,7 @@ class StubConnection extends Connection {
   /**
    * {@inheritdoc}
    */
-  public function createDatabase($database) {
-    return;
-  }
+  public function createDatabase($database) {}
 
   /**
    * {@inheritdoc}
@@ -67,6 +97,16 @@ class StubConnection extends Connection {
    */
   public function nextId($existing_id = 0) {
     return 0;
+  }
+
+  /**
+   * Helper method to test database classes are not included in backtraces.
+   *
+   * @return array
+   *   The caller stack entry.
+   */
+  public function testLogCaller() {
+    return (new Log())->findCaller();
   }
 
 }

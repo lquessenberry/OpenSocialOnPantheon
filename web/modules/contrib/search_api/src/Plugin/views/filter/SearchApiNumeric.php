@@ -16,7 +16,15 @@ class SearchApiNumeric extends NumericFilter {
   use SearchApiFilterTrait;
 
   /**
-   * {@inheritdoc}
+   * Defines the operators supported by this filter.
+   *
+   * @return array[]
+   *   An associative array of operators, keyed by operator ID, with information
+   *   about that operator:
+   *   - title: The full title of the operator (translated).
+   *   - short: The short title of the operator (translated).
+   *   - method: The method to call for this operator in query().
+   *   - values: The number of values that this operator expects/needs.
    */
   public function operators() {
     $operators = parent::operators();

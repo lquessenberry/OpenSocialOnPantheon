@@ -5,8 +5,6 @@
  * Miscellaneous functions.
  */
 
-use Drupal\Core\PhpStorage\PhpStorageFactory;
-use Drupal\Core\Cache\Cache;
 use Drupal\Core\DrupalKernel;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -15,8 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
  *
  * @param $class_loader
  *   The class loader. Normally Composer's ClassLoader, as included by the
- *   front controller, but may also be decorated; e.g.,
- *   \Symfony\Component\ClassLoader\ApcClassLoader, \Symfony\Component\ClassLoader\WinCacheClassLoader, or \Symfony\Component\ClassLoader\XcacheClassLoader
+ *   front controller, but may also be decorated.
  * @param \Symfony\Component\HttpFoundation\Request $request
  *   The current request.
  *
@@ -29,27 +26,22 @@ function drupal_rebuild($class_loader, Request $request) {
   restore_error_handler();
   restore_exception_handler();
 
-  // Force kernel to rebuild php cache.
-  PhpStorageFactory::get('twig')->deleteAll();
-
+  // Invalidate the container.
   // Bootstrap up to where caches exist and clear them.
   $kernel = new DrupalKernel('prod', $class_loader);
   $kernel->setSitePath(DrupalKernel::findSitePath($request));
-
-  // Invalidate the container.
   $kernel->invalidateContainer();
-
-  // Prepare a NULL request.
-  $kernel->prepareLegacyRequest($request);
-
-  foreach (Cache::getBins() as $bin) {
-    $bin->deleteAll();
+  $kernel->boot();
+  $kernel->preHandle($request);
+  // Ensure our request includes the session if appropriate.
+  if (PHP_SAPI !== 'cli') {
+    $request->setSession($kernel->getContainer()->get('session'));
   }
+
+  drupal_flush_all_caches($kernel);
 
   // Disable recording of cached pages.
   \Drupal::service('page_cache_kill_switch')->trigger();
-
-  drupal_flush_all_caches();
 
   // Restore Drupal's error and exception handlers.
   // @see \Drupal\Core\DrupalKernel::boot()

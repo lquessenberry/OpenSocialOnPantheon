@@ -2,6 +2,7 @@
 
 namespace Drupal\file_test\Form;
 
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -70,11 +71,11 @@ class FileTestSaveUploadFromForm extends FormBase {
       '#type' => 'select',
       '#title' => $this->t('Replace existing image'),
       '#options' => [
-        FILE_EXISTS_RENAME => $this->t('Appends number until name is unique'),
-        FILE_EXISTS_REPLACE => $this->t('Replace the existing file'),
-        FILE_EXISTS_ERROR => $this->t('Fail with an error'),
+        FileSystemInterface::EXISTS_RENAME => $this->t('Appends number until name is unique'),
+        FileSystemInterface::EXISTS_REPLACE => $this->t('Replace the existing file'),
+        FileSystemInterface::EXISTS_ERROR => $this->t('Fail with an error'),
       ],
-      '#default_value' => FILE_EXISTS_RENAME,
+      '#default_value' => FileSystemInterface::EXISTS_RENAME,
     ];
     $form['file_subdir'] = [
       '#type' => 'textfield',
@@ -89,9 +90,14 @@ class FileTestSaveUploadFromForm extends FormBase {
     ];
 
     $form['allow_all_extensions'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Allow all extensions?'),
-      '#default_value' => FALSE,
+      '#title' => t('Allow all extensions?'),
+      '#type' => 'radios',
+      '#options' => [
+        'false' => 'No',
+        'empty_array' => 'Empty array',
+        'empty_string' => 'Empty string',
+      ],
+      '#default_value' => 'false',
     ];
 
     $form['is_image_file'] = [
@@ -121,7 +127,7 @@ class FileTestSaveUploadFromForm extends FormBase {
     // form value for the $replace parameter.
     if (!$form_state->isValueEmpty('file_subdir')) {
       $destination = 'temporary://' . $form_state->getValue('file_subdir');
-      file_prepare_directory($destination, FILE_CREATE_DIRECTORY);
+      \Drupal::service('file_system')->prepareDirectory($destination, FileSystemInterface::CREATE_DIRECTORY);
     }
     else {
       $destination = FALSE;
@@ -138,16 +144,20 @@ class FileTestSaveUploadFromForm extends FormBase {
       $validators['file_validate_is_image'] = [];
     }
 
-    if ($form_state->getValue('allow_all_extensions')) {
+    $allow = $form_state->getValue('allow_all_extensions');
+    if ($allow === 'empty_array') {
       $validators['file_validate_extensions'] = [];
+    }
+    elseif ($allow === 'empty_string') {
+      $validators['file_validate_extensions'] = [''];
     }
     elseif (!$form_state->isValueEmpty('extensions')) {
       $validators['file_validate_extensions'] = [$form_state->getValue('extensions')];
     }
 
-    // The test for drupal_move_uploaded_file() triggering a warning is
-    // unavoidable. We're interested in what happens afterwards in
-    // _file_save_upload_from_form().
+    // The test for \Drupal::service('file_system')->moveUploadedFile()
+    // triggering a warning is unavoidable. We're interested in what happens
+    // afterwards in _file_save_upload_from_form().
     if ($this->state->get('file_test.disable_error_collection')) {
       define('SIMPLETEST_COLLECT_ERRORS', FALSE);
     }

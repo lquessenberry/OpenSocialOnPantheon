@@ -16,7 +16,13 @@ use Symfony\Component\Validator\Constraints\Email;
  */
 class EmailConstraint extends Email {
 
-  public $strict = TRUE;
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct($options = []) {
+    $options += ['mode' => 'strict'];
+    parent::__construct($options);
+  }
 
   /**
    * {@inheritdoc}

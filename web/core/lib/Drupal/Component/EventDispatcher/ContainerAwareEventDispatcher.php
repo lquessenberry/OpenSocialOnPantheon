@@ -6,6 +6,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Contracts\EventDispatcher\Event as ContractsEvent;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as ContractsEventDispatcherInterface;
 
 /**
  * A performance optimized container aware event dispatcher.
@@ -36,7 +38,7 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
   /**
    * The service container.
    *
-   * @var \Symfony\Component\DependencyInjection\ContainerInterface;
+   * @var \Symfony\Component\DependencyInjection\ContainerInterface
    */
   protected $container;
 
@@ -86,9 +88,38 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
   /**
    * {@inheritdoc}
    */
-  public function dispatch($event_name, Event $event = NULL) {
-    if ($event === NULL) {
-      $event = new Event();
+  public function dispatch($event/*, string $event_name = NULL*/) {
+    $event_name = 1 < \func_num_args() ? func_get_arg(1) : NULL;
+    if (\is_object($event)) {
+      $class_name = get_class($event);
+      $event_name = $event_name ?? $class_name;
+
+      $deprecation_message = 'Symfony\Component\EventDispatcher\Event is deprecated in drupal:9.1.0 and will be replaced by Symfony\Contracts\EventDispatcher\Event in drupal:10.0.0. A new Drupal\Component\EventDispatcher\Event class is available to bridge the two versions of the class. See https://www.drupal.org/node/3159012';
+
+      // Trigger a deprecation error if the deprecated Event class is used
+      // directly.
+      if ($class_name === 'Symfony\Component\EventDispatcher\Event') {
+        @trigger_error($deprecation_message, E_USER_DEPRECATED);
+      }
+      // Also try to trigger deprecation errors when classes are in the Drupal
+      // namespace and inherit directly from the deprecated class. If a class is
+      // in the Symfony namespace or a different one, we have to assume those
+      // will be updated by the dependency itself. Exclude the Drupal Event
+      // bridge class as a special case, otherwise it's pointless.
+      elseif ($class_name !== 'Drupal\Component\EventDispatcher\Event' && strpos($class_name, 'Drupal') !== FALSE) {
+        if (get_parent_class($event) === 'Symfony\Component\EventDispatcher\Event') {
+          @trigger_error($deprecation_message, E_USER_DEPRECATED);
+        }
+      }
+    }
+    elseif (\is_string($event) && (NULL === $event_name || $event_name instanceof ContractsEvent || $event_name instanceof Event)) {
+      @trigger_error('Calling the Symfony\Component\EventDispatcher\EventDispatcherInterface::dispatch() method with a string event name as the first argument is deprecated in drupal:9.1.0, an Event object will be required instead in drupal:10.0.0. See https://www.drupal.org/node/3154407', E_USER_DEPRECATED);
+      $swap = $event;
+      $event = $event_name ?? new Event();
+      $event_name = $swap;
+    }
+    else {
+      throw new \TypeError(sprintf('Argument 1 passed to "%s::dispatch()" must be an object, %s given.', ContractsEventDispatcherInterface::class, \gettype($event)));
     }
 
     if (isset($this->listeners[$event_name])) {
@@ -99,8 +130,8 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
       }
 
       // Invoke listeners and resolve callables if necessary.
-      foreach ($this->listeners[$event_name] as $priority => &$definitions) {
-        foreach ($definitions as $key => &$definition) {
+      foreach ($this->listeners[$event_name] as &$definitions) {
+        foreach ($definitions as &$definition) {
           if (!isset($definition['callable'])) {
             $definition['callable'] = [$this->container->get($definition['service'][0]), $definition['service'][1]];
           }
@@ -122,7 +153,7 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
   /**
    * {@inheritdoc}
    */
-  public function getListeners($event_name = NULL) {
+  public function getListeners($event_name = NULL): array {
     $result = [];
 
     if ($event_name === NULL) {
@@ -142,8 +173,8 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
       }
 
       // Collect listeners and resolve callables if necessary.
-      foreach ($this->listeners[$event_name] as $priority => &$definitions) {
-        foreach ($definitions as $key => &$definition) {
+      foreach ($this->listeners[$event_name] as &$definitions) {
+        foreach ($definitions as &$definition) {
           if (!isset($definition['callable'])) {
             $definition['callable'] = [$this->container->get($definition['service'][0]), $definition['service'][1]];
           }
@@ -162,16 +193,16 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
   /**
    * {@inheritdoc}
    */
-  public function getListenerPriority($event_name, $listener) {
+  public function getListenerPriority($event_name, $listener): ?int {
     if (!isset($this->listeners[$event_name])) {
-      return;
+      return NULL;
     }
     if (is_array($listener) && isset($listener[0]) && $listener[0] instanceof \Closure) {
       $listener[0] = $listener[0]();
     }
     // Resolve service definitions if the listener has not been found so far.
     foreach ($this->listeners[$event_name] as $priority => &$definitions) {
-      foreach ($definitions as $key => &$definition) {
+      foreach ($definitions as &$definition) {
         if (!isset($definition['callable'])) {
           // Once the callable is retrieved we keep it for subsequent method
           // invocations on this class.
@@ -188,12 +219,13 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
         }
       }
     }
+    return NULL;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function hasListeners($event_name = NULL) {
+  public function hasListeners($event_name = NULL): bool {
     if ($event_name !== NULL) {
       return !empty($this->listeners[$event_name]);
     }
@@ -261,11 +293,11 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
         $this->addListener($event_name, [$subscriber, $params]);
       }
       elseif (is_string($params[0])) {
-        $this->addListener($event_name, [$subscriber, $params[0]], isset($params[1]) ? $params[1] : 0);
+        $this->addListener($event_name, [$subscriber, $params[0]], $params[1] ?? 0);
       }
       else {
         foreach ($params as $listener) {
-          $this->addListener($event_name, [$subscriber, $listener[0]], isset($listener[1]) ? $listener[1] : 0);
+          $this->addListener($event_name, [$subscriber, $listener[0]], $listener[1] ?? 0);
         }
       }
     }

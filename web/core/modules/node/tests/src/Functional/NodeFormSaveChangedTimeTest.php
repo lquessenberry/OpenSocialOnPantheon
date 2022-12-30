@@ -16,12 +16,17 @@ class NodeFormSaveChangedTimeTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
   ];
 
   /**
-   * An user with permissions to create and edit articles.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * A user with permissions to create and edit articles.
    *
    * @var \Drupal\user\UserInterface
    */
@@ -30,7 +35,7 @@ class NodeFormSaveChangedTimeTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Create a node type.
@@ -39,7 +44,11 @@ class NodeFormSaveChangedTimeTest extends BrowserTestBase {
       'name' => 'Article',
     ]);
 
-    $this->authorUser = $this->drupalCreateUser(['access content', 'create article content', 'edit any article content'], 'author');
+    $this->authorUser = $this->drupalCreateUser([
+      'access content',
+      'create article content',
+      'edit any article content',
+    ], 'author');
     $this->drupalLogin($this->authorUser);
 
     // Create one node of the above node type .
@@ -49,7 +58,7 @@ class NodeFormSaveChangedTimeTest extends BrowserTestBase {
   }
 
   /**
-   * Test the changed time after API and FORM save without changes.
+   * Tests the changed time after API and FORM save without changes.
    */
   public function testChangedTimeAfterSaveWithoutChanges() {
     $storage = $this->container->get('entity_type.manager')->getStorage('node');
@@ -59,17 +68,18 @@ class NodeFormSaveChangedTimeTest extends BrowserTestBase {
     $node->save();
     $storage->resetCache([1]);
     $node = $storage->load(1);
-    $this->assertEqual($changed_timestamp, $node->getChangedTime(), "The entity's changed time wasn't updated after API save without changes.");
+    $this->assertEquals($changed_timestamp, $node->getChangedTime(), "The entity's changed time wasn't updated after API save without changes.");
 
     // Ensure different save timestamps.
     sleep(1);
 
     // Save the node on the regular node edit form.
-    $this->drupalPostForm('node/1/edit', [], t('Save'));
+    $this->drupalGet('node/1/edit');
+    $this->submitForm([], 'Save');
 
     $storage->resetCache([1]);
     $node = $storage->load(1);
-    $this->assertNotEqual($changed_timestamp, $node->getChangedTime(), "The entity's changed time was updated after form save without changes.");
+    $this->assertNotEquals($node->getChangedTime(), $changed_timestamp, "The entity's changed time was updated after form save without changes.");
   }
 
 }

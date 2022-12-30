@@ -1,0 +1,10 @@
+entity.oauth2_scope.add_form:
+  route_name: entity.oauth2_scope.add_form
+  title: 'Add Scope'
+  appears_on:
+    - entity.oauth2_scope.collection
+entity.simple_oauth.consumer.add_form:
+  route_name: 'entity.consumer.add_form'
+  title: 'Add Client'
+  appears_on:
+    - oauth2_token.settings

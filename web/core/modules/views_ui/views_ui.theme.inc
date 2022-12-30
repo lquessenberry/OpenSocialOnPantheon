@@ -5,7 +5,7 @@
  * Preprocessors and theme functions for the Views UI.
  */
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Render\Element\Checkboxes;
@@ -85,8 +85,8 @@ function template_preprocess_views_ui_display_tab_bucket(&$variables) {
     $variables['attributes']['title'][] = t('Overridden');
   }
 
-  $variables['name'] = isset($element['#name']) ? $element['#name'] : NULL;
-  $variables['overridden'] = isset($element['#overridden']) ? $element['#overridden'] : NULL;
+  $variables['name'] = $element['#name'] ?? NULL;
+  $variables['overridden'] = $element['#overridden'] ?? NULL;
   $variables['content'] = $element['#children'];
   $variables['title'] = $element['#title'];
   $variables['actions'] = !empty($element['#actions']) ? $element['#actions'] : [];
@@ -158,7 +158,7 @@ function template_preprocess_views_ui_build_group_filter_form(&$variables) {
           'title' => t('Remove this item'),
         ],
       ]),
-      '#title' => SafeMarkup::format('<span>@text</span>', ['@text' => t('Remove')]),
+      '#title' => new FormattableMarkup('<span>@text</span>', ['@text' => t('Remove')]),
     ];
     $remove = [$form['group_items'][$group_id]['remove'], $link];
     $data = [
@@ -184,7 +184,7 @@ function template_preprocess_views_ui_build_group_filter_form(&$variables) {
         'action' => 'order',
         'relationship' => 'sibling',
         'group' => 'weight',
-      ]
+      ],
     ],
   ];
 
@@ -286,7 +286,7 @@ function template_preprocess_views_ui_rearrange_filter_form(&$variables) {
         $remove_link = [
           '#type' => 'link',
           '#url' => Url::fromRoute('<none>'),
-          '#title' => SafeMarkup::format('<span>@text</span>', ['@text' => t('Remove')]),
+          '#title' => new FormattableMarkup('<span>@text</span>', ['@text' => t('Remove')]),
           '#weight' => '1',
           '#options' => [
             'attributes' => [
@@ -353,7 +353,7 @@ function template_preprocess_views_ui_rearrange_filter_form(&$variables) {
           'action' => 'order',
           'relationship' => 'sibling',
           'group' => 'weight',
-        ]
+        ],
       ],
     ];
   }
@@ -495,40 +495,49 @@ function template_preprocess_views_ui_view_preview_section(&$variables) {
       $variables['title'] = t('Title');
       $links = views_ui_view_preview_section_display_category_links($variables['view'], 'title', $variables['title']);
       break;
+
     case 'header':
       $variables['title'] = t('Header');
       $links = views_ui_view_preview_section_handler_links($variables['view'], $variables['section']);
       break;
+
     case 'empty':
       $variables['title'] = t('No results behavior');
       $links = views_ui_view_preview_section_handler_links($variables['view'], $variables['section']);
       break;
+
     case 'exposed':
       // @todo Sorts can be exposed too, so we may need a better title.
       $variables['title'] = t('Exposed Filters');
       $links = views_ui_view_preview_section_display_category_links($variables['view'], 'exposed_form_options', $variables['title']);
       break;
+
     case 'rows':
       // @todo The title needs to depend on what is being viewed.
       $variables['title'] = t('Content');
       $links = views_ui_view_preview_section_rows_links($variables['view']);
       break;
+
     case 'pager':
       $variables['title'] = t('Pager');
       $links = views_ui_view_preview_section_display_category_links($variables['view'], 'pager_options', $variables['title']);
       break;
+
     case 'more':
       $variables['title'] = t('More');
       $links = views_ui_view_preview_section_display_category_links($variables['view'], 'use_more', $variables['title']);
       break;
+
     case 'footer':
       $variables['title'] = t('Footer');
       $links = views_ui_view_preview_section_handler_links($variables['view'], $variables['section']);
       break;
+
     case 'attachment_before':
       // @todo: Add links to the attachment configuration page.
       $variables['title'] = t('Attachment before');
       break;
+
     case 'attachment_after':
       // @todo: Add links to the attachment configuration page.
       $variables['title'] = t('Attachment after');

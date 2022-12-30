@@ -23,40 +23,45 @@ class Fieldset extends FieldGroupFormatterBase {
   /**
    * {@inheritdoc}
    */
-  public function preRender(&$element, $rendering_object) {
+  public function process(&$element, $processed_object) {
 
-    $element += array(
+    $element += [
       '#type' => 'fieldset',
-      '#title' => Html::escape($this->t($this->getLabel())),
-      '#pre_render' => array(),
-      '#attributes' => array(),
-    );
+      '#title' => $this->getLabel(),
+      '#attributes' => [],
+      '#description' => $this->getSetting('description'),
+      // Prevent \Drupal\content_translation\ContentTranslationHandler::addTranslatabilityClue()
+      // from adding an incorrect suffix to the field group title.
+      '#multilingual' => TRUE,
+    ];
 
-    if ($this->getSetting('description')) {
-      $element += array(
-        '#description' => $this->getSetting('description'),
-      );
-
-      // When a fieldset has a description, an id is required.
-      if (!$this->getSetting('id')) {
-        $element['#id'] = Html::getId($this->group->group_name);
-      }
-
+    // When a fieldset has a description, an id is required.
+    if ($this->getSetting('description') && !$this->getSetting('id')) {
+      $element['#id'] = Html::getUniqueId($this->group->group_name);
     }
 
     if ($this->getSetting('id')) {
-      $element['#id'] = Html::getId($this->getSetting('id'));
+      $element['#id'] = Html::getUniqueId($this->getSetting('id'));
     }
 
     $classes = $this->getClasses();
     if (!empty($classes)) {
-      $element['#attributes'] += array('class' => $classes);
+      $element['#attributes'] += ['class' => $classes];
     }
 
     if ($this->getSetting('required_fields')) {
       $element['#attached']['library'][] = 'field_group/formatter.fieldset';
       $element['#attached']['library'][] = 'field_group/core';
     }
+
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function preRender(&$element, $rendering_object) {
+    parent::preRender($element, $rendering_object);
+    $this->process($element, $rendering_object);
   }
 
   /**
@@ -66,20 +71,20 @@ class Fieldset extends FieldGroupFormatterBase {
 
     $form = parent::settingsForm();
 
-    $form['description'] = array(
+    $form['description'] = [
       '#title' => $this->t('Description'),
       '#type' => 'textarea',
       '#default_value' => $this->getSetting('description'),
       '#weight' => -4,
-    );
+    ];
 
     if ($this->context == 'form') {
-      $form['required_fields'] = array(
+      $form['required_fields'] = [
         '#type' => 'checkbox',
         '#title' => $this->t('Mark group as required if it contains required fields.'),
         '#default_value' => $this->getSetting('required_fields'),
         '#weight' => 2,
-      );
+      ];
     }
 
     return $form;
@@ -96,12 +101,6 @@ class Fieldset extends FieldGroupFormatterBase {
       $summary[] = $this->t('Mark as required');
     }
 
-    if ($this->getSetting('description')) {
-      $summary[] = $this->t('Description : @description',
-        array('@description' => $this->getSetting('description'))
-      );
-    }
-
     return $summary;
   }
 
@@ -109,9 +108,9 @@ class Fieldset extends FieldGroupFormatterBase {
    * {@inheritdoc}
    */
   public static function defaultContextSettings($context) {
-    $defaults = array(
+    $defaults = [
       'description' => '',
-    ) + parent::defaultSettings($context);
+    ] + parent::defaultSettings($context);
 
     if ($context == 'form') {
       $defaults['required_fields'] = 1;

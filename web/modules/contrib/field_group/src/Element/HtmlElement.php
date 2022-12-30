@@ -18,27 +18,31 @@ class HtmlElement extends RenderElement {
   public function getInfo() {
     $class = get_class($this);
 
-    return array(
-      '#process' => array(
-        array($class, 'processHtmlElement'),
-      ),
-      '#theme_wrappers' => array('field_group_html_element'),
-    );
+    return [
+      '#process' => [
+        [$class, 'processGroup'],
+        [$class, 'processHtmlElement'],
+      ],
+      '#pre_render' => [
+        [$class, 'preRenderGroup'],
+      ],
+      '#theme_wrappers' => ['field_group_html_element'],
+    ];
   }
 
   /**
-   * Process a html element
+   * Process a html element.
    *
    * @param array $element
    *   An associative array containing the properties and children of the
    *   details element.
-   * @param FormStateInterface $form_state
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The current state of the form.
    *
    * @return array
    *   The processed element.
    */
-  public static function processHtmlElement(&$element, FormStateInterface $form_state) {
+  public static function processHtmlElement(array &$element, FormStateInterface $form_state) {
 
     // If an effect is set, we need to load extra js.
     if (!empty($element['#effect']) && $element['#effect'] !== 'none') {

@@ -12,7 +12,9 @@ use Drupal\views\Entity\View;
  * @group flag_follower
  */
 class FlagFollowerInstallUninstallTest extends FlagKernelTestBase {
+
   public static $modules = ['field', 'text'];
+
   public function testInstallUninstall() {
     // Provides configuraiton depended on by the view.
     $this->installConfig(['node']);

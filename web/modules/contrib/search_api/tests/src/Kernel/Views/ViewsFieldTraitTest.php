@@ -11,7 +11,7 @@ use Drupal\search_api\Plugin\views\query\SearchApiQuery;
 use Drupal\search_api\Utility\Utility;
 use Drupal\Tests\search_api\Kernel\ViewsTestField;
 use Drupal\user\Entity\User;
-use Drupal\views\ResultRow;
+use Drupal\search_api\Plugin\views\ResultRow;
 
 /**
  * Tests the functionality of our Views field plugin trait.
@@ -25,13 +25,14 @@ class ViewsFieldTraitTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'field',
     'search_api',
     'search_api_test_example_content',
     'user',
     'system',
     'entity_test',
+    'filter',
     'text',
   ];
 
@@ -66,7 +67,7 @@ class ViewsFieldTraitTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test_mulrev_changed');
@@ -102,7 +103,7 @@ class ViewsFieldTraitTest extends KernelTestBase {
         'aggregated_field' => [
           'label' => 'Aggregated field',
           'property_path' => 'aggregated_field',
-          'type' => 'text',
+          'type' => 'string',
           'configuration' => [
             'type' => 'union',
             'fields' => [
@@ -123,7 +124,7 @@ class ViewsFieldTraitTest extends KernelTestBase {
     ]);
 
     $this->field = new ViewsTestField([], 'search_api', []);
-    /** @var \Drupal\search_api\Plugin\views\query\SearchApiQuery|\PHPUnit_Framework_MockObject_MockObject $query */
+    /** @var \Drupal\search_api\Plugin\views\query\SearchApiQuery|\PHPUnit\Framework\MockObject\MockObject $query */
     $query = $this->getMockBuilder(SearchApiQuery::class)
       ->disableOriginalConstructor()
       ->getMock();
@@ -144,7 +145,7 @@ class ViewsFieldTraitTest extends KernelTestBase {
     $entity_user_name = Utility::createCombinedId($datasource_id, 'user_id:entity:name');
     $user_name = Utility::createCombinedId('entity:user', 'name');
 
-    /** @var \Drupal\views\ResultRow[] $values */
+    /** @var \Drupal\search_api\Plugin\views\ResultRow[] $values */
     $values = [];
 
     $item_id = Utility::createCombinedId($datasource_id, '1:en');

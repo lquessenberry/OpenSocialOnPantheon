@@ -35,14 +35,22 @@ class TwigWhiteListTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'taxonomy', 'user', 'system', 'text', 'field', 'entity_reference'];
+  protected static $modules = [
+    'node',
+    'taxonomy',
+    'user',
+    'system',
+    'text',
+    'field',
+    'entity_reference',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-    \Drupal::service('theme_handler')->install(['test_theme']);
+    \Drupal::service('theme_installer')->install(['test_theme']);
     $this->installSchema('system', ['sequences']);
     $this->installEntitySchema('node');
     $this->installEntitySchema('user');
@@ -100,7 +108,8 @@ class TwigWhiteListTest extends KernelTestBase {
     ])->save();
 
     // Show on default display and teaser.
-    entity_get_display('node', 'page', 'default')
+    \Drupal::service('entity_display.repository')
+      ->getViewDisplay('node', 'page')
       ->setComponent('field_term', [
         'type' => 'entity_reference_label',
       ])
@@ -113,6 +122,8 @@ class TwigWhiteListTest extends KernelTestBase {
    * Tests white-listing of methods doesn't interfere with chaining.
    */
   public function testWhiteListChaining() {
+    /** @var \Drupal\Core\Template\TwigEnvironment $environment */
+    $environment = \Drupal::service('twig');
     $node = Node::create([
       'type' => 'page',
       'title' => 'Some node mmk',
@@ -120,7 +131,9 @@ class TwigWhiteListTest extends KernelTestBase {
       'field_term' => $this->term->id(),
     ]);
     $node->save();
-    $this->setRawContent(twig_render_template(drupal_get_path('theme', 'test_theme') . '/templates/node.html.twig', ['node' => $node]));
+    $template = $environment->loadTemplate($this->getThemePath('test_theme') . '/templates/node.html.twig');
+    $markup = $template->render(['node' => $node]);
+    $this->setRawContent($markup);
     $this->assertText('Sometimes people are just jerks');
   }
 

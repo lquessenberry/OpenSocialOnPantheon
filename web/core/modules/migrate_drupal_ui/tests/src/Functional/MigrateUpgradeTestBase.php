@@ -5,9 +5,8 @@ namespace Drupal\Tests\migrate_drupal_ui\Functional;
 use Drupal\Core\Database\Database;
 use Drupal\migrate\Plugin\MigrateIdMapInterface;
 use Drupal\migrate_drupal\MigrationConfigurationTrait;
+use Drupal\user\Entity\User;
 use Drupal\Tests\BrowserTestBase;
-use Drupal\Tests\migrate_drupal\Traits\CreateTestContentEntitiesTrait;
-use Drupal\Tests\WebAssert;
 
 /**
  * Provides a base class for testing migration upgrades in the UI.
@@ -15,7 +14,6 @@ use Drupal\Tests\WebAssert;
 abstract class MigrateUpgradeTestBase extends BrowserTestBase {
 
   use MigrationConfigurationTrait;
-  use CreateTestContentEntitiesTrait;
 
   /**
    * Use the Standard profile to test help implementations of many core modules.
@@ -32,6 +30,20 @@ abstract class MigrateUpgradeTestBase extends BrowserTestBase {
   protected $sourceDatabase;
 
   /**
+   * The destination site major version.
+   *
+   * @var string
+   */
+  protected $destinationSiteVersion;
+
+  /**
+   * Input data for the credential form.
+   *
+   * @var array
+   */
+  protected $edits;
+
+  /**
    * {@inheritdoc}
    */
   protected function setUp() {
@@ -39,8 +51,25 @@ abstract class MigrateUpgradeTestBase extends BrowserTestBase {
     $this->createMigrationConnection();
     $this->sourceDatabase = Database::getConnection('default', 'migrate_drupal_ui');
 
+    // Get the current major version.
+    [$this->destinationSiteVersion] = explode('.', \Drupal::VERSION, 2);
+
     // Log in as user 1. Migrations in the UI can only be performed as user 1.
     $this->drupalLogin($this->rootUser);
+  }
+
+  /**
+   * Navigates to the credential form and submits valid credentials.
+   */
+  public function submitCredentialForm() {
+    $this->drupalGet('/upgrade');
+    $this->submitForm([], 'Continue');
+
+    // Get valid credentials.
+    $this->edits = $this->translatePostValues($this->getCredentials());
+
+    // When the Credential form is submitted the migrate map tables are created.
+    $this->submitForm($this->edits, 'Review upgrade');
   }
 
   /**
@@ -78,7 +107,7 @@ abstract class MigrateUpgradeTestBase extends BrowserTestBase {
       $connection_info['prefix'] = '';
     }
     else {
-      $prefix = is_array($connection_info['prefix']) ? $connection_info['prefix']['default'] : $connection_info['prefix'];
+      $prefix = $connection_info['prefix'];
       // Simpletest uses fixed length prefixes. Create a new prefix for the
       // source database. Adding to the end of the prefix ensures that
       // \Drupal\simpletest\TestBase::restoreEnvironment() will remove the
@@ -95,34 +124,6 @@ abstract class MigrateUpgradeTestBase extends BrowserTestBase {
   protected function tearDown() {
     Database::removeConnection('migrate_drupal_ui');
     parent::tearDown();
-  }
-
-  /**
-   * Tests the displayed upgrade paths.
-   *
-   * @param \Drupal\Tests\WebAssert $session
-   *   The web-assert session.
-   * @param array $available_paths
-   *   An array of modules that will be upgraded.
-   * @param array $missing_paths
-   *   An array of modules that will not be upgraded.
-   */
-  protected function assertUpgradePaths(WebAssert $session, array $available_paths, array $missing_paths) {
-    // Test the available migration paths.
-    foreach ($available_paths as $available) {
-      $session->elementExists('xpath', "//span[contains(@class, 'checked') and text() = '$available']");
-      $session->elementNotExists('xpath', "//span[contains(@class, 'error') and text() = '$available']");
-    }
-
-    // Test the missing migration paths.
-    foreach ($missing_paths as $missing) {
-      $session->elementExists('xpath', "//span[contains(@class, 'error') and text() = '$missing']");
-      $session->elementNotExists('xpath', "//span[contains(@class, 'checked') and text() = '$missing']");
-    }
-
-    // Test the total count of missing and available paths.
-    $session->elementsCount('xpath', "//span[contains(@class, 'upgrade-analysis-report__status-icon--error')]", count($missing_paths));
-    $session->elementsCount('xpath', "//span[contains(@class, 'upgrade-analysis-report__status-icon--checked')]", count($available_paths));
   }
 
   /**
@@ -166,79 +167,98 @@ abstract class MigrateUpgradeTestBase extends BrowserTestBase {
   abstract protected function getEntityCountsIncremental();
 
   /**
-   * Helper method to assert the text on the 'Upgrade analysis report' page.
-   *
-   * @param \Drupal\Tests\WebAssert $session
-   *   The current session.
-   * @param array $all_available
-   *   Array of modules that will be upgraded.
-   * @param array $all_missing
-   *   Array of modules that will not be upgraded.
-   */
-  protected function assertReviewPage(WebAssert $session, array $all_available, array $all_missing) {
-    $this->assertText('What will be upgraded?');
-
-    // Ensure there are no errors about the missing modules from the test module.
-    $session->pageTextNotContains(t('Source module not found for migration_provider_no_annotation.'));
-    $session->pageTextNotContains(t('Source module not found for migration_provider_test.'));
-    $session->pageTextNotContains(t('Destination module not found for migration_provider_test'));
-    // Ensure there are no errors about any other missing migration providers.
-    $session->pageTextNotContains(t('module not found'));
-
-    // Test the available migration paths.
-    foreach ($all_available as $available) {
-      $session->elementExists('xpath', "//span[contains(@class, 'checked') and text() = '$available']");
-      $session->elementNotExists('xpath', "//span[contains(@class, 'error') and text() = '$available']");
-    }
-
-    // Test the missing migration paths.
-    foreach ($all_missing as $missing) {
-      $session->elementExists('xpath', "//span[contains(@class, 'error') and text() = '$missing']");
-      $session->elementNotExists('xpath', "//span[contains(@class, 'checked') and text() = '$missing']");
-    }
-  }
-
-  /**
    * Helper method that asserts text on the ID conflict form.
    *
-   * @param \Drupal\Tests\WebAssert $session
-   *   The current session.
-   * @param $session
-   *   The current session.
+   * @param array $entity_types
+   *   An array of entity types.
+   *
+   * @throws \Behat\Mink\Exception\ResponseTextException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  protected function assertIdConflict(WebAssert $session) {
+  protected function assertIdConflictForm(array $entity_types) {
+    $session = $this->assertSession();
+    /** @var \Drupal\Core\Entity\EntityTypeManager $entity_type_manager */
+    $entity_type_manager = \Drupal::service('entity_type.manager');
+
     $session->pageTextContains('WARNING: Content may be overwritten on your new site.');
     $session->pageTextContains('There is conflicting content of these types:');
-    $session->pageTextContains('custom block entities');
-    $session->pageTextContains('custom menu link entities');
-    $session->pageTextContains('file entities');
-    $session->pageTextContains('taxonomy term entities');
-    $session->pageTextContains('user entities');
-    $session->pageTextContains('comments');
-    $session->pageTextContains('content item revisions');
-    $session->pageTextContains('content items');
+    $this->assertNotEmpty($entity_types);
+    foreach ($entity_types as $entity_type) {
+      $label = $entity_type_manager->getDefinition($entity_type)->getPluralLabel();
+      $session->pageTextContains($label);
+    }
+    $session->pageTextContainsOnce('content items');
     $session->pageTextContains('There is translated content of these types:');
   }
 
   /**
-   * Checks that migrations have been performed successfully.
+   * Helper to assert content on the Review form.
    *
-   * @param array $expected_counts
-   *   The expected counts of each entity type.
-   * @param int $version
-   *   The Drupal version.
+   * @param array|null $available_paths
+   *   An array of modules that will be upgraded. Defaults to
+   *   $this->getAvailablePaths().
+   * @param array|null $missing_paths
+   *   An array of modules that will not be upgraded. Defaults to
+   *   $this->getMissingPaths().
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
    */
-  protected function assertMigrationResults(array $expected_counts, $version) {
-    // Have to reset all the statics after migration to ensure entities are
-    // loadable.
-    $this->resetAll();
-    foreach (array_keys(\Drupal::entityTypeManager()->getDefinitions()) as $entity_type) {
-      $real_count = (int) \Drupal::entityQuery($entity_type)->count()->execute();
-      $expected_count = isset($expected_counts[$entity_type]) ? $expected_counts[$entity_type] : 0;
-      $this->assertSame($expected_count, $real_count, "Found $real_count $entity_type entities, expected $expected_count.");
+  protected function assertReviewForm(array $available_paths = NULL, array $missing_paths = NULL) {
+    $session = $this->assertSession();
+    $session->pageTextContains('What will be upgraded?');
+
+    $available_paths = $available_paths ?? $this->getAvailablePaths();
+    $missing_paths = $missing_paths ?? $this->getMissingPaths();
+    // Test the available migration paths.
+    foreach ($available_paths as $available) {
+      $session->elementExists('xpath', "//td[contains(@class, 'checked') and text() = '$available']");
+      $session->elementNotExists('xpath', "//td[contains(@class, 'error') and text() = '$available']");
     }
 
+    // Test the missing migration paths.
+    foreach ($missing_paths as $missing) {
+      $session->elementExists('xpath', "//td[contains(@class, 'error') and text() = '$missing']");
+      $session->elementNotExists('xpath', "//td[contains(@class, 'checked') and text() = '$missing']");
+    }
+
+    // Test the total count of missing and available paths.
+    $session->elementsCount('xpath', "//td[contains(@class, 'upgrade-analysis-report__status-icon--error')]", count($missing_paths));
+    $session->elementsCount('xpath', "//td[contains(@class, 'upgrade-analysis-report__status-icon--checked')]", count($available_paths));
+  }
+
+  /**
+   * Asserts the upgrade completed successfully.
+   *
+   * @param array $entity_counts
+   *   An array of entity count, where the key is the entity type and the value
+   *   is the number of the entities that should exist post migration.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  protected function assertUpgrade(array $entity_counts) {
+    $session = $this->assertSession();
+    $session->pageTextContains(t('Congratulations, you upgraded Drupal!'));
+
+    // Assert the count of entities after the upgrade. First, reset all the
+    // statics after migration to ensure entities are loadable.
+    $this->resetAll();
+    // Check that the expected number of entities is the same as the actual
+    // number of entities.
+    $entity_definitions = array_keys(\Drupal::entityTypeManager()->getDefinitions());
+    ksort($entity_counts);
+    $expected_count_keys = array_keys($entity_counts);
+    sort($entity_definitions);
+    $this->assertSame($expected_count_keys, $entity_definitions);
+
+    // Assert the correct number of entities exists.
+    $actual_entity_counts = [];
+    foreach ($entity_definitions as $entity_type) {
+      $actual_entity_counts[$entity_type] = (int) \Drupal::entityQuery($entity_type)->accessCheck(FALSE)->count()->execute();
+    }
+    $this->assertSame($entity_counts, $actual_entity_counts);
+
     $plugin_manager = \Drupal::service('plugin.manager.migration');
+    $version = $this->getLegacyDrupalVersion($this->sourceDatabase);
     /** @var \Drupal\migrate\Plugin\Migration[] $all_migrations */
     $all_migrations = $plugin_manager->createInstancesByTag('Drupal ' . $version);
     foreach ($all_migrations as $migration) {
@@ -258,6 +278,93 @@ abstract class MigrateUpgradeTestBase extends BrowserTestBase {
         $this->assertNotSame(MigrateIdMapInterface::STATUS_NEEDS_UPDATE, $row['source_row_status'], $message);
       }
     }
+  }
+
+  /**
+   * Creates an array of credentials for the Credential form.
+   *
+   * Before submitting to the Credential form the array must be processed by
+   * BrowserTestBase::translatePostValues() before submitting.
+   *
+   * @return array
+   *   An array of values suitable for BrowserTestBase::translatePostValues().
+   *
+   * @see \Drupal\migrate_drupal_ui\Form\CredentialForm
+   */
+  protected function getCredentials() {
+    $connection_options = $this->sourceDatabase->getConnectionOptions();
+    $version = $this->getLegacyDrupalVersion($this->sourceDatabase);
+    $driver = $connection_options['driver'];
+
+    // Use the driver connection form to get the correct options out of the
+    // database settings. This supports all of the databases we test against.
+    $drivers = drupal_get_database_types();
+    $form = $drivers[$driver]->getFormOptions($connection_options);
+    $connection_options = array_intersect_key($connection_options, $form + $form['advanced_options']);
+    $edit = [
+      $driver => $connection_options,
+      'source_private_file_path' => $this->getSourceBasePath(),
+      'version' => $version,
+    ];
+    if ($version == 6) {
+      $edit['d6_source_base_path'] = $this->getSourceBasePath();
+    }
+    else {
+      $edit['source_base_path'] = $this->getSourceBasePath();
+      $edit['source_private_file_path'] = $this->getSourcePrivateBasePath();
+    }
+    if (count($drivers) !== 1) {
+      $edit['driver'] = $driver;
+    }
+    return $edit;
+  }
+
+  /**
+   * Asserts that a migrated user can login.
+   */
+  public function assertUserLogIn($uid, $pass) {
+    $user = User::load($uid);
+    $user->passRaw = $pass;
+    $this->drupalLogin($user);
+  }
+
+  /**
+   * Provides the source base path for private files for the credential form.
+   *
+   * @return string|null
+   *   The source base path.
+   */
+  protected function getSourcePrivateBasePath() {
+    return NULL;
+  }
+
+  /**
+   * Checks public and private files are copied but not temporary files.
+   */
+  protected function assertFileMigrations() {
+    $fs = \Drupal::service('file_system');
+    $files = $this->getManagedFiles();
+    foreach ($files as $file) {
+      preg_match('/^(private|public|temporary):/', $file['uri'], $matches);
+      $scheme = $matches[1];
+      $filepath = $fs->realpath($file['uri']);
+      if ($scheme === 'temporary') {
+        $this->assertFileDoesNotExist($filepath);
+      }
+      else {
+        $this->assertFileExists($filepath);
+      }
+    }
+  }
+
+  /**
+   * Confirm emails were sent.
+   */
+  protected function assertEmailsSent() {
+    // There should be one user activation email.
+    $captured_emails = \Drupal::state()->get('system.test_mail_collector', []);
+    $this->assertCount(1, $captured_emails);
+    $this->assertEquals('user_status_activated', $captured_emails[0]['id']);
   }
 
 }

@@ -2,8 +2,8 @@
 
 namespace Drupal\taxonomy\Plugin\views\filter;
 
-use Drupal\Core\Database\Query\Condition;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\taxonomy\TaxonomyIndexDepthQueryTrait;
 
 /**
  * Filter handler for taxonomy terms with depth.
@@ -16,6 +16,7 @@ use Drupal\Core\Form\FormStateInterface;
  * @ViewsFilter("taxonomy_index_tid_depth")
  */
 class TaxonomyIndexTidDepth extends TaxonomyIndexTid {
+  use TaxonomyIndexDepthQueryTrait;
 
   public function operatorOptions($which = 'title') {
     return [
@@ -52,15 +53,11 @@ class TaxonomyIndexTidDepth extends TaxonomyIndexTid {
       if (is_array($this->value)) {
         $this->value = current($this->value);
       }
-      $operator = '=';
-    }
-    else {
-      $operator = 'IN';
     }
 
     // The normal use of ensureMyTable() here breaks Views.
     // So instead we trick the filter into using the alias of the base table.
-    //   See https://www.drupal.org/node/271833.
+    // See https://www.drupal.org/node/271833.
     // If a relationship is set, we must use the alias it provides.
     if (!empty($this->relationship)) {
       $this->tableAlias = $this->relationship;
@@ -70,31 +67,7 @@ class TaxonomyIndexTidDepth extends TaxonomyIndexTid {
       $this->tableAlias = $this->query->ensureTable($this->view->storage->get('base_table'));
     }
 
-    // Now build the subqueries.
-    $subquery = db_select('taxonomy_index', 'tn');
-    $subquery->addField('tn', 'nid');
-    $where = (new Condition('OR'))->condition('tn.tid', $this->value, $operator);
-    $last = "tn";
-
-    if ($this->options['depth'] > 0) {
-      $subquery->leftJoin('taxonomy_term_hierarchy', 'th', "th.tid = tn.tid");
-      $last = "th";
-      foreach (range(1, abs($this->options['depth'])) as $count) {
-        $subquery->leftJoin('taxonomy_term_hierarchy', "th$count", "$last.parent = th$count.tid");
-        $where->condition("th$count.tid", $this->value, $operator);
-        $last = "th$count";
-      }
-    }
-    elseif ($this->options['depth'] < 0) {
-      foreach (range(1, abs($this->options['depth'])) as $count) {
-        $subquery->leftJoin('taxonomy_term_hierarchy', "th$count", "$last.tid = th$count.parent");
-        $where->condition("th$count.tid", $this->value, $operator);
-        $last = "th$count";
-      }
-    }
-
-    $subquery->condition($where);
-    $this->query->addWhere($this->options['group'], "$this->tableAlias.$this->realField", $subquery, 'IN');
+    $this->addSubQueryJoin($this->value);
   }
 
 }

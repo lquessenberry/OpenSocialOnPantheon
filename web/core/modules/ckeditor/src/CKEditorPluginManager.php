@@ -60,6 +60,7 @@ class CKEditorPluginManager extends DefaultPluginManager {
    * @param bool $include_internal_plugins
    *   Defaults to FALSE. When set to TRUE, plugins whose isInternal() method
    *   returns TRUE will also be included.
+   *
    * @return array
    *   A list of the enabled CKEditor plugins, with the plugin IDs as keys and
    *   the Drupal root-relative plugin files as values.
@@ -121,7 +122,7 @@ class CKEditorPluginManager extends DefaultPluginManager {
     $toolbar_rows = [];
     $settings = $editor->getSettings();
     foreach ($settings['toolbar']['rows'] as $row_number => $row) {
-      $toolbar_rows[] = array_reduce($settings['toolbar']['rows'][$row_number], function (&$result, $button_group) {
+      $toolbar_rows[] = array_reduce($settings['toolbar']['rows'][$row_number], function ($result, $button_group) {
         return array_merge($result, $button_group['items']);
       }, []);
     }

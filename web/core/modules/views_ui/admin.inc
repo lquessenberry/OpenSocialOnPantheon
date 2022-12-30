@@ -193,7 +193,7 @@ function views_ui_ajax_update_form($form, FormStateInterface $form_state) {
 }
 
 /**
- * Non-Javascript fallback for updating the add view form.
+ * Non-JavaScript fallback for updating the add view form.
  */
 function views_ui_nojs_submit($form, FormStateInterface $form_state) {
   $form_state->setRebuild();
@@ -228,9 +228,9 @@ function views_ui_standard_display_dropdown(&$form, FormStateInterface $form_sta
 
   // The dropdown should not be added when :
   // - this is the default display.
-  // - there is no master shown and just one additional display (mostly page)
+  // - there is no default shown and just one additional display (mostly page)
   //   and the current display is defaulted.
-  if ($current_display->isDefaultDisplay() || ($current_display->isDefaulted($section) && !\Drupal::config('views.settings')->get('ui.show.master_display') && count($displays) <= 2)) {
+  if ($current_display->isDefaultDisplay() || ($current_display->isDefaulted($section) && !\Drupal::config('views.settings')->get('ui.show.default_display') && count($displays) <= 2)) {
     return;
   }
 
@@ -248,7 +248,7 @@ function views_ui_standard_display_dropdown(&$form, FormStateInterface $form_sta
 
   $display_dropdown['default'] = ($section_overrides ? t('All displays (except overridden)') : t('All displays'));
   $display_dropdown[$display_id] = t('This @display_type (override)', ['@display_type' => $current_display->getPluginId()]);
-  // Only display the revert option if we are in a overridden section.
+  // Only display the revert option if we are in an overridden section.
   if (!$section_defaulted) {
     $display_dropdown['default_revert'] = t('Revert to default');
   }
@@ -286,7 +286,7 @@ function views_ui_build_form_url(FormStateInterface $form_state) {
   $route_parameters = [
     'js' => $ajax,
     'view' => $name,
-    'display_id' => $display_id
+    'display_id' => $display_id,
   ];
   $url = Url::fromRoute($route_name, $route_parameters);
   if ($type = $form_state->get('type')) {

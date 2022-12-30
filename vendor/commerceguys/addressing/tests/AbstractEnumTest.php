@@ -3,11 +3,12 @@
 namespace CommerceGuys\Addressing\Tests;
 
 use CommerceGuys\Addressing\Subdivision\PatternType;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \CommerceGuys\Addressing\AbstractEnum
  */
-class AbstractEnumTest extends \PHPUnit_Framework_TestCase
+final class AbstractEnumTest extends TestCase
 {
     /**
      * @covers ::getAll
@@ -45,23 +46,21 @@ class AbstractEnumTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @covers ::assertExists
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage "invalid" is not a valid PatternType value.
      */
     public function testAssertExists()
     {
+        $this->expectExceptionMessage("\"invalid\" is not a valid PatternType value.");
+        $this->expectException(\InvalidArgumentException::class);
         $result = PatternType::assertExists('invalid');
     }
 
     /**
      * @covers ::assertAllExist
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage "invalid" is not a valid PatternType value.
      */
     public function testAssertAllExist()
     {
+        $this->expectExceptionMessage("\"invalid\" is not a valid PatternType value.");
+        $this->expectException(\InvalidArgumentException::class);
         $result = PatternType::assertAllExist(['start', 'invalid']);
     }
 }

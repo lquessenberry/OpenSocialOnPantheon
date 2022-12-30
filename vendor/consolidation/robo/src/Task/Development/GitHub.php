@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Task\Development;
 
 use Robo\Exception\TaskException;
@@ -86,7 +87,7 @@ abstract class GitHub extends BaseTask
     }
 
     /**
-     * @param $password
+     * @param string $password
      *
      * @return $this
      */
@@ -97,7 +98,7 @@ abstract class GitHub extends BaseTask
     }
 
     /**
-     * @param $accessToken
+     * @param string $token
      *
      * @return $this
      */
@@ -132,7 +133,7 @@ abstract class GitHub extends BaseTask
         }
 
         if (!empty($this->accessToken)) {
-            $url .= "?access_token=" . $this->accessToken;
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: ' . sprintf('token %s', $this->accessToken)]);
         }
 
         curl_setopt_array(

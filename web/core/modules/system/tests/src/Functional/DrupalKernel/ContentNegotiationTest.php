@@ -12,6 +12,11 @@ use Drupal\Tests\BrowserTestBase;
 class ContentNegotiationTest extends BrowserTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Verifies HTML responses for bogus Accept headers.
    *
    * Drupal does not fully support older browsers, but a page output is still
@@ -37,8 +42,8 @@ class ContentNegotiationTest extends BrowserTestBase {
     ];
     foreach ($tests as $case => $header) {
       $this->drupalGet('', [], ['Accept: ' . $header]);
-      $this->assertNoText('Unsupported Media Type', '"Unsupported Media Type" not found for ' . $case);
-      $this->assertText(t('Log in'), '"Log in" found for ' . $case);
+      $this->assertSession()->pageTextNotContains('Unsupported Media Type');
+      $this->assertSession()->pageTextContains('Log in');
     }
   }
 

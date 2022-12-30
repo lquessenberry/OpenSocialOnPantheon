@@ -2,7 +2,7 @@
 
 namespace Drupal\content_moderation\Form;
 
-use Drupal\Component\Datetime\Time;
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\RevisionLogInterface;
 use Drupal\Core\Form\FormBase;
@@ -29,7 +29,7 @@ class EntityModerationForm extends FormBase {
   /**
    * The time service.
    *
-   * @var \Drupal\Component\Datetime\Time
+   * @var \Drupal\Component\Datetime\TimeInterface
    */
   protected $time;
 
@@ -47,10 +47,10 @@ class EntityModerationForm extends FormBase {
    *   The moderation information service.
    * @param \Drupal\content_moderation\StateTransitionValidationInterface $validation
    *   The moderation state transition validation service.
-   * @param \Drupal\Component\Datetime\Time $time
+   * @param \Drupal\Component\Datetime\TimeInterface $time
    *   The time service.
    */
-  public function __construct(ModerationInformationInterface $moderation_info, StateTransitionValidationInterface $validation, Time $time) {
+  public function __construct(ModerationInformationInterface $moderation_info, StateTransitionValidationInterface $validation, TimeInterface $time) {
     $this->moderationInfo = $moderation_info;
     $this->validation = $validation;
     $this->time = $time;
@@ -130,6 +130,9 @@ class EntityModerationForm extends FormBase {
     $form['#theme'] = ['entity_moderation_form'];
     $form['#attached']['library'][] = 'content_moderation/content_moderation';
 
+    // Moderating an entity is allowed in a workspace.
+    $form_state->set('workspace_safe', TRUE);
+
     return $form;
   }
 
@@ -154,7 +157,7 @@ class EntityModerationForm extends FormBase {
     }
     $entity->save();
 
-    drupal_set_message($this->t('The moderation state has been updated.'));
+    $this->messenger()->addStatus($this->t('The moderation state has been updated.'));
 
     $new_state = $this->moderationInfo->getWorkflowForEntity($entity)->getTypePlugin()->getState($new_state);
     // The page we're on likely won't be visible if we just set the entity to

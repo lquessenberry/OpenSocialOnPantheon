@@ -8,6 +8,11 @@ use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 /**
  * Drupal 7 vocabularies source from database.
  *
+ * For available configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
+ *
  * @MigrateSource(
  *   id = "d7_taxonomy_vocabulary",
  *   source_module = "taxonomy"
@@ -43,7 +48,7 @@ class Vocabulary extends DrupalSqlBase {
       'hierarchy' => $this->t('The type of hierarchy allowed within the vocabulary. (0 = disabled, 1 = single, 2 = multiple)'),
       'module' => $this->t('Module responsible for the vocabulary.'),
       'weight' => $this->t('The weight of the vocabulary in relation to other vocabularies.'),
-      'machine_name' => $this->t('Unique machine name of the vocabulary.')
+      'machine_name' => $this->t('Unique machine name of the vocabulary.'),
     ];
   }
 

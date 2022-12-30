@@ -18,31 +18,30 @@ WIDGETS
 
 Paragraphs currently provides two different widgets that can be used.
 
- * Classic: a stable UI with limited features that will not be changed or
-   updated.
+ * Legacy (formerly Classic): a stable UI with limited features that will not be
+   changed or updated.
 
- * Experimental: This widget provides additional features like duplicating
-   paragraphs and a drag & drop mode (see below) as well a improved user
-   experience. It is just as well tested as the classic UI but major changes
-   between versions are to be expected.
+ * Stable (formerly Experimental): This widget provides additional features like
+   duplicating paragraphs and a drag & drop mode (see below) as well a improved
+   user experience. It is now the default and recommended widget, but changes
+   between versions are to be expected and customizations might need to be
+   updated.
 
 Drag & drop
 -------------
 
-The experimental widget offers a separate mode that allows to re-sort paragraphs
+The stable widget offers a separate mode that allows to re-sort paragraphs
 not just within the same level but it is also possible to change the hierarchy
 and move paragraphs including their children around and into other paragraphs.
 
 During drag & drop mode, paragraphs are also displayed as a summary only, which
 results in a very compact display that makes it easier to move them around.
 
-To use this, an additional library is necessary, which needs to be put in the
-/libraries folder. Download from https://github.com/RubaXa/Sortable/releases,
-make sure that the folder name is Sortable (with uppercase S) so that the path
-to the javascript file is /libraries/Sortable/Sortable.min.js.
+Starting with Drupal 8.8.0, the necessary library is part of Drupal core and
+this feature is always available.
 
-Due to a known issue (https://github.com/RubaXa/Sortable/pull/1154), either
-version 1.5.1 should be used or the patch from that pull request.
+Use the version 1.10+ as it's tested and approved. Older versions may introduce
+bugs with nested drag & drop functionality.
 
 If the file exists, the feature will automatically be available.
 

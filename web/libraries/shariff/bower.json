@@ -1,0 +1,32 @@
+{
+  "name": "shariff",
+  "homepage": "http://ct.de/-2467514",
+  "authors": [
+    "Ines Pauer <ipa@heise.de>",
+    "Philipp Busse <pmb@heise.de>",
+    "Sebastian Hilbig <seh@heise.de>",
+    "Erich Kramer <km@heise.de>",
+    "Deniz Sesli <dzs@heise.de>"
+  ],
+  "main": [
+    "src/js/shariff.css",
+    "src/style/shariff.less"
+  ],
+  "description": "Shariff enables website users to share their favorite content without compromising their privacy.",
+  "keywords": [
+    "heise",
+    "social buttons",
+    "shariff"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "/.*",
+    "/*.js",
+    "/*.png",
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

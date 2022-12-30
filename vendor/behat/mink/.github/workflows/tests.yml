@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        php: ['7.2', '7.3', '7.4', '8.0', '8.1']
+        composer_flags: [ '' ]
+        minimum_stability: [ '' ]
+        symfony_deprecations_helper: [ '' ]
+        include:
+          - php: '7.2'
+            composer_flags: '--prefer-lowest --prefer-stable'
+            symfony_deprecations_helper: weak
+          - php: '8.0'
+            minimum_stability: dev
+          - php: '7.4'
+            minimum_stability: dev
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          coverage: "xdebug"
+          php-version: "${{ matrix.php }}"
+          tools: composer
+
+      - name: Configure for minimum stability
+        if: "${{ matrix.minimum_stability == 'dev' }}"
+        run: |
+          composer config minimum-stability dev
+
+      - name: Install dependencies
+        run: |
+          composer update ${{ matrix.composer_flags }}
+
+      - name: Run tests
+        run: |
+          export SYMFONY_DEPRECATIONS_HELPER="${{ matrix.symfony_deprecations_helper }}"
+          vendor/bin/phpunit -v --coverage-clover=coverage.xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
+        with:
+          files: coverage.xml

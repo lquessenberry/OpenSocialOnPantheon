@@ -1,0 +1,320 @@
+<?php
+
+/**
+ * @file
+ * Integrating Shariff library, providing settings form and block.
+ */
+
+use Drupal\Component\Utility\Html;
+use Drupal\Component\Utility\UrlHelper;
+use Drupal\Core\Template\Attribute;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\node\Entity\NodeType;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+
+/**
+ * Implements hook_help().
+ */
+function shariff_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.shariff':
+      $output = [
+        '#theme' => 'help_shariff',
+        '#title' => t('About Shariff'),
+        '#content' => t('The Shariff social media buttons library by heise online enables website users to share their favorite content without compromising their privacy. For more information see <a href="@url">@url</a>.', ['@url' => 'https://github.com/heiseonline/shariff']),
+      ];
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK_alter().
+ */
+function shariff_theme_suggestions_block_alter(array &$suggestions, array $variables) {
+  // Set block_shariff as theme suggestion.
+  // We need this because #theme in BlockBase doesn't overwrite block.html.twig.
+  if (isset($variables['elements']['#id']) && $variables['elements']['#id'] == 'shariffsocialshare') {
+    $suggestions[] = 'block_shariff';
+  }
+  return $suggestions;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function shariff_theme($existing, $type, $theme, $path) {
+  return [
+    'block_shariff' => [
+      'variables' => [
+        'title' => NULL,
+        'data_attributes' => NULL,
+        'blocksettings' => NULL,
+      ],
+      'template' => 'shariff',
+    ],
+    'help_shariff' => [
+      'variables' => [
+        'title' => NULL,
+        'content' => NULL,
+      ],
+      'template' => 'shariff--help',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_preprocess().
+ */
+function shariff_preprocess_block_shariff(&$variables, $hook) {
+
+  // Get settings.
+  $settings = _shariff_get_settings($variables['blocksettings']);
+
+  // Build data attributes and escape settings.
+  $data = [];
+  foreach ($settings as $key => $setting) {
+    if (!empty($setting)) {
+      switch ($key) {
+        case 'services':
+          $value = '["' . implode('","', $setting) . '"]';
+          break;
+
+        case 'referrer_track':
+          $value = urlencode(Html::escape($setting));
+          break;
+
+        case 'backend_url':
+        case 'url':
+        case 'mail_url':
+        case 'media_url':
+        case 'info_url':
+          $value = Html::escape(UrlHelper::stripDangerousProtocols($setting));
+          break;
+
+        case 'twitter_via':
+        case 'mail_subject':
+        case 'mail_body':
+        case 'flattr_user':
+        case 'flattr_category':
+        case 'info_display':
+        case 'title':
+        case 'button_style':
+        case 'css':
+        case 'orientation':
+        default:
+          $value = Html::escape($setting);
+          break;
+
+        case 'shariff_theme':
+          $value = Html::escape($setting);
+          $key = 'theme';
+          break;
+
+        case 'lang':
+          $value = $setting;
+          break;
+      }
+      // Shariff requires data-attributes with dashes instead of underscores.
+      $data['data-' . str_replace('_', '-', $key)] = $value;
+    }
+  }
+
+  // See https://www.drupal.org/node/1727592.
+  $variables['data_attributes'] = new Attribute($data);
+
+  // Load shariff library.
+  $variant = isset($settings['css']) ? $settings['css'] : 'complete';
+
+  $variables['#attached'] = [
+    'library' => [
+      'shariff/shariff-' . $variant,
+    ],
+  ];
+}
+
+/**
+ * Helper function to get the module settings.
+ */
+function _shariff_get_settings($blocksettings = NULL) {
+  $language = \Drupal::languageManager()->getCurrentLanguage();
+  $lang = $language->getId();
+  $supported_languages = _shariff_supported_languages();
+
+  if ($blocksettings && !$blocksettings['shariff_default_settings']) {
+    // block specific settings are active.
+    $services = $blocksettings['shariff_services'];
+    $setting['shariff_theme'] = $blocksettings['shariff_theme'];
+
+    foreach ($blocksettings as $setting => $value) {
+      if ($setting != 'shariff_service' || $setting != 'shariff_theme') {
+        $attribute = str_replace('shariff_', '', $setting);
+        $settings[$attribute] = $blocksettings[$setting];
+      }
+    }
+  }
+  else {
+    // Use default settings form values.
+    $services = \Drupal::config('shariff.settings')->get('shariff_services');
+    $settings = [
+      'services'        => $services,
+      'shariff_theme'   => \Drupal::config('shariff.settings')->get('shariff_theme'),
+      'css'             => \Drupal::config('shariff.settings')->get('shariff_css'),
+      'orientation'     => \Drupal::config('shariff.settings')->get('shariff_orientation'),
+      'twitter_via'     => \Drupal::config('shariff.settings')->get('shariff_twitter_via'),
+      'mail_url'        => \Drupal::config('shariff.settings')->get('shariff_mail_url'),
+      'mail_subject'    => \Drupal::config('shariff.settings')->get('shariff_mail_subject'),
+      'mail_body'       => \Drupal::config('shariff.settings')->get('shariff_mail_body'),
+      'referrer_track'  => \Drupal::config('shariff.settings')->get('shariff_referrer_track'),
+      'backend_url'     => \Drupal::config('shariff.settings')->get('shariff_backend_url'),
+      'flattr_category' => \Drupal::config('shariff.settings')->get('shariff_flattr_category'),
+      'flattr_user'     => \Drupal::config('shariff.settings')->get('shariff_flattr_user'),
+      'media_url'       => \Drupal::config('shariff.settings')->get('shariff_media_url'),
+      'button_style'    => \Drupal::config('shariff.settings')->get('shariff_button_style'),
+      'info_url'        => \Drupal::config('shariff.settings')->get('shariff_info_url'),
+      'info_display'    => \Drupal::config('shariff.settings')->get('shariff_info_display'),
+      'title'           => \Drupal::config('shariff.settings')->get('shariff_title'),
+      'url'             => \Drupal::config('shariff.settings')->get('shariff_url'),
+    ];
+  }
+
+  foreach ($services as $key => $service) {
+    $services[$key] = Html::escape($service);
+    if (!$service) {
+      unset($services[$key]);
+    }
+  }
+  $settings['services'] = $services;
+  $settings['lang'] = in_array($lang, $supported_languages) ? $lang : 'en';
+
+  return $settings;
+}
+
+/**
+ * Helper function to list the supported languages.
+ */
+function _shariff_supported_languages() {
+  return [
+    'bg',
+    'de',
+    'en',
+    'es',
+    'fi',
+    'fr',
+    'hr',
+    'hu',
+    'it',
+    'ja',
+    'ko',
+    'no',
+    'pl',
+    'pt',
+    'ro',
+    'ru',
+    'sk',
+    'sl',
+    'sr',
+    'sv',
+    'tr',
+    'zh',
+  ];
+}
+
+/**
+ * Implements hook_entity_extra_field_info().
+ */
+function shariff_entity_extra_field_info() {
+  $extra = [];
+
+  foreach (NodeType::loadMultiple() as $bundle) {
+    $extra['node'][$bundle->Id()]['display']['shariff_field'] = [
+      'label' => t('Shariff sharing buttons'),
+      'description' => t('Display of Shariff sharing buttons using default settings.'),
+      'weight' => 100,
+      'visible' => FALSE,
+    ];
+  }
+
+  return $extra;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_view().
+ */
+function shariff_node_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if ($display->getComponent('shariff_field')) {
+
+    // Get settings.
+    $settings = _shariff_get_settings();
+    // Load shariff library.
+    $variant = isset($settings['css']) ? $settings['css'] : 'complete';
+
+    $build['shariff_field'] = [
+      '#theme' => 'block_shariff',
+      '#blocksettings' => NULL,
+      '#attached' => [
+        'library' => [
+          'shariff/shariff-' . $variant,
+        ],
+      ],
+    ];
+  }
+}
+
+/**
+ * Implements hook_library_info_alter().
+ *
+ * Note: libraries_get_path() is deprecated and will be removed before a stable
+ * libraries Drupal 8 release. Needs update when libraries module is supporting
+ * variants.
+ * https://www.drupal.org/node/1704734
+ */
+function shariff_library_info_alter(&$libraries, $extension) {
+  if ($extension == 'shariff') {
+    // Define shariff library path.
+    $shariff_path = NULL;
+    $base_path = 'libraries/shariff';
+    if (\Drupal::hasService('library.libraries_directory_file_finder')) {
+      $base_path = \Drupal::service('library.libraries_directory_file_finder')->find('shariff');
+    }
+    elseif (function_exists('libraries_get_path')) {
+      // Libraries API is active.
+      $base_path = libraries_get_path('shariff');
+    }
+
+    $subfolders = [
+      // No subfolder.
+      '',
+      // Libraries folder with build subfolder. Let's support this for legacy
+      // reasons.
+      '/build',
+      // Version 3 built as npm-asset appears in the dist folder.
+      '/dist',
+    ];
+    foreach ($subfolders as $subfolder) {
+      if (file_exists($base_path . $subfolder . '/shariff.min.js')) {
+        // If Libraries API is not active we use the libraries folder in Drupal
+        // root.
+        $shariff_path = $base_path . $subfolder;
+        break;
+      }
+    }
+
+    // Update shariff library path.
+    if ($shariff_path) {
+      $libraries['shariff-min']['css']['component'] = ['/' . $shariff_path . '/shariff.min.css' => []];
+      $libraries['shariff-min']['js'] = [
+        '/' . $shariff_path . '/shariff.complete.js' => ['scope' => 'footer'],
+      ];
+
+      $libraries['shariff-complete']['css']['component'] = ['/' . $shariff_path . '/shariff.complete.css' => []];
+      $libraries['shariff-complete']['js'] = [
+        '/' . $shariff_path . '/shariff.complete.js' => ['scope' => 'footer'],
+      ];
+
+      $libraries['shariff-naked']['js'] = [
+        '/' . $shariff_path . '/shariff.complete.js' => ['scope' => 'footer'],
+      ];
+    }
+  }
+}

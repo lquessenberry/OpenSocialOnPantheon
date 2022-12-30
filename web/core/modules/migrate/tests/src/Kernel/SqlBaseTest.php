@@ -32,11 +32,11 @@ class SqlBaseTest extends MigrateTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->migration = $this->getMock(MigrationInterface::class);
-    $this->migration->method('id')->willReturn('fubar');
+    $this->migration = $this->createMock(MigrationInterface::class);
+    $this->migration->method('id')->willReturn('foo');
   }
 
   /**
@@ -123,8 +123,8 @@ class SqlBaseTest extends MigrateTestBase {
     \Drupal::state()->delete('migrate.fallback_state_key');
     $sql_base->setConfiguration([]);
     Database::renameConnection('migrate', 'fallback_connection');
-    $this->setExpectedException(RequirementsException::class,
-      'No database connection configured for source plugin');
+    $this->expectException(RequirementsException::class);
+    $this->expectExceptionMessage('No database connection configured for source plugin');
     $sql_base->getDatabase();
   }
 
@@ -147,7 +147,7 @@ class SqlBaseTest extends MigrateTestBase {
     $source = new TestSqlBase($configuration, $this->migration);
 
     if ($high_water) {
-      $source->getHighWaterStorage()->set($this->migration->id(), $high_water);
+      \Drupal::keyValue('migrate:high_water')->set($this->migration->id(), $high_water);
     }
 
     $statement = $this->createMock(StatementInterface::class);
@@ -156,7 +156,7 @@ class SqlBaseTest extends MigrateTestBase {
     $query->method('execute')->willReturn($statement);
     $query->expects($this->atLeastOnce())->method('orderBy')->with('order', 'ASC');
 
-    $condition_group = $this->getMock(ConditionInterface::class);
+    $condition_group = $this->createMock(ConditionInterface::class);
     $query->method('orConditionGroup')->willReturn($condition_group);
 
     $source->setQuery($query);
@@ -225,12 +225,16 @@ class TestSqlBase extends SqlBase {
   /**
    * {@inheritdoc}
    */
-  public function getIds() {}
+  public function getIds() {
+    return [];
+  }
 
   /**
    * {@inheritdoc}
    */
-  public function fields() {}
+  public function fields() {
+    throw new \RuntimeException(__METHOD__ . " not implemented for " . __CLASS__);
+  }
 
   /**
    * {@inheritdoc}
@@ -247,13 +251,6 @@ class TestSqlBase extends SqlBase {
    */
   public function setQuery(SelectInterface $query) {
     $this->query = $query;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getHighWaterStorage() {
-    return parent::getHighWaterStorage();
   }
 
 }

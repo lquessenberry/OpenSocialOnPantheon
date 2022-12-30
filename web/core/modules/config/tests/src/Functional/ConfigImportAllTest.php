@@ -3,9 +3,8 @@
 namespace Drupal\Tests\config\Functional;
 
 use Drupal\Core\Config\StorageComparer;
-use Drupal\filter\Entity\FilterFormat;
-use Drupal\shortcut\Entity\Shortcut;
-use Drupal\taxonomy\Entity\Term;
+use Drupal\Core\Entity\ContentEntityTypeInterface;
+use Drupal\Core\Extension\ExtensionLifecycle;
 use Drupal\Tests\SchemaCheckTestTrait;
 use Drupal\Tests\system\Functional\Module\ModuleTestBase;
 
@@ -34,7 +33,7 @@ class ConfigImportAllTest extends ModuleTestBase {
    */
   protected $profile = 'standard';
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->webUser = $this->drupalCreateUser(['synchronize configuration']);
@@ -47,11 +46,15 @@ class ConfigImportAllTest extends ModuleTestBase {
   public function testInstallUninstall() {
 
     // Get a list of modules to enable.
-    $all_modules = system_rebuild_module_data();
+    $all_modules = $this->container->get('extension.list.module')->getList();
     $all_modules = array_filter($all_modules, function ($module) {
-      // Filter contrib, hidden, already enabled modules and modules in the
-      // Testing package.
-      if ($module->origin !== 'core' || !empty($module->info['hidden']) || $module->status == TRUE || $module->info['package'] == 'Testing') {
+      // Filter out contrib, hidden, testing, experimental, and deprecated
+      // modules. We also don't need to enable modules that are already enabled.
+      if ($module->origin !== 'core'
+        || !empty($module->info['hidden'])
+        || $module->status == TRUE
+        || $module->info['package'] == 'Testing'
+        || $module->info[ExtensionLifecycle::LIFECYCLE_IDENTIFIER] === ExtensionLifecycle::DEPRECATED) {
         return FALSE;
       }
       return TRUE;
@@ -69,36 +72,33 @@ class ConfigImportAllTest extends ModuleTestBase {
     // Export active config to sync.
     $this->copyConfig($this->container->get('config.storage'), $this->container->get('config.storage.sync'));
 
-    system_list_reset();
     $this->resetAll();
 
-    // Delete every field on the site so all modules can be uninstalled. For
-    // example, if a comment field exists then module becomes required and can
-    // not be uninstalled.
+    // Delete all entities provided by modules that prevent uninstallation. For
+    // example, if any content entity exists its provider cannot be uninstalled.
+    // So deleting all taxonomy terms allows the Taxonomy to be uninstalled.
+    // Additionally, every field is deleted so modules can be uninstalled. For
+    // example, if a comment field exists then Comment cannot be uninstalled.
+    $entity_type_manager = \Drupal::entityTypeManager();
+    foreach ($entity_type_manager->getDefinitions() as $entity_type) {
+      if (($entity_type instanceof ContentEntityTypeInterface || in_array($entity_type->id(), ['field_storage_config', 'filter_format'], TRUE))
+        && !in_array($entity_type->getProvider(), ['system', 'user'], TRUE)) {
+        $storage = $entity_type_manager->getStorage($entity_type->id());
+        $storage->delete($storage->loadMultiple());
+      }
+    }
 
-    $field_storages = \Drupal::entityManager()->getStorage('field_storage_config')->loadMultiple();
-    \Drupal::entityManager()->getStorage('field_storage_config')->delete($field_storages);
-    // Purge the data.
+    // Purge the field data.
     field_purge_batch(1000);
 
-    // Delete all terms.
-    $terms = Term::loadMultiple();
-    entity_delete_multiple('taxonomy_term', array_keys($terms));
-
-    // Delete all filter formats.
-    $filters = FilterFormat::loadMultiple();
-    entity_delete_multiple('filter_format', array_keys($filters));
-
-    // Delete any shortcuts so the shortcut module can be uninstalled.
-    $shortcuts = Shortcut::loadMultiple();
-    entity_delete_multiple('shortcut', array_keys($shortcuts));
-
-    system_list_reset();
-    $all_modules = system_rebuild_module_data();
+    $all_modules = \Drupal::service('extension.list.module')->getList();
+    $database_module = \Drupal::service('database')->getProvider();
+    $expected_modules = ['path_alias', 'system', 'user', 'standard', $database_module];
 
     // Ensure that only core required modules and the install profile can not be uninstalled.
     $validation_reasons = \Drupal::service('module_installer')->validateUninstall(array_keys($all_modules));
-    $this->assertEqual(['standard', 'system', 'user'], array_keys($validation_reasons));
+    $validation_modules = array_keys($validation_reasons);
+    $this->assertEqualsCanonicalizing($expected_modules, $validation_modules);
 
     $modules_to_uninstall = array_filter($all_modules, function ($module) use ($validation_reasons) {
       // Filter required and not enabled modules.
@@ -110,6 +110,9 @@ class ConfigImportAllTest extends ModuleTestBase {
 
     // Can not uninstall config and use admin/config/development/configuration!
     unset($modules_to_uninstall['config']);
+
+    // Can not uninstall the database module.
+    unset($modules_to_uninstall[$database_module]);
 
     $this->assertTrue(isset($modules_to_uninstall['comment']), 'The comment module will be disabled');
     $this->assertTrue(isset($modules_to_uninstall['file']), 'The File module will be disabled');
@@ -125,12 +128,13 @@ class ConfigImportAllTest extends ModuleTestBase {
     }
 
     // Import the configuration thereby re-installing all the modules.
-    $this->drupalPostForm('admin/config/development/configuration', [], t('Import all'));
+    $this->drupalGet('admin/config/development/configuration');
+    $this->submitForm([], 'Import all');
     // Modules have been installed that have services.
     $this->rebuildContainer();
 
     // Check that there are no errors.
-    $this->assertIdentical($this->configImporter()->getErrors(), []);
+    $this->assertSame([], $this->configImporter()->getErrors());
 
     // Check that all modules that were uninstalled are now reinstalled.
     $this->assertModules(array_keys($modules_to_uninstall), TRUE);
@@ -142,10 +146,9 @@ class ConfigImportAllTest extends ModuleTestBase {
     // Ensure that we have no configuration changes to import.
     $storage_comparer = new StorageComparer(
       $this->container->get('config.storage.sync'),
-      $this->container->get('config.storage'),
-      $this->container->get('config.manager')
+      $this->container->get('config.storage')
     );
-    $this->assertIdentical($storage_comparer->createChangelist()->getChangelist(), $storage_comparer->getEmptyChangelist());
+    $this->assertSame($storage_comparer->getEmptyChangelist(), $storage_comparer->createChangelist()->getChangelist());
 
     // Now we have all configuration imported, test all of them for schema
     // conformance. Ensures all imported default configuration is valid when

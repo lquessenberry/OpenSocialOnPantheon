@@ -4,6 +4,7 @@ namespace Drupal\Tests\Core\DependencyInjection\Compiler;
 
 use Drupal\Core\DependencyInjection\Compiler\ProxyServicesPass;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\Core\Path\CurrentPathStack;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 
@@ -23,12 +24,11 @@ class ProxyServicesPassTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->proxyServicesPass = new ProxyServicesPass();
   }
-
 
   /**
    * @covers ::process
@@ -68,10 +68,10 @@ class ProxyServicesPassTest extends UnitTestCase {
    */
   public function testContainerWithLazyServicesWithoutProxyClass() {
     $container = new ContainerBuilder();
-    $container->register('alias_whitelist', 'Drupal\Core\Path\AliasWhitelist')
+    $container->register('path.current', CurrentPathStack::class)
       ->setLazy(TRUE);
 
-    $this->setExpectedException(InvalidArgumentException::class);
+    $this->expectException(InvalidArgumentException::class);
     $this->proxyServicesPass->process($container);
   }
 

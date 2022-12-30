@@ -2,6 +2,7 @@
 
 namespace Drupal\search_api\Item;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\TypedData\DataDefinitionInterface;
 use Drupal\search_api\DataType\DataTypePluginManager;
 use Drupal\search_api\IndexInterface;
@@ -27,8 +28,9 @@ class Field implements \IteratorAggregate, FieldInterface {
   /**
    * The ID of the index this field is attached to.
    *
-   * This is only used to avoid serialization of the index in __sleep() and
-   * __wakeup().
+   * This is only used to avoid serialization of the index in __sleep(). If
+   * present, the value of this property is used to load the correct index
+   * object again in getIndex().
    *
    * @var string
    */
@@ -79,7 +81,7 @@ class Field implements \IteratorAggregate, FieldInterface {
   /**
    * The human-readable label for this field.
    *
-   * @var string
+   * @var string|null
    */
   protected $label;
 
@@ -170,6 +172,13 @@ class Field implements \IteratorAggregate, FieldInterface {
   protected $dataTypeManager;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|null
+   */
+  protected $entityTypeManager;
+
+  /**
    * Constructs a Field object.
    *
    * @param \Drupal\search_api\IndexInterface $index
@@ -206,9 +215,38 @@ class Field implements \IteratorAggregate, FieldInterface {
   }
 
   /**
+   * Retrieves the entity type manager.
+   *
+   * @return \Drupal\Core\Entity\EntityTypeManagerInterface
+   *   The entity type manager.
+   */
+  public function getEntityTypeManager(): EntityTypeManagerInterface {
+    return $this->entityTypeManager ?: \Drupal::entityTypeManager();
+  }
+
+  /**
+   * Sets the entity type manager.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The new entity type manager.
+   *
+   * @return $this
+   */
+  public function setEntityTypeManager(EntityTypeManagerInterface $entity_type_manager): self {
+    $this->entityTypeManager = $entity_type_manager;
+    return $this;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getIndex() {
+    if (!$this->index && $this->indexId !== NULL) {
+      $this->index = $this->getEntityTypeManager()
+        ->getStorage('search_api_index')
+        ->load($this->indexId);
+      $this->indexId = NULL;
+    }
     return $this->index;
   }
 
@@ -216,10 +254,12 @@ class Field implements \IteratorAggregate, FieldInterface {
    * {@inheritdoc}
    */
   public function setIndex(IndexInterface $index) {
-    if ($this->index->id() != $index->id()) {
+    $current_index_id = $this->index ? $this->index->id() : $this->indexId;
+    if ($current_index_id !== NULL && $current_index_id != $index->id()) {
       throw new \InvalidArgumentException('Attempted to change the index of a field object.');
     }
     $this->index = $index;
+    $this->indexId = NULL;
     $this->datasource = NULL;
     return $this;
   }
@@ -299,7 +339,7 @@ class Field implements \IteratorAggregate, FieldInterface {
    */
   public function getDatasource() {
     if (!isset($this->datasource) && isset($this->datasourceId)) {
-      $this->datasource = $this->index->getDatasource($this->datasourceId);
+      $this->datasource = $this->getIndex()->getDatasource($this->datasourceId);
     }
     return $this->datasource;
   }
@@ -431,7 +471,8 @@ class Field implements \IteratorAggregate, FieldInterface {
    */
   public function getDataDefinition() {
     if (!isset($this->dataDefinition)) {
-      $definitions = $this->index->getPropertyDefinitions($this->getDatasourceId());
+      $definitions = $this->getIndex()
+        ->getPropertyDefinitions($this->getDatasourceId());
       $definition = \Drupal::getContainer()
         ->get('search_api.fields_helper')
         ->retrieveNestedProperty($definitions, $this->getPropertyPath());
@@ -550,7 +591,7 @@ class Field implements \IteratorAggregate, FieldInterface {
    * {@inheritdoc}
    */
   public function getBoost() {
-    return isset($this->boost) ? $this->boost : 1.0;
+    return $this->boost ?? 1.0;
   }
 
   /**
@@ -624,6 +665,7 @@ class Field implements \IteratorAggregate, FieldInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function getIterator() {
     return new \ArrayIterator($this->values);
   }
@@ -653,31 +695,20 @@ class Field implements \IteratorAggregate, FieldInterface {
   }
 
   /**
-   * {@inheritdoc}
+   * Implements the magic __sleep() method to control object serialization.
    */
   public function __sleep() {
-    $this->indexId = $this->index->id();
+    if ($this->index) {
+      $this->indexId = $this->index->id();
+    }
     $properties = get_object_vars($this);
-    // Don't serialize objects in properties or the field values.
+    // Don't serialize the index or other objects that can easily be loaded
+    // again.
     unset($properties['index']);
     unset($properties['datasource']);
     unset($properties['dataDefinition']);
     unset($properties['dataTypeManager']);
     return array_keys($properties);
-  }
-
-  /**
-   * Implements the magic __wakeup() method to control object unserialization.
-   */
-  public function __wakeup() {
-    // Make sure we have a container to do this. This is important to correctly
-    // display test failures.
-    if ($this->indexId && \Drupal::hasContainer()) {
-      $this->index = \Drupal::entityTypeManager()
-        ->getStorage('search_api_index')
-        ->load($this->indexId);
-      $this->indexId = NULL;
-    }
   }
 
 }

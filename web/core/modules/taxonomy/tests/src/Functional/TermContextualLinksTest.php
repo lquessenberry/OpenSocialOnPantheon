@@ -12,9 +12,14 @@ class TermContextualLinksTest extends TaxonomyTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'contextual',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests contextual links.
@@ -30,7 +35,7 @@ class TermContextualLinksTest extends TaxonomyTestBase {
     $this->drupalLogin($user);
 
     $this->drupalGet('taxonomy/term/' . $term->id());
-    $this->assertSession()->elementAttributeContains('css', 'div[data-contextual-id]', 'data-contextual-id', 'taxonomy_term:taxonomy_term=' . $term->id() . ':');
+    $this->assertSession()->elementExists('css', 'div[data-contextual-id^="taxonomy_term:taxonomy_term=' . $term->id() . ':"]');
   }
 
 }

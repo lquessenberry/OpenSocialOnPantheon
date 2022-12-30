@@ -11,3 +11,6 @@ views.pager.infinite_scroll:
         automatically_load_content:
           type: boolean
           label: 'Automatically Load Content'
+        initially_load_all_pages:
+          type: boolean
+          label: 'Initially load all pages'

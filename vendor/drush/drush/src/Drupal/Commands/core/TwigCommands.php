@@ -9,41 +9,35 @@ use Drush\Commands\DrushCommands;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drush\Drush;
 use Drush\Utils\StringUtils;
+use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Finder\Finder;
-use Webmozart\PathUtil\Path;
 
 class TwigCommands extends DrushCommands
 {
   /**
-   * @var \Drupal\Core\Template\TwigEnvironment
-   */
+     * @var TwigEnvironment
+     */
     protected $twig;
 
   /**
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-   */
+     * @var ModuleHandlerInterface
+     */
     protected $moduleHandler;
 
-  /**
-   * @return \Drupal\Core\Template\TwigEnvironment
-   */
-    public function getTwig()
+    public function getTwig(): TwigEnvironment
     {
         return $this->twig;
     }
 
-  /**
-   * @return \Drupal\Core\Extension\ModuleHandlerInterface
-   */
-    public function getModuleHandler()
+    public function getModuleHandler(): ModuleHandlerInterface
     {
         return $this->moduleHandler;
     }
 
   /**
-   * @param \Drupal\Core\Template\TwigEnvironment $twig
-   * @param ModuleHandlerInterface $moduleHandler
-   */
+     * @param TwigEnvironment $twig
+     * @param ModuleHandlerInterface $moduleHandler
+     */
     public function __construct(TwigEnvironment $twig, ModuleHandlerInterface $moduleHandler)
     {
         $this->twig = $twig;
@@ -53,7 +47,7 @@ class TwigCommands extends DrushCommands
   /**
      * Find potentially unused Twig templates.
      *
-     * Immediately before running this command, crawl your entire web site. Or
+     * Immediately before running this command, web crawl your entire web site. Or
      * use your Production PHPStorage dir for comparison.
      *
      * @param $searchpaths A comma delimited list of paths to recursively search
@@ -64,11 +58,11 @@ class TwigCommands extends DrushCommands
      *   template: Template
      *   compiled: Compiled
      * @default-fields template,compiled
-     * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+     * @filter-output
      *
      * @command twig:unused
      */
-    public function unused($searchpaths)
+    public function unused($searchpaths): RowsOfFields
     {
         $unused = [];
         $phpstorage = PhpStorageFactory::get('twig');
@@ -103,7 +97,7 @@ class TwigCommands extends DrushCommands
    * @command twig:compile
    * @aliases twigc,twig-compile
    */
-    public function twigCompile()
+    public function twigCompile(): void
     {
         require_once DRUSH_DRUPAL_CORE . "/themes/engines/twig/twig.engine";
         // Scan all enabled modules and themes.
@@ -124,8 +118,8 @@ class TwigCommands extends DrushCommands
         ->in($searchpaths);
         foreach ($files as $file) {
             $relative = Path::makeRelative($file->getRealPath(), Drush::bootstrapManager()->getRoot());
-            // @todo Dynamically disable twig debugging since there is no good info there anyway.
-            twig_render_template($relative, ['theme_hook_original' => '']);
+            // Loading the template ensures the compiled template is cached.
+            $this->getTwig()->loadTemplate($relative);
             $this->logger()->success(dt('Compiled twig template !path', ['!path' => $relative]));
         }
     }

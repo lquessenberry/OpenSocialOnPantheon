@@ -1,7 +1,7 @@
 <?php
+
 namespace Drush\Preflight;
 
-use Drush\Drush;
 use Drush\Config\Environment;
 use Drush\Utils\StringUtils;
 
@@ -15,12 +15,12 @@ class PreflightVerify
      *
      * @param Environment $environment
      */
-    public function verify(Environment $environment)
+    public function verify(Environment $environment): void
     {
-        // Fail fast if the PHP version is not at least 5.6.0.
+        // Fail fast if the PHP version is not at least 7.4.0.
         // We'll come back and check this again later, in case someone
         // set a higher value in a configuration file.
-        $this->confirmPhpVersion('5.6.0');
+        $this->confirmPhpVersion('7.4.0');
 
         // Fail if this is not a CLI php
         $this->confirmUsingCLI($environment);
@@ -36,7 +36,7 @@ class PreflightVerify
      * @param string $minimumPhpVersion
      *   The minimum allowable php version
      */
-    public function confirmPhpVersion($minimumPhpVersion)
+    public function confirmPhpVersion(string $minimumPhpVersion): void
     {
         if (version_compare(phpversion(), $minimumPhpVersion) < 0 && !getenv('DRUSH_NO_MIN_PHP')) {
             throw new \Exception(StringUtils::interpolate('Your command line PHP installation is too old. Drush requires at least PHP {version}. To suppress this check, set the environment variable DRUSH_NO_MIN_PHP=1', ['version' => $minimumPhpVersion]));
@@ -48,7 +48,7 @@ class PreflightVerify
      *
      * @param Environment $environment
      */
-    protected function confirmUsingCLI(Environment $environment)
+    protected function confirmUsingCLI(Environment $environment): void
     {
         if (!$environment->verifyCLI()) {
             throw new \Exception(StringUtils::interpolate('Drush is designed to run via the command line.'));
@@ -60,9 +60,9 @@ class PreflightVerify
      * begins.  If the php environment is too restrictive, then
      * notify the user that a setting change is needed and abort.
      */
-    protected function checkPhpIni()
+    protected function checkPhpIni(): void
     {
-        $ini_checks = ['safe_mode' => '', 'open_basedir' => '', 'disable_functions' => ['exec', 'system'], 'disable_classes' => ''];
+        $ini_checks = ['safe_mode' => '', 'open_basedir' => ''];
 
         // Test to insure that certain php ini restrictions have not been enabled
         $prohibited_list = [];
@@ -85,9 +85,8 @@ class PreflightVerify
      * @param string|string[] $disallowed_value
      *   The value that the ini seting cannot be, or a list of disallowed
      *   values that cannot appear in the setting.
-     * @return bool
      */
-    protected function invalidIniValue($ini_value, $disallowed_value)
+    protected function invalidIniValue(string $ini_value, $disallowed_value): bool
     {
         if (empty($disallowed_value)) {
             return !empty($ini_value) && (strcasecmp($ini_value, 'off') != 0);
@@ -109,9 +108,9 @@ class PreflightVerify
     protected function loadedPhpIniMessage()
     {
         if (function_exists('php_ini_loaded_file')) {
-            return StringUtils::interpolate('Please check your configuration settings in !phpini or in your drush.ini file; see examples/example.drush.ini for details.', ['!phpini' => php_ini_loaded_file()]);
+            return StringUtils::interpolate('Please check your configuration settings in !phpini.', ['!phpini' => php_ini_loaded_file()]);
         } else {
-            return StringUtils::interpolate('Please check your configuration settings in your php.ini file or in your drush.ini file; see examples/example.drush.ini for details.');
+            return StringUtils::interpolate('Please check your configuration settings in your php.ini file.');
         }
     }
 }

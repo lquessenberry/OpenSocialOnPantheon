@@ -64,8 +64,8 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $style_plugin = $view->style_plugin;
     $style_plugin->options['default'] = '';
     $style_plugin->buildSortPost();
-    $this->assertIdentical($style_plugin->order, NULL, 'No sort order was set, when no order was specified and no default column was selected.');
-    $this->assertIdentical($style_plugin->active, NULL, 'No sort field was set, when no order was specified and no default column was selected.');
+    $this->assertNull($style_plugin->order, 'No sort order was set, when no order was specified and no default column was selected.');
+    $this->assertNull($style_plugin->active, 'No sort field was set, when no order was specified and no default column was selected.');
     $view->destroy();
 
     // Setup a valid default + column specific default sort order.
@@ -74,8 +74,8 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $style_plugin->options['default'] = 'id';
     $style_plugin->options['info']['id']['default_sort_order'] = 'desc';
     $style_plugin->buildSortPost();
-    $this->assertIdentical($style_plugin->order, 'desc', 'Fallback to the right default sort order.');
-    $this->assertIdentical($style_plugin->active, 'id', 'Fallback to the right default sort field.');
+    $this->assertSame('desc', $style_plugin->order, 'Fallback to the right default sort order.');
+    $this->assertSame('id', $style_plugin->active, 'Fallback to the right default sort field.');
     $view->destroy();
 
     // Setup a valid default + table default sort order.
@@ -85,8 +85,8 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $style_plugin->options['info']['id']['default_sort_order'] = NULL;
     $style_plugin->options['order'] = 'asc';
     $style_plugin->buildSortPost();
-    $this->assertIdentical($style_plugin->order, 'asc', 'Fallback to the right default sort order.');
-    $this->assertIdentical($style_plugin->active, 'id', 'Fallback to the right default sort field.');
+    $this->assertSame('asc', $style_plugin->order, 'Fallback to the right default sort order.');
+    $this->assertSame('id', $style_plugin->active, 'Fallback to the right default sort field.');
     $view->destroy();
 
     // Use an invalid field.
@@ -96,19 +96,19 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $random_name = $this->randomMachineName();
     $request->query->set('order', $random_name);
     $style_plugin->buildSortPost();
-    $this->assertIdentical($style_plugin->order, 'asc', 'No sort order was set, when invalid sort order was specified.');
-    $this->assertIdentical($style_plugin->active, NULL, 'No sort field was set, when invalid sort order was specified.');
+    $this->assertSame('asc', $style_plugin->order, 'No sort order was set, when invalid sort order was specified.');
+    $this->assertNull($style_plugin->active, 'No sort field was set, when invalid sort order was specified.');
     $view->destroy();
 
-    // Use a existing field, and sort both ascending and descending.
+    // Use an existing field, and sort both ascending and descending.
     foreach (['asc', 'desc'] as $order) {
       $this->prepareView($view);
       $style_plugin = $view->style_plugin;
       $request->query->set('sort', $order);
       $request->query->set('order', 'id');
       $style_plugin->buildSortPost();
-      $this->assertIdentical($style_plugin->order, $order, 'Ensure the right sort order was set.');
-      $this->assertIdentical($style_plugin->active, 'id', 'Ensure the right order was set.');
+      $this->assertSame($order, $style_plugin->order, 'Ensure the right sort order was set.');
+      $this->assertSame('id', $style_plugin->active, 'Ensure the right order was set.');
       $view->destroy();
     }
 
@@ -119,7 +119,7 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $view->field['name']->options['exclude'] = TRUE;
     $output = $view->preview();
     $output = \Drupal::service('renderer')->renderRoot($output);
-    $this->assertFalse(strpos($output, 'views-field-name') !== FALSE, "Excluded field's wrapper was not rendered.");
+    $this->assertStringNotContainsString('views-field-name', $output, "Excluded field's wrapper was not rendered.");
     $view->destroy();
 
     // Render a non empty result, and ensure that the empty area handler is not
@@ -128,7 +128,7 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $output = $view->preview();
     $output = \Drupal::service('renderer')->renderRoot($output);
 
-    $this->assertFalse(strpos($output, 'custom text') !== FALSE, 'Empty handler was not rendered on a non empty table.');
+    $this->assertStringNotContainsString('custom text', $output, 'Empty handler was not rendered on a non empty table.');
 
     // Render an empty result, and ensure that the area handler is rendered.
     $view->setDisplay('default');
@@ -137,7 +137,7 @@ class StyleTableUnitTest extends PluginKernelTestBase {
     $output = $view->preview();
     $output = \Drupal::service('renderer')->renderRoot($output);
 
-    $this->assertTrue(strpos($output, 'custom text') !== FALSE, 'Empty handler got rendered on an empty table.');
+    $this->assertStringContainsString('custom text', $output, 'Empty handler got rendered on an empty table.');
   }
 
   /**

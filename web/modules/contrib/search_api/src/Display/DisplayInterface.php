@@ -6,6 +6,7 @@ use Drupal\Component\Plugin\DerivativeInspectionInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Component\Plugin\DependentPluginInterface;
+use Drupal\search_api\Plugin\HideablePluginInterface;
 
 /**
  * Defines an interface for display plugins.
@@ -15,7 +16,7 @@ use Drupal\Component\Plugin\DependentPluginInterface;
  * @see \Drupal\search_api\Display\DisplayPluginBase
  * @see plugin_api
  */
-interface DisplayInterface extends PluginInspectionInterface, DerivativeInspectionInterface, ContainerFactoryPluginInterface, DependentPluginInterface {
+interface DisplayInterface extends HideablePluginInterface, PluginInspectionInterface, DerivativeInspectionInterface, ContainerFactoryPluginInterface, DependentPluginInterface {
 
   /**
    * Returns the display label.
@@ -47,10 +48,10 @@ interface DisplayInterface extends PluginInspectionInterface, DerivativeInspecti
    * @return \Drupal\Core\Url|null
    *   The URL of the display, or NULL if there is no specific URL for it.
    *
-   * @deprecated in favor of getPath(). Creating an URL object from a path needs
-   *   a lot of Core's API which might lead to errors when used in certain
-   *   situations. This method will be removed in a future version of the Search
-   *   API module.
+   * @deprecated in search_api:8.x-1.0-beta5 and is removed from
+   *   search_api:2.0.0. Use getPath() instead.
+   *
+   * @see https://www.drupal.org/node/2856050
    */
   public function getUrl();
 

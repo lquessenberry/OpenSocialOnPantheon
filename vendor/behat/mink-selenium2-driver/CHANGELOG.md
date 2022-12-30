@@ -1,3 +1,66 @@
+1.6.0 / 2022-03-28
+==================
+
+Removed:
+
+* Removed support for PHP <7.2
+
+Testsuite:
+
+* Fixed compatibility with the latest driver testsuite
+
+1.5.0 / 2021-10-12
+==================
+
+New features:
+
+* Improved responsiveness of the `wait` method
+* Fixed deprecation warnings on PHP 7.1
+
+Bug fixes:
+
+* Catched the `StaleElementReference` exception that happens in some cases in `setValue` if the JS code changes the DOM when the value changes
+* Catched the `UnknownError` exception that happens in ChromeDriver when trying to use `moveTo`
+* Fixed the handling of errors reported when applying timeouts, to avoid marking the driver as not started when the session is started
+
+Testsuite:
+
+* Added CI jobs on PHP 8.0 and 8.1
+
+1.4.0 / 2020-03-11
+==================
+
+Bug fixes:
+
+* Changed phpdoc types from `Boolean` to `boolean` to be compatible with psalm type checking
+* Don't use TABs, when triggering `change` JS event upon input value is change (fixes some auto-complete control testing in Google Chrome)
+* Fixed inability to manipulate windows when Selenium 3 with Firefox GeckoDriver was used
+* The `clickOnElement` method wasn't working when Selenium 3 with Firefox GeckoDriver was used
+* Fixed the handling of cookies on PHP 7.4
+
+Changes:
+
+* Bumped requirement to PHP 5.4
+
+New features:
+
+* Allow uploading files to remote Selenium instances (e.g. SauceLabs, BrowserStack, etc.)
+* Added `getDesiredCapabilities` method for fetching current desired capabilities
+* Added support for `goog:chromeOptions` to specify custom Chrome options, which is the name used by newer ChromeDriver releases
+
+Testsuite:
+
+* Don't test on PHP 5.3 (driver itself would likely continue to work on PHP 5.3 for some time)
+* Adding testing on PHP 7.1, 7.2, 7.3 and 7.4
+* Removed PhantomJS
+
+Misc:
+
+* Syn library is [0.0.3](https://github.com/bitovi/syn/tree/v0.0.3)
+* The `setDesiredCapabilities` method combines default capabilities with user provided ones
+* Removed outdated default capabilities
+* The `setDesiredCapabilities` method will throw an exception, when used on a started session
+
 1.3.1 / 2016-03-05
 ==================
 

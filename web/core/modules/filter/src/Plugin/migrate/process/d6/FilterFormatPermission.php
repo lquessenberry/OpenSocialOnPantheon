@@ -3,9 +3,9 @@
 namespace Drupal\filter\Plugin\migrate\process\d6;
 
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\MigrateExecutableInterface;
-use Drupal\migrate\Plugin\MigrateProcessInterface;
+use Drupal\migrate\MigrateLookupInterface;
+use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -21,35 +21,42 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class FilterFormatPermission extends ProcessPluginBase implements ContainerFactoryPluginInterface {
 
   /**
-   * The migration plugin.
+   * The migrate lookup service.
    *
-   * @var \Drupal\migrate\Plugin\MigrateProcessInterface
+   * @var \Drupal\migrate\MigrateLookupInterface
    */
-  protected $migrationPlugin;
+  protected $migrateLookup;
 
   /**
-   * {@inheritdoc}
+   * Constructs a FilterFormatPermission plugin instance.
+   *
+   * @param array $configuration
+   *   The plugin configuration.
+   * @param string $plugin_id
+   *   The plugin ID.
+   * @param mixed $plugin_definition
+   *   The plugin definition.
+   * @param \Drupal\migrate\Plugin\MigrationInterface $migration
+   *   The current migration.
+   * @param \Drupal\migrate\MigrateLookupInterface $migrate_lookup
+   *   The migrate lookup service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, MigrateProcessInterface $migration_plugin) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, MigrateLookupInterface $migrate_lookup) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->migration = $migration;
-    $this->migrationPlugin = $migration_plugin;
+    $this->migrateLookup = $migrate_lookup;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration = NULL) {
-    $migration_plugin_configuration = $configuration + [
-      'migration' => 'd6_filter_format',
-    ];
-
     return new static(
       $configuration,
       $plugin_id,
       $plugin_definition,
       $migration,
-      $container->get('plugin.manager.migrate.process')->createInstance('migration', $migration_plugin_configuration, $migration)
+      $container->get('migrate.lookup')
     );
   }
 
@@ -60,11 +67,12 @@ class FilterFormatPermission extends ProcessPluginBase implements ContainerFacto
    */
   public function transform($value, MigrateExecutableInterface $migrate_executable, Row $row, $destination_property) {
     $rid = $row->getSourceProperty('rid');
+    $migration = $this->configuration['migration'] ?? 'd6_filter_format';
     if ($formats = $row->getSourceProperty("filter_permissions:$rid")) {
       foreach ($formats as $format) {
-        $new_id = $this->migrationPlugin->transform($format, $migrate_executable, $row, $destination_property);
-        if ($new_id) {
-          $value[] = 'use text format ' . $new_id;
+        $lookup_result = $this->migrateLookup->lookup($migration, [$format]);
+        if ($lookup_result) {
+          $value[] = 'use text format ' . $lookup_result[0]['format'];
         }
       }
     }

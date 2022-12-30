@@ -5,6 +5,7 @@ use Behat\Gherkin\Node\TableNode;
 use Drupal\DrupalExtension\Context\RawDrupalContext;
 use Drupal\DrupalExtension\Hook\Scope\BeforeNodeCreateScope;
 use Drupal\DrupalExtension\Hook\Scope\EntityScope;
+use Drupal\DrupalExtension\TagTrait;
 use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
@@ -16,6 +17,9 @@ use Symfony\Component\Process\Process;
  * conflicts.
  */
 class FeatureContext extends RawDrupalContext {
+
+    use TagTrait;
+
   /**
    * Hook into node creation to test `@beforeNodeCreate`
    *
@@ -189,6 +193,43 @@ class FeatureContext extends RawDrupalContext {
     $this->userCreate($user);
     $this->login($user);
   }
+
+    /**
+     * Verifies a user is logged in on the backend.
+     *
+     * @Then I should be logged in on the backend
+     * @Then I am logged in on the backend
+     */
+    public function assertBackendLogin()
+    {
+        if (!$user = $this->getUserManager()->getCurrentUser()) {
+            throw new \LogicException('No current user in the user manager.');
+        }
+        if (!$account = \Drupal::entityTypeManager()->getStorage('user')->load($user->uid)) {
+            throw new \LogicException('No user found in the system.');
+        }
+        if (!$account->id()) {
+            throw new \LogicException('Current user is anonymous.');
+        }
+        if ($account->id() != \Drupal::currentUser()->id()) {
+            throw new \LogicException('User logged in on the backend does not match current user.');
+        }
+    }
+
+    /**
+     * Verifies there is no user logged in on the backend.
+     *
+     * @Then I should be logged out on the backend
+     */
+    public function assertBackendLoggedOut()
+    {
+        if ($this->getUserManager()->getCurrentUser()) {
+            throw new \LogicException('User is still logged in in the manager.');
+        }
+        if (!\Drupal::currentUser()->isAnonymous()) {
+            throw new \LogicException('User is still logged in on the backend.');
+        }
+    }
 
   /**
    * From here down is the Behat FeatureContext.
@@ -416,6 +457,36 @@ class FeatureContext extends RawDrupalContext {
             }
 
             PHPUnit_Framework_Assert::assertEquals(0, $this->getExitCode());
+        }
+    }
+
+    /**
+     * Checks if the current scenario or feature has the given tag.
+     *
+     * @Then the :tag tag should be present
+     *
+     * @param string $tag
+     *   The tag to check.
+     */
+    public function shouldHaveTag($tag)
+    {
+        if (!$this->hasTag($tag)) {
+            throw new \Exception("Expected tag $tag was not found in the scenario or feature.");
+        }
+    }
+
+    /**
+     * Checks if the current scenario or feature does not have the given tag.
+     *
+     * @Then the :tag tag should not be present
+     *
+     * @param string $tag
+     *   The tag to check.
+     */
+    public function shouldNotHaveTag($tag)
+    {
+        if ($this->hasTag($tag)) {
+            throw new \Exception("Expected tag $tag was found in the scenario or feature.");
         }
     }
 

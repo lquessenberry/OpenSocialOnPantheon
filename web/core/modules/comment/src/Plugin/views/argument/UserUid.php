@@ -3,13 +3,13 @@
 namespace Drupal\comment\Plugin\views\argument;
 
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Database\Query\Condition;
 use Drupal\views\Plugin\views\argument\ArgumentPluginBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Argument handler to accept a user id to check for nodes that
- * user posted or commented on.
+ * The views user ID argument handler.
+ *
+ * Accepts a user ID to check for nodes that the user posted or commented on.
  *
  * @ingroup views_argument_handlers
  *
@@ -25,7 +25,7 @@ class UserUid extends ArgumentPluginBase {
   protected $database;
 
   /**
-   * Constructs a Drupal\Component\Plugin\PluginBase object.
+   * Constructs a \Drupal\comment\Plugin\views\argument\UserUid object.
    *
    * @param array $configuration
    *   A configuration array containing information about the plugin instance.
@@ -54,7 +54,7 @@ class UserUid extends ArgumentPluginBase {
       $title = \Drupal::config('user.settings')->get('anonymous');
     }
     else {
-      $title = $this->database->query('SELECT name FROM {users_field_data} WHERE uid = :uid AND default_langcode = 1', [':uid' => $this->argument])->fetchField();
+      $title = $this->database->query('SELECT [name] FROM {users_field_data} WHERE [uid] = :uid AND [default_langcode] = 1', [':uid' => $this->argument])->fetchField();
     }
     if (empty($title)) {
       return $this->t('No user');
@@ -88,10 +88,10 @@ class UserUid extends ArgumentPluginBase {
 
       $entity_id = $this->definition['entity_id'];
       $entity_type = $this->definition['entity_type'];
-      $subselect->where("c.entity_id = $this->tableAlias.$entity_id");
+      $subselect->where("[c].[entity_id] = [$this->tableAlias].[$entity_id]");
       $subselect->condition('c.entity_type', $entity_type);
 
-      $condition = (new Condition('OR'))
+      $condition = ($this->view->query->getConnection()->condition('OR'))
         ->condition("$this->tableAlias.uid", $this->argument, '=')
         ->exists($subselect);
 

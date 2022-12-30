@@ -65,13 +65,6 @@
     const dialog = {
       open: false,
       returnValue: undef,
-      show() {
-        openDialog({ modal: false });
-      },
-      showModal() {
-        openDialog({ modal: true });
-      },
-      close: closeDialog,
     };
 
     function openDialog(settings) {
@@ -91,6 +84,14 @@
       $(window).trigger('dialog:afterclose', [dialog, $element]);
     }
 
+    dialog.show = () => {
+      openDialog({ modal: false });
+    };
+    dialog.showModal = () => {
+      openDialog({ modal: true });
+    };
+    dialog.close = closeDialog;
+
     return dialog;
   };
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

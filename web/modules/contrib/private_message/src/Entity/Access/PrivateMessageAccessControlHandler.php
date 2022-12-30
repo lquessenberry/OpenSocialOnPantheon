@@ -65,7 +65,7 @@ class PrivateMessageAccessControlHandler extends EntityAccessControlHandler impl
     if ($account->hasPermission('use private messaging system')) {
       switch ($operation) {
         case 'view':
-          if ($entity->getOwner()->id() == $account->id()) {
+          if ($entity->getOwnerId() == $account->id()) {
             return AccessResult::allowed();
           }
 
@@ -77,7 +77,7 @@ class PrivateMessageAccessControlHandler extends EntityAccessControlHandler impl
           break;
 
         case 'delete':
-          if ($entity->getOwner()->id() == $account->id()) {
+          if ($entity->getOwnerId() == $account->id()) {
             return AccessResult::allowed();
           }
 

@@ -77,7 +77,7 @@ final class RuntimeCallHandler implements CallHandler
      * @param string  $file
      * @param integer $line
      *
-     * @return Boolean
+     * @return bool
      *
      * @throws CallErrorException
      */
@@ -105,8 +105,9 @@ final class RuntimeCallHandler implements CallHandler
         $return = $exception = null;
 
         try {
+            $arguments = array_values($arguments);
             $this->validator->validateArguments($reflection, $arguments);
-            $return = call_user_func_array($callable, $arguments);
+            $return = $callable(...$arguments);
         } catch (Exception $caught) {
             $exception = $caught;
         }
@@ -154,7 +155,7 @@ final class RuntimeCallHandler implements CallHandler
      *
      * @param integer $level
      *
-     * @return Boolean
+     * @return bool
      */
     private function errorLevelIsNotReportable($level)
     {

@@ -25,9 +25,9 @@ class Watermark extends ImagemagickImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     // Watermark image local path.
-    $local_path = $arguments['watermark_image']->getToolkit()->getSourceLocalPath();
+    $local_path = $arguments['watermark_image']->getToolkit()->ensureSourceLocalPath();
     if ($local_path !== '') {
-      $image_path = $this->getToolkit()->escapeShellArg($local_path);
+      $image_path = $this->escapeArgument($local_path);
     }
     else {
       $source_path = $arguments['watermark_image']->getToolkit()->getSource();
@@ -43,7 +43,7 @@ class Watermark extends ImagemagickImageToolkitOperationBase {
     $y = $arguments['y_offset'] >= 0 ? ('+' . $arguments['y_offset']) : $arguments['y_offset'];
 
     // Compose it with the destination.
-    switch ($this->getToolkit()->getPackage()) {
+    switch ($this->getToolkit()->getExecManager()->getPackage()) {
       case 'imagemagick':
         if ($arguments['opacity'] == 100) {
           $op = "-gravity None {$image_path} -geometry {$w}x{$h}!{$x}{$y} -compose src-over -composite";
@@ -60,7 +60,7 @@ class Watermark extends ImagemagickImageToolkitOperationBase {
 
     }
 
-    $this->getToolkit()->addArgument($op);
+    $this->addArgument($op);
     return TRUE;
   }
 

@@ -2,9 +2,8 @@
 
 namespace Drupal\search_extra_type\Plugin\Search;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Routing\UrlGeneratorTrait;
 use Drupal\Core\Url;
 use Drupal\search\Plugin\ConfigurableSearchPluginBase;
 
@@ -13,12 +12,11 @@ use Drupal\search\Plugin\ConfigurableSearchPluginBase;
  *
  * @SearchPlugin(
  *   id = "search_extra_type_search",
- *   title = @Translation("Dummy search type")
+ *   title = @Translation("Dummy search type"),
+ *   use_admin_theme = TRUE,
  * )
  */
 class SearchExtraTypeSearch extends ConfigurableSearchPluginBase {
-
-  use UrlGeneratorTrait;
 
   /**
    * {@inheritdoc}
@@ -28,6 +26,7 @@ class SearchExtraTypeSearch extends ConfigurableSearchPluginBase {
       $parameters['search_conditions'] = '';
     }
     parent::setSearch($keywords, $parameters, $attributes);
+    return $this;
   }
 
   /**
@@ -59,7 +58,7 @@ class SearchExtraTypeSearch extends ConfigurableSearchPluginBase {
         'link' => Url::fromRoute('test_page_test.test_page')->toString(),
         'type' => 'Dummy result type',
         'title' => 'Dummy title',
-        'snippet' => SafeMarkup::format("Dummy search snippet to display. Keywords: @keywords\n\nConditions: @search_parameters", ['@keywords' => $this->keywords, '@search_parameters' => print_r($this->searchParameters, TRUE)]),
+        'snippet' => new FormattableMarkup("Dummy search snippet to display. Keywords: @keywords\n\nConditions: @search_parameters", ['@keywords' => $this->keywords, '@search_parameters' => print_r($this->searchParameters, TRUE)]),
       ],
     ];
   }
@@ -101,7 +100,7 @@ class SearchExtraTypeSearch extends ConfigurableSearchPluginBase {
       '#type' => 'select',
       '#title' => t('Boost method'),
       '#options' => [
-        'bi' => t('Bistromathic'),
+        'bi' => t('Bistro mathematics'),
         'ii' => t('Infinite Improbability'),
       ],
       '#default_value' => $this->configuration['boost'],

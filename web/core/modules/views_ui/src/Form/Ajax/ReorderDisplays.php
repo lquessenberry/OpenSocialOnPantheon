@@ -2,7 +2,7 @@
 
 namespace Drupal\views_ui\Form\Ajax;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
@@ -31,20 +31,20 @@ class ReorderDisplays extends ViewsFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    /** @var $view \Drupal\views\ViewEntityInterface */
+    /** @var \Drupal\views\ViewEntityInterface $view */
     $view = $form_state->get('view');
     $display_id = $form_state->get('display_id');
 
     $form['#title'] = $this->t('Reorder displays');
     $form['#section'] = 'reorder';
-    $form['#action'] = $this->url('views_ui.form_reorder_displays', [
+    $form['#action'] = Url::fromRoute('views_ui.form_reorder_displays', [
       'js' => 'nojs',
       'view' => $view->id(),
       'display_id' => $display_id,
-    ]);
+    ])->toString();
     $form['view'] = [
       '#type' => 'value',
-      '#value' => $view
+      '#value' => $view,
     ];
 
     $displays = $view->get('display');
@@ -52,10 +52,7 @@ class ReorderDisplays extends ViewsFormBase {
 
     // Sort the displays.
     uasort($displays, function ($display1, $display2) {
-      if ($display1['position'] != $display2['position']) {
-        return $display1['position'] < $display2['position'] ? -1 : 1;
-      }
-      return 0;
+      return $display1['position'] <=> $display2['position'];
     });
 
     $form['displays'] = [
@@ -68,7 +65,7 @@ class ReorderDisplays extends ViewsFormBase {
           'action' => 'order',
           'relationship' => 'sibling',
           'group' => 'weight',
-        ]
+        ],
       ],
       '#tree' => TRUE,
       '#prefix' => '<div class="scroll" data-drupal-views-scroll>',
@@ -106,7 +103,7 @@ class ReorderDisplays extends ViewsFormBase {
 
       $form['displays'][$id]['removed'] = [
         'checkbox' => [
-          '#title' => t('Remove @id', ['@id' => $id]),
+          '#title' => $this->t('Remove @id', ['@id' => $id]),
           '#title_display' => 'invisible',
           '#type' => 'checkbox',
           '#id' => 'display-removed-' . $id,
@@ -117,7 +114,7 @@ class ReorderDisplays extends ViewsFormBase {
         ],
         'link' => [
           '#type' => 'link',
-          '#title' => SafeMarkup::format('<span>@text</span>', ['@text' => $this->t('Remove')]),
+          '#title' => new FormattableMarkup('<span>@text</span>', ['@text' => $this->t('Remove')]),
           '#url' => Url::fromRoute('<none>'),
           '#attributes' => [
             'id' => 'display-remove-link-' . $id,
@@ -149,7 +146,7 @@ class ReorderDisplays extends ViewsFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    /** @var $view \Drupal\views_ui\ViewUI */
+    /** @var \Drupal\views_ui\ViewUI $view */
     $view = $form_state->get('view');
     $order = [];
 
@@ -193,7 +190,7 @@ class ReorderDisplays extends ViewsFormBase {
 
     // Store in cache.
     $view->cacheSet();
-    $url = $view->urlInfo('edit-form')
+    $url = $view->toUrl('edit-form')
       ->setOption('fragment', 'views-tab-default');
     $form_state->setRedirectUrl($url);
   }

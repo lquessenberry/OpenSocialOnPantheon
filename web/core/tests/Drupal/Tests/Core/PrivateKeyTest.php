@@ -16,7 +16,7 @@ class PrivateKeyTest extends UnitTestCase {
   /**
    * The state mock class.
    *
-   * @var \Drupal\Core\State\StateInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\State\StateInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $state;
 
@@ -37,11 +37,11 @@ class PrivateKeyTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->key = Crypt::randomBytesBase64(55);
 
-    $this->state = $this->getMock('Drupal\Core\State\StateInterface');
+    $this->state = $this->createMock('Drupal\Core\State\StateInterface');
 
     $this->privateKey = new PrivateKey($this->state);
   }
@@ -62,7 +62,7 @@ class PrivateKeyTest extends UnitTestCase {
    * Tests PrivateKey::get() with no private key from state.
    */
   public function testGetNoState() {
-    $this->assertInternalType('string', $this->privateKey->get());
+    $this->assertIsString($this->privateKey->get());
   }
 
   /**

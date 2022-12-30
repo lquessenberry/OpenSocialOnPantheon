@@ -6,12 +6,35 @@ global-styling:
       css/base/typography.css: {}
       css/base/print.css: {}
     component:
+      css/classy/components/action-links.css: {}
+      css/classy/components/breadcrumb.css: {}
+      css/classy/components/button.css: {}
+      css/classy/components/collapse-processed.css: {}
+      css/classy/components/container-inline.css: {}
+      css/classy/components/exposed-filters.css: {}
+      css/classy/components/field.css: {}
+      css/classy/components/form.css: {}
+      css/classy/components/icons.css: {}
+      css/classy/components/inline-form.css: {}
+      css/classy/components/item-list.css: {}
+      css/classy/components/link.css: {}
+      css/classy/components/links.css: {}
+      css/classy/components/menu.css: {}
+      css/classy/components/more-link.css: {}
+      css/classy/components/pager.css: {}
+      css/classy/components/tabledrag.css: {}
+      css/classy/components/tableselect.css: {}
+      css/classy/components/tablesort.css: {}
+      css/classy/components/tabs.css: {}
+      css/classy/components/textarea.css: {}
+      css/classy/components/ui-dialog.css: {}
       css/components/admin-list.css: {}
       css/components/content-header.css: {}
       css/components/container-inline.css: {}
       css/components/container-inline.module.css: {}
       css/components/breadcrumb.css: {}
       css/components/buttons.css: {}
+      css/components/details.css: {}
       css/components/messages.css: {}
       css/components/dropbutton.component.css: {}
       css/components/entity-meta.css: {}
@@ -60,6 +83,12 @@ maintenance-page:
     - system/maintenance
     - seven/global-styling
 
+update-report:
+  version: VERSION
+  css:
+    theme:
+      css/theme/update-report.css: {}
+
 install-page:
   version: VERSION
   js:
@@ -75,10 +104,9 @@ drupal.nav-tabs:
   js:
     js/nav-tabs.js: {}
   dependencies:
-    - core/matchmedia
     - core/jquery
     - core/drupal
-    - core/jquery.once
+    - core/once
     - core/drupal.debounce
     - core/collapse
 
@@ -87,10 +115,8 @@ drupal.responsive-detail:
   js:
     js/responsive-details.js: {}
   dependencies:
-    - core/matchmedia
-    - core/matchmedia.addListener
     - core/jquery
-    - core/jquery.once
+    - core/once
     - core/collapse
 
 vertical-tabs:
@@ -111,6 +137,12 @@ seven.drupal.dialog:
     theme:
       css/components/dialog.css: {}
 
+ckeditor-admin:
+  version: VERSION
+  css:
+    theme:
+      css/theme/ckeditor-admin.css: {}
+
 ckeditor-dialog:
   version: VERSION
   css:
@@ -130,3 +162,98 @@ media-form:
       css/components/media.css: {}
   dependencies:
     - media/form
+
+media_library:
+  version: VERSION
+  css:
+    theme:
+      css/theme/media-library.css: {}
+
+layout_builder_content_translation_admin:
+  version: VERSION
+  css:
+    component:
+      css/components/layout-builder-content-translation.css: {}
+
+user:
+  version: VERSION
+  css:
+    component:
+      css/components/user.css: { weight: -10 }
+
+filter:
+  version: VERSION
+  css:
+    component:
+      css/theme/filter.admin.css: {}
+
+classy.book-navigation:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/book-navigation.css: {}
+
+classy.dropbutton:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/dropbutton.css: { weight: -10 }
+
+classy.file:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/file.css: { weight: -10 }
+
+classy.forum:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/forum.css: { weight: -10 }
+
+classy.image-widget:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/image-widget.css: {}
+
+classy.indented:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/indented.css: {}
+
+classy.media_embed_ckeditor_theme:
+  version: VERSION
+  js:
+    js/classy/media_embed_ckeditor.theme.js: {}
+
+classy.media_embed_error:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/media-embed-error.css: {}
+
+classy.messages:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/messages.css: { weight: -10 }
+
+classy.node:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/node.css: { weight: -10 }
+
+classy.progress:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/progress.css: { weight: -10 }
+
+classy.search-results:
+  version: VERSION
+  css:
+    component:
+      css/classy/components/search-results.css: {}

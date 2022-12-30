@@ -23,8 +23,12 @@
       // Start by finding all potentially active links.
       const path = drupalSettings.path;
       const queryString = JSON.stringify(path.currentQuery);
-      const querySelector = path.currentQuery ? `[data-drupal-link-query='${queryString}']` : ':not([data-drupal-link-query])';
-      const originalSelectors = [`[data-drupal-link-system-path="${path.currentPath}"]`];
+      const querySelector = path.currentQuery
+        ? `[data-drupal-link-query='${queryString}']`
+        : ':not([data-drupal-link-query])';
+      const originalSelectors = [
+        `[data-drupal-link-system-path="${path.currentPath}"]`,
+      ];
       let selectors;
 
       // If this is the front page, we have to check for the <front> path as
@@ -36,13 +40,15 @@
       // Add language filtering.
       selectors = [].concat(
         // Links without any hreflang attributes (most of them).
-        originalSelectors.map(selector => `${selector}:not([hreflang])`),
+        originalSelectors.map((selector) => `${selector}:not([hreflang])`),
         // Links with hreflang equals to the current language.
-        originalSelectors.map(selector => `${selector}[hreflang="${path.currentLanguage}"]`),
+        originalSelectors.map(
+          (selector) => `${selector}[hreflang="${path.currentLanguage}"]`,
+        ),
       );
 
       // Add query string selector for pagers, exposed filters.
-      selectors = selectors.map(current => current + querySelector);
+      selectors = selectors.map((current) => current + querySelector);
 
       // Query the DOM.
       const activeLinks = context.querySelectorAll(selectors.join(','));
@@ -53,7 +59,9 @@
     },
     detach(context, settings, trigger) {
       if (trigger === 'unload') {
-        const activeLinks = context.querySelectorAll('[data-drupal-link-system-path].is-active');
+        const activeLinks = context.querySelectorAll(
+          '[data-drupal-link-system-path].is-active',
+        );
         const il = activeLinks.length;
         for (let i = 0; i < il; i++) {
           activeLinks[i].classList.remove('is-active');
@@ -61,4 +69,4 @@
       }
     },
   };
-}(Drupal, drupalSettings));
+})(Drupal, drupalSettings);

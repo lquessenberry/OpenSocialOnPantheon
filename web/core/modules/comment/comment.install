@@ -6,8 +6,6 @@
  */
 
 use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\StringTranslation\PluralTranslatableMarkup;
-use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\field\Entity\FieldStorageConfig;
 
 /**
@@ -15,10 +13,9 @@ use Drupal\field\Entity\FieldStorageConfig;
  */
 function comment_uninstall() {
   // Remove the comment fields.
-  $fields = entity_load_multiple_by_properties('field_storage_config', ['type' => 'comment']);
-  foreach ($fields as $field) {
-    $field->delete();
-  }
+  $storage = \Drupal::entityTypeManager()->getStorage('field_storage_config');
+  $fields = $storage->loadByProperties(['type' => 'comment']);
+  $storage->delete($fields);
 
   // Remove state setting.
   \Drupal::state()->delete('comment.node_comment_statistics_scale');
@@ -114,84 +111,8 @@ function comment_schema() {
 }
 
 /**
- * Clear caches to fix Comment entity list builder and operations Views field.
+ * Implements hook_update_last_removed().
  */
-function comment_update_8001() {
-  // Empty update to cause a cache flush to rebuild comment entity handler
-  // information, so that comment operation links work.
-}
-
-/**
- * Clear caches to fix Comment Views context filter.
- */
-function comment_update_8002() {
-  // Empty update to cause a cache flush.
-}
-
-/**
- * Add the 'view_mode' setting to displays having 'comment_default' formatter.
- */
-function comment_update_8200() {
-  $config_factory = \Drupal::configFactory();
-  $displays = [];
-  // Iterate on all entity view displays.
-  foreach ($config_factory->listAll('core.entity_view_display.') as $name) {
-    $changed = FALSE;
-    $display = $config_factory->getEditable($name);
-    $components = $display->get('content') ?: [];
-    foreach ($components as $field_name => $component) {
-      if (isset($component['type']) && ($component['type'] === 'comment_default')) {
-        if (empty($display->get("content.{$field_name}.settings.view_mode"))) {
-          $display->set("content.{$field_name}.settings.view_mode", 'default');
-          $displays[] = $display->get('id');
-          $changed = TRUE;
-        }
-      }
-    }
-
-    if ($changed) {
-      $display->save(TRUE);
-    }
-  }
-
-  if ($displays) {
-    return new PluralTranslatableMarkup(count($displays), '1 entity display updated: @displays.', '@count entity displays updated: @displays.', ['@displays' => implode(', ', $displays)]);
-  }
-  else {
-    return new TranslatableMarkup('No entity view display updated.');
-  }
-}
-
-/**
- * Update status field.
- */
-function comment_update_8300() {
-  $entity_definition_update_manager = \Drupal::service('entity.definition_update_manager');
-  $field_definition = $entity_definition_update_manager->getFieldStorageDefinition('status', 'comment');
-  $field_definition->setDescription(new TranslatableMarkup('A boolean indicating the published state.'))
-    ->setRevisionable(TRUE);
-  $entity_definition_update_manager->updateFieldStorageDefinition($field_definition);
-}
-
-/**
- * Set the 'published' entity key.
- */
-function comment_update_8301() {
-  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
-  $entity_type = $definition_update_manager->getEntityType('comment');
-  $keys = $entity_type->getKeys();
-  $keys['published'] = 'status';
-  $entity_type->set('entity_keys', $keys);
-  $definition_update_manager->updateEntityType($entity_type);
-}
-
-/**
- * Update the status field.
- */
-function comment_update_8400() {
-  // The status field was promoted to an entity key in comment_update_8301(),
-  // which makes it NOT NULL in the default SQL storage, which means its storage
-  // definition needs to be updated as well.
-  $entity_definition_update_manager = \Drupal::service('entity.definition_update_manager');
-  $entity_definition_update_manager->updateFieldStorageDefinition($entity_definition_update_manager->getFieldStorageDefinition('status', 'comment'));
+function comment_update_last_removed() {
+  return 8701;
 }

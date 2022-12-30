@@ -12,7 +12,7 @@ use Drupal\Core\Url;
  * @ActionLinkType(
  *  id = "confirm",
  * label = @Translation("Confirm Form"),
- * description = "Redirects the user to a confirmation form."
+ * description = @Translation("Redirects the user to a confirmation form.")
  * )
  */
 class ConfirmForm extends FormEntryTypeBase {
@@ -27,6 +27,7 @@ class ConfirmForm extends FormEntryTypeBase {
           'flag' => $flag->id(),
           'entity_id' => $entity->id(),
         ]);
+
       default:
         return Url::fromRoute('flag.confirm_unflag', [
           'flag' => $flag->id(),

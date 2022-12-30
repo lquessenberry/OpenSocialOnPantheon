@@ -70,7 +70,7 @@ trait AvailableCountriesTrait {
       $available_countries = array_filter($this->getSetting('available_countries'));
       $event_dispatcher = \Drupal::service('event_dispatcher');
       $event = new AvailableCountriesEvent($available_countries, $field_definition);
-      $event_dispatcher->dispatch(AddressEvents::AVAILABLE_COUNTRIES, $event);
+      $event_dispatcher->dispatch($event, AddressEvents::AVAILABLE_COUNTRIES);
       static::$availableCountries[$definition_id] = $event->getAvailableCountries();
     }
 

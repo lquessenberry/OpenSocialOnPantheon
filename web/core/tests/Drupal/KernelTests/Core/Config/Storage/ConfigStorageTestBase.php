@@ -37,52 +37,52 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
     $name = 'config_test.storage';
 
     // Checking whether a non-existing name exists returns FALSE.
-    $this->assertIdentical($this->storage->exists($name), FALSE);
+    $this->assertFalse($this->storage->exists($name));
 
     // Reading a non-existing name returns FALSE.
     $data = $this->storage->read($name);
-    $this->assertIdentical($data, FALSE);
+    $this->assertFalse($data);
 
     // Writing data returns TRUE and the data has been written.
     $data = ['foo' => 'bar'];
     $result = $this->storage->write($name, $data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
 
     $raw_data = $this->read($name);
-    $this->assertIdentical($raw_data, $data);
+    $this->assertSame($data, $raw_data);
 
     // Checking whether an existing name exists returns TRUE.
-    $this->assertIdentical($this->storage->exists($name), TRUE);
+    $this->assertTrue($this->storage->exists($name));
 
     // Writing the identical data again still returns TRUE.
     $result = $this->storage->write($name, $data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
 
     // Listing all names returns all.
     $names = $this->storage->listAll();
-    $this->assertTrue(in_array('system.performance', $names));
-    $this->assertTrue(in_array($name, $names));
+    $this->assertContains('system.performance', $names);
+    $this->assertContains($name, $names);
 
     // Listing all names with prefix returns names with that prefix only.
     $names = $this->storage->listAll('config_test.');
-    $this->assertFalse(in_array('system.performance', $names));
-    $this->assertTrue(in_array($name, $names));
+    $this->assertNotContains('system.performance', $names);
+    $this->assertContains($name, $names);
 
     // Rename the configuration storage object.
     $new_name = 'config_test.storage_rename';
     $this->storage->rename($name, $new_name);
     $raw_data = $this->read($new_name);
-    $this->assertIdentical($raw_data, $data);
+    $this->assertSame($data, $raw_data);
     // Rename it back so further tests work.
     $this->storage->rename($new_name, $name);
 
     // Deleting an existing name returns TRUE.
     $result = $this->storage->delete($name);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
 
     // Deleting a non-existing name returns FALSE.
     $result = $this->storage->delete($name);
-    $this->assertIdentical($result, FALSE);
+    $this->assertFalse($result);
 
     // Deleting all names with prefix deletes the appropriate data and returns
     // TRUE.
@@ -95,28 +95,22 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
       $this->storage->write($name, $data);
     }
 
+    // Test that deleting a prefix that returns no configuration returns FALSE
+    // because nothing is deleted.
+    $this->assertFalse($this->storage->deleteAll('some_thing_that_cannot_exist'));
+
     $result = $this->storage->deleteAll('config_test.');
     $names = $this->storage->listAll('config_test.');
-    $this->assertIdentical($result, TRUE);
-    $this->assertIdentical($names, []);
+    $this->assertTrue($result);
+    $this->assertSame([], $names);
 
-    // Test renaming an object that does not exist throws an exception.
-    try {
-      $this->storage->rename('config_test.storage_does_not_exist', 'config_test.storage_does_not_exist_rename');
-    }
-    catch (\Exception $e) {
-      $class = get_class($e);
-      $this->pass($class . ' thrown upon renaming a nonexistent storage bin.');
-    }
+    // Test renaming an object that does not exist returns FALSE.
+    $this->assertFalse($this->storage->rename('config_test.storage_does_not_exist', 'config_test.storage_does_not_exist_rename'));
 
-    // Test renaming to an object that already exists throws an exception.
-    try {
-      $this->storage->rename('system.cron', 'system.performance');
-    }
-    catch (\Exception $e) {
-      $class = get_class($e);
-      $this->pass($class . ' thrown upon renaming a nonexistent storage bin.');
-    }
+    // Test renaming to an object that already returns FALSE.
+    $data = ['foo' => 'bar'];
+    $this->assertTrue($this->storage->write($name, $data));
+    $this->assertFalse($this->storage->rename('config_test.storage_does_not_exist', $name));
   }
 
   /**
@@ -129,14 +123,14 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
     // pollute one another.
     $data = ['foo' => 'bar'];
     $result = $this->storage->write($name, $data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
 
     $raw_data = $this->read($name);
-    $this->assertIdentical($raw_data, $data);
+    $this->assertSame($data, $raw_data);
 
     // Reading from a non-existing storage bin returns FALSE.
     $result = $this->invalidStorage->read($name);
-    $this->assertIdentical($result, FALSE);
+    $this->assertFalse($result);
 
     // Deleting from a non-existing storage bin throws an exception.
     try {
@@ -144,17 +138,21 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
       $this->fail('Exception not thrown upon deleting from a non-existing storage bin.');
     }
     catch (\Exception $e) {
-      $class = get_class($e);
-      $this->pass($class . ' thrown upon deleting from a non-existing storage bin.');
+      // An exception occurred as expected; just continue.
     }
 
     // Listing on a non-existing storage bin returns an empty array.
     $result = $this->invalidStorage->listAll();
-    $this->assertIdentical($result, []);
+    $this->assertSame([], $result);
+
+    // Getting all collections on a non-existing storage bin return an empty
+    // array.
+    $this->assertSame([], $this->invalidStorage->getAllCollectionNames());
+
     // Writing to a non-existing storage bin creates the bin.
     $this->invalidStorage->write($name, ['foo' => 'bar']);
     $result = $this->invalidStorage->read($name);
-    $this->assertIdentical($result, ['foo' => 'bar']);
+    $this->assertSame(['foo' => 'bar'], $result);
   }
 
   /**
@@ -175,10 +173,10 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
     ];
 
     $result = $this->storage->write($name, $data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
 
     $read_data = $this->storage->read($name);
-    $this->assertIdentical($read_data, $data);
+    $this->assertSame($data, $read_data);
   }
 
   /**
@@ -188,37 +186,41 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
     $name = 'config_test.storage';
     $data = ['foo' => 'bar'];
     $result = $this->storage->write($name, $data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
     $this->assertSame($data, $this->storage->read($name));
 
     // Create configuration in a new collection.
     $new_storage = $this->storage->createCollection('collection.sub.new');
     $this->assertFalse($new_storage->exists($name));
-    $this->assertEqual([], $new_storage->listAll());
+    $this->assertEquals([], $new_storage->listAll());
+    $this->assertFalse($new_storage->delete($name));
+    $this->assertFalse($new_storage->deleteAll('config_test.'));
+    $this->assertFalse($new_storage->deleteAll());
+    $this->assertFalse($new_storage->rename($name, 'config_test.another_name'));
     $new_storage->write($name, $data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
     $this->assertSame($data, $new_storage->read($name));
-    $this->assertEqual([$name], $new_storage->listAll());
+    $this->assertEquals([$name], $new_storage->listAll());
     $this->assertTrue($new_storage->exists($name));
     $new_data = ['foo' => 'baz'];
     $new_storage->write($name, $new_data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
     $this->assertSame($new_data, $new_storage->read($name));
 
     // Create configuration in another collection.
     $another_storage = $this->storage->createCollection('collection.sub.another');
     $this->assertFalse($another_storage->exists($name));
-    $this->assertEqual([], $another_storage->listAll());
+    $this->assertEquals([], $another_storage->listAll());
     $another_storage->write($name, $new_data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
     $this->assertSame($new_data, $another_storage->read($name));
-    $this->assertEqual([$name], $another_storage->listAll());
+    $this->assertEquals([$name], $another_storage->listAll());
     $this->assertTrue($another_storage->exists($name));
 
     // Create configuration in yet another collection.
     $alt_storage = $this->storage->createCollection('alternate');
     $alt_storage->write($name, $new_data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
     $this->assertSame($new_data, $alt_storage->read($name));
 
     // Switch back to the collection-less mode and check the data still exists
@@ -237,15 +239,23 @@ abstract class ConfigStorageTestBase extends KernelTestBase {
     // subdirectories.
     $parent_storage = $this->storage->createCollection('collection');
     $this->assertFalse($parent_storage->exists($name));
-    $this->assertEqual([], $parent_storage->listAll());
+    $this->assertEquals([], $parent_storage->listAll());
     $parent_storage->write($name, $new_data);
-    $this->assertIdentical($result, TRUE);
+    $this->assertTrue($result);
     $this->assertSame($new_data, $parent_storage->read($name));
-    $this->assertEqual([$name], $parent_storage->listAll());
+    $this->assertEquals([$name], $parent_storage->listAll());
     $this->assertTrue($parent_storage->exists($name));
     $this->assertSame(['collection', 'collection.sub.another', 'collection.sub.new'], $this->storage->getAllCollectionNames());
     $parent_storage->deleteAll();
     $this->assertSame(['collection.sub.another', 'collection.sub.new'], $this->storage->getAllCollectionNames());
+
+    // Test operations on a collection emptied through deletion.
+    $this->assertFalse($parent_storage->exists($name));
+    $this->assertEquals([], $parent_storage->listAll());
+    $this->assertFalse($parent_storage->delete($name));
+    $this->assertFalse($parent_storage->deleteAll('config_test.'));
+    $this->assertFalse($parent_storage->deleteAll());
+    $this->assertFalse($parent_storage->rename($name, 'config_test.another_name'));
 
     // Check that the having an empty collection-less storage does not break
     // anything. Before deleting check that the previous delete did not affect

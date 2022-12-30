@@ -3,7 +3,6 @@
 namespace Drupal\Tests\paragraphs\Kernel;
 
 use Drupal\Core\Entity\Entity;
-use Drupal\Core\Site\Settings;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\Entity\Node;
@@ -11,7 +10,6 @@ use Drupal\node\Entity\NodeType;
 use Drupal\paragraphs\Entity\Paragraph;
 use Drupal\paragraphs\Entity\ParagraphsType;
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\user\Entity\User;
 
 /**
  * Tests the replication functionality provided by Replicate module.
@@ -25,7 +23,7 @@ class ParagraphsReplicateTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'paragraphs',
     'replicate',
     'node',
@@ -39,7 +37,7 @@ class ParagraphsReplicateTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     // Create paragraphs and article content types.
     $values = ['type' => 'article', 'name' => 'Article'];

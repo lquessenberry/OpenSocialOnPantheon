@@ -4,7 +4,6 @@ namespace Drupal\bootstrap\Plugin\Alter;
 
 use Drupal\bootstrap\Bootstrap;
 use Drupal\bootstrap\Plugin\PluginBase;
-use Drupal\bootstrap\Utility\Unicode;
 use Drupal\bootstrap\Utility\Variables;
 use Drupal\Core\Entity\EntityInterface;
 
@@ -250,17 +249,23 @@ class ThemeSuggestions extends PluginBase implements AlterInterface {
       return $cache->get($this->hook);
     }
 
-    // Uppercase each theme hook suggestion to be used in the method name.
-    $hook_suggestions = $this->hookSuggestions;
-    foreach ($hook_suggestions as $key => $suggestion) {
-      $hook_suggestions[$key] = Unicode::ucfirst($suggestion);
-    }
-
+    // Convert snake_cased hook suggestions into lowerCamelCase alter methods.
     $methods = [];
+    $hook_suggestions = array_map('\Drupal\Component\Utility\Unicode::ucfirst', $this->hookSuggestions);
     while ($hook_suggestions) {
-      $method = 'alter' . implode('', $hook_suggestions);
-      if (method_exists($this, $method)) {
-        $methods[] = $method;
+      // In order to provide backwards compatibility with sub-themes that used
+      // the previous malformed method names, both of the method names need to
+      // be checked.
+      // @see https://www.drupal.org/project/bootstrap/issues/3008004
+      // @todo Only use the last method name and remove array in 8.x-4.x.
+      $methodNames = [
+        'alter' . implode('', $hook_suggestions),
+        'alter' . implode('', array_map('\Drupal\Component\Utility\Unicode::ucfirst', explode('_', implode('', $hook_suggestions)))),
+      ];
+      foreach (array_unique($methodNames) as $method) {
+        if (method_exists($this, $method)) {
+          $methods[] = $method;
+        }
       }
       array_pop($hook_suggestions);
     }

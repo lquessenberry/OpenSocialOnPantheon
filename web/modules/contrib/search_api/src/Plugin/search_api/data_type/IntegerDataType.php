@@ -16,4 +16,11 @@ use Drupal\search_api\DataType\DataTypePluginBase;
  */
 class IntegerDataType extends DataTypePluginBase {
 
+  /**
+   * {@inheritdoc}
+   */
+  public function getValue($value) {
+    return (int) $value;
+  }
+
 }

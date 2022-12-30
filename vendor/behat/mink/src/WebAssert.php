@@ -187,10 +187,10 @@ class WebAssert
      */
     public function responseHeaderContains($name, $value)
     {
-        $actual = $this->session->getResponseHeader($name);
+        $actual = (string) $this->session->getResponseHeader($name);
         $message = sprintf('The text "%s" was not found anywhere in the "%s" response header.', $value, $name);
 
-        $this->assert(false !== stripos($actual, $value), $message);
+        $this->assert(false !== stripos($actual, (string) $value), $message);
     }
 
     /**
@@ -203,10 +203,10 @@ class WebAssert
      */
     public function responseHeaderNotContains($name, $value)
     {
-        $actual = $this->session->getResponseHeader($name);
+        $actual = (string) $this->session->getResponseHeader($name);
         $message = sprintf('The text "%s" was found in the "%s" response header, but it should not.', $value, $name);
 
-        $this->assert(false === stripos($actual, $value), $message);
+        $this->assert(false === stripos($actual, (string) $value), $message);
     }
 
     /**
@@ -219,7 +219,7 @@ class WebAssert
      */
     public function responseHeaderMatches($name, $regex)
     {
-        $actual = $this->session->getResponseHeader($name);
+        $actual = (string) $this->session->getResponseHeader($name);
         $message = sprintf('The pattern "%s" was not found anywhere in the "%s" response header.', $regex, $name);
 
         $this->assert((bool) preg_match($regex, $actual), $message);
@@ -235,7 +235,7 @@ class WebAssert
      */
     public function responseHeaderNotMatches($name, $regex)
     {
-        $actual = $this->session->getResponseHeader($name);
+        $actual = (string) $this->session->getResponseHeader($name);
         $message = sprintf(
             'The pattern "%s" was found in the text of the "%s" response header, but it should not.',
             $regex,
@@ -321,7 +321,7 @@ class WebAssert
         $actual = $this->session->getPage()->getContent();
         $message = sprintf('The string "%s" was not found anywhere in the HTML response of the current page.', $text);
 
-        $this->assert(stripos($actual, $text) !== false, $message);
+        $this->assert(stripos($actual, (string) $text) !== false, $message);
     }
 
     /**
@@ -336,7 +336,7 @@ class WebAssert
         $actual = $this->session->getPage()->getContent();
         $message = sprintf('The string "%s" appears in the HTML response of this page, but it should not.', $text);
 
-        $this->assert(stripos($actual, $text) === false, $message);
+        $this->assert(stripos($actual, (string) $text) === false, $message);
     }
 
     /**
@@ -566,6 +566,32 @@ class WebAssert
     }
 
     /**
+     * Checks that an attribute does not exist in an element.
+     *
+     * @param string       $selectorType
+     * @param string|array $selector
+     * @param string       $attribute
+     *
+     * @return NodeElement
+     *
+     * @throws ElementHtmlException
+     */
+    public function elementAttributeNotExists($selectorType, $selector, $attribute)
+    {
+        $element = $this->elementExists($selectorType, $selector);
+
+        $message = sprintf(
+            'The attribute "%s" was found in the %s.',
+            $attribute,
+            $this->getMatchingElementRepresentation($selectorType, $selector)
+        );
+
+        $this->assertElement(!$element->hasAttribute($attribute), $message, $element);
+
+        return $element;
+    }
+
+    /**
      * Checks that an attribute of a specific elements contains text.
      *
      * @param string       $selectorType
@@ -578,7 +604,7 @@ class WebAssert
     public function elementAttributeContains($selectorType, $selector, $attribute, $text)
     {
         $element = $this->elementAttributeExists($selectorType, $selector, $attribute);
-        $actual = $element->getAttribute($attribute);
+        $actual = (string) $element->getAttribute($attribute);
         $regex = '/'.preg_quote($text, '/').'/ui';
 
         $message = sprintf(
@@ -604,7 +630,7 @@ class WebAssert
     public function elementAttributeNotContains($selectorType, $selector, $attribute, $text)
     {
         $element = $this->elementAttributeExists($selectorType, $selector, $attribute);
-        $actual = $element->getAttribute($attribute);
+        $actual = (string) $element->getAttribute($attribute);
         $regex = '/'.preg_quote($text, '/').'/ui';
 
         $message = sprintf(
@@ -667,7 +693,7 @@ class WebAssert
     public function fieldValueEquals($field, $value, TraversableElement $container = null)
     {
         $node = $this->fieldExists($field, $container);
-        $actual = $node->getValue();
+        $actual = (string) $node->getValue();
         $regex = '/^'.preg_quote($value, '/').'$/ui';
 
         $message = sprintf('The field "%s" value is "%s", but "%s" expected.', $field, $actual, $value);
@@ -687,7 +713,7 @@ class WebAssert
     public function fieldValueNotEquals($field, $value, TraversableElement $container = null)
     {
         $node = $this->fieldExists($field, $container);
-        $actual = $node->getValue();
+        $actual = (string) $node->getValue();
         $regex = '/^'.preg_quote($value, '/').'$/ui';
 
         $message = sprintf('The field "%s" value is "%s", but it should not be.', $field, $actual);

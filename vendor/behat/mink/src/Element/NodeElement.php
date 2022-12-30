@@ -84,7 +84,7 @@ class NodeElement extends TraversableElement
      *
      * Calling this method on other elements than form fields or option elements is not allowed.
      *
-     * @return string|bool|array
+     * @return string|bool|array|null
      */
     public function getValue()
     {
@@ -106,11 +106,11 @@ class NodeElement extends TraversableElement
     }
 
     /**
-     * Checks whether element has attribute with specified name.
+     * Checks whether element has an attribute with specified name.
      *
      * @param string $name
      *
-     * @return Boolean
+     * @return boolean
      */
     public function hasAttribute($name)
     {
@@ -198,11 +198,11 @@ class NodeElement extends TraversableElement
      *
      * Calling this method on any other elements is not allowed.
      *
-     * @return Boolean
+     * @return boolean
      */
     public function isChecked()
     {
-        return (Boolean) $this->getDriver()->isChecked($this->getXpath());
+        return (boolean) $this->getDriver()->isChecked($this->getXpath());
     }
 
     /**
@@ -216,7 +216,7 @@ class NodeElement extends TraversableElement
      * Calling this method on any other elements is not allowed.
      *
      * @param string  $option
-     * @param Boolean $multiple whether the option should be added to the selection for multiple selects
+     * @param boolean $multiple whether the option should be added to the selection for multiple selects
      *
      * @throws ElementNotFoundException when the option is not found in the select box
      */
@@ -242,11 +242,11 @@ class NodeElement extends TraversableElement
      *
      * Calling this method on any other elements is not allowed.
      *
-     * @return Boolean
+     * @return boolean
      */
     public function isSelected()
     {
-        return (Boolean) $this->getDriver()->isSelected($this->getXpath());
+        return (boolean) $this->getDriver()->isSelected($this->getXpath());
     }
 
     /**
@@ -264,11 +264,11 @@ class NodeElement extends TraversableElement
     /**
      * Checks whether current node is visible on page.
      *
-     * @return Boolean
+     * @return boolean
      */
     public function isVisible()
     {
-        return (Boolean) $this->getDriver()->isVisible($this->getXpath());
+        return (boolean) $this->getDriver()->isVisible($this->getXpath());
     }
 
     /**
@@ -308,8 +308,8 @@ class NodeElement extends TraversableElement
     /**
      * Presses specific keyboard key.
      *
-     * @param string|int $char     could be either char ('b') or char-code (98)
-     * @param string     $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
+     * @param string|int  $char     could be either char ('b') or char-code (98)
+     * @param string|null $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
      */
     public function keyPress($char, $modifier = null)
     {
@@ -319,8 +319,8 @@ class NodeElement extends TraversableElement
     /**
      * Pressed down specific keyboard key.
      *
-     * @param string|int $char     could be either char ('b') or char-code (98)
-     * @param string     $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
+     * @param string|int  $char     could be either char ('b') or char-code (98)
+     * @param string|null $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
      */
     public function keyDown($char, $modifier = null)
     {
@@ -330,8 +330,8 @@ class NodeElement extends TraversableElement
     /**
      * Pressed up specific keyboard key.
      *
-     * @param string|int $char     could be either char ('b') or char-code (98)
-     * @param string     $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
+     * @param string|int  $char     could be either char ('b') or char-code (98)
+     * @param string|null $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
      */
     public function keyUp($char, $modifier = null)
     {

@@ -5,6 +5,7 @@
  * The Social Sharing module.
  */
 
+use Drupal\Core\Template\Attribute;
 use Drupal\node\Entity\Node;
 use Drupal\block\Entity\Block;
 use Drupal\Core\Session\AccountInterface;
@@ -15,13 +16,30 @@ use Drupal\Core\Access\AccessResult;
  */
 function social_sharing_block_access(Block $block, $operation, AccountInterface $account) {
 
-  if ($operation == 'view' && $block->getPluginId() == 'addtoany_block') {
+  if ($operation == 'view' && $block->getPluginId() == 'shariff_block') {
     // Exclude Social Sharing block form Add and Edit node pages.
     $route_name = \Drupal::routeMatch()->getRouteName();
     $excluded_routes = [
       'node.add',
       'entity.node.edit_form',
+      'entity.node.delete_form',
     ];
+
+    // Call module handler service.
+    $module_handler = \Drupal::service('module_handler');
+
+    // Exclude Social Sharing block form event invite pages.
+    if ($module_handler->moduleExists('social_group_invite')) {
+      $excluded_routes[] = 'ginvite.invitation.bulk';
+      $excluded_routes[] = 'ginvite.invitation.bulk.confirm';
+    }
+
+    // Exclude Social Sharing block form group invite pages.
+    if ($module_handler->moduleExists('social_event_invite')) {
+      $excluded_routes[] = 'social_event_invite.invite_email';
+      $excluded_routes[] = 'social_event_invite.invite_user';
+      $excluded_routes[] = 'social_event_invite.confirm_invite';
+    }
 
     if (in_array($route_name, $excluded_routes)) {
       return AccessResult::forbidden();
@@ -34,7 +52,7 @@ function social_sharing_block_access(Block $block, $operation, AccountInterface 
       // We have a node!
       if (!empty($nid) && $node = Node::load($nid)) {
         $field_definitions = $node->getFieldDefinitions();
-        /* @var \Drupal\Core\Field\FieldConfigInterface $field_definition */
+        /** @var \Drupal\Core\Field\FieldConfigInterface $field_definition */
         foreach ($field_definitions as $field_name => $field_definition) {
           // Lets fetch all the entity access fields on this current node.
           if ($field_definition->getType() === 'entity_access_field') {
@@ -58,4 +76,18 @@ function social_sharing_block_access(Block $block, $operation, AccountInterface 
 
   // No opinion for other situations really.
   return AccessResult::neutral();
+}
+
+/**
+ * Implements hook_preprocess().
+ */
+function social_sharing_preprocess_block_shariff(&$variables, $hook) {
+  /** @var \Drupal\Core\Template\Attribute $data_attributes */
+  $data_attributes = $variables['data_attributes'];
+  // Make an array representation so we can add data attributes.
+  $data = $data_attributes->toArray();
+  // Add buttons style.
+  $data['data-button-style'] = 'info';
+  // Put it back as attribute, so it can be rendered.
+  $variables['data_attributes'] = new Attribute($data);
 }

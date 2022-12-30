@@ -1,0 +1,172 @@
+.gin--dark-mode .cke.cke .cke_inner,
+.gin--dark-mode .cke.cke .cke_wysiwyg_frame,
+.gin--dark-mode .cke.cke .cke_wysiwyg_div {
+  background: var(--colorGinLayer2Background);
+}
+
+.cke.cke.cke_chrome {
+  width: 100% !important;
+  border-color: var(--colorGinFormElementBorder);
+  border-radius: var(--ginBorderDefault);
+}
+
+.cke.cke .cke_inner {
+  border-radius: var(--ginBorderDefault);
+}
+
+.cke.cke .cke_top {
+  background: var(--colorGinLayerBackground);
+  border-bottom: 1px solid var(--colorGinBorder);
+  border-radius: calc(var(--ginBorderDefault) - 1px) calc(var(--ginBorderDefault) - 1px) 0 0;
+}
+
+.gin--dark-mode .cke.cke .cke_top {
+  background: var(--colorGinLayer2Background);
+}
+
+.cke.cke .cke_bottom {
+  background: var(--colorGinLayer3Background);
+  border-radius: 0 0 calc(var(--ginBorderDefault) - 1px) calc(var(--ginBorderDefault) - 1px);
+}
+
+.cke.cke .cke_contents {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.cke.cke .cke_path_empty:only-child::after {
+  background: transparent;
+}
+
+[dir="ltr"] .cke.cke .cke_combo::after {
+  border-right: 1px solid var(--colorGinBorder);
+}
+
+[dir="rtl"] .cke.cke .cke_combo::after {
+  border-left: 1px solid var(--colorGinBorder);
+}
+
+.cke.cke .cke_combo_text {
+  color: var(--colorGinText);
+}
+
+.cke.cke .cke_combo_on a.cke_combo_button,
+.cke.cke .cke_combo_off a.cke_combo_button:hover,
+.cke.cke .cke_combo_off a.cke_combo_button:focus,
+.cke.cke .cke_combo_off a.cke_combo_button:active {
+  background: var(--colorGinAppBackground);
+  border: 1px solid var(--colorGinLayer2Background);
+}
+
+.cke.cke a.cke_path_item,
+.cke.cke span.cke_path_empty {
+  color: var(--colorGinTextLight);
+}
+
+.cke.cke a.cke_button {
+  border-radius: 3px;
+}
+
+.cke.cke a.cke_button_on {
+  background: none;
+}
+
+.cke.cke a.cke_button_off:hover, .cke.cke a.cke_button_off:focus, .cke.cke a.cke_button_off:active {
+  background: var(--colorGinItemHover);
+  border: 1px solid var(--colorGinLayer2Border);
+}
+
+.gin--dark-mode .cke.cke .cke_button span {
+  filter: invert(1);
+}
+
+.cke.cke.cke_panel {
+  background-color: var(--colorGinAppBackground);
+  border: 0 none;
+}
+
+.cke.cke_chrome.cke_focus {
+  border-color: transparent;
+}
+
+.cke.cke_chrome:hover,
+.cke:hover .cke_contents,
+.cke:hover .cke_top,
+.cke:hover .cke_bottom {
+  border-color: var(--colorGinText);
+}
+
+.gin--dark-mode .cke.cke_chrome:hover,
+.gin--dark-mode .cke:hover .cke_contents,
+.gin--dark-mode .cke:hover .cke_top,
+.gin--dark-mode .cke:hover .cke_bottom {
+  border-color: var(--colorGinLayer2Border);
+}
+
+.cke:hover .cke_top, .gin--dark-mode .cke:hover .cke_top {
+  border-bottom-color: var(--colorGinBorder);
+}
+
+.cke.cke_chrome.cke_focus:hover,
+.cke.cke_focus .cke_contents,
+.cke.cke_focus .cke_top,
+.cke.cke_focus .cke_bottom,
+.error + .cke.cke_chrome.cke_focus:hover,
+.error + .cke.cke_focus .cke_contents,
+.error + .cke.cke_focus .cke_top,
+.error + .cke.cke_focus .cke_bottom {
+  border-color: var(--colorGinText);
+}
+
+.cke_top,
+.cke.cke_chrome.cke_focus:hover .cke_top,
+.cke.cke_focus .cke_top,
+.error + .cke.cke_focus .cke_top,
+.error + .cke.cke_chrome.cke_focus:hover .cke_top {
+  border-bottom: 1px solid var(--colorGinBorder);
+}
+
+.cke textarea.cke_source {
+  padding: .75rem .5rem;
+  color: var(--colorGinText);
+  background-color: transparent;
+}
+
+body .cke_notification_info {
+  opacity: 1;
+  padding: .5rem;
+  background: var(--colorGinLayer4Background);
+  border: 0 none;
+  border-radius: var(--ginBorderDefault);
+  box-shadow: var(--ginShadowLevel1);
+}
+
+body .cke_notification_info .cke_notification_message {
+  color: var(--colorGinText);
+}
+
+body .cke_notification_info .cke_notification_close {
+  top: 4px;
+  background: var(--colorGinText);
+  -webkit-mask-image: url("../../media/sprite.svg#close-view");
+          mask-image: url("../../media/sprite.svg#close-view");
+  -webkit-mask-position: center center;
+          mask-position: center center;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-size: 12px 12px;
+          mask-size: 12px 12px;
+}
+
+[dir="ltr"] body .cke_notification_info .cke_notification_close {
+  right: 4px;
+}
+
+[dir="rtl"] body .cke_notification_info .cke_notification_close {
+  left: 4px;
+}
+
+.filter-tips {
+  color: var(--colorGinTextLight);
+}
+

@@ -5,9 +5,13 @@ namespace Drupal\private_message\Service;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
+use Drupal\Core\Url;
 use Drupal\private_message\Entity\PrivateMessageInterface;
+use Drupal\private_message\Entity\PrivateMessageThreadInterface;
 use Drupal\private_message\Mapper\PrivateMessageMapperInterface;
 use Drupal\user\UserDataInterface;
 use Drupal\user\UserInterface;
@@ -62,7 +66,7 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
   /**
    * The user entity manager.
    *
-   * @var \Crupal\user\UserStorageInterface
+   * @var \Drupal\user\UserStorageInterface
    */
   protected $userManager;
 
@@ -76,7 +80,7 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
   /**
    * Constructs a PrivateMessageService object.
    *
-   * @param Drupal\private_message\Mapper\PrivateMessageMapperInterface $mapper
+   * @param \Drupal\private_message\Mapper\PrivateMessageMapperInterface $mapper
    *   The private message mapper service.
    * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
    *   The current user.
@@ -90,6 +94,9 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
    *   The entity type manager interface.
    * @param \Drupal\Component\Datetime\TimeInterface $time
    *   The time service.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function __construct(
     PrivateMessageMapperInterface $mapper,
@@ -119,9 +126,8 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
     if ($thread_id) {
       return $this->pmThreadManager->load($thread_id);
     }
-    else {
-      return $this->createPrivateMessageThread($members);
-    }
+
+    return $this->createPrivateMessageThread($members);
   }
 
   /**
@@ -163,6 +169,15 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
   /**
    * {@inheritdoc}
    */
+  public function getCountThreadsForUser() {
+    $user = $this->userManager->load($this->currentUser->id());
+    $thread_ids = $this->mapper->getThreadIdsForUser($user);
+    return count($thread_ids);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getNewMessages($threadId, $messageId) {
     $response = [];
 
@@ -189,7 +204,10 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
    * {@inheritdoc}
    */
   public function getPreviousMessages($threadId, $messageId) {
-    $return = [];
+    $return = [
+      'messages' => [],
+      'next_exists' => FALSE,
+    ];
 
     $private_message_thread = $this->pmThreadManager->load($threadId);
     if ($private_message_thread && $private_message_thread->isMember($this->currentUser->id())) {
@@ -198,11 +216,12 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
       $start_index = FALSE;
       $settings = $this->configFactory->get('core.entity_view_display.private_message_thread.private_message_thread.default')->get('content.private_messages.settings');
       $count = $settings['ajax_previous_load_count'];
+
+      $total = count($messages);
       foreach ($messages as $index => $message) {
         if ($message->id() >= $messageId) {
-          $start_index = $index - $count >= 0 ? $index - $count : 0;
-          $slice_count = $index > $count ? $count : $index;
-
+          $start_index = max($index - $count, 0);
+          $slice_count = min($index, $count);
           break;
         }
       }
@@ -215,7 +234,9 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
             $messages = array_reverse($messages);
           }
 
-          $return = $messages;
+          $return['messages'] = $messages;
+          $old_messages = $total - ($start_index + $slice_count);
+          $return['next_exists'] = ($old_messages + count($messages)) < $total;
         }
       }
     }
@@ -295,6 +316,13 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
   /**
    * {@inheritdoc}
    */
+  public function updateThreadAccessTime(PrivateMessageThreadInterface $thread) {
+    $thread->updateLastAccessTime($this->currentUser);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getThreadFromMessage(PrivateMessageInterface $privateMessage) {
     $thread_id = $this->mapper->getThreadIdFromMessage($privateMessage);
     if ($thread_id) {
@@ -305,6 +333,64 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function createRenderablePrivateMessageThreadLink(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+    if ($display->getComponent('private_message_link')) {
+      if ($entity instanceof UserInterface) {
+        $author = $entity;
+      }
+      else {
+        $author = $entity->getOwner();
+      }
+      $current_user = \Drupal::currentUser();
+      if ($current_user->isAuthenticated()) {
+        if ($current_user->hasPermission('use private messaging system') && $current_user->id() != $author->id()) {
+          $members = [$current_user, $author];
+          $thread_id = $this->mapper->getThreadIdForMembers($members);
+          if ($thread_id) {
+            $url = Url::fromRoute('entity.private_message_thread.canonical', ['private_message_thread' => $thread_id], ['attributes' => ['class' => ['private_message_link']]]);
+            $build['private_message_link'] = [
+              '#type' => 'link',
+              '#url' => $url,
+              '#title' => t('Send private message'),
+              '#prefix' => '<div class="private_message_link_wrapper">',
+              '#suffix' => '</div>',
+            ];
+          }
+          else {
+            $url = Url::fromRoute('private_message.private_message_create', [], ['query' => ['recipient' => $author->id()]]);
+            $build['private_message_link'] = [
+              '#type' => 'link',
+              '#url' => $url,
+              '#title' => t('Send private message'),
+              '#prefix' => '<div class="private_message_link_wrapper">',
+              '#suffix' => '</div>',
+            ];
+          }
+        }
+      }
+      else {
+        $url = Url::fromRoute('user.login');
+        $build['private_message_link'] = [
+          '#type' => 'link',
+          '#url' => $url,
+          '#title' => t('Send private message'),
+          '#prefix' => '<div class="private_message_link_wrapper">',
+          '#suffix' => '</div>',
+        ];
+      }
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getThreadIds() {
+    return $this->mapper->getThreadIds();
+  }
+
+  /**
    * Create a new private message thread for the given users.
    *
    * @param \Drupal\user\Entity\User[] $members
@@ -312,6 +398,8 @@ class PrivateMessageService implements PrivateMessageServiceInterface {
    *
    * @return \Drupal\private_message\Entity\PrivateMessageThread
    *   The new private message thread.
+   *
+   * @throws \Drupal\Core\Entity\EntityStorageException
    */
   protected function createPrivateMessageThread(array $members) {
     $thread = $this->pmThreadManager->create();

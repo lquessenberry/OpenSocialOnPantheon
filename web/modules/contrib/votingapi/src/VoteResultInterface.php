@@ -4,7 +4,6 @@ namespace Drupal\votingapi;
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\user\EntityOwnerInterface;
-use Drupal\user\UserInterface;
 
 /**
  * Provides an interface defining a vote entity.
@@ -20,7 +19,12 @@ interface VoteResultInterface extends ContentEntityInterface, EntityOwnerInterfa
   public function getVotedEntityType();
 
   /**
-   * {@inheritdoc}
+   * Sets the type of entity that the vote was cast on.
+   *
+   * @param string $name
+   *   The entity type.
+   *
+   * @return $this
    */
   public function setVotedEntityType($name);
 
@@ -33,14 +37,19 @@ interface VoteResultInterface extends ContentEntityInterface, EntityOwnerInterfa
   public function getVotedEntityId();
 
   /**
-   * {@inheritdoc}
+   * Sets the ID of the entity that the vote was cast on.
+   *
+   * @param int $id
+   *   The entity ID.
+   *
+   * @return $this
    */
   public function setVotedEntityId($id);
 
   /**
    * Returns the vote value.
    *
-   * @return int
+   * @return float
    *   The numeric value of the vote.
    */
   public function getValue();
@@ -51,48 +60,62 @@ interface VoteResultInterface extends ContentEntityInterface, EntityOwnerInterfa
    * @param float $value
    *   The vote value.
    *
-   * @return \Drupal\votingapi\VoteInterface
-   *   The called vote entity.
+   * @return $this
    */
   public function setValue($value);
 
   /**
-   * {@inheritdoc}
+   * Returns the vote value type.
+   *
+   * @return string
+   *   The value type of the vote.
    */
   public function getValueType();
 
   /**
-   * {@inheritdoc}
+   * Sets the vote value type.
+   *
+   * @param string $value_type
+   *   The vote value type.
+   *
+   * @return $this
    */
   public function setValueType($value_type);
 
   /**
-   * {@inheritdoc}
+   * Gets the vote creation timestamp.
+   *
+   * @return int
+   *   Creation timestamp of the vote.
    */
-  public function getOwner();
+  public function getCreatedTime();
 
   /**
-   * {@inheritdoc}
+   * Sets the vote creation timestamp.
+   *
+   * @param int $timestamp
+   *   The vote creation timestamp.
+   *
+   * @return $this
    */
-  public function setOwner(UserInterface $account);
+  public function setCreatedTime($timestamp);
 
   /**
-   * {@inheritdoc}
-   */
-  public function getOwnerId();
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setOwnerId($uid);
-
-  /**
-   * {@inheritdoc}
+   * Returns the name of the function to apply to the numbers.
+   *
+   * @return string
+   *   Name of the function to apply.
    */
   public function getFunction();
 
   /**
-   * {@inheritdoc}
+   * Sets the function to apply to the numbers.
+   *
+   * @param string $function
+   *   The function name.
+   *
+   * @return $this
    */
   public function setFunction($function);
+
 }

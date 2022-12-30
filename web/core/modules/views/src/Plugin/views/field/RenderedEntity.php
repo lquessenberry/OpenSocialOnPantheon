@@ -3,7 +3,9 @@
 namespace Drupal\views\Plugin\views\field;
 
 use Drupal\Core\Cache\CacheableDependencyInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\views\Entity\Render\EntityTranslationRenderTrait;
@@ -23,11 +25,25 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
   use EntityTranslationRenderTrait;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
+
+  /**
+   * The entity repository service.
+   *
+   * @var \Drupal\Core\Entity\EntityRepositoryInterface
+   */
+  protected $entityRepository;
+
+  /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
 
   /**
    * The language manager.
@@ -45,16 +61,22 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
    *   The plugin_id for the plugin instance.
    * @param array $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   The language manager.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
+   * @param \Drupal\Core\Entity\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EntityManagerInterface $entity_manager, LanguageManagerInterface $language_manager) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, EntityTypeManagerInterface $entity_type_manager, LanguageManagerInterface $language_manager, EntityRepositoryInterface $entity_repository, EntityDisplayRepositoryInterface $entity_display_repository) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
     $this->languageManager = $language_manager;
+    $this->entityRepository = $entity_repository;
+    $this->entityDisplayRepository = $entity_display_repository;
   }
 
   /**
@@ -65,8 +87,10 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager'),
-      $container->get('language_manager')
+      $container->get('entity_type.manager'),
+      $container->get('language_manager'),
+      $container->get('entity.repository'),
+      $container->get('entity_display.repository')
     );
   }
 
@@ -95,7 +119,7 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
 
     $form['view_mode'] = [
       '#type' => 'select',
-      '#options' => $this->entityManager->getViewModeOptions($this->getEntityTypeId()),
+      '#options' => $this->entityDisplayRepository->getViewModeOptions($this->getEntityTypeId()),
       '#title' => $this->t('View mode'),
       '#default_value' => $this->options['view_mode'],
     ];
@@ -105,17 +129,19 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
    * {@inheritdoc}
    */
   public function render(ResultRow $values) {
-    $entity = $this->getEntityTranslation($this->getEntity($values), $values);
-    $build = [];
-    if (isset($entity)) {
+    $entity = $this->getEntity($values);
+    if ($entity) {
+      $build = [];
+      $entity = $this->getEntityTranslation($entity, $values);
       $access = $entity->access('view', NULL, TRUE);
       $build['#access'] = $access;
       if ($access->isAllowed()) {
-        $view_builder = $this->entityManager->getViewBuilder($this->getEntityTypeId());
-        $build += $view_builder->view($entity, $this->options['view_mode']);
+        $view_builder = $this->entityTypeManager->getViewBuilder($this->getEntityTypeId());
+        $build += $view_builder->view($entity, $this->options['view_mode'], $entity->language()->getId());
       }
+      return $build;
     }
-    return $build;
+    return '';
   }
 
   /**
@@ -129,7 +155,7 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
    * {@inheritdoc}
    */
   public function getCacheTags() {
-    $view_display_storage = $this->entityManager->getStorage('entity_view_display');
+    $view_display_storage = $this->entityTypeManager->getStorage('entity_view_display');
     $view_displays = $view_display_storage->loadMultiple($view_display_storage
       ->getQuery()
       ->condition('targetEntityType', $this->getEntityTypeId())
@@ -137,9 +163,9 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
 
     $tags = [];
     foreach ($view_displays as $view_display) {
-      $tags = array_merge($tags, $view_display->getCacheTags());
+      $tags[] = $view_display->getCacheTags();
     }
-    return $tags;
+    return array_merge([], ...$tags);
   }
 
   /**
@@ -171,8 +197,15 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
   /**
    * {@inheritdoc}
    */
-  protected function getEntityManager() {
-    return $this->entityManager;
+  protected function getEntityTypeManager() {
+    return $this->entityTypeManager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getEntityRepository() {
+    return $this->entityRepository;
   }
 
   /**
@@ -195,7 +228,7 @@ class RenderedEntity extends FieldPluginBase implements CacheableDependencyInter
   public function calculateDependencies() {
     $dependencies = parent::calculateDependencies();
 
-    $view_mode = $this->entityManager
+    $view_mode = $this->entityTypeManager
       ->getStorage('entity_view_mode')
       ->load($this->getEntityTypeId() . '.' . $this->options['view_mode']);
     if ($view_mode) {

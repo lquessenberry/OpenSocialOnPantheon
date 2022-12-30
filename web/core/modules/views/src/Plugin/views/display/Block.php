@@ -2,7 +2,10 @@
 
 namespace Drupal\views\Plugin\views\display;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Url;
+use Drupal\Component\Plugin\Discovery\CachedDiscoveryInterface;
+use Drupal\Core\Block\BlockManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\views\Plugin\Block\ViewsBlock;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -36,11 +39,18 @@ class Block extends DisplayPluginBase {
   protected $usesAttachments = TRUE;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
+
+  /**
+   * The block manager.
+   *
+   * @var \Drupal\Core\Block\BlockManagerInterface
+   */
+  protected $blockManager;
 
   /**
    * Constructs a new Block instance.
@@ -51,13 +61,16 @@ class Block extends DisplayPluginBase {
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Block\BlockManagerInterface $block_manager
+   *   The block manager.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, BlockManagerInterface $block_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->blockManager = $block_manager;
   }
 
   /**
@@ -68,7 +81,8 @@ class Block extends DisplayPluginBase {
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager')
+      $container->get('entity_type.manager'),
+      $container->get('plugin.manager.block')
     );
   }
 
@@ -186,15 +200,17 @@ class Block extends DisplayPluginBase {
           '#default_value' => $this->getOption('block_description'),
         ];
         break;
+
       case 'block_category':
         $form['#title'] .= $this->t('Block category');
         $form['block_category'] = [
           '#type' => 'textfield',
           '#autocomplete_route_name' => 'block.category_autocomplete',
-          '#description' => $this->t('The category this block will appear under on the <a href=":href">blocks placement page</a>.', [':href' => \Drupal::url('block.admin_display')]),
+          '#description' => $this->t('The category this block will appear under on the <a href=":href">blocks placement page</a>.', [':href' => Url::fromRoute('block.admin_display')->toString()]),
           '#default_value' => $this->getOption('block_category'),
         ];
         break;
+
       case 'block_hide_empty':
         $form['#title'] .= $this->t('Block empty settings');
 
@@ -205,6 +221,7 @@ class Block extends DisplayPluginBase {
           '#default_value' => $this->getOption('block_hide_empty'),
         ];
         break;
+
       case 'exposed_form_options':
         $this->view->initHandlers();
         if (!$this->usesExposed() && parent::usesExposed()) {
@@ -214,6 +231,7 @@ class Block extends DisplayPluginBase {
           ];
         }
         break;
+
       case 'allow':
         $form['#title'] .= $this->t('Allow settings in the block configuration');
 
@@ -221,7 +239,7 @@ class Block extends DisplayPluginBase {
           'items_per_page' => $this->t('Items per page'),
         ];
 
-        $allow = array_filter($this->getOption('allow'));
+        $allow = array_keys(array_filter($this->getOption('allow')));
         $form['allow'] = [
           '#type' => 'checkboxes',
           '#default_value' => $allow,
@@ -233,6 +251,7 @@ class Block extends DisplayPluginBase {
 
   /**
    * Perform any necessary changes to the form values prior to storage.
+   *
    * There is no need for this function to actually store the data.
    */
   public function submitOptionsForm(&$form, FormStateInterface $form_state) {
@@ -281,10 +300,18 @@ class Block extends DisplayPluginBase {
             '#title' => $this->t('Items per block'),
             '#options' => [
               'none' => $this->t('@count (default setting)', ['@count' => $this->getPlugin('pager')->getItemsPerPage()]),
+              1 => 1,
+              2 => 2,
+              3 => 3,
+              4 => 4,
               5 => 5,
+              6 => 6,
               10 => 10,
+              12 => 12,
               20 => 20,
+              24 => 24,
               40 => 40,
+              48 => 48,
             ],
             '#default_value' => $block_configuration['items_per_page'],
           ];
@@ -343,13 +370,10 @@ class Block extends DisplayPluginBase {
   }
 
   /**
-   * Block views use exposed widgets only if AJAX is set.
+   * {@inheritdoc}
    */
-  public function usesExposed() {
-    if ($this->ajaxEnabled()) {
-      return parent::usesExposed();
-    }
-    return FALSE;
+  public function usesExposedFormInBlock() {
+    return TRUE;
   }
 
   /**
@@ -358,11 +382,14 @@ class Block extends DisplayPluginBase {
   public function remove() {
     parent::remove();
 
-    if ($this->entityManager->hasDefinition('block')) {
+    if ($this->entityTypeManager->hasDefinition('block')) {
       $plugin_id = 'views_block:' . $this->view->storage->id() . '-' . $this->display['id'];
-      foreach ($this->entityManager->getStorage('block')->loadByProperties(['plugin' => $plugin_id]) as $block) {
+      foreach ($this->entityTypeManager->getStorage('block')->loadByProperties(['plugin' => $plugin_id]) as $block) {
         $block->delete();
       }
+    }
+    if ($this->blockManager instanceof CachedDiscoveryInterface) {
+      $this->blockManager->clearCachedDefinitions();
     }
   }
 

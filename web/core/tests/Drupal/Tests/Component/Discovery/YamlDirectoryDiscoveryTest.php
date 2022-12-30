@@ -20,7 +20,7 @@ class YamlDirectoryDiscoveryTest extends TestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     // Ensure that FileCacheFactory has a prefix.
     FileCacheFactory::setPrefix('prefix');
   }
@@ -87,7 +87,7 @@ class YamlDirectoryDiscoveryTest extends TestCase {
     $this->assertSame(['id' => 'item3', 'name' => 'test2 item 3', YamlDirectoryDiscovery::FILE_KEY => 'vfs://modules/test_2/subdir1/item_3.test.yml'], $data['test_2']['item3']);
     $this->assertCount(1, $data['test_2']);
 
-    $this->assertTrue(empty($data['test_3']), 'test_3 provides 0 items');
+    $this->assertArrayNotHasKey('test_3', $data, 'test_3 provides 0 items');
 
     $this->assertSame(['id' => 'item4', 'name' => 'test4 item 4', YamlDirectoryDiscovery::FILE_KEY => 'vfs://modules/test_4/subdir1/item_4.test.yml'], $data['test_4']['item4']);
     $this->assertSame(['id' => 'item5', 'name' => 'test4 item 5', YamlDirectoryDiscovery::FILE_KEY => 'vfs://modules/test_4/subdir1/item_5.test.yml'], $data['test_4']['item5']);
@@ -124,13 +124,8 @@ class YamlDirectoryDiscoveryTest extends TestCase {
    * @covers ::getIdentifier
    */
   public function testDiscoveryNoIdException() {
-    if (method_exists($this, 'expectException')) {
-      $this->expectException(DiscoveryException::class);
-      $this->expectExceptionMessage('The vfs://modules/test_1/item_1.test.yml contains no data in the identifier key \'id\'');
-    }
-    else {
-      $this->setExpectedException(DiscoveryException::class, 'The vfs://modules/test_1/item_1.test.yml contains no data in the identifier key \'id\'');
-    }
+    $this->expectException(DiscoveryException::class);
+    $this->expectExceptionMessage('The vfs://modules/test_1/item_1.test.yml contains no data in the identifier key \'id\'');
     vfsStream::setup('modules', NULL, [
       'test_1' => [
         'item_1.test.yml' => "",
@@ -150,13 +145,8 @@ class YamlDirectoryDiscoveryTest extends TestCase {
    * @covers ::findAll
    */
   public function testDiscoveryInvalidYamlException() {
-    if (method_exists($this, 'expectException')) {
-      $this->expectException(DiscoveryException::class);
-      $this->expectExceptionMessage('The vfs://modules/test_1/item_1.test.yml contains invalid YAML');
-    }
-    else {
-      $this->setExpectedException(DiscoveryException::class, 'The vfs://modules/test_1/item_1.test.yml contains invalid YAML');
-    }
+    $this->expectException(DiscoveryException::class);
+    $this->expectExceptionMessage('The vfs://modules/test_1/item_1.test.yml contains invalid YAML');
     vfsStream::setup('modules', NULL, [
       'test_1' => [
         'item_1.test.yml' => "id: invalid\nfoo : [bar}",

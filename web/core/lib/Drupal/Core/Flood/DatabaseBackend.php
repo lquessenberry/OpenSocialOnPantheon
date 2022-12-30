@@ -2,7 +2,7 @@
 
 namespace Drupal\Core\Flood;
 
-use Drupal\Core\Database\SchemaObjectExistsException;
+use Drupal\Core\Database\DatabaseException;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Drupal\Core\Database\Connection;
 
@@ -67,7 +67,7 @@ class DatabaseBackend implements FloodInterface {
   }
 
   /**
-   * Inserts an event into the flood table
+   * Inserts an event into the flood table.
    *
    * @param string $name
    *   The name of an event.
@@ -135,7 +135,7 @@ class DatabaseBackend implements FloodInterface {
    */
   public function garbageCollection() {
     try {
-      $return = $this->connection->delete(static::TABLE_NAME)
+      $this->connection->delete(static::TABLE_NAME)
         ->condition('expiration', REQUEST_TIME, '<')
         ->execute();
     }
@@ -150,19 +150,18 @@ class DatabaseBackend implements FloodInterface {
   protected function ensureTableExists() {
     try {
       $database_schema = $this->connection->schema();
-      if (!$database_schema->tableExists(static::TABLE_NAME)) {
-        $schema_definition = $this->schemaDefinition();
-        $database_schema->createTable(static::TABLE_NAME, $schema_definition);
-        return TRUE;
-      }
+      $schema_definition = $this->schemaDefinition();
+      $database_schema->createTable(static::TABLE_NAME, $schema_definition);
     }
     // If another process has already created the table, attempting to create
     // it will throw an exception. In this case just catch the exception and do
     // nothing.
-    catch (SchemaObjectExistsException $e) {
-      return TRUE;
+    catch (DatabaseException $e) {
     }
-    return FALSE;
+    catch (\Exception $e) {
+      return FALSE;
+    }
+    return TRUE;
   }
 
   /**

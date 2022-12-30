@@ -119,12 +119,22 @@ class TestFieldsProcessorPlugin extends FieldsProcessorPluginBase {
   /**
    * {@inheritdoc}
    */
+  protected function shouldProcess($value): bool {
+    if (isset($this->methodOverrides[__FUNCTION__])) {
+      return $this->methodOverrides[__FUNCTION__]($value);
+    }
+    return parent::shouldProcess($value);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   protected function process(&$value) {
     if (isset($this->methodOverrides[__FUNCTION__])) {
       $this->methodOverrides[__FUNCTION__]($value);
       return;
     }
-    if (isset($value)) {
+    if ($value !== NULL) {
       $value = "*$value";
     }
     else {

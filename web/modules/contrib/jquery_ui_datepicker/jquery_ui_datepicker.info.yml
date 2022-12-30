@@ -1,0 +1,12 @@
+name: jQuery UI Datepicker
+type: module
+description: 'Provides jQuery UI Datepicker library.'
+package: jQuery UI
+core_version_requirement: ^8 || ^9 || ^10
+dependencies:
+  - jquery_ui:jquery_ui
+
+# Information added by Drupal.org packaging script on 2022-10-15
+version: '8.x-1.4'
+project: 'jquery_ui_datepicker'
+datestamp: 1665821293

@@ -1,0 +1,19 @@
+{
+    "name": "drupal/jquery_ui_datepicker",
+    "description": "Provides jQuery UI Datepicker library.",
+    "type": "drupal-module",
+    "homepage": "https://www.drupal.org/project/jquery_ui_datepicker",
+    "authors": [
+        {
+            "name": "Andrei Ivnitskii",
+            "homepage": "https://www.drupal.org/u/ivnish",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/jquery_ui_datepicker",
+        "source": "https://git.drupalcode.org/project/jquery_ui_datepicker"
+    },
+    "minimum-stability": "dev",
+    "require": {}
+}

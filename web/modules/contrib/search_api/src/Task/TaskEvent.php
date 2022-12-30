@@ -3,7 +3,7 @@
 namespace Drupal\search_api\Task;
 
 use Drupal\search_api\SearchApiException;
-use Symfony\Component\EventDispatcher\Event;
+use Drupal\Component\EventDispatcher\Event;
 
 /**
  * Represents an event that was fired to execute a pending task.

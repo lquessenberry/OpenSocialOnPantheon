@@ -3,8 +3,8 @@ parameters:
   private_message.service.class: 'Drupal\private_message\Service\PrivateMessageService'
   private_message.event_subscriber.class: 'Drupal\private_message\Event\PrivateMessageEventSubscriber'
   cache_context.private_message_thread.class: 'Drupal\private_message\Cache\Context\PrivateMessageThreadCacheContext'
-  private_message.mailer.class: 'Drupal\private_message\Service\PrivateMessageMailer'
   private_message.thread_manager.class: 'Drupal\private_message\Service\PrivateMessageThreadManager'
+  private_message.private_message_config_form_manager.class: 'Drupal\private_message\PluginManager\PrivateMessageConfigFormManager'
 
 services:
   private_message.mapper:
@@ -31,17 +31,11 @@ services:
     tags:
       - { name: cache.context}
 
-  private_message.mailer:
-    class: '%private_message.mailer.class%'
-    arguments:
-      - '@private_message.service'
-      - '@plugin.manager.mail'
-      - '@current_user'
-      - '@user.data'
-      - '@config.factory'
-
   private_message.thread_manager:
     class: '%private_message.thread_manager.class%'
     arguments:
       - '@private_message.service'
-      - '@private_message.mailer'
+
+  private_message.private_message_config_form_manager:
+    class: '%private_message.private_message_config_form_manager.class%'
+    parent: default_plugin_manager

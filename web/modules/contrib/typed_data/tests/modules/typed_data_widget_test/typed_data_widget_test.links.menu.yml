@@ -1,0 +1,6 @@
+typed_data_widget_test.examples:
+  title: 'Typed Data Widgets'
+  parent: system.admin_config_ui
+  description: 'Shows examples for typed data widgets.'
+  route_name: typed_data_widget_test.examples
+  weight: 10

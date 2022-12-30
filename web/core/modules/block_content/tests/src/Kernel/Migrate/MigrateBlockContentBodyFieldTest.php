@@ -15,15 +15,15 @@ use Drupal\Tests\migrate_drupal\Kernel\d7\MigrateDrupal7TestBase;
  */
 class MigrateBlockContentBodyFieldTest extends MigrateDrupal7TestBase {
 
-  public static $modules = ['block', 'block_content', 'filter', 'text'];
+  protected static $modules = ['block', 'block_content', 'filter', 'text'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-    $this->installConfig(['block_content']);
     $this->installEntitySchema('block_content');
+    $this->installConfig(['block_content']);
     $this->executeMigrations([
       'block_content_type',
       'block_content_body_field',
@@ -36,18 +36,18 @@ class MigrateBlockContentBodyFieldTest extends MigrateDrupal7TestBase {
   public function testBlockContentBodyFieldMigration() {
     /** @var \Drupal\field\FieldStorageConfigInterface $storage */
     $storage = FieldStorageConfig::load('block_content.body');
-    $this->assertTrue($storage instanceof FieldStorageConfigInterface);
-    $this->assertIdentical('block_content', $storage->getTargetEntityTypeId());
-    $this->assertIdentical(['basic'], array_values($storage->getBundles()));
-    $this->assertIdentical('body', $storage->getName());
+    $this->assertInstanceOf(FieldStorageConfigInterface::class, $storage);
+    $this->assertSame('block_content', $storage->getTargetEntityTypeId());
+    $this->assertSame(['basic'], array_values($storage->getBundles()));
+    $this->assertSame('body', $storage->getName());
 
     /** @var \Drupal\field\FieldConfigInterface $field */
     $field = FieldConfig::load('block_content.basic.body');
-    $this->assertTrue($field instanceof FieldConfigInterface);
-    $this->assertIdentical('block_content', $field->getTargetEntityTypeId());
-    $this->assertIdentical('basic', $field->getTargetBundle());
-    $this->assertIdentical('body', $field->getName());
-    $this->assertIdentical('Body', $field->getLabel());
+    $this->assertInstanceOf(FieldConfigInterface::class, $field);
+    $this->assertSame('block_content', $field->getTargetEntityTypeId());
+    $this->assertSame('basic', $field->getTargetBundle());
+    $this->assertSame('body', $field->getName());
+    $this->assertSame('Body', $field->getLabel());
   }
 
 }

@@ -54,12 +54,19 @@ field.value.link:
   type: mapping
   label: 'Default value'
   mapping:
+    attributes:
+      type: mapping
+      label: 'Link attributes'
+      mapping:
+        title:
+          type: label
+          label: 'Link text'
+    uri:
+      type: string
+      label: 'URL'
     title:
       type: label
       label: 'Link text'
-    url:
-      type: string
-      label: 'URL'
     options:
       type: mapping
       label: 'Link options'
@@ -74,10 +81,10 @@ field.value.link:
           label: 'URL fragment'
         absolute:
           type: boolean
-          label: 'Is this URL absolute'
+          label: 'Whether to force the output to be an absolute link (beginning with http: or https:)'
         https:
           type: boolean
-          label: 'If the URL should use a secure protocol'
+          label: 'Whether to force this URL to point to a secure location (beginning with https:)'
         attributes:
           type: sequence
           label: 'Link attributes'

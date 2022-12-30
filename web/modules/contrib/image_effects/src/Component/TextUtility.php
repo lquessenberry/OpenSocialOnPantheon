@@ -2,8 +2,6 @@
 
 namespace Drupal\image_effects\Component;
 
-use Drupal\Component\Utility\Unicode;
-
 /**
  * Text handling methods for image_effects.
  */
@@ -48,11 +46,11 @@ EOD;
    * @see http://php.net/manual/en/function.preg-match.php
    * @see http://drupal.org/node/465638
    */
-  public static function unicodePregMatch($pattern, $subject, &$matches, $flags = NULL, $offset = 0) {
+  public static function unicodePregMatch($pattern, $subject, &$matches, $flags = 0, $offset = 0) {
     // Convert the offset value from characters to bytes.
     // NOTE - strlen is used on purpose here to get string length in bytes.
     // @see https://www.drupal.org/node/465638#comment-1600860
-    $offset = strlen(Unicode::substr($subject, 0, $offset));
+    $offset = strlen(mb_substr($subject, 0, $offset));
 
     $return_value = preg_match($pattern, $subject, $matches, $flags, $offset);
 
@@ -62,7 +60,7 @@ EOD;
         // characters.
         // NOTE - substr is used on purpose here to get offset in bytes.
         // @see https://www.drupal.org/node/465638#comment-1600860
-        $match[1] = Unicode::strlen(substr($subject, 0, $match[1]));
+        $match[1] = mb_strlen(substr($subject, 0, $match[1]));
       }
     }
     return $return_value;

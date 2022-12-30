@@ -2,14 +2,15 @@
 
 namespace Drupal\workflows;
 
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\ConfigurableInterface;
+use Drupal\Component\Plugin\DependentPluginInterface;
 use Drupal\Component\Plugin\DerivativeInspectionInterface;
 use Drupal\Core\Plugin\PluginWithFormsInterface;
 
 /**
  * An interface for Workflow type plugins.
  */
-interface WorkflowTypeInterface extends PluginWithFormsInterface, DerivativeInspectionInterface, ConfigurablePluginInterface {
+interface WorkflowTypeInterface extends PluginWithFormsInterface, DerivativeInspectionInterface, ConfigurableInterface, DependentPluginInterface {
 
   /**
    * The key of the global workflow plugin form.
@@ -175,7 +176,7 @@ interface WorkflowTypeInterface extends PluginWithFormsInterface, DerivativeInsp
    * @param string $state_id
    *   The state ID to delete.
    *
-   * @return \Drupal\workflows\WorkflowTypeInterface
+   * @return $this
    *   The workflow type plugin.
    *
    * @throws \InvalidArgumentException

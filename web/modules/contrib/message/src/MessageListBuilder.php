@@ -45,7 +45,7 @@ class MessageListBuilder extends EntityListBuilder {
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('date.formatter')
     );
   }
@@ -86,11 +86,16 @@ class MessageListBuilder extends EntityListBuilder {
    */
   public function buildRow(EntityInterface $entity) {
     /** @var Message $entity */
+    $text = $entity->getText();
     return [
       'changed' => $this->dateService->format($entity->getCreatedTime(), 'short'),
-      'text' => $entity->getText(),
+      'text' => [
+        'data' => [
+          '#markup' => reset($text),
+        ],
+      ],
       'template' => $entity->getTemplate()->label(),
-      'author' => $entity->getOwner()->label(),
+      'author' => (!empty($entity->getOwner())) ? $entity->getOwner()->label() : $this->t('Anonymous'),
     ];
   }
 

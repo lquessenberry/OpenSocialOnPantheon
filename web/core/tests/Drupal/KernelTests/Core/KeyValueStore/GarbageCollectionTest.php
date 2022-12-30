@@ -19,31 +19,25 @@ class GarbageCollectionTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['system'];
-
-  protected function setUp() {
-    parent::setUp();
-
-    // These additional tables are necessary due to the call to system_cron().
-    $this->installSchema('system', ['key_value_expire']);
-  }
+  protected static $modules = ['system'];
 
   /**
    * Tests garbage collection.
    */
   public function testGarbageCollection() {
     $collection = $this->randomMachineName();
-    $store = new DatabaseStorageExpirable($collection, new PhpSerialize(), Database::getConnection());
+    $connection = Database::getConnection();
+    $store = new DatabaseStorageExpirable($collection, new PhpSerialize(), $connection);
 
     // Insert some items and confirm that they're set.
     for ($i = 0; $i <= 3; $i++) {
       $store->setWithExpire('key_' . $i, $this->randomObject(), rand(500, 100000));
     }
-    $this->assertIdentical(count($store->getAll()), 4, 'Four items were written to the storage.');
+    $this->assertCount(4, $store->getAll(), 'Four items were written to the storage.');
 
     // Manually expire the data.
     for ($i = 0; $i <= 3; $i++) {
-      db_merge('key_value_expire')
+      $connection->merge('key_value_expire')
         ->keys([
             'name' => 'key_' . $i,
             'collection' => $collection,
@@ -59,12 +53,12 @@ class GarbageCollectionTest extends KernelTestBase {
     system_cron();
 
     // Query the database and confirm that the stale records were deleted.
-    $result = db_query(
-      'SELECT name, value FROM {key_value_expire} WHERE collection = :collection',
-      [
-        ':collection' => $collection,
-      ])->fetchAll();
-    $this->assertIdentical(count($result), 1, 'Only one item remains after garbage collection');
+    $result = $connection->select('key_value_expire', 'kvp')
+      ->fields('kvp', ['name'])
+      ->condition('collection', $collection)
+      ->execute()
+      ->fetchAll();
+    $this->assertCount(1, $result, 'Only one item remains after garbage collection');
 
   }
 

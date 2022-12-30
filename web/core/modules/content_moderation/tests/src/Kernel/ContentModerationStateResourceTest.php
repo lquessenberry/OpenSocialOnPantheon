@@ -15,13 +15,14 @@ class ContentModerationStateResourceTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['serialization', 'rest', 'content_moderation'];
+  protected static $modules = ['serialization', 'rest', 'content_moderation'];
 
   /**
    * @see \Drupal\content_moderation\Entity\ContentModerationState
    */
   public function testCreateContentModerationStateResource() {
-    $this->setExpectedException(PluginNotFoundException::class, 'The "entity:content_moderation_state" plugin does not exist.');
+    $this->expectException(PluginNotFoundException::class);
+    $this->expectExceptionMessage('The "entity:content_moderation_state" plugin does not exist.');
     RestResourceConfig::create([
       'id' => 'entity.content_moderation_state',
       'granularity' => RestResourceConfigInterface::RESOURCE_GRANULARITY,

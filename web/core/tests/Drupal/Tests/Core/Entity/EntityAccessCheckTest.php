@@ -28,7 +28,7 @@ class EntityAccessCheckTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $cache_contexts_manager = $this->prophesize(CacheContextsManager::class)->reveal();
     $container = new Container();
     $container->set('cache_contexts_manager', $cache_contexts_manager);
@@ -110,8 +110,9 @@ class EntityAccessCheckTest extends UnitTestCase {
   /**
    * Wrap any object with a route match, and return that.
    *
-   * @param \stdClass $object
+   * @param object $object
    *   Any object, including prophesized mocks based on interfaces.
+   *
    * @return \Drupal\Core\Routing\RouteMatchInterface
    *   A prophesized RouteMatchInterface.
    */

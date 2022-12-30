@@ -14,5 +14,6 @@ mode: teaser
 content:
   links:
     weight: 100
+    region: content
 hidden:
   field_block_field_test: true

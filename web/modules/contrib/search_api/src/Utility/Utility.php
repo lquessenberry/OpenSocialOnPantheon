@@ -2,13 +2,15 @@
 
 namespace Drupal\search_api\Utility;
 
+use Drupal\Component\Render\MarkupInterface;
+use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\NestedArray;
-use Drupal\Core\Config\ConfigFactoryOverrideInterface;
+use Drupal\Core\Config\Config;
 use Drupal\Core\Config\Entity\ConfigEntityTypeInterface;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Render\Markup;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Plugin\search_api\data_type\value\TextToken;
-use Symfony\Component\DependencyInjection\TaggedContainerInterface;
 
 /**
  * Contains utility methods for the Search API.
@@ -135,7 +137,7 @@ class Utility {
    *   always contain a single property name (without any colons) and index 1
    *   might be NULL. If $separate_last is TRUE it's the exact other way round.
    */
-  public static function splitPropertyPath($property_path, $separate_last = TRUE, $separator = ':') {
+  public static function splitPropertyPath($property_path, $separate_last = TRUE, $separator = IndexInterface::PROPERTY_PATH_SEPARATOR) {
     $function = $separate_last ? 'strrpos' : 'strpos';
     $pos = $function($property_path, $separator);
     if ($pos !== FALSE) {
@@ -167,31 +169,43 @@ class Utility {
     }
 
     $config_key = $entity_type->getConfigPrefix() . '.' . $entity->id();
-    $overrides = [];
-
-    // Overrides from tagged services.
-    $container = \Drupal::getContainer();
-    if ($container instanceof TaggedContainerInterface) {
-      $tags = $container->findTaggedServiceIds('config.factory.override');
-      foreach (array_keys($tags) as $service_id) {
-        $override = $container->get($service_id);
-        if ($override instanceof ConfigFactoryOverrideInterface) {
-          $service_overrides = $override->loadOverrides([$config_key]);
-          if (!empty($service_overrides[$config_key])) {
-            // Existing overrides take precedence since these will have been
-            // added by events with a higher priority.
-            $arrays = [$service_overrides[$config_key], $overrides];
-            $overrides = NestedArray::mergeDeepArray($arrays, TRUE);
-          }
-        }
-      }
+    $config = \Drupal::config($config_key);
+    if (!$config->hasOverrides()) {
+      return [];
     }
 
-    // Overrides from settings.php. (This takes precedence over overrides from
-    // services.)
-    if (isset($GLOBALS['config'][$config_key])) {
-      $arrays = [$overrides, $GLOBALS['config'][$config_key]];
-      $overrides = NestedArray::mergeDeepArray($arrays, TRUE);
+    return static::collectOverrides($config, $config->get());
+  }
+
+  /**
+   * Collects overrides from a config object.
+   *
+   * @param \Drupal\Core\Config\Config $config
+   *   The config object.
+   * @param array $values
+   *   The array of values for the given $prefix.
+   * @param array $overrides
+   *   (optional) The overrides collected so far. Internal use only.
+   * @param string $prefix
+   *   (optional) The config key prefix for the current call level.  Internal
+   *   use only.
+   *
+   * @return array
+   *   An associative array mapping property names to their overridden values.
+   */
+  protected static function collectOverrides(Config $config, array $values, array $overrides = [], $prefix = '') {
+    foreach ($values as $key => $value) {
+      $key = "$prefix$key";
+      if (!$config->hasOverrides($key)) {
+        continue;
+      }
+      if (is_array($value)) {
+        NestedArray::setValue($overrides, explode('.', $key), []);
+        $overrides = static::collectOverrides($config, $value, $overrides, "$key.");
+      }
+      else {
+        NestedArray::setValue($overrides, explode('.', $key), $value);
+      }
     }
 
     return $overrides;
@@ -205,6 +219,114 @@ class Utility {
    */
   public static function isRunningInCli() {
     return php_sapi_name() === 'cli';
+  }
+
+  /**
+   * Checks whether a certain value matches the configuration.
+   *
+   * This unifies checking for matches with the common configuration pattern of
+   * having one "All except those selected"/"Only the selected" option
+   * ("default") and a list of options to select.
+   *
+   * @param mixed $value
+   *   The value to check.
+   * @param array $settings
+   *   The settings to check against, as an associative array with the following
+   *   keys:
+   *   - default: Boolean defining the default for not-selected items. TRUE
+   *     means "All except those selected", FALSE means "Only the selected".
+   *     Defaults to TRUE.
+   *   - selected: A numerically indexed array of the selected options. Defaults
+   *     to an empty array.
+   *
+   * @return bool
+   *   TRUE if the value matches according to the configuration, FALSE
+   *   otherwise.
+   */
+  public static function matches($value, array $settings) {
+    $settings += [
+      'default' => TRUE,
+      'selected' => [],
+    ];
+    return in_array($value, $settings['selected']) != $settings['default'];
+  }
+
+  /**
+   * Escapes HTML special characters in plain text, if necessary.
+   *
+   * @param string|\Drupal\Component\Render\MarkupInterface $text
+   *   The text to escape.
+   *
+   * @return \Drupal\Component\Render\MarkupInterface
+   *   If a markup object was passed as $text, it is returned as-is. Otherwise,
+   *   the text is escaped and returned
+   */
+  public static function escapeHtml($text) {
+    if ($text instanceof MarkupInterface) {
+      return $text;
+    }
+
+    return Markup::create(Html::escape((string) $text));
+  }
+
+  /**
+   * Returns the available boost factors according to the configuration.
+   *
+   * @param float[] $additional_factors
+   *   (optional) Array of boost factors that will be added to the configured
+   *   ones.
+   *
+   * @return string[]
+   *   An array with the available boost factors (formatted as strings), as both
+   *   keys and values.
+   */
+  public static function getBoostFactors(array $additional_factors = []): array {
+    $settings = \Drupal::config('search_api.settings');
+    $boost_factors = $settings->get('boost_factors') ?: [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0,
+      1.1,
+      1.2,
+      1.3,
+      1.4,
+      1.5,
+      2.0,
+      3.0,
+      5.0,
+      8.0,
+      13.0,
+      21.0,
+    ];
+    if ($additional_factors) {
+      $boost_factors = array_merge($boost_factors, $additional_factors);
+      sort($boost_factors, SORT_NUMERIC);
+    }
+    array_walk($boost_factors, function (&$value) {
+      $value = self::formatBoostFactor($value);
+    });
+
+    return array_combine($boost_factors, $boost_factors);
+  }
+
+  /**
+   * Formats a boost factor as a standard float value.
+   *
+   * @param string|float $boost_factor
+   *   The boost factor to be formatted.
+   *
+   * @return string
+   *   The formatted boost factor (with two decimal places).
+   */
+  public static function formatBoostFactor($boost_factor): string {
+    return sprintf('%.2F', $boost_factor ?? 0);
   }
 
 }

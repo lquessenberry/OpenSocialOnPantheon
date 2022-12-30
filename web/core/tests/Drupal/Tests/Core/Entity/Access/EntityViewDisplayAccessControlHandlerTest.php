@@ -15,16 +15,16 @@ class EntityViewDisplayAccessControlHandlerTest extends EntityFormDisplayAccessC
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->member = $this->getMock(AccountInterface::class);
+    $this->member = $this->createMock(AccountInterface::class);
     $this->member
       ->expects($this->any())
       ->method('hasPermission')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         ['administer foobar display', TRUE],
-      ]));
+      ]);
     $this->member
       ->expects($this->any())
       ->method('id')

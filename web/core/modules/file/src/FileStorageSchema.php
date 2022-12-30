@@ -17,7 +17,7 @@ class FileStorageSchema extends SqlContentEntityStorageSchema {
     $schema = parent::getSharedTableFieldSchema($storage_definition, $table_name, $column_mapping);
     $field_name = $storage_definition->getName();
 
-    if ($table_name == 'file_managed') {
+    if ($table_name == $this->storage->getBaseTable()) {
       switch ($field_name) {
         case 'status':
         case 'changed':
@@ -25,6 +25,11 @@ class FileStorageSchema extends SqlContentEntityStorageSchema {
           $this->addSharedTableFieldIndex($storage_definition, $schema, TRUE);
           break;
       }
+    }
+    // Entity keys automatically have not null assigned to TRUE, but for the
+    // file entity, NULL is a valid value for uid.
+    if ($field_name === 'uid') {
+      $schema['fields']['uid']['not null'] = FALSE;
     }
 
     return $schema;

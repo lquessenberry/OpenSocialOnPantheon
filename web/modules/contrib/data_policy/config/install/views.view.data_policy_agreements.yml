@@ -114,14 +114,14 @@ display:
       row:
         type: fields
       fields:
-        data_policy_revision_id:
-          id: data_policy_revision_id
-          table: user_consent
-          field: data_policy_revision_id
+        data_policy_revision_id_value:
+          id: data_policy_revision_id_value
+          table: user_consent__data_policy_revision_id
+          field: data_policy_revision_id_value
           relationship: none
           group_type: group
           admin_label: ''
-          label: 'Data policy revision'
+          label: 'Data policy revision ID'
           exclude: false
           alter:
             alter_text: false
@@ -382,23 +382,26 @@ display:
           entity_field: changed
           plugin_id: field
       filters:
-        data_policy_revision_id:
-          id: data_policy_revision_id
-          table: user_consent
-          field: data_policy_revision_id
+        data_policy_revision_id_value:
+          id: data_policy_revision_id_value
+          table: user_consent__data_policy_revision_id
+          field: data_policy_revision_id_value
           relationship: none
           group_type: group
           admin_label: ''
-          operator: in
-          value: {  }
+          operator: '='
+          value:
+            min: ''
+            max: ''
+            value: ''
           group: 1
           exposed: true
           expose:
-            operator_id: ''
-            label: 'Data policy revision'
+            operator_id: data_policy_revision_id_value_op
+            label: 'Data policy revision ID'
             description: ''
             use_operator: false
-            operator: data_policy_revision_id_op
+            operator: data_policy_revision_id_value_op
             identifier: data-policy-revision
             required: false
             remember: false
@@ -409,7 +412,6 @@ display:
               administrator: '0'
               contentmanager: '0'
               sitemanager: '0'
-            reduce: 0
             placeholder: ''
             min_placeholder: ''
             max_placeholder: ''

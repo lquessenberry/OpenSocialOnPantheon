@@ -1,0 +1,34 @@
+.block-system > .node-confirm-form,
+.block-system > .confirmation {
+  padding-top: 24px;
+}
+
+.panel__title,
+.system-status-general-info__header,
+.system-status-report__requirements-group > h3,
+.system-themes-list__header {
+  font-size: 1.125em;
+  font-weight: 600;
+  color: var(--colorGinPrimaryActive);
+  padding: 24px;
+  margin-top: 0;
+  background: var(--colorGinTableHeader);
+  border: 0 none;
+  border-radius: var(--ginBorderDefault);
+}
+
+.panel {
+  padding: 0;
+
+  &__title {
+    margin: .75rem;
+  }
+
+  &__content {
+    padding: 0;
+  }
+
+  .admin-list {
+    margin: .75rem 0;
+  }
+}

@@ -6,6 +6,8 @@ use Drupal\Core\Cache\CacheTagsInvalidator;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandler;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -47,6 +49,20 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
   protected $moduleHandler;
 
   /**
+   * Entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * Entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
    * SocialProfileSettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
@@ -59,13 +75,27 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
    *   Cache tags invalidator for clearing tags.
    * @param \Drupal\Core\Extension\ModuleHandler $module_handler
    *   Module handler for checking if modules exist.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   Entity type manager for clearing cached definitions.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   Entity field manager for clearing cached field definitions.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, SocialProfileFieldsHelper $profile_fields_helper, Connection $database, CacheTagsInvalidator $cache_tags_invalidator, ModuleHandler $module_handler) {
+  public function __construct(
+    ConfigFactoryInterface $config_factory,
+    SocialProfileFieldsHelper $profile_fields_helper,
+    Connection $database,
+    CacheTagsInvalidator $cache_tags_invalidator,
+    ModuleHandler $module_handler,
+    EntityTypeManagerInterface $entity_type_manager,
+    EntityFieldManagerInterface $entity_field_manager
+  ) {
     parent::__construct($config_factory);
     $this->profileFieldsHelper = $profile_fields_helper;
     $this->database = $database;
     $this->cacheTagsInvalidator = $cache_tags_invalidator;
     $this->moduleHandler = $module_handler;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->entityFieldManager = $entity_field_manager;
   }
 
   /**
@@ -77,7 +107,9 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
       $container->get('social_profile_fields.helper'),
       $container->get('database'),
       $container->get('cache_tags.invalidator'),
-      $container->get('module_handler')
+      $container->get('module_handler'),
+      $container->get('entity_type.manager'),
+      $container->get('entity_field.manager')
     );
   }
 
@@ -136,7 +168,7 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
         }
 
         // No setting is TRUE.
-        $default_value = (is_null($config->get($id)) ? TRUE : $config->get($id));
+        $default_value = is_null($config->get($id)) ? TRUE : $config->get($id);
 
         $form[$type][$id] = [
           '#type' => 'checkbox',
@@ -144,8 +176,58 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
           '#description' => $field['name'],
           '#default_value' => $default_value,
         ];
+
+        if ($type === 'profile' && $id === 'profile_profile_field_profile_address') {
+          $form[$type]['profile_profile_field_profile_address_wrapper'][$id] = $form[$type][$id];
+          unset($form[$type][$id]);
+
+          $form[$type]['profile_profile_field_profile_address_wrapper']['address_settings'] = [
+            '#type' => 'details',
+            '#title' => $this->t('Individual address field settings'),
+            '#open' => TRUE,
+            '#states' => [
+              'visible' => [
+                ':input[name="' . $id . '"]' => ['checked' => TRUE],
+              ],
+            ],
+          ];
+
+          $form[$type]['profile_profile_field_profile_address_wrapper']['address_settings']['profile_address_field_country'] = [
+            '#type' => 'html_tag',
+            '#tag' => 'p',
+            '#value' => $this->t('You can hide individual address fields, with the exception of the country field. <br/>
+            Disable the country field by disabling the whole address, using the checkbox <em>field_profile_address</em>.'),
+          ];
+          $form[$type]['profile_profile_field_profile_address_wrapper']['address_settings']['profile_address_field_city'] = [
+            '#type' => 'checkbox',
+            '#title' => $this->t('City'),
+            '#default_value' => is_null($config->get('profile_address_field_city')) ? TRUE : $config->get('profile_address_field_city'),
+          ];
+          $form[$type]['profile_profile_field_profile_address_wrapper']['address_settings']['profile_address_field_address'] = [
+            '#type' => 'checkbox',
+            '#title' => $this->t('Address'),
+            '#default_value' => is_null($config->get('profile_address_field_address')) ? TRUE : $config->get('profile_address_field_address'),
+          ];
+          $form[$type]['profile_profile_field_profile_address_wrapper']['address_settings']['profile_address_field_postalcode'] = [
+            '#type' => 'checkbox',
+            '#title' => $this->t('Postal code'),
+            '#default_value' => is_null($config->get('profile_address_field_postalcode')) ? TRUE : $config->get('profile_address_field_postalcode'),
+          ];
+          $form[$type]['profile_profile_field_profile_address_wrapper']['address_settings']['profile_address_field_administrative_area'] = [
+            '#type' => 'checkbox',
+            '#title' => $this->t('Administrative area'),
+            '#default_value' => is_null($config->get('profile_address_field_administrative_area')) ? TRUE : $config->get('profile_address_field_administrative_area'),
+          ];
+        }
       }
     }
+
+    $form['nickname_unique_validation'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Unique nicknames'),
+      '#description' => $this->t('If you check this, validation is applied that verifies the users nickname is unique whenever they save their profile.'),
+      '#default_value' => $config->get('nickname_unique_validation'),
+    ];
 
     $form['actions']['social_profile_fields_confirm_flush'] = [
       '#type' => 'submit',
@@ -173,6 +255,14 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
         $config->set($field['id'], $form_state->getValue($field['id']));
       }
     }
+
+    $main_address_value = $form_state->getValue('profile_profile_field_profile_address');
+    $config->set('profile_address_field_city', $main_address_value ? $form_state->getValue('profile_address_field_city') : FALSE);
+    $config->set('profile_address_field_address', $main_address_value ? $form_state->getValue('profile_address_field_address') : FALSE);
+    $config->set('profile_address_field_postalcode', $main_address_value ? $form_state->getValue('profile_address_field_postalcode') : FALSE);
+    $config->set('profile_address_field_administrative_area', $main_address_value ? $form_state->getValue('profile_address_field_administrative_area') : FALSE);
+
+    $config->set('nickname_unique_validation', $form_state->getValue('nickname_unique_validation'));
     $config->save();
 
     parent::submitForm($form, $form_state);
@@ -192,6 +282,16 @@ class SocialProfileFieldsSettingsForm extends ConfigFormBase implements Containe
     }
 
     $this->cacheTagsInvalidator->invalidateTags($cache_tags);
+
+    // Clear the entity type manager cached definitions as the nick name unique
+    // validation might now need to be applied.
+    // @see social_profile_fields_entity_bundle_field_info_alter().
+    $this->entityTypeManager->clearCachedDefinitions();
+
+    // Clear the entity field manager cached field definitions as the address
+    // field overrides settings need to be applied.
+    // @see social_profile_fields_entity_bundle_field_info_alter().
+    $this->entityFieldManager->clearCachedFieldDefinitions();
 
     // If the user export module is on, clear the cached definitions.
     if ($this->moduleHandler->moduleExists('social_user_export')) {

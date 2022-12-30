@@ -6,23 +6,39 @@ use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\ContentEntityTypeInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 class RelationLinkManager extends LinkManagerBase implements RelationLinkManagerInterface {
 
   /**
-   * @var \Drupal\Core\Cache\CacheBackendInterface;
+   * @var \Drupal\Core\Cache\CacheBackendInterface
    */
   protected $cache;
 
   /**
-   * Entity manager.
+   * The entity field manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
-  protected $entityManager;
+  protected $entityFieldManager;
+
+  /**
+   * The entity bundle info.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  protected $entityTypeBundleInfo;
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
 
   /**
    * Module handler service.
@@ -36,18 +52,24 @@ class RelationLinkManager extends LinkManagerBase implements RelationLinkManager
    *
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache
    *   The cache of relation URIs and their associated Typed Data IDs.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory service.
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
    *   The request stack.
+   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
+   *   The entity type bundle info.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
    */
-  public function __construct(CacheBackendInterface $cache, EntityManagerInterface $entity_manager, ModuleHandlerInterface $module_handler, ConfigFactoryInterface $config_factory, RequestStack $request_stack) {
+  public function __construct(CacheBackendInterface $cache, EntityTypeManagerInterface $entity_type_manager, ModuleHandlerInterface $module_handler, ConfigFactoryInterface $config_factory, RequestStack $request_stack, EntityTypeBundleInfoInterface $entity_type_bundle_info, EntityFieldManagerInterface $entity_field_manager) {
     $this->cache = $cache;
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->entityTypeBundleInfo = $entity_type_bundle_info;
+    $this->entityFieldManager = $entity_field_manager;
     $this->configFactory = $config_factory;
     $this->moduleHandler = $module_handler;
     $this->requestStack = $request_stack;
@@ -70,10 +92,6 @@ class RelationLinkManager extends LinkManagerBase implements RelationLinkManager
     // override the RelationLinkManager class/service to return the desired URL.
     $uri = $this->getLinkDomain($context) . "/rest/relation/$entity_type/$bundle/$field_name";
     $this->moduleHandler->alter('hal_relation_uri', $uri, $context);
-    // @deprecated in Drupal 8.3.x and will be removed before Drupal 9.0.0. This
-    // hook is invoked to maintain backwards compatibility
-    // @see https://www.drupal.org/node/2830467
-    $this->moduleHandler->alter('rest_relation_uri', $uri, $context);
     return $uri;
   }
 
@@ -106,16 +124,12 @@ class RelationLinkManager extends LinkManagerBase implements RelationLinkManager
    *   - 'entity_type_id'
    *   - 'bundle'
    *   - 'field_name'
-   *   - 'entity_type' (deprecated)
    *   The values for 'entity_type_id', 'bundle' and 'field_name' are strings.
-   *   The 'entity_type' key exists for backwards compatibility and its value is
-   *   the full entity type object. The 'entity_type' key will be removed before
-   *   Drupal 9.0.
    *
    * @see https://www.drupal.org/node/2877608
    */
   protected function getRelations($context = []) {
-    $cid = 'hal:links:relations';
+    $cid = 'hal:links:relations:' . $this->getLinkDomain($context);
     $cache = $this->cache->get($cid);
     if (!$cache) {
       $data = $this->writeCache($context);
@@ -124,10 +138,6 @@ class RelationLinkManager extends LinkManagerBase implements RelationLinkManager
       $data = $cache->data;
     }
 
-    // @todo https://www.drupal.org/node/2716163 Remove this in Drupal 9.0.
-    foreach ($data as $relation_uri => $ids) {
-      $data[$relation_uri]['entity_type'] = $this->entityManager->getDefinition($ids['entity_type_id']);
-    }
     return $data;
   }
 
@@ -148,10 +158,10 @@ class RelationLinkManager extends LinkManagerBase implements RelationLinkManager
   protected function writeCache($context = []) {
     $data = [];
 
-    foreach ($this->entityManager->getDefinitions() as $entity_type) {
+    foreach ($this->entityTypeManager->getDefinitions() as $entity_type) {
       if ($entity_type instanceof ContentEntityTypeInterface) {
-        foreach ($this->entityManager->getBundleInfo($entity_type->id()) as $bundle => $bundle_info) {
-          foreach ($this->entityManager->getFieldDefinitions($entity_type->id(), $bundle) as $field_definition) {
+        foreach ($this->entityTypeBundleInfo->getBundleInfo($entity_type->id()) as $bundle => $bundle_info) {
+          foreach ($this->entityFieldManager->getFieldDefinitions($entity_type->id(), $bundle) as $field_definition) {
             $relation_uri = $this->getRelationUri($entity_type->id(), $bundle, $field_definition->getName(), $context);
             $data[$relation_uri] = [
               'entity_type_id' => $entity_type->id(),
@@ -164,7 +174,7 @@ class RelationLinkManager extends LinkManagerBase implements RelationLinkManager
     }
     // These URIs only change when field info changes, so cache it permanently
     // and only clear it when the fields cache is cleared.
-    $this->cache->set('hal:links:relations', $data, Cache::PERMANENT, ['entity_field_info']);
+    $this->cache->set('hal:links:relations:' . $this->getLinkDomain($context), $data, Cache::PERMANENT, ['entity_field_info']);
     return $data;
   }
 

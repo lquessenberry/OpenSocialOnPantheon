@@ -4,7 +4,7 @@ namespace Drupal\comment;
 
 use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\Component\Utility\NestedArray;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Session\AccountInterface;
@@ -43,11 +43,11 @@ class CommentLinkBuilder implements CommentLinkBuilderInterface {
   protected $moduleHandler;
 
   /**
-   * The entity manager service.
+   * The entity type manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a new CommentLinkBuilder object.
@@ -60,15 +60,15 @@ class CommentLinkBuilder implements CommentLinkBuilderInterface {
    *   Module handler service.
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    *   String translation service.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(AccountInterface $current_user, CommentManagerInterface $comment_manager, ModuleHandlerInterface $module_handler, TranslationInterface $string_translation, EntityManagerInterface $entity_manager) {
+  public function __construct(AccountInterface $current_user, CommentManagerInterface $comment_manager, ModuleHandlerInterface $module_handler, TranslationInterface $string_translation, EntityTypeManagerInterface $entity_type_manager) {
     $this->currentUser = $current_user;
     $this->commentManager = $comment_manager;
     $this->moduleHandler = $module_handler;
     $this->stringTranslation = $string_translation;
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -107,7 +107,7 @@ class CommentLinkBuilder implements CommentLinkBuilderInterface {
                 'title' => $this->formatPlural($entity->get($field_name)->comment_count, '1 comment', '@count comments'),
                 'attributes' => ['title' => $this->t('Jump to the first comment.')],
                 'fragment' => 'comments',
-                'url' => $entity->urlInfo(),
+                'url' => $entity->toUrl(),
               ];
               if ($this->moduleHandler->moduleExists('history')) {
                 $links['comment-new-comments'] = [
@@ -141,7 +141,7 @@ class CommentLinkBuilder implements CommentLinkBuilderInterface {
                 ]);
               }
               else {
-                $links['comment-add'] += ['url' => $entity->urlInfo()];
+                $links['comment-add'] += ['url' => $entity->toUrl()];
               }
             }
             elseif ($this->currentUser->isAnonymous()) {
@@ -174,7 +174,7 @@ class CommentLinkBuilder implements CommentLinkBuilderInterface {
                   ]);
                 }
                 else {
-                  $links['comment-add']['url'] = $entity->urlInfo();
+                  $links['comment-add']['url'] = $entity->toUrl();
                 }
               }
             }
@@ -201,16 +201,16 @@ class CommentLinkBuilder implements CommentLinkBuilderInterface {
           $entity_links['comment__' . $field_name]['#attached']['drupalSettings']['history']['lastReadTimestamps'][$entity->id()] = (int) history_read($entity->id());
           $new_comments = $this->commentManager->getCountNewComments($entity);
           if ($new_comments > 0) {
-            $page_number = $this->entityManager
+            $page_number = $this->entityTypeManager
               ->getStorage('comment')
               ->getNewCommentPageNumber($entity->{$field_name}->comment_count, $new_comments, $entity, $field_name);
             $query = $page_number ? ['page' => $page_number] : NULL;
             $value = [
               'new_comment_count' => (int) $new_comments,
-              'first_new_comment_link' => $entity->url('canonical', [
+              'first_new_comment_link' => $entity->toUrl('canonical', [
                 'query' => $query,
                 'fragment' => 'new',
-              ]),
+              ])->toString(),
             ];
             $parents = ['comment', 'newCommentsLinks', $entity->getEntityTypeId(), $field_name, $entity->id()];
             NestedArray::setValue($entity_links['comment__' . $field_name]['#attached']['drupalSettings'], $parents, $value);

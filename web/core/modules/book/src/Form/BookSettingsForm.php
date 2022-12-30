@@ -47,7 +47,6 @@ class BookSettingsForm extends ConfigFormBase {
       '#options' => $types,
       '#required' => TRUE,
     ];
-    $form['array_filter'] = ['#type' => 'value', '#value' => TRUE];
 
     return parent::buildForm($form, $form_state);
   }

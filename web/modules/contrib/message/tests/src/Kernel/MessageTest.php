@@ -2,12 +2,11 @@
 
 namespace Drupal\Tests\message\Kernel;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Language\Language;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\message\Entity\Message;
 use Drupal\message\MessageInterface;
-use Drupal\simpletest\UserCreationTrait;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 
 /**
  * Kernel tests for the Message entity.
@@ -50,7 +49,7 @@ class MessageTest extends KernelTestBase {
     $this->installEntitySchema('user');
     $this->installSchema('system', ['sequences']);
     $this->entityTypeManager = $this->container->get('entity_type.manager');
-    $this->messageTemplate = $this->createMessageTemplate(Unicode::strtolower($this->randomMachineName()), $this->randomString(), $this->randomString(), []);
+    $this->messageTemplate = $this->createMessageTemplate(mb_strtolower($this->randomMachineName()), $this->randomString(), $this->randomString(), []);
   }
 
   /**
@@ -83,10 +82,12 @@ class MessageTest extends KernelTestBase {
    */
   public function testGetText() {
     // Test with missing message template.
+    /** @var \Drupal\message\Entity\Message $message */
     $message = $this->entityTypeManager->getStorage('message')->create(['template' => 'no_exists']);
     $this->assertEmpty($message->getText());
 
     // Non-existent delta.
+    /** @var \Drupal\message\Entity\Message $message */
     $message = $this->entityTypeManager->getStorage('message')->create(['template' => $this->messageTemplate->id()]);
     $this->assertEmpty($message->getText(Language::LANGCODE_NOT_SPECIFIED, 123));
 
@@ -104,7 +105,7 @@ class MessageTest extends KernelTestBase {
       ],
     ]);
     $this->messageTemplate->save();
-
+    /** @var \Drupal\message\Entity\Message $message */
     $message = $this->entityTypeManager->getStorage('message')->create([
       'template' => $this->messageTemplate->id(),
     ]);
@@ -120,6 +121,7 @@ class MessageTest extends KernelTestBase {
       ],
     ]);
     $this->messageTemplate->save();
+    /** @var \Drupal\message\Entity\Message $message */
     $message = $this->entityTypeManager->getStorage('message')->create([
       'template' => $this->messageTemplate->id(),
     ]);
@@ -133,7 +135,7 @@ class MessageTest extends KernelTestBase {
     $message->save();
     $text = $message->getText();
     $this->assertEquals(1, count($text));
-    $this->assertEquals('<p>foo  and ' . $account->getUsername() . "</p>\n", $text[0]);
+    $this->assertEquals('<p>foo  and ' . $account->getAccountName() . "</p>\n", $text[0]);
 
     // Disable token processing.
     $this->messageTemplate->setSettings([
@@ -171,6 +173,7 @@ class MessageTest extends KernelTestBase {
       ],
     ]);
     $this->messageTemplate->save();
+    /** @var \Drupal\message\Entity\Message $message */
     $message = $this->entityTypeManager->getStorage('message')->create([
       'template' => $this->messageTemplate->id(),
       'arguments' => [
@@ -194,6 +197,7 @@ class MessageTest extends KernelTestBase {
     $this->assertEquals('<p>some bar other bar_replacement_' . $message->id() . "</p>\n", $text[1]);
 
     // Do not pass the message.
+    /** @var \Drupal\message\Entity\Message $message */
     $message = $this->entityTypeManager->getStorage('message')->create([
       'template' => $this->messageTemplate->id(),
       'arguments' => [

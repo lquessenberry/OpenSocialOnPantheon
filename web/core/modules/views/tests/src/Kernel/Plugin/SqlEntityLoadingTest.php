@@ -19,7 +19,7 @@ class SqlEntityLoadingTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'user'];
+  protected static $modules = ['node', 'user'];
 
   /**
    * {@inheritdoc}
@@ -29,7 +29,7 @@ class SqlEntityLoadingTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('node');
@@ -69,7 +69,7 @@ class SqlEntityLoadingTest extends ViewsKernelTestBase {
         'nid' => $node->id(),
         // The default revision ID.
         'vid_1' => $revision->getRevisionId(),
-        // THe latest revision ID.
+        // The latest revision ID.
         'vid' => $revision2->getRevisionId(),
       ],
     ];

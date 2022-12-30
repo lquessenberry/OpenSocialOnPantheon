@@ -2,14 +2,14 @@
 
 namespace Drupal\image_effects\Plugin;
 
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\ConfigurableInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 
 /**
  * Interface for image_effects base plugin.
  */
-interface ImageEffectsPluginBaseInterface extends ConfigurablePluginInterface, ContainerFactoryPluginInterface, PluginFormInterface {
+interface ImageEffectsPluginBaseInterface extends ConfigurableInterface, ContainerFactoryPluginInterface, PluginFormInterface {
 
   /**
    * Return a form element to select the plugin content.

@@ -12,11 +12,10 @@ description: ''
 tag: ''
 base_table: comment_field_data
 base_field: cid
-core: 8.x
 display:
   default:
     display_plugin: default
-    display_title: Master
+    display_title: Default
     id: default
     position: 0
     display_options:

@@ -1,0 +1,20 @@
+<?php
+
+/**
+ * @file
+ * This is the Select2 form test module.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function select2_form_test_form_views_exposed_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+
+  if (isset($form['status'])) {
+    $form['status']['#type'] = 'select2';
+    $form['status']['#select2']['allowClear'] = FALSE;
+  }
+
+}

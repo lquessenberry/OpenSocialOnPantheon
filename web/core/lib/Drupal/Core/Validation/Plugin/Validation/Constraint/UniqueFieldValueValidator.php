@@ -2,7 +2,6 @@
 
 namespace Drupal\Core\Validation\Plugin\Validation\Constraint;
 
-use Drupal\Component\Utility\Unicode;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 
@@ -24,9 +23,19 @@ class UniqueFieldValueValidator extends ConstraintValidator {
     $entity_type_id = $entity->getEntityTypeId();
     $id_key = $entity->getEntityType()->getKey('id');
 
-    $value_taken = (bool) \Drupal::entityQuery($entity_type_id)
-      // The id could be NULL, so we cast it to 0 in that case.
-      ->condition($id_key, (int) $items->getEntity()->id(), '<>')
+    $query = \Drupal::entityQuery($entity_type_id);
+
+    // @todo Don't check access. http://www.drupal.org/node/3171047
+    $query->accessCheck(TRUE);
+
+    $entity_id = $entity->id();
+    // Using isset() instead of !empty() as 0 and '0' are valid ID values for
+    // entity types using string IDs.
+    if (isset($entity_id)) {
+      $query->condition($id_key, $entity_id, '<>');
+    }
+
+    $value_taken = (bool) $query
       ->condition($field_name, $item->value)
       ->range(0, 1)
       ->count()
@@ -35,8 +44,8 @@ class UniqueFieldValueValidator extends ConstraintValidator {
     if ($value_taken) {
       $this->context->addViolation($constraint->message, [
         '%value' => $item->value,
-        '@entity_type' => $entity->getEntityType()->getLowercaseLabel(),
-        '@field_name' => Unicode::strtolower($items->getFieldDefinition()->getLabel()),
+        '@entity_type' => $entity->getEntityType()->getSingularLabel(),
+        '@field_name' => mb_strtolower($items->getFieldDefinition()->getLabel()),
       ]);
     }
   }

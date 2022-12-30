@@ -5,7 +5,7 @@ namespace Drupal\Tests\aggregator\Functional;
 use Drupal\aggregator\Entity\Feed;
 use Drupal\aggregator\Entity\Item;
 use Drupal\Core\Cache\CacheBackendInterface;
-use Drupal\system\Tests\Entity\EntityCacheTagsTestBase;
+use Drupal\Tests\system\Functional\Entity\EntityCacheTagsTestBase;
 use Drupal\user\Entity\Role;
 use Drupal\user\RoleInterface;
 
@@ -13,18 +13,24 @@ use Drupal\user\RoleInterface;
  * Tests the Item entity's cache tags.
  *
  * @group aggregator
+ * @group legacy
  */
 class ItemCacheTagsTest extends EntityCacheTagsTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['aggregator'];
+  protected static $modules = ['aggregator'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     // Give anonymous users permission to access feeds, so that we can verify
@@ -51,7 +57,7 @@ class ItemCacheTagsTest extends EntityCacheTagsTestBase {
     // Create a "Llama" aggregator feed item.
     $item = Item::create([
       'fid' => $feed->id(),
-      'title' => t('Llama'),
+      'title' => 'Llama',
       'path' => 'https://www.drupal.org/',
     ]);
     $item->save();
@@ -72,7 +78,7 @@ class ItemCacheTagsTest extends EntityCacheTagsTestBase {
     // Now create a feed item in that feed.
     Item::create([
       'fid' => $this->entity->getFeedId(),
-      'title' => t('Llama 2'),
+      'title' => 'Llama 2',
       'path' => 'https://groups.drupal.org/',
     ])->save();
 

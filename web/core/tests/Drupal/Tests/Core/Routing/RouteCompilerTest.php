@@ -54,11 +54,11 @@ class RouteCompilerTest extends UnitTestCase {
    */
   public function testCompilation() {
     $route = new Route('/test/{something}/more');
-    $route->setOption('compiler_class', 'Drupal\Core\Routing\RouteCompiler');
+    $route->setOption('compiler_class', RouteCompiler::class);
     $compiled = $route->compile();
 
-    $this->assertEquals($compiled->getFit(), 5 /* That's 101 binary*/, 'The fit was incorrect.');
-    $this->assertEquals($compiled->getPatternOutline(), '/test/%/more', 'The pattern outline was not correct.');
+    $this->assertEquals(5 /* That's 101 binary*/, $compiled->getFit(), 'The fit was incorrect.');
+    $this->assertEquals('/test/%/more', $compiled->getPatternOutline(), 'The pattern outline was not correct.');
   }
 
   /**
@@ -70,11 +70,11 @@ class RouteCompilerTest extends UnitTestCase {
     $route = new Route('/test/{something}/more/{here}', [
       'here' => 'there',
     ]);
-    $route->setOption('compiler_class', 'Drupal\Core\Routing\RouteCompiler');
+    $route->setOption('compiler_class', RouteCompiler::class);
     $compiled = $route->compile();
 
-    $this->assertEquals($compiled->getFit(), 5 /* That's 101 binary*/, 'The fit was not correct.');
-    $this->assertEquals($compiled->getPatternOutline(), '/test/%/more', 'The pattern outline was not correct.');
+    $this->assertEquals(5  /* That's 101 binary*/, $compiled->getFit(), 'The fit was not correct.');
+    $this->assertEquals('/test/%/more', $compiled->getPatternOutline(), 'The pattern outline was not correct.');
   }
 
 }

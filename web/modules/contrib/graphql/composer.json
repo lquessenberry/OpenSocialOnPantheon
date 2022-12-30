@@ -1,0 +1,12 @@
+{
+  "name": "drupal/graphql",
+  "type": "drupal-module",
+  "description": "Exposes your Drupal data model through a GraphQL schema.",
+  "homepage": "http://drupal.org/project/graphql",
+  "license": "GPL-2.0+",
+  "require": {
+    "php": ">=7.2",
+    "webonyx/graphql-php": "^14.8.0"
+  },
+  "minimum-stability": "dev"
+}

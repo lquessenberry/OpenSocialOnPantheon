@@ -14,7 +14,7 @@ abstract class ShortcutResourceTestBase extends EntityResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['comment', 'shortcut'];
+  protected static $modules = ['comment', 'shortcut'];
 
   /**
    * {@inheritdoc}
@@ -58,6 +58,9 @@ abstract class ShortcutResourceTestBase extends EntityResourceTestBase {
       'weight' => -20,
       'link' => [
         'uri' => 'internal:/admin/content/comment',
+        'options' => [
+          'fragment' => 'new',
+        ],
       ],
     ]);
     $shortcut->save();
@@ -96,7 +99,9 @@ abstract class ShortcutResourceTestBase extends EntityResourceTestBase {
         [
           'uri' => 'internal:/admin/content/comment',
           'title' => NULL,
-          'options' => [],
+          'options' => [
+            'fragment' => 'new',
+          ],
         ],
       ],
       'weight' => [
@@ -144,10 +149,6 @@ abstract class ShortcutResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     switch ($method) {
       case 'GET':
       case 'POST':

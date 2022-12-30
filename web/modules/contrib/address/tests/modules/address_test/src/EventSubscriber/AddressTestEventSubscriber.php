@@ -4,9 +4,13 @@ namespace Drupal\address_test\EventSubscriber;
 
 use Drupal\address\Event\AddressEvents;
 use Drupal\address\Event\AvailableCountriesEvent;
-use Drupal\address\Event\InitialValuesEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
+/**
+ * Subscribes to Address events for testing.
+ *
+ * @see \Drupal\Tests\address\FunctionalJavascript\AddressDefaultWidgetTest::testEvents()
+ */
 class AddressTestEventSubscriber implements EventSubscriberInterface {
 
   /**
@@ -14,40 +18,7 @@ class AddressTestEventSubscriber implements EventSubscriberInterface {
    */
   public static function getSubscribedEvents() {
     $events[AddressEvents::AVAILABLE_COUNTRIES][] = ['onAvailableCountries'];
-    $events[AddressEvents::INITIAL_VALUES][] = ['onInitialValues'];
     return $events;
-  }
-
-  /**
-   * Generates a set of available countries.
-   *
-   * @return array
-   *   The countries.
-   */
-  public function getAvailableCountries() {
-    return ['AU' => 'AU', 'BR' => 'BR', 'CA' => 'CA', 'GB' => 'GB', 'JP' => 'JP'];
-  }
-
-  /**
-   * Generate a set of initial values.
-   *
-   * @return array
-   *   The initial values.
-   */
-  public function getInitialValues() {
-    return [
-      'country_code' => 'AU',
-      'administrative_area' => 'NSW',
-      'locality' => 'Sydney',
-      'dependent_locality' => '',
-      'postal_code' => '2000',
-      'sorting_code' => '',
-      'address_line1' => 'Some address',
-      'address_line2' => 'Some street',
-      'organization' => 'Some Organization',
-      'given_name' => 'John',
-      'family_name' => 'Smith',
-    ];
   }
 
   /**
@@ -61,13 +32,19 @@ class AddressTestEventSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Alters the initial values.
+   * Generates a set of available countries.
    *
-   * @param \Drupal\address\Event\InitialValuesEvent $event
-   *   The initial values event.
+   * @return array
+   *   The countries.
    */
-  public function onInitialValues(InitialValuesEvent $event) {
-    $event->setInitialValues($this->getInitialValues());
+  public function getAvailableCountries() {
+    return [
+      'AU' => 'AU',
+      'BR' => 'BR',
+      'CA' => 'CA',
+      'GB' => 'GB',
+      'US' => 'US',
+    ];
   }
 
 }

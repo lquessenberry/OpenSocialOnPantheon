@@ -27,7 +27,7 @@ class FileLink extends PreprocessBase {
     $options = [];
 
     $file = ($variables['file'] instanceof File) ? $variables['file'] : File::load($variables['file']->fid);
-    $url = file_create_url($file->getFileUri());
+    $url = \Drupal::service('file_url_generator')->generateAbsoluteString($file->getFileUri());
 
     $file_size = $file->getSize();
     $mime_type = $file->getMimeType();

@@ -6,8 +6,10 @@
  */
 
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Link;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Template\Attribute;
+use Drupal\Core\Url;
 
 /**
  * Prepares variables for administrative content block templates.
@@ -16,16 +18,17 @@ use Drupal\Core\Template\Attribute;
  *
  * @param $variables
  *   An associative array containing:
- *   - content: An array containing information about the block. Each element
- *     of the array represents an administrative menu item, and must at least
- *     contain the keys 'title', 'link_path', and 'localized_options', which are
- *     passed to l(). A 'description' key may also be provided.
+ *   - content: List of administrative menu items. Each menu item contains:
+ *     - url: Path to the admin section.
+ *     - title: Short name of the section.
+ *     - description: Description of the administrative menu item.
+ *     - options: URL options. See \Drupal\Core\Url::fromUri() for details.
  */
 function template_preprocess_admin_block_content(&$variables) {
   if (!empty($variables['content'])) {
     $variables['compact'] = system_admin_compact_mode();
     foreach ($variables['content'] as $key => $item) {
-      $variables['content'][$key]['link'] = \Drupal::l($item['title'], $item['url']);
+      $variables['content'][$key]['link'] = Link::fromTextAndUrl($item['title'], $item['url'])->toString();
       if (!$variables['compact'] && isset($item['description'])) {
         $variables['content'][$key]['description'] = ['#markup' => $item['description']];
       }
@@ -85,7 +88,7 @@ function template_preprocess_system_admin_index(&$variables) {
   $stripe = 0;
   // Iterate over all modules.
   foreach ($variables['menu_items'] as $module => $block) {
-    list($description, $items) = $block;
+    [$description, $items] = $block;
     $position = ++$stripe % 2 ? 'left' : 'right';
     // Output links.
     if (count($items)) {
@@ -122,13 +125,25 @@ function template_preprocess_system_admin_index(&$variables) {
  *     - version: The version of the module.
  *     - links: Administration links provided by the module.
  *     - #requires: A list of modules that the project requires.
- *     - #required_by: A list of modules that require the project.
+ *     - #required_by: A list of modules and themes that require the project.
  *     - #attributes: A list of attributes for the module wrapper.
  *
  * @see \Drupal\system\Form\ModulesListForm
  */
 function template_preprocess_system_modules_details(&$variables) {
   $form = $variables['form'];
+
+  // Identify modules that are depended on by themes.
+  // Added here instead of ModuleHandler to avoid recursion.
+  $themes = \Drupal::service('extension.list.theme')->getList();
+  foreach ($themes as $theme) {
+    foreach ($theme->info['dependencies'] as $dependency) {
+      if (isset($form[$dependency])) {
+        // Add themes to the module's required by list.
+        $form[$dependency]['#required_by'][] = $theme->status ? t('@theme', ['@theme (theme)' => $theme->info['name']]) : t('@theme (theme) (<span class="admin-disabled">disabled</span>)', ['@theme' => $theme->info['name']]);
+      }
+    }
+  }
 
   $variables['modules'] = [];
   // Iterate through all the modules, which are children of this element.
@@ -273,7 +288,7 @@ function template_preprocess_system_themes_page(&$variables) {
       else {
         $current_theme['screenshot'] = [
           '#theme' => 'image',
-          '#uri' => drupal_get_path('module', 'system') . '/images/no_screenshot.png',
+          '#uri' => \Drupal::service('extension.list.module')->getPath('system') . '/images/no_screenshot.png',
           '#alt' => t('No screenshot'),
           '#title' => t('No screenshot'),
           '#attributes' => new Attribute(['class' => ['no-screenshot']]),
@@ -285,15 +300,21 @@ function template_preprocess_system_themes_page(&$variables) {
 
       $current_theme['attributes'] = new Attribute();
       $current_theme['name'] = $theme->info['name'];
-      $current_theme['version'] = isset($theme->info['version']) ? $theme->info['version'] : '';
+      $current_theme['version'] = $theme->info['version'] ?? '';
       $current_theme['notes'] = $theme->notes;
       $current_theme['is_default'] = $theme->is_default;
       $current_theme['is_admin'] = $theme->is_admin;
 
+      $current_theme['module_dependencies'] = !empty($theme->module_dependencies_list) ? [
+        '#theme' => 'item_list',
+        '#items' => $theme->module_dependencies_list,
+        '#context' => ['list_style' => 'comma-list'],
+      ] : [];
+
       // Make sure to provide feedback on compatibility.
       $current_theme['incompatible'] = '';
-      if (!empty($theme->incompatible_core)) {
-        $current_theme['incompatible'] = t("This theme is not compatible with Drupal @core_version. Check that the .info.yml file contains the correct 'core' value.", ['@core_version' => \Drupal::CORE_COMPATIBILITY]);
+      if (!empty($theme->info['core_incompatible'])) {
+        $current_theme['incompatible'] = t("This theme is not compatible with Drupal @core_version. Check that the .info.yml file contains a compatible 'core' or 'core_version_requirement' value.", ['@core_version' => \Drupal::VERSION]);
       }
       elseif (!empty($theme->incompatible_region)) {
         $current_theme['incompatible'] = t("This theme is missing a 'content' region.");
@@ -309,6 +330,20 @@ function template_preprocess_system_themes_page(&$variables) {
       }
       elseif (!empty($theme->incompatible_engine)) {
         $current_theme['incompatible'] = t('This theme requires the theme engine @theme_engine to operate correctly.', ['@theme_engine' => $theme->info['engine']]);
+      }
+      elseif (!empty($theme->incompatible_module)) {
+        $current_theme['incompatible'] = t('This theme requires the listed modules to operate correctly.');
+      }
+      elseif (!empty($theme->module_dependencies_disabled)) {
+        if (!empty($theme->insufficient_module_permissions)) {
+          $current_theme['incompatible'] = t('This theme requires the listed modules to operate correctly. They must first be enabled by a user with permissions to do so.');
+        }
+        else {
+          $modules_url = (string) Url::fromRoute('system.modules_list')->toString();
+          $current_theme['incompatible'] = t('This theme requires the listed modules to operate correctly. They must first be enabled via the <a href=":modules_url">Extend page</a>.', [
+            ':modules_url' => $modules_url,
+          ]);
+        }
       }
 
       // Build operation links.

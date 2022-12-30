@@ -1,0 +1,94 @@
+.gin-breadcrumb {
+  color: var(--colorGinText);
+  padding: 0;
+
+  &-wrapper {
+    min-width: 1px; // Fixes ellipsis with flex overfloating issue.
+  }
+
+  &__list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    width: auto;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    padding-left: .25rem;
+    margin-top: 0;
+    margin-left: -.25rem;
+  }
+
+  &__item,
+  &__link,
+  &__text {
+    display: inline;
+    font-weight: normal;
+    color: var(--colorGinTextLight);
+    text-decoration: none;
+    vertical-align: middle;
+  }
+
+  &__item {
+    font-size: 0;
+  }
+
+  &__item + &__item::before {
+    content: "/";
+    opacity: .3;
+    font-size: var(--ginFontSizeSmall);
+    vertical-align: middle;
+    display: inline-block;
+    padding: 0 .5em;
+    background: none;
+  }
+
+  &__item:first-of-type &__link {
+    position: relative;
+    padding-left: 1.75em;
+
+    &::before {
+      content: "";
+      display: inline-block;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: var(--iconGinSecondaryToolbar);
+      height: var(--iconGinSecondaryToolbar);
+      transform: translateY(-50%);
+      background-color: var(--colorGinIcons);
+      mask-image: icon('backtosite');
+      mask-size: 100% 100%;
+      mask-position: center center;
+    }
+
+    &:hover::before {
+      background-color: var(--colorGinPrimary);
+    }
+  }
+
+  &__link,
+  &__text {
+    font-size: var(--ginFontSizeSmall);
+    line-height: 2; // make sure we have enough room for focus ring
+    border-radius: var(--ginBorderTiny);
+
+    &, em {
+      &, &:link, &:visited {
+        font-weight: normal;
+        color: var(--colorGinTextLight);
+      }
+    }
+
+    em {
+      font-style: italic;
+    }
+  }
+
+  &__link {
+    &, em {
+      &:hover {
+        color: var(--colorGinPrimaryHover);
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+"""
+Things that can be commented on.
+"""
+interface Commentable {
+  comments(
+    """Returns the elements that come after the specified cursor."""
+    after: Cursor
+    """Returns the elements that come before the specified cursor."""
+    before: Cursor
+    """Returns up to the first `n` elements from the list."""
+    first: Int
+    """Returns up to the last `n` elements from the list."""
+    last: Int
+    """Reverse the order of the underlying list."""
+    reverse: Boolean = false
+    """Sort the underlying list by the given key."""
+    sortKey: CommentSortKeys = CREATED_AT
+  ): CommentConnection!
+}
+
+"""
+A comment to a piece of content that supports commenting.
+"""
+type Comment implements Node {
+  """
+  The unique identifier for the comment.
+  """
+  id: ID!
+  """
+  The author of the comment or NULL if it was placed anonymously.
+  """
+  author: Actor
+  """
+  The message of the comment as rendered HTML.
+  """
+  bodyHtml: Html!
+  """
+  When the comment was created.
+  """
+  created: DateTime!
+}
+
+type CommentEdge implements Edge {
+  cursor: Cursor!
+  node: Comment!
+}
+
+type CommentConnection implements Connection {
+  edges: [CommentEdge!]!
+  nodes: [Comment!]!
+  pageInfo: PageInfo!
+}
+
+"""
+The set of valid sort keys for the comment query.
+"""
+enum CommentSortKeys {
+  """Sort by the `created_at` value"""
+  CREATED_AT
+}

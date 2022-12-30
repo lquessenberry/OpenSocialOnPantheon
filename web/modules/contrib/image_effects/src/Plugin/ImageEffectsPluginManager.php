@@ -2,7 +2,7 @@
 
 namespace Drupal\image_effects\Plugin;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -106,7 +106,7 @@ class ImageEffectsPluginManager extends DefaultPluginManager {
   public function getPluginOptions() {
     $options = [];
     foreach ($this->getAvailablePlugins() as $plugin) {
-      $options[$plugin['id']] = SafeMarkup::format('<b>@title</b> - @description', ['@title' => $plugin['short_title'], '@description' => $plugin['help']]);
+      $options[$plugin['id']] = new FormattableMarkup('<b>@title</b> - @description', ['@title' => $plugin['short_title'], '@description' => $plugin['help']]);
     }
     return $options;
   }

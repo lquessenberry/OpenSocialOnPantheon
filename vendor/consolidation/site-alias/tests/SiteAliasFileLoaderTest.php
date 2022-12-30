@@ -9,7 +9,7 @@ class SiteAliasFileLoaderTest extends TestCase
     use FixtureFactory;
     use FunctionUtils;
 
-    function setUp()
+    function setUp(): void
     {
         $this->sut = new SiteAliasFileLoader();
 
@@ -28,7 +28,7 @@ class SiteAliasFileLoaderTest extends TestCase
         // Try to get the dev environment.
         $name = SiteAliasName::parse('@wild.dev');
         $result = $this->callProtected('loadSingleAliasFile', [$name]);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/path/to/wild', $result->get('root'));
         $this->assertEquals('bar', $result->get('foo'));
 
@@ -36,7 +36,7 @@ class SiteAliasFileLoaderTest extends TestCase
         // a wildcard alias, there should
         $name = SiteAliasName::parse('@wild.other');
         $result = $this->callProtected('loadSingleAliasFile', [$name]);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/wild/path/to/wild', $result->get('root'));
         $this->assertEquals('bar', $result->get('foo'));
 
@@ -60,28 +60,28 @@ class SiteAliasFileLoaderTest extends TestCase
         $name = new SiteAliasName('simple');
         $this->assertEquals('simple', $name->sitename());
         $result = $this->callProtected('loadSingleAliasFile', [$name]);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/path/to/simple', $result->get('root'));
 
         // Look for a single alias without an environment specified.
         $name = new SiteAliasName('single');
         $this->assertEquals('single', $name->sitename());
         $result = $this->callProtected('loadSingleAliasFile', [$name]);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/path/to/single', $result->get('root'));
         $this->assertEquals('bar', $result->get('foo'));
 
         // Same test, but with environment explicitly requested.
         $name = SiteAliasName::parse('@single.alternate');
         $result = $this->callProtected('loadSingleAliasFile', [$name]);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/alternate/path/to/single', $result->get('root'));
         $this->assertEquals('bar', $result->get('foo'));
 
         // Same test, but with location explicitly filtered.
         $name = SiteAliasName::parse('@other.single.dev');
         $result = $this->callProtected('loadSingleAliasFile', [$name]);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/other/path/to/single', $result->get('root'));
         $this->assertEquals('baz', $result->get('foo'));
 
@@ -96,11 +96,6 @@ class SiteAliasFileLoaderTest extends TestCase
         $this->assertFalse($result);
     }
 
-    public function testLoadLegacy()
-    {
-        $this->sut->addSearchLocation($this->fixturesDir() . '/sitealiases/legacy');
-    }
-
     public function testLoad()
     {
         $this->sut->addSearchLocation($this->fixturesDir() . '/sitealiases/sites');
@@ -108,20 +103,20 @@ class SiteAliasFileLoaderTest extends TestCase
         // Look for a simple alias with no environments defined
         $name = new SiteAliasName('simple');
         $result = $this->sut->load($name);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/path/to/simple', $result->get('root'));
 
         // Look for a single alias without an environment specified.
         $name = new SiteAliasName('single');
         $result = $this->sut->load($name);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/path/to/single', $result->get('root'));
         $this->assertEquals('bar', $result->get('foo'));
 
         // Same test, but with environment explicitly requested.
         $name = new SiteAliasName('single', 'alternate');
         $result = $this->sut->load($name);
-        $this->assertTrue($result instanceof AliasRecord);
+        $this->assertTrue($result instanceof SiteAlias);
         $this->assertEquals('/alternate/path/to/single', $result->get('root'));
         $this->assertEquals('bar', $result->get('foo'));
 
@@ -142,7 +137,9 @@ class SiteAliasFileLoaderTest extends TestCase
         $this->sut->addSearchLocation($this->fixturesDir() . '/sitealiases/other');
 
         $all = $this->sut->loadAll();
-        $this->assertEquals('@other.single.common,@other.single.dev,@other.single.other,@single.alternate,@single.common,@single.dev,@wild.*,@wild.common,@wild.dev', implode(',', array_keys($all)));
+        $actualKeys = array_keys($all);
+        sort($all);
+        $this->assertEquals('@other.bob.dev,@other.bob.other,@other.fred.dev,@other.fred.other,@other.single.dev,@other.single.other,@single.alternate,@single.dev,@single.empty,@wild.*,@wild.dev', implode(',', $actualKeys));
     }
 
     public function testLoadMultiple()
@@ -151,7 +148,7 @@ class SiteAliasFileLoaderTest extends TestCase
         $this->sut->addSearchLocation($this->fixturesDir() . '/sitealiases/other');
 
         $aliases = $this->sut->loadMultiple('single');
-        $this->assertEquals('@single.dev,@single.alternate,@single.common,@other.single.dev,@other.single.other,@other.single.common', implode(',', array_keys($aliases)));
+        $this->assertEquals('@single.dev,@single.alternate,@single.empty,@other.single.dev,@other.single.other', implode(',', array_keys($aliases)));
     }
 
     public function testLoadLocation()
@@ -160,6 +157,20 @@ class SiteAliasFileLoaderTest extends TestCase
         $this->sut->addSearchLocation($this->fixturesDir() . '/sitealiases/other');
 
         $aliases = $this->sut->loadLocation('other');
-        $this->assertEquals('@other.single.dev,@other.single.other,@other.single.common', implode(',', array_keys($aliases)));
+        $actualKeys = array_keys($aliases);
+        sort($actualKeys);
+        $this->assertEquals('@other.bob.dev,@other.bob.other,@other.fred.dev,@other.fred.other,@other.single.dev,@other.single.other', implode(',', $actualKeys));
+    }
+
+    public function testLoadOverrideSelf()
+    {
+        $this->sut->setRoot($this->fixturesDir() . '/sitealiases/self-override');
+        $this->sut->addSearchLocation($this->fixturesDir() . '/sitealiases/self-override/drush/sites');
+
+        // Specified site alias data should take precedence of @self data.
+        $name = new SiteAliasName('foo', 'prod');
+        $result = $this->sut->load($name);
+        $this->assertTrue($result instanceof SiteAlias);
+        $this->assertEquals('overridden', $result->get('bar'));
     }
 }

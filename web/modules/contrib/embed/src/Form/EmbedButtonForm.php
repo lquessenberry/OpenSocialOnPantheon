@@ -7,10 +7,11 @@ use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityForm;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\embed\EmbedType\EmbedTypeManager;
+use Drupal\embed\Entity\EmbedButton;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -84,7 +85,7 @@ class EmbedButtonForm extends EntityForm {
       '#maxlength' => EntityTypeInterface::BUNDLE_MAX_LENGTH,
       '#disabled' => !$button->isNew(),
       '#machine_name' => [
-        'exists' => ['Drupal\embed\Entity\EmbedButton', 'load'],
+        'exists' => [EmbedButton::class, 'load'],
       ],
       '#description' => $this->t('A unique machine-readable name for this embed button. It must only contain lowercase letters, numbers, and underscores.'),
     ];
@@ -101,8 +102,8 @@ class EmbedButtonForm extends EntityForm {
       ],
       '#disabled' => !$button->isNew(),
     ];
-    if (count($form['type_id']['#options']) == 0) {
-      drupal_set_message($this->t('No embed types found.'), 'warning');
+    if (empty($form['type_id']['#options'])) {
+      $this->messenger()->addWarning($this->t('No embed types found.'));
     }
 
     // Add the embed type plugin settings.
@@ -119,7 +120,7 @@ class EmbedButtonForm extends EntityForm {
       }
     }
     catch (PluginNotFoundException $exception) {
-      drupal_set_message($exception->getMessage(), 'error');
+      $this->messenger()->addError($exception->getMessage());
       watchdog_exception('embed', $exception);
       $form['type_id']['#disabled'] = FALSE;
     }
@@ -127,17 +128,38 @@ class EmbedButtonForm extends EntityForm {
     $config = $this->config('embed.settings');
     $upload_location = $config->get('file_scheme') . '://' . $config->get('upload_directory') . '/';
     $form['icon_file'] = [
-      '#title' => $this->t('Button icon'),
       '#type' => 'managed_file',
-      '#description' => $this->t('Icon for the button to be shown in CKEditor toolbar. Leave empty to use the default Entity icon.'),
+      '#title' => $this->t('Button icon'),
       '#upload_location' => $upload_location,
       '#upload_validators' => [
-        'file_validate_extensions' => ['gif png jpg jpeg'],
+        'file_validate_extensions' => ['gif png jpg jpeg svg'],
         'file_validate_image_resolution' => ['32x32', '16x16'],
       ],
     ];
-    if ($file = $button->getIconFile()) {
-      $form['icon_file']['#default_value'] = ['target_id' => $file->id()];
+
+    if (!$button->isNew()) {
+      $form['icon_reset'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Reset to default icon'),
+        '#access' => $button->getIconUrl() !== $button->getTypePlugin()->getDefaultIconUrl(),
+      ];
+
+      $form['icon_preview'] = [
+        '#type' => 'fieldset',
+        '#title' => $this->t('Current icon preview'),
+      ];
+      $form['icon_preview']['image'] = [
+        '#theme' => 'image',
+        '#uri' => $button->getIconUrl(),
+        '#alt' => $this->t('Preview of @label button icon', ['@label' => $button->label()]),
+      ];
+
+      // Show an even nicer preview with CKEditor being used.
+      if ($this->moduleHandler->moduleExists('ckeditor')) {
+        $form['icon_preview']['image']['#prefix'] = '<div data-toolbar="active" role="form" class="ckeditor-toolbar ckeditor-toolbar-active clearfix"><ul class="ckeditor-active-toolbar-configuration" role="presentation" aria-label="CKEditor toolbar and button configuration."><li class="ckeditor-row" role="group" aria-labelledby="ckeditor-active-toolbar"><ul class="ckeditor-toolbar-groups clearfix js-sortable"><li class="ckeditor-toolbar-group" role="presentation" data-drupal-ckeditor-type="group" data-drupal-ckeditor-toolbar-group-name="Embed button icon preview" tabindex="0"><h3 class="ckeditor-toolbar-group-name" id="ckeditor-toolbar-group-aria-label-for-formatting">Embed button icon preview</h3><ul class="ckeditor-buttons ckeditor-toolbar-group-buttons js-sortable" role="toolbar" data-drupal-ckeditor-button-sorting="target" aria-labelledby="ckeditor-toolbar-group-aria-label-for-formatting"><li data-drupal-ckeditor-button-name="Bold" class="ckeditor-button"><a href="#" role="button" title="' . $button->label() . '" aria-label="' . $button->label() . '"><span class="cke_button_icon">';
+        $form['icon_preview']['image']['#suffix'] = '</span></a></li></ul></li></ul></div>';
+        $form['icon_preview']['#attached']['library'][] = 'ckeditor/drupal.ckeditor.admin';
+      }
     }
 
     return $form;
@@ -181,30 +203,32 @@ class EmbedButtonForm extends EntityForm {
     $form_state->setValue('type_settings', $plugin->getConfiguration());
     $button->set('type_settings', $plugin->getConfiguration());
 
+    // If a file was uploaded to be used as the icon, get an encoded URL to be
+    // stored in the config entity.
     $icon_fid = $form_state->getValue(['icon_file', '0']);
-    // If a file was uploaded to be used as the icon, get its UUID to be stored
-    // in the config entity.
     if (!empty($icon_fid) && $file = $this->entityTypeManager->getStorage('file')->load($icon_fid)) {
-      $button->set('icon_uuid', $file->uuid());
+      $file->setPermanent();
+      $file->save();
+      $button->set('icon', EmbedButton::convertImageToEncodedData($file->getFileUri()));
     }
-    else {
-      $button->set('icon_uuid', NULL);
+    elseif ($form_state->getValue('icon_reset')) {
+      $button->set('icon', NULL);
     }
 
     $status = $button->save();
 
     $t_args = ['%label' => $button->label()];
 
-    if ($status == SAVED_UPDATED) {
-      drupal_set_message($this->t('The embed button %label has been updated.', $t_args));
+    if ($status === SAVED_UPDATED) {
+      $this->messenger()->addStatus($this->t('The embed button %label has been updated.', $t_args));
+      $this->logger('embed')->info('Updated embed button %label.', $t_args);
     }
-    elseif ($status == SAVED_NEW) {
-      drupal_set_message($this->t('The embed button %label has been added.', $t_args));
-      $context = array_merge($t_args, ['link' => $button->link($this->t('View'), 'collection')]);
-      $this->logger('embed')->notice('Added embed button %label.', $context);
+    elseif ($status === SAVED_NEW) {
+      $this->messenger()->addStatus($this->t('The embed button %label has been added.', $t_args));
+      $this->logger('embed')->info('Added embed button %label.', $t_args);
     }
 
-    $form_state->setRedirectUrl($button->urlInfo('collection'));
+    $form_state->setRedirectUrl($button->toUrl());
   }
 
   /**

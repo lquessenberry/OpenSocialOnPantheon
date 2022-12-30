@@ -2,14 +2,12 @@
 
 namespace Drupal\flag\Entity;
 
-use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Plugin\DefaultSingleLazyPluginCollection;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Config\Entity\ConfigEntityBundleBase;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
-use Drupal\flag\Event\FlagEvents;
 use Drupal\flag\FlagInterface;
 
 /**
@@ -18,6 +16,12 @@ use Drupal\flag\FlagInterface;
  * @ConfigEntityType(
  *   id = "flag",
  *   label = @Translation("Flag"),
+ *   label_singular = @Translation("flag"),
+ *   label_plural = @Translation("flags"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count flag",
+ *     plural = "@count flags",
+ *   ),
  *   admin_permission = "administer flags",
  *   handlers = {
  *     "list_builder" = "Drupal\flag\Controller\FlagListBuilder",
@@ -68,27 +72,12 @@ use Drupal\flag\FlagInterface;
  */
 class Flag extends ConfigEntityBundleBase implements FlagInterface {
   // @todo: Define flag reset method.
-
-  /**
-   * The flag ID.
-   *
-   * @var string
-   */
-  protected $id;
-
   /**
    * The entity type this flag works with.
    *
    * @var string
    */
   protected $entity_type = NULL;
-
-  /**
-   * The flag label.
-   *
-   * @var string
-   */
-  protected $label = '';
 
   /**
    * Whether this flag state should act as a single toggle to all users.
@@ -325,7 +314,6 @@ class Flag extends ConfigEntityBundleBase implements FlagInterface {
     return $this->linkTypeCollection;
   }
 
-
   /**
    * {@inheritdoc}
    */
@@ -505,6 +493,30 @@ class Flag extends ConfigEntityBundleBase implements FlagInterface {
     foreach ($entities as $flag) {
       \Drupal::service('flag')->unflagAllByFlag($flag);
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
+    if (\Drupal::moduleHandler()->moduleExists('views')) {
+      // Rebuild views data to invalidate flag relationships.
+      \Drupal::service('views.views_data')->clear();
+    }
+    \Drupal::service('plugin.manager.action')->clearCachedDefinitions();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function postDelete(EntityStorageInterface $storage, array $entities) {
+    parent::postDelete($storage, $entities);
+    if (\Drupal::moduleHandler()->moduleExists('views')) {
+      // Rebuild views data to invalidate flag relationships.
+      \Drupal::service('views.views_data')->clear();
+    }
+    \Drupal::service('plugin.manager.action')->clearCachedDefinitions();
   }
 
   /**

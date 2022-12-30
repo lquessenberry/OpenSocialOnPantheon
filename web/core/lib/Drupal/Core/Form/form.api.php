@@ -34,9 +34,8 @@
  *     $context['sandbox'] will be there the next time this function is called
  *     for the current operation. For example, an operation may wish to store a
  *     pointer in a file or an offset for a large query. The 'sandbox' array key
- *     is not initially set when this callback is first called, which makes it
- *     useful for determining whether it is the first call of the callback or
- *     not:
+ *     is empty when this callback is first called, which makes it useful for
+ *     determining whether it is the first call of the callback or not:
  *     @code
  *       if (empty($context['sandbox'])) {
  *         // Perform set-up steps here.
@@ -61,7 +60,7 @@ function callback_batch_operation($multiple_params, &$context) {
   if (!isset($context['sandbox']['progress'])) {
     $context['sandbox']['progress'] = 0;
     $context['sandbox']['current_node'] = 0;
-    $context['sandbox']['max'] = $database->query('SELECT COUNT(DISTINCT nid) FROM {node}')->fetchField();
+    $context['sandbox']['max'] = $database->query('SELECT COUNT(DISTINCT [nid]) FROM {node}')->fetchField();
   }
 
   // For this example, we decide that we can safely process
@@ -69,7 +68,7 @@ function callback_batch_operation($multiple_params, &$context) {
   $limit = 5;
 
   // With each pass through the callback, retrieve the next group of nids.
-  $result = $database->queryRange("SELECT nid FROM {node} WHERE nid > :nid ORDER BY nid ASC", 0, $limit, [':nid' => $context['sandbox']['current_node']]);
+  $result = $database->queryRange("SELECT [nid] FROM {node} WHERE [nid] > :nid ORDER BY [nid] ASC", 0, $limit, [':nid' => $context['sandbox']['current_node']]);
   foreach ($result as $row) {
 
     // Here we actually perform our processing on the current node.
@@ -109,19 +108,23 @@ function callback_batch_operation($multiple_params, &$context) {
  *   The value set in $context['results'] by callback_batch_operation().
  * @param $operations
  *   If $success is FALSE, contains the operations that remained unprocessed.
+ * @param string $elapsed
+ *   A string representing the elapsed time for the batch process, e.g.,
+ *   '1 min 30 secs'.
  */
-function callback_batch_finished($success, $results, $operations) {
+function callback_batch_finished($success, $results, $operations, $elapsed) {
   if ($success) {
     // Here we do something meaningful with the results.
-    $message = t("@count items were processed.", [
+    $message = t("@count items were processed (@elapsed).", [
       '@count' => count($results),
-      ]);
+      '@elapsed' => $elapsed,
+    ]);
     $list = [
       '#theme' => 'item_list',
       '#items' => $results,
     ];
-    $message .= drupal_render($list);
-    drupal_set_message($message);
+    $message .= \Drupal::service('renderer')->render($list);
+    \Drupal::messenger()->addStatus($message);
   }
   else {
     // An error occurred.
@@ -129,9 +132,9 @@ function callback_batch_finished($success, $results, $operations) {
     $error_operation = reset($operations);
     $message = t('An error occurred while processing %error_operation with arguments: @arguments', [
       '%error_operation' => $error_operation[0],
-      '@arguments' => print_r($error_operation[1], TRUE)
+      '@arguments' => print_r($error_operation[1], TRUE),
     ]);
-    drupal_set_message($message, 'error');
+    \Drupal::messenger()->addError($message);
   }
 }
 
@@ -165,7 +168,7 @@ function hook_ajax_render_alter(array &$data) {
  * $form_state->getFormObject()->getEntity().
  *
  * Implementations are responsible for adding cache contexts/tags/max-age as
- * needed. See https://www.drupal.org/developing/api/8/cache.
+ * needed. See https://www.drupal.org/docs/8/api/cache-api/cache-api.
  *
  * In addition to hook_form_alter(), which is called for all forms, there are
  * two more specific form hooks available. The first,
@@ -190,8 +193,8 @@ function hook_ajax_render_alter(array &$data) {
  *   \Drupal::formBuilder()->getForm() was originally called with are available
  *   in the array $form_state->getBuildInfo()['args'].
  * @param $form_id
- *   String representing the name of the form itself. Typically this is the
- *   name of the function that generated the form.
+ *   A string that is the unique ID of the form, set by
+ *   Drupal\Core\Form\FormInterface::getFormId().
  *
  * @see hook_form_BASE_FORM_ID_alter()
  * @see hook_form_FORM_ID_alter()
@@ -216,15 +219,21 @@ function hook_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_stat
  * Provide a form-specific alteration instead of the global hook_form_alter().
  *
  * Implementations are responsible for adding cache contexts/tags/max-age as
- * needed. See https://www.drupal.org/developing/api/8/cache.
+ * needed. See https://www.drupal.org/docs/8/api/cache-api/cache-api.
  *
  * Modules can implement hook_form_FORM_ID_alter() to modify a specific form,
  * rather than implementing hook_form_alter() and checking the form ID, or
  * using long switch statements to alter multiple forms.
  *
- * Form alter hooks are called in the following order: hook_form_alter(),
- * hook_form_BASE_FORM_ID_alter(), hook_form_FORM_ID_alter(). See
- * hook_form_alter() for more details.
+ * The call order is as follows: all existing form alter functions are called
+ * for module A, then all for module B, etc., followed by all for any base
+ * theme(s), and finally for the theme itself. The module order is determined
+ * by system weight, then by module name.
+ *
+ * Within each module, form alter hooks are called in the following order:
+ * first, hook_form_alter(); second, hook_form_BASE_FORM_ID_alter(); third,
+ * hook_form_FORM_ID_alter(). So, for each module, the more general hooks are
+ * called first followed by the more specific.
  *
  * @param $form
  *   Nested array of form elements that comprise the form.
@@ -259,7 +268,7 @@ function hook_form_FORM_ID_alter(&$form, \Drupal\Core\Form\FormStateInterface $f
  * Provide a form-specific alteration for shared ('base') forms.
  *
  * Implementations are responsible for adding cache contexts/tags/max-age as
- * needed. See https://www.drupal.org/developing/api/8/cache.
+ * needed. See https://www.drupal.org/docs/8/api/cache-api/cache-api.
  *
  * By default, when \Drupal::formBuilder()->getForm() is called, Drupal looks
  * for a function with the same name as the form ID, and uses that function to
@@ -274,9 +283,15 @@ function hook_form_FORM_ID_alter(&$form, \Drupal\Core\Form\FormStateInterface $f
  * one exists) check the $form_state. The base form ID is stored under
  * $form_state->getBuildInfo()['base_form_id'].
  *
- * Form alter hooks are called in the following order: hook_form_alter(),
- * hook_form_BASE_FORM_ID_alter(), hook_form_FORM_ID_alter(). See
- * hook_form_alter() for more details.
+ * The call order is as follows: all existing form alter functions are called
+ * for module A, then all for module B, etc., followed by all for any base
+ * theme(s), and finally for the theme itself. The module order is determined
+ * by system weight, then by module name.
+ *
+ * Within each module, form alter hooks are called in the following order:
+ * first, hook_form_alter(); second, hook_form_BASE_FORM_ID_alter(); third,
+ * hook_form_FORM_ID_alter(). So, for each module, the more general hooks are
+ * called first followed by the more specific.
  *
  * @param $form
  *   Nested array of form elements that comprise the form.

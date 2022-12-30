@@ -96,7 +96,7 @@ class LibraryDiscoveryCollector extends CacheCollector {
         else {
           // Otherwise replace with existing library definition if it exists.
           // Throw an exception if it doesn't.
-          list($replacement_extension, $replacement_name) = explode('/', $definition['override']);
+          [$replacement_extension, $replacement_name] = explode('/', $definition['override']);
           $replacement_definition = $this->get($replacement_extension);
           if (isset($replacement_definition[$replacement_name])) {
             $libraries[$name] = $replacement_definition[$replacement_name];
@@ -136,11 +136,16 @@ class LibraryDiscoveryCollector extends CacheCollector {
     $libraries_extend = $this->themeManager->getActiveTheme()->getLibrariesExtend();
     if (!empty($libraries_extend["$extension/$library_name"])) {
       foreach ($libraries_extend["$extension/$library_name"] as $library_extend_name) {
+        if (isset($library_definition['deprecated'])) {
+          $extend_message = sprintf('Theme "%s" is extending a deprecated library.', $extension);
+          $library_deprecation = str_replace('%library_id%', "$extension/$library_name", $library_definition['deprecated']);
+          @trigger_error("$extend_message $library_deprecation", E_USER_DEPRECATED);
+        }
         if (!is_string($library_extend_name)) {
           // Only string library names are allowed.
           throw new InvalidLibrariesExtendSpecificationException('The libraries-extend specification for each library must be a list of strings.');
         }
-        list($new_extension, $new_library_name) = explode('/', $library_extend_name, 2);
+        [$new_extension, $new_library_name] = explode('/', $library_extend_name, 2);
         $new_libraries = $this->get($new_extension);
         if (isset($new_libraries[$new_library_name])) {
           $library_definition = NestedArray::mergeDeep($library_definition, $new_libraries[$new_library_name]);

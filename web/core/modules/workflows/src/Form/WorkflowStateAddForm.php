@@ -11,7 +11,7 @@ use Drupal\workflows\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Class WorkflowStateAddForm.
+ * Entity form variant for adding workflow states.
  *
  * @internal
  */
@@ -56,7 +56,7 @@ class WorkflowStateAddForm extends EntityForm {
   public function form(array $form, FormStateInterface $form_state) {
     $form = parent::form($form, $form_state);
 
-    /* @var \Drupal\workflows\WorkflowInterface $workflow */
+    /** @var \Drupal\workflows\WorkflowInterface $workflow */
     $workflow = $this->getEntity();
     $workflow_type = $workflow->getTypePlugin();
 
@@ -104,7 +104,7 @@ class WorkflowStateAddForm extends EntityForm {
   }
 
   /**
-   * Copies top-level form values to entity properties
+   * Copies top-level form values to entity properties.
    *
    * This form can only change values for a state, which is part of workflow.
    *
@@ -116,15 +116,13 @@ class WorkflowStateAddForm extends EntityForm {
    *   The current state of the form.
    */
   protected function copyFormValuesToEntity(EntityInterface $entity, array $form, FormStateInterface $form_state) {
+    if (!$form_state->isValidationComplete()) {
+      // Only do something once form validation is complete.
+      return;
+    }
     /** @var \Drupal\workflows\WorkflowInterface $entity */
     $values = $form_state->getValues();
-    $type_plugin = $entity->getTypePlugin();
-
-    // Replicate the validation that Workflow::addState() does internally as the
-    // form values have not been validated at this point.
-    if (!$type_plugin->hasState($values['id']) && !preg_match('/[^a-z0-9_]+/', $values['id'])) {
-      $type_plugin->addState($values['id'], $values['label']);
-    }
+    $entity->getTypePlugin()->addState($values['id'], $values['label']);
   }
 
   /**
@@ -162,7 +160,7 @@ class WorkflowStateAddForm extends EntityForm {
     }
 
     $workflow->save();
-    drupal_set_message($this->t('Created %label state.', [
+    $this->messenger()->addStatus($this->t('Created %label state.', [
       '%label' => $workflow->getTypePlugin()->getState($form_state->getValue('id'))->label(),
     ]));
     $form_state->setRedirectUrl($workflow->toUrl('edit-form'));

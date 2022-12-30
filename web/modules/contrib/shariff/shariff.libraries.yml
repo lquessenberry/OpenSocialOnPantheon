@@ -1,0 +1,24 @@
+shariff-min:
+  version: VERSION
+  css:
+    component:
+      /libraries/shariff/shariff.min.css: {}
+  js:
+    /libraries/shariff/shariff.complete.js: { scope: footer }
+  dependencies:
+    - core/drupal
+shariff-complete:
+  version: VERSION
+  css:
+    component:
+      /libraries/shariff/shariff.complete.css: {}
+  js:
+    /libraries/shariff/shariff.complete.js: { scope: footer }
+  dependencies:
+    - core/drupal
+shariff-naked:
+  version: VERSION
+  js:
+    /libraries/shariff/shariff.complete.js: { scope: footer }
+  dependencies:
+    - core/drupal

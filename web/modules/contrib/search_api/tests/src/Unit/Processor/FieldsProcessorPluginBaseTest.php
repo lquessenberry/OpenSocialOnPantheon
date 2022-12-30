@@ -23,7 +23,7 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
   /**
    * A search index mock to use in this test case.
    *
-   * @var \Drupal\search_api\IndexInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\search_api\IndexInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $index;
 
@@ -37,11 +37,11 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
   /**
    * Creates a new processor object for use in the tests.
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->setUpMockContainer();
-    $this->index = $this->getMock('Drupal\search_api\IndexInterface');
+    $this->index = $this->createMock(IndexInterface::class);
     $this->index->expects($this->any())
       ->method('status')
       ->will($this->returnValue(TRUE));
@@ -120,8 +120,8 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
 
     // Since it's not possible to override an already specified method on a mock
     // object, we need to create a new mock object for the index in this test.
-    /** @var \Drupal\search_api\IndexInterface|\PHPUnit_Framework_MockObject_MockObject $index */
-    $index = $this->getMock(IndexInterface::class);
+    /** @var \Drupal\search_api\IndexInterface|\PHPUnit\Framework\MockObject\MockObject $index */
+    $index = $this->createMock(IndexInterface::class);
     $index->method('getFields')->willReturn([
       'float_field' => (new Field($this->index, ''))->setType('float'),
       'float_field_2' => (new Field($this->index, ''))->setType('float'),
@@ -507,8 +507,22 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
     $query->addCondition('text_field', ['foo', 'bar'], 'IN');
     $query->addCondition('string_field', NULL, '<>');
     $query->addCondition('integer_field', 'bar');
+    $query2 = clone $query;
 
     $this->processor->preprocessSearchQuery($query);
+
+    $expected = [
+      new Condition('text_field', '*foo'),
+      new Condition('text_field', ['*foo', '*bar'], 'IN'),
+      new Condition('string_field', NULL, '<>'),
+      new Condition('integer_field', 'bar'),
+    ];
+    $this->assertEquals($expected, $query->getConditionGroup()->getConditions(), 'Conditions were preprocessed correctly.');
+
+    $this->processor->setMethodOverride('shouldProcess', function () {
+      return TRUE;
+    });
+    $this->processor->preprocessSearchQuery($query2);
 
     $expected = [
       new Condition('text_field', '*foo'),
@@ -516,7 +530,7 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
       new Condition('string_field', 'undefined', '<>'),
       new Condition('integer_field', 'bar'),
     ];
-    $this->assertEquals($expected, $query->getConditionGroup()->getConditions(), 'Conditions were preprocessed correctly.');
+    $this->assertEquals($expected, $query2->getConditionGroup()->getConditions(), 'Conditions were preprocessed correctly.');
   }
 
   /**
@@ -532,8 +546,22 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
     $conditions->addCondition('string_field', NULL, '<>');
     $conditions->addCondition('integer_field', 'bar');
     $query->addConditionGroup($conditions);
+    $query2 = clone $query;
 
     $this->processor->preprocessSearchQuery($query);
+
+    $expected = [
+      new Condition('text_field', '*foo'),
+      new Condition('text_field', ['*foo', '*bar'], 'IN'),
+      new Condition('string_field', NULL, '<>'),
+      new Condition('integer_field', 'bar'),
+    ];
+    $this->assertEquals($expected, $query->getConditionGroup()->getConditions()[0]->getConditions(), 'Conditions were preprocessed correctly.');
+
+    $this->processor->setMethodOverride('shouldProcess', function () {
+      return TRUE;
+    });
+    $this->processor->preprocessSearchQuery($query2);
 
     $expected = [
       new Condition('text_field', '*foo'),
@@ -541,7 +569,7 @@ class FieldsProcessorPluginBaseTest extends UnitTestCase {
       new Condition('string_field', 'undefined', '<>'),
       new Condition('integer_field', 'bar'),
     ];
-    $this->assertEquals($expected, $query->getConditionGroup()->getConditions()[0]->getConditions(), 'Conditions were preprocessed correctly.');
+    $this->assertEquals($expected, $query2->getConditionGroup()->getConditions()[0]->getConditions(), 'Conditions were preprocessed correctly.');
   }
 
   /**

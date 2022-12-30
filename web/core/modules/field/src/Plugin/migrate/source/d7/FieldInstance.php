@@ -8,10 +8,43 @@ use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 /**
  * Drupal 7 field instances source from database.
  *
- * @internal
+ * If the Drupal 7 Title module is enabled, the fields it provides are not
+ * migrated. The values of those fields will be migrated to the base fields they
+ * were replacing.
  *
- * This class is marked as internal and should not be extended. Use
- * Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase instead.
+ * Available configuration keys:
+ *  - entity_type: (optional) The entity type (machine name) to filter field
+ *    instances retrieved from the source. If omitted, all field instances are
+ *    retrieved.
+ *  - bundle: (optional) The bundle machine name to filter field instances
+ *    retrieved from the source. It should be used in combination with
+ *    entity_type property and will be ignored otherwise.
+ *
+ * Examples:
+ *
+ * @code
+ * source:
+ *   plugin: d7_field_instance
+ *   entity_type: node
+ * @endcode
+ *
+ * In this example field instances of node entity type are retrieved from the
+ * source database.
+ *
+ * @code
+ * source:
+ *   plugin: d7_field_instance
+ *   entity_type: node
+ *   bundle: page
+ * @endcode
+ *
+ * In this example field instances of page content type are retrieved from the
+ * source database.
+ *
+ * For additional configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
  *
  * @MigrateSource(
  *   id = "d7_field_instance",
@@ -31,7 +64,7 @@ class FieldInstance extends DrupalSqlBase {
       ->condition('fc.storage_active', 1)
       ->condition('fc.deleted', 0)
       ->condition('fci.deleted', 0);
-    $query->join('field_config', 'fc', 'fci.field_id = fc.id');
+    $query->join('field_config', 'fc', '[fci].[field_id] = [fc].[id]');
 
     // Optionally filter by entity type and bundle.
     if (isset($this->configuration['entity_type'])) {
@@ -40,6 +73,17 @@ class FieldInstance extends DrupalSqlBase {
       if (isset($this->configuration['bundle'])) {
         $query->condition('fci.bundle', $this->configuration['bundle']);
       }
+    }
+
+    // The Title module fields are not migrated.
+    if ($this->moduleExists('title')) {
+      $title_fields = [
+        'title_field',
+        'name_field',
+        'description_field',
+        'subject_field',
+      ];
+      $query->condition('fc.field_name', $title_fields, 'NOT IN');
     }
 
     return $query;
@@ -100,14 +144,15 @@ class FieldInstance extends DrupalSqlBase {
       ->fetch();
     $row->setSourceProperty('field_definition', $field_definition);
 
+    // Determine the translatable setting.
     $translatable = FALSE;
     if ($row->getSourceProperty('entity_type') == 'node') {
       $language_content_type_bundle = (int) $this->variableGet('language_content_type_' . $row->getSourceProperty('bundle'), 0);
       // language_content_type_[bundle] may be
-      //   - 0: no language support
-      //   - 1: language assignment support
-      //   - 2: node translation support
-      //   - 4: entity translation support
+      // - 0: no language support
+      // - 1: language assignment support
+      // - 2: node translation support
+      // - 4: entity translation support
       if ($language_content_type_bundle === 2 || ($language_content_type_bundle === 4 && $row->getSourceProperty('translatable'))) {
         $translatable = TRUE;
       }
@@ -118,8 +163,70 @@ class FieldInstance extends DrupalSqlBase {
       $field_data = unserialize($field_definition['data']);
       $translatable = $field_data['translatable'];
     }
+
+    // Check if this is an i18n synchronized field.
+    $synchronized_fields = $this->variableGet('i18n_sync_node_type_' . $row->getSourceProperty('bundle'), NULL);
+    if ($synchronized_fields) {
+      if (in_array($row->getSourceProperty('field_name'), $synchronized_fields)) {
+        $translatable = FALSE;
+      }
+    }
     $row->setSourceProperty('translatable', $translatable);
 
+    // Get the vid for each allowed value for taxonomy term reference fields
+    // which is used in a migration_lookup in the process pipeline.
+    if ($row->getSourceProperty('type') == 'taxonomy_term_reference') {
+      $vocabulary = [];
+      $data = unserialize($field_definition['data']);
+      foreach ($data['settings']['allowed_values'] as $allowed_value) {
+        $vocabulary[] = $allowed_value['vocabulary'];
+      }
+      $query = $this->select('taxonomy_vocabulary', 'v')
+        ->fields('v', ['vid'])
+        ->condition('machine_name', $vocabulary, 'IN');
+      $allowed_vid = $query->execute()->fetchAllAssoc('vid');
+      $row->setSourceProperty('allowed_vid', $allowed_vid);
+
+      // If there is an i18n_mode use it to determine if this field is
+      // translatable. It is TRUE for i18n_modes 'Vocab Fixed' and  'Translate',
+      // for all others it is FALSE. When there is a term reference field with
+      // two vocabularies where one vocabulary is translatable and other is not
+      // the field itself is set to not translatable. Note mode '5' is not used
+      // for taxonomy but is listed here for completeness.
+      // - 0: No multilingual options.
+      // - 1: Localize. Localizable object.
+      // - 2: Fixed Language.
+      // - 4: Translate. Multilingual objects.
+      // - 5: Objects are translatable, if they have language or localizable
+      // if not)
+      if ($this->getDatabase()
+        ->schema()
+        ->fieldExists('taxonomy_vocabulary', 'i18n_mode')) {
+        $query = $this->select('taxonomy_vocabulary', 'v')
+          ->fields('v', ['i18n_mode'])
+          ->condition('machine_name', $vocabulary, 'IN');
+        $results = $query->execute()->fetchAllAssoc('i18n_mode');
+        $translatable = FALSE;
+        foreach ($results as $result) {
+          if ($result['i18n_mode'] == '2' || $result['i18n_mode'] == '4') {
+            $translatable = TRUE;
+          }
+        }
+        $row->setSourceProperty('translatable', $translatable);
+      }
+    }
+
+    // Get the user roles for user reference fields.
+    if ($row->getSourceProperty('type') == 'user_reference') {
+      $data = unserialize($field_definition['data']);
+      if (!empty($data['settings']['referenceable_roles'])) {
+        $rid = $data['settings']['referenceable_roles'];
+        $query = $this->select('role', 'r')->fields('r')
+          ->condition('rid', $rid, 'IN');
+        $results = $query->execute()->fetchAll();
+        $row->setSourceProperty('roles', $results);
+      }
+    }
     return parent::prepareRow($row);
   }
 
@@ -146,7 +253,7 @@ class FieldInstance extends DrupalSqlBase {
   /**
    * {@inheritdoc}
    */
-  public function count($refresh = FALSE) {
+  protected function doCount() {
     return $this->initializeIterator()->count();
   }
 

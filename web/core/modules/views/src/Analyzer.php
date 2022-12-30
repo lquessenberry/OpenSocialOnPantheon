@@ -5,6 +5,8 @@ namespace Drupal\views;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 
 /**
+ * View analyzer plugin manager.
+ *
  * This tool is a small plugin manager to perform analysis on a view and
  * report results to the user. This tool is meant to let modules that
  * provide data to Views also help users properly use that data by
@@ -31,7 +33,6 @@ class Analyzer {
     $this->moduleHandler = $module_handler;
   }
 
-
   /**
    * Analyzes a review and return the results.
    *
@@ -52,7 +53,8 @@ class Analyzer {
   /**
    * Formats the analyze result into a message string.
    *
-   * This is based upon the format of drupal_set_message which uses separate
+   * This is based upon the format of
+   * \Drupal\Core\Messenger\MessengerInterface::addMessage() which uses separate
    * boxes for "ok", "warning" and "error".
    */
   public function formatMessages(array $messages) {
@@ -103,10 +105,11 @@ class Analyzer {
    * The 'ok' status should be used to provide information about things
    * that are acceptable. In general analysis isn't interested in 'ok'
    * messages, but instead the 'warning', which is a category for items
-   * that may be broken unless the user knows what he or she is doing,
-   * and 'error' for items that are definitely broken are much more useful.
+   * that may be broken unless the user knows what they are doing, and 'error'
+   * for items that are definitely broken are much more useful.
    *
    * @param string $message
+   *   The message.
    * @param string $type
    *   The type of message. This should be "ok", "warning" or "error". Other
    *   values can be used but how they are treated by the output routine

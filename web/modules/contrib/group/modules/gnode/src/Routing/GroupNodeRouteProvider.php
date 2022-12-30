@@ -33,7 +33,7 @@ class GroupNodeRouteProvider {
     $routes['entity.group_content.group_node_relate_page'] = new Route('group/{group}/node/add');
     $routes['entity.group_content.group_node_relate_page']
       ->setDefaults([
-        '_title' => 'Relate node',
+        '_title' => 'Add existing content',
         '_controller' => '\Drupal\gnode\Controller\GroupNodeController::addPage',
       ])
       ->setRequirement('_group_permission', implode('+', $permissions_add))
@@ -43,7 +43,7 @@ class GroupNodeRouteProvider {
     $routes['entity.group_content.group_node_add_page'] = new Route('group/{group}/node/create');
     $routes['entity.group_content.group_node_add_page']
       ->setDefaults([
-        '_title' => 'Create node',
+        '_title' => 'Add new content',
         '_controller' => '\Drupal\gnode\Controller\GroupNodeController::addPage',
         'create_mode' => TRUE,
       ])

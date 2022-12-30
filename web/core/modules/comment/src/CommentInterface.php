@@ -56,8 +56,9 @@ interface CommentInterface extends ContentEntityInterface, EntityChangedInterfac
   /**
    * Returns the entity to which the comment is attached.
    *
-   * @return \Drupal\Core\Entity\FieldableEntityInterface
-   *   The entity on which the comment is attached.
+   * @return \Drupal\Core\Entity\FieldableEntityInterface|null
+   *   The entity on which the comment is attached or NULL if the comment is an
+   *   orphan.
    */
   public function getCommentedEntity();
 
@@ -208,21 +209,11 @@ interface CommentInterface extends ContentEntityInterface, EntityChangedInterfac
   public function setCreatedTime($created);
 
   /**
-   * Returns the comment's status.
-   *
-   * @return int
-   *   One of CommentInterface::PUBLISHED or CommentInterface::NOT_PUBLISHED
-   *
-   * @deprecated in Drupal 8.3.0, will be removed before Drupal 9.0.0. Use
-   *   \Drupal\Core\Entity\EntityPublishedInterface::isPublished() instead.
-   */
-  public function getStatus();
-
-  /**
    * Returns the alphadecimal representation of the comment's place in a thread.
    *
-   * @return string
-   *   The alphadecimal representation of the comment's place in a thread.
+   * @return string|null
+   *   The alphadecimal representation of the comment's place in a thread. NULL
+   *   is returned before a comment is saved.
    */
   public function getThread();
 

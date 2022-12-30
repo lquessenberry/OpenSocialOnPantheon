@@ -2,6 +2,7 @@
 
 namespace Drupal\search_api\Backend;
 
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\search_api\Entity\Server;
 use Drupal\search_api\Item\ItemInterface;
 use Drupal\search_api\LoggerTrait;
@@ -11,6 +12,7 @@ use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Plugin\ConfigurablePluginBase;
 use Drupal\search_api\ServerInterface;
 use Drupal\search_api\Utility\FieldsHelper;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Defines a base class for backend plugins.
@@ -67,14 +69,34 @@ abstract class BackendPluginBase extends ConfigurablePluginBase implements Backe
   protected $fieldsHelper;
 
   /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface|null
+   */
+  protected $messenger;
+
+  /**
    * {@inheritdoc}
    */
   public function __construct(array $configuration, $plugin_id, array $plugin_definition) {
-    if (!empty($configuration['#server']) && $configuration['#server'] instanceof ServerInterface) {
+    if (($configuration['#server'] ?? NULL) instanceof ServerInterface) {
       $this->setServer($configuration['#server']);
       unset($configuration['#server']);
     }
     parent::__construct($configuration, $plugin_id, $plugin_definition);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    /** @var static $plugin */
+    $plugin = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+
+    $plugin->setFieldsHelper($container->get('search_api.fields_helper'));
+    $plugin->setMessenger($container->get('messenger'));
+
+    return $plugin;
   }
 
   /**
@@ -98,6 +120,40 @@ abstract class BackendPluginBase extends ConfigurablePluginBase implements Backe
   public function setFieldsHelper(FieldsHelper $fields_helper) {
     $this->fieldsHelper = $fields_helper;
     return $this;
+  }
+
+  /**
+   * Retrieves the messenger.
+   *
+   * @return \Drupal\Core\Messenger\MessengerInterface
+   *   The messenger.
+   */
+  public function getMessenger() {
+    return $this->messenger ?: \Drupal::service('messenger');
+  }
+
+  /**
+   * Sets the messenger.
+   *
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The new messenger.
+   *
+   * @return $this
+   */
+  public function setMessenger(MessengerInterface $messenger) {
+    $this->messenger = $messenger;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setConfiguration(array $configuration) {
+    parent::setConfiguration($configuration);
+
+    if ($this->server && $this->server->getBackendConfig() !== $configuration) {
+      $this->server->setBackendConfig($configuration);
+    }
   }
 
   /**
@@ -172,7 +228,7 @@ abstract class BackendPluginBase extends ConfigurablePluginBase implements Backe
         '%server' => $this->getServer()->label(),
       ];
       $this->logException($e, '%type while deleting items from server %server: @message in %function (line %line of %file).', $vars);
-      drupal_set_message($this->t('Deleting some of the items on the server failed. Check the logs for details. The server was still removed.'), 'error');
+      $this->getMessenger()->addError($this->t('Deleting some of the items on the server failed. Check the logs for details. The server was still removed.'));
     }
   }
 
@@ -284,6 +340,7 @@ abstract class BackendPluginBase extends ConfigurablePluginBase implements Backe
     }
     $properties = array_flip(parent::__sleep());
     unset($properties['server']);
+    unset($properties['logger']);
     return array_keys($properties);
   }
 

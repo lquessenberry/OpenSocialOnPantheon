@@ -18,6 +18,7 @@ use Drupal\Core\TypedData\DataDefinition;
  *   category = @Translation("Address"),
  *   list_class = "\Drupal\address\Plugin\Field\FieldType\ZoneItemList",
  *   default_widget = "address_zone_default",
+ *   default_formatter = "address_zone_default",
  *   cardinality = 1,
  * )
  */

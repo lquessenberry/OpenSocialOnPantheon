@@ -2,6 +2,8 @@
 
 namespace Drupal\message;
 
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\Entity\EntityViewDisplay;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityViewBuilder;
 
@@ -16,24 +18,20 @@ class MessageViewBuilder extends EntityViewBuilder {
   public function view(EntityInterface $entity, $view_mode = 'full', $langcode = NULL) {
     $build = parent::view($entity, $view_mode, $langcode);
 
-    if (!$langcode) {
-      $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
-    }
-    else {
-      if (\Drupal::moduleHandler()->moduleExists('config_translation') && !isset($partials[$langcode])) {
-        $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
-      }
-    }
-
-    // Load the partials in the correct language.
     /* @var \Drupal\message\Entity\Message $entity  */
-    if ($langcode) {
-      $entity->setLanguage($langcode);
-    }
-    $partials = $entity->getText();
+    $partials = $entity->getText($langcode);
 
     // Get the partials the user selected for the current view mode.
-    $extra_fields = entity_get_display('message', $entity->bundle(), $view_mode);
+    $extra_fields = EntityViewDisplay::load('message.' . $entity->bundle() . '.' . $view_mode);
+    if (!$extra_fields instanceof EntityViewDisplayInterface) {
+      $extra_fields = EntityViewDisplay::create([
+        'targetEntityType' => 'message',
+        'bundle' => $entity->bundle(),
+        'mode' => $view_mode,
+        'status' => TRUE,
+      ]);
+    }
+
     foreach ($extra_fields->getComponents() as $field_name => $settings) {
       // The partials are keyed with `partial_X`, check if that is set.
       if (strpos($field_name, 'partial_') === 0) {

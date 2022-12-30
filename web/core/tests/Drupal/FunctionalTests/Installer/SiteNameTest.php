@@ -21,6 +21,11 @@ class SiteNameTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
   protected function installParameters() {
     $this->siteName = $this->randomMachineName();
     $parameters = parent::installParameters();
@@ -33,7 +38,7 @@ class SiteNameTest extends BrowserTestBase {
    */
   public function testSiteName() {
     $this->drupalGet('');
-    $this->assertRaw($this->siteName, 'The site name that was set during the installation appears on the front page after installation.');
+    $this->assertSession()->pageTextContains($this->siteName);
   }
 
 }

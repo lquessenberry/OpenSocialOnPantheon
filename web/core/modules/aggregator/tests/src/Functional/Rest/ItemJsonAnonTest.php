@@ -6,6 +6,7 @@ use Drupal\Tests\rest\Functional\AnonResourceTestTrait;
 
 /**
  * @group rest
+ * @group legacy
  */
 class ItemJsonAnonTest extends ItemResourceTestBase {
 
@@ -20,5 +21,10 @@ class ItemJsonAnonTest extends ItemResourceTestBase {
    * {@inheritdoc}
    */
   protected static $mimeType = 'application/json';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
 }

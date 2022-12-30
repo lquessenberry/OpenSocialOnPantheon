@@ -19,10 +19,15 @@ class MediaUiJavascriptTest extends MediaJavascriptTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'block',
     'media_test_source',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * The test media type.
@@ -34,7 +39,7 @@ class MediaUiJavascriptTest extends MediaJavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->drupalPlaceBlock('local_actions_block');
     $this->drupalPlaceBlock('local_tasks_block');
@@ -60,7 +65,7 @@ class MediaUiJavascriptTest extends MediaJavascriptTestBase {
     $machine_name = strtolower($name);
     $this->assertJsCondition("jQuery('.machine-name-value').html() == '$machine_name'");
     $page->selectFieldOption('source', 'test');
-    $this->assertJsCondition("jQuery('.form-item-source-configuration-test-config-value').length > 0;");
+    $this->assertJsCondition("jQuery('.form-item-source-configuration-test-config-value').length > 0");
     $page->fillField('description', $description);
     $page->pressButton('Save');
     // The wait prevents intermittent test failures.
@@ -81,7 +86,7 @@ class MediaUiJavascriptTest extends MediaJavascriptTestBase {
     $source = $media_type->getSource();
     /** @var \Drupal\field\FieldConfigInterface $source_field */
     $source_field = $source->getSourceFieldDefinition($media_type);
-    $this->assertInstanceOf(FieldConfigInterface::class, $source_field, 'Source field exists.');
+    $this->assertInstanceOf(FieldConfigInterface::class, $source_field);
     $this->assertFalse($source_field->isNew(), 'Source field was saved.');
     /** @var \Drupal\field\FieldStorageConfigInterface $storage */
     $storage = $source_field->getFieldStorageDefinition();
@@ -160,15 +165,15 @@ class MediaUiJavascriptTest extends MediaJavascriptTestBase {
     $loaded_media_type = $this->container->get('entity_type.manager')
       ->getStorage('media_type')
       ->load($this->testMediaType->id());
-    $this->assertEquals($loaded_media_type->id(), $this->testMediaType->id());
-    $this->assertEquals($loaded_media_type->label(), $new_name);
-    $this->assertEquals($loaded_media_type->getDescription(), $new_description);
-    $this->assertEquals($loaded_media_type->getSource()->getPluginId(), 'test');
-    $this->assertEquals($loaded_media_type->getSource()->getConfiguration()['test_config_value'], 'This is new config value.');
+    $this->assertSame($loaded_media_type->id(), $this->testMediaType->id());
+    $this->assertSame($loaded_media_type->label(), $new_name);
+    $this->assertSame($loaded_media_type->getDescription(), $new_description);
+    $this->assertSame($loaded_media_type->getSource()->getPluginId(), 'test');
+    $this->assertSame($loaded_media_type->getSource()->getConfiguration()['test_config_value'], 'This is new config value.');
     $this->assertTrue($loaded_media_type->shouldCreateNewRevision());
     $this->assertTrue($loaded_media_type->thumbnailDownloadsAreQueued());
     $this->assertFalse($loaded_media_type->getStatus());
-    $this->assertEquals($loaded_media_type->getFieldMap(), ['attribute_1' => 'name']);
+    $this->assertSame($loaded_media_type->getFieldMap(), ['attribute_1' => 'name']);
 
     // We need to clear the statically cached field definitions to account for
     // fields that have been created by API calls in this test, since they exist
@@ -191,7 +196,7 @@ class MediaUiJavascriptTest extends MediaJavascriptTestBase {
 
     // Test that the system for preventing the deletion of media types works
     // (they cannot be deleted if there is media content of that type/bundle).
-    $media_type2 = $this->createMediaType();
+    $media_type2 = $this->createMediaType('test');
     $label2 = $media_type2->label();
     $media = Media::create(['name' => 'lorem ipsum', 'bundle' => $media_type2->id()]);
     $media->save();

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * behat_test.features.field_base.inc
@@ -10,7 +11,7 @@
 function behat_test_field_default_field_bases() {
   $field_bases = array();
 
-  // Exported field_base: 'body'
+  // Exported field_base: 'body'.
   $field_bases['body'] = array(
     'active' => 1,
     'cardinality' => 1,
@@ -39,7 +40,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'text_with_summary',
   );
 
-  // Exported field_base: 'field_post_address'
+  // Exported field_base: 'field_post_address'.
   $field_bases['field_post_address'] = array(
     'active' => 1,
     'cardinality' => 2,
@@ -54,7 +55,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'addressfield',
   );
 
-  // Exported field_base: 'field_post_date'
+  // Exported field_base: 'field_post_date'.
   $field_bases['field_post_date'] = array(
     'active' => 1,
     'cardinality' => 1,
@@ -84,7 +85,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'datetime',
   );
 
-  // Exported field_base: 'field_post_dates'
+  // Exported field_base: 'field_post_dates'.
   $field_bases['field_post_dates'] = array(
     'active' => 1,
     'cardinality' => 1,
@@ -114,7 +115,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'datetime',
   );
 
-  // Exported field_base: 'field_post_links'
+  // Exported field_base: 'field_post_links'.
   $field_bases['field_post_links'] = array(
     'active' => 1,
     'cardinality' => -1,
@@ -144,7 +145,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'link_field',
   );
 
-  // Exported field_base: 'field_post_reference'
+  // Exported field_base: 'field_post_reference'.
   $field_bases['field_post_reference'] = array(
     'active' => 1,
     'cardinality' => -1,
@@ -175,7 +176,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'entityreference',
   );
 
-  // Exported field_base: 'field_post_select'
+  // Exported field_base: 'field_post_select'.
   $field_bases['field_post_select'] = array(
     'active' => 1,
     'cardinality' => -1,
@@ -192,9 +193,9 @@ function behat_test_field_default_field_bases() {
     'module' => 'list',
     'settings' => array(
       'allowed_values' => array(
-        1 => 'One',
-        2 => 'Two',
-        3 => 'Three',
+        1 => 'Select value one',
+        2 => 'Select value two',
+        3 => 'Select value three',
       ),
       'allowed_values_function' => '',
     ),
@@ -202,7 +203,7 @@ function behat_test_field_default_field_bases() {
     'type' => 'list_text',
   );
 
-  // Exported field_base: 'field_tags'
+  // Exported field_base: 'field_tags'.
   $field_bases['field_tags'] = array(
     'active' => 1,
     'cardinality' => -1,

@@ -64,6 +64,8 @@ class UnmetDependenciesException extends ConfigException {
    *
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    *   The string translation service.
+   * @param string $extension
+   *   The name of the extension that is being installed.
    *
    * @return string
    */
@@ -92,7 +94,7 @@ class UnmetDependenciesException extends ConfigException {
     $message = new FormattableMarkup('Configuration objects provided by %extension have unmet dependencies: %config_names',
       [
         '%config_names' => static::formatConfigObjectList($config_objects),
-        '%extension' => $extension
+        '%extension' => $extension,
       ]
     );
     $e = new static($message);

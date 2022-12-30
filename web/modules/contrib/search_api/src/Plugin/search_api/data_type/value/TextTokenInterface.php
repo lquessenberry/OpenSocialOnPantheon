@@ -11,15 +11,15 @@ interface TextTokenInterface {
    * Retrieves the text value of this token.
    *
    * @return string
-   *   The the text value of this token.
+   *   The text value of this token.
    */
   public function getText();
 
   /**
-   * Sets the the text value of this token.
+   * Sets the text value of this token.
    *
    * @param string $text
-   *   The new the text value of this token.
+   *   The new text value of this token.
    *
    * @return $this
    */

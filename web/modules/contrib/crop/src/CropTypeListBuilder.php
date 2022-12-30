@@ -3,7 +3,7 @@
 namespace Drupal\crop;
 
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
-use Drupal\Core\Entity\Query\QueryFactory;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
@@ -27,11 +27,11 @@ class CropTypeListBuilder extends ConfigEntityListBuilder {
   protected $urlGenerator;
 
   /**
-   * The entity query factory.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\Query\QueryFactory
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $queryFactory;
+  protected $entityTypeManager;
 
   /**
    * Constructs a CropTypeListBuilder object.
@@ -42,13 +42,13 @@ class CropTypeListBuilder extends ConfigEntityListBuilder {
    *   The entity storage class.
    * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
    *   The url generator service.
-   * @param \Drupal\Core\Entity\Query\QueryFactory $query_factory
-   *   The entity query factory.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, UrlGeneratorInterface $url_generator, QueryFactory $query_factory) {
+  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, UrlGeneratorInterface $url_generator, EntityTypeManagerInterface $entity_type_manager) {
     parent::__construct($entity_type, $storage);
     $this->urlGenerator = $url_generator;
-    $this->queryFactory = $query_factory;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -57,9 +57,9 @@ class CropTypeListBuilder extends ConfigEntityListBuilder {
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('url_generator'),
-      $container->get('entity.query')
+      $container->get('entity_type.manager')
     );
   }
 
@@ -93,8 +93,9 @@ class CropTypeListBuilder extends ConfigEntityListBuilder {
     $row['aspect_ratio'] = $entity->getAspectRatio();
 
     // Load all image styles used by the current crop type.
-    $image_style_ids = $this->queryFactory->get('image_style')
+    $image_style_ids = $this->entityTypeManager->getStorage('image_style')->getQuery()
       ->condition('effects.*.data.crop_type', $entity->id())
+      ->accessCheck(TRUE)
       ->execute();
     $image_styles = ImageStyle::loadMultiple($image_style_ids);
 
@@ -102,7 +103,7 @@ class CropTypeListBuilder extends ConfigEntityListBuilder {
     $usage = [];
     foreach ($image_styles as $image_style) {
       if (count($usage) < 2) {
-        $usage[] = $image_style->link();
+        $usage[] = $image_style->toLink(NULL, 'edit-form')->toString();
       }
     }
 

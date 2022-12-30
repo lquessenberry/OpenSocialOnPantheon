@@ -2,10 +2,10 @@
 
 namespace Drupal\Tests\comment\Functional;
 
+use Drupal\Core\Url;
 use Drupal\comment\CommentManagerInterface;
 use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\comment\Entity\Comment;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Entity\Entity\EntityViewDisplay;
 use Drupal\Core\Entity\Entity\EntityViewMode;
 use Drupal\user\RoleInterface;
@@ -19,15 +19,20 @@ use Drupal\filter\Entity\FilterFormat;
 class CommentInterfaceTest extends CommentTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Set up comments to have subject and preview disabled.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->drupalLogin($this->adminUser);
     // Make sure that comment field title is not displayed when there's no
     // comments posted.
-    $this->drupalGet($this->node->urlInfo());
-    $this->assertNoPattern('@<h2[^>]*>Comments</h2>@', 'Comments title is not displayed.');
+    $this->drupalGet($this->node->toUrl());
+    $this->assertSession()->responseNotMatches('@<h2[^>]*>Comments</h2>@');
 
     // Set comments to have subject and preview disabled.
     $this->setCommentPreview(DRUPAL_DISABLED);
@@ -48,9 +53,13 @@ class CommentInterfaceTest extends CommentTestBase {
     $comment = $this->postComment($this->node, $comment_text);
     $this->assertTrue($this->commentExists($comment), 'Comment found.');
 
+    // Test that using an invalid entity-type does not raise an error.
+    $this->drupalGet('comment/reply/yeah-this-is-not-an-entity-type/' . $this->node->id() . '/comment/' . $comment->id());
+    $this->assertSession()->statusCodeEquals(404);
+
     // Test the comment field title is displayed when there's comments.
-    $this->drupalGet($this->node->urlInfo());
-    $this->assertPattern('@<h2[^>]*>Comments</h2>@', 'Comments title is displayed.');
+    $this->drupalGet($this->node->toUrl());
+    $this->assertSession()->responseMatches('@<h2[^>]*>Comments</h2>@');
 
     // Set comments to have subject and preview to required.
     $this->drupalLogout();
@@ -76,14 +85,9 @@ class CommentInterfaceTest extends CommentTestBase {
     // Check comment display.
     $this->drupalLogin($this->webUser);
     $this->drupalGet('node/' . $this->node->id());
-    $this->assertText($subject_text, 'Individual comment subject found.');
-    $this->assertText($comment_text, 'Individual comment body found.');
-    $arguments = [
-      ':link' => base_path() . 'comment/' . $comment->id() . '#comment-' . $comment->id(),
-    ];
-    $pattern_permalink = '//footer[contains(@class,"comment__meta")]/a[contains(@href,:link) and text()="Permalink"]';
-    $permalink = $this->xpath($pattern_permalink, $arguments);
-    $this->assertTrue(!empty($permalink), 'Permalink link found.');
+    $this->assertSession()->pageTextContains($subject_text);
+    $this->assertSession()->pageTextContains($comment_text);
+    $this->assertSession()->elementExists('xpath', '//footer/a[contains(@href,"' . base_path() . 'comment/' . $comment->id() . '#comment-' . $comment->id() . '") and text()="Permalink"]');
 
     // Set comments to have subject and preview to optional.
     $this->drupalLogout();
@@ -92,25 +96,25 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->setCommentPreview(DRUPAL_OPTIONAL);
 
     $this->drupalGet('comment/' . $comment->id() . '/edit');
-    $this->assertTitle(t('Edit comment @title | Drupal', [
-      '@title' => $comment->getSubject(),
-    ]));
+    $this->assertSession()->titleEquals('Edit comment ' . $comment->getSubject() . ' | Drupal');
 
     // Test changing the comment author to "Anonymous".
     $comment = $this->postComment(NULL, $comment->comment_body->value, $comment->getSubject(), ['uid' => '']);
-    $this->assertTrue($comment->getAuthorName() == t('Anonymous') && $comment->getOwnerId() == 0, 'Comment author successfully changed to anonymous.');
+    $this->assertSame('Anonymous', $comment->getAuthorName());
+    $this->assertEquals(0, $comment->getOwnerId());
 
     // Test changing the comment author to an unverified user.
     $random_name = $this->randomMachineName();
     $this->drupalGet('comment/' . $comment->id() . '/edit');
     $comment = $this->postComment(NULL, $comment->comment_body->value, $comment->getSubject(), ['name' => $random_name]);
     $this->drupalGet('node/' . $this->node->id());
-    $this->assertText($random_name . ' (' . t('not verified') . ')', 'Comment author successfully changed to an unverified user.');
+    $this->assertSession()->pageTextContains($random_name . ' (not verified)');
 
     // Test changing the comment author to a verified user.
     $this->drupalGet('comment/' . $comment->id() . '/edit');
-    $comment = $this->postComment(NULL, $comment->comment_body->value, $comment->getSubject(), ['uid' => $this->webUser->getUsername() . ' (' . $this->webUser->id() . ')']);
-    $this->assertTrue($comment->getAuthorName() == $this->webUser->getUsername() && $comment->getOwnerId() == $this->webUser->id(), 'Comment author successfully changed to a registered user.');
+    $comment = $this->postComment(NULL, $comment->comment_body->value, $comment->getSubject(), ['uid' => $this->webUser->getAccountName() . ' (' . $this->webUser->id() . ')']);
+    $this->assertSame($this->webUser->getAccountName(), $comment->getAuthorName());
+    $this->assertSame($this->webUser->id(), $comment->getOwnerId());
 
     $this->drupalLogout();
 
@@ -121,36 +125,36 @@ class CommentInterfaceTest extends CommentTestBase {
     // \Drupal\comment\Controller\CommentController::redirectNode().
     $this->drupalGet('comment/' . $this->node->id() . '/reply');
     // Verify we were correctly redirected.
-    $this->assertUrl(\Drupal::url('comment.reply', ['entity_type' => 'node', 'entity' => $this->node->id(), 'field_name' => 'comment'], ['absolute' => TRUE]));
+    $this->assertSession()->addressEquals(Url::fromRoute('comment.reply', ['entity_type' => 'node', 'entity' => $this->node->id(), 'field_name' => 'comment']));
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment/' . $comment->id());
-    $this->assertText($subject_text, 'Individual comment-reply subject found.');
-    $this->assertText($comment_text, 'Individual comment-reply body found.');
+    $this->assertSession()->pageTextContains($subject_text);
+    $this->assertSession()->pageTextContains($comment_text);
     $reply = $this->postComment(NULL, $this->randomMachineName(), '', TRUE);
     $reply_loaded = Comment::load($reply->id());
     $this->assertTrue($this->commentExists($reply, TRUE), 'Reply found.');
-    $this->assertEqual($comment->id(), $reply_loaded->getParentComment()->id(), 'Pid of a reply to a comment is set correctly.');
+    $this->assertEquals($comment->id(), $reply_loaded->getParentComment()->id(), 'Pid of a reply to a comment is set correctly.');
     // Check the thread of reply grows correctly.
-    $this->assertEqual(rtrim($comment->getThread(), '/') . '.00/', $reply_loaded->getThread());
+    $this->assertEquals(rtrim($comment->getThread(), '/') . '.00/', $reply_loaded->getThread());
 
     // Second reply to comment #2 creating comment #4.
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment/' . $comment->id());
-    $this->assertText($comment->getSubject(), 'Individual comment-reply subject found.');
-    $this->assertText($comment->comment_body->value, 'Individual comment-reply body found.');
+    $this->assertSession()->pageTextContains($comment->getSubject());
+    $this->assertSession()->pageTextContains($comment->comment_body->value);
     $reply = $this->postComment(NULL, $this->randomMachineName(), $this->randomMachineName(), TRUE);
     $reply_loaded = Comment::load($reply->id());
     $this->assertTrue($this->commentExists($reply, TRUE), 'Second reply found.');
     // Check the thread of second reply grows correctly.
-    $this->assertEqual(rtrim($comment->getThread(), '/') . '.01/', $reply_loaded->getThread());
+    $this->assertEquals(rtrim($comment->getThread(), '/') . '.01/', $reply_loaded->getThread());
 
     // Reply to comment #4 creating comment #5.
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment/' . $reply_loaded->id());
-    $this->assertText($reply_loaded->getSubject(), 'Individual comment-reply subject found.');
-    $this->assertText($reply_loaded->comment_body->value, 'Individual comment-reply body found.');
+    $this->assertSession()->pageTextContains($reply_loaded->getSubject());
+    $this->assertSession()->pageTextContains($reply_loaded->comment_body->value);
     $reply = $this->postComment(NULL, $this->randomMachineName(), $this->randomMachineName(), TRUE);
     $reply_loaded = Comment::load($reply->id());
     $this->assertTrue($this->commentExists($reply, TRUE), 'Second reply found.');
     // Check the thread of reply to second reply grows correctly.
-    $this->assertEqual(rtrim($comment->getThread(), '/') . '.01.00/', $reply_loaded->getThread());
+    $this->assertEquals(rtrim($comment->getThread(), '/') . '.01.00/', $reply_loaded->getThread());
 
     // Edit reply.
     $this->drupalGet('comment/' . $reply->id() . '/edit');
@@ -166,31 +170,32 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->setCommentsPerPage(50);
 
     // Attempt to reply to an unpublished comment.
-    $reply_loaded->setPublished(FALSE);
+    $reply_loaded->setUnpublished();
     $reply_loaded->save();
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment/' . $reply_loaded->id());
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
 
     // Attempt to post to node with comments disabled.
     $this->node = $this->drupalCreateNode(['type' => 'article', 'promote' => 1, 'comment' => [['status' => CommentItemInterface::HIDDEN]]]);
-    $this->assertTrue($this->node, 'Article node created.');
+    $this->assertNotNull($this->node, 'Article node created.');
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment');
-    $this->assertResponse(403);
-    $this->assertNoField('edit-comment', 'Comment body field found.');
+    $this->assertSession()->statusCodeEquals(403);
+    $this->assertSession()->fieldNotExists('edit-comment');
 
     // Attempt to post to node with read-only comments.
     $this->node = $this->drupalCreateNode(['type' => 'article', 'promote' => 1, 'comment' => [['status' => CommentItemInterface::CLOSED]]]);
-    $this->assertTrue($this->node, 'Article node created.');
+    $this->assertNotNull($this->node, 'Article node created.');
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment');
-    $this->assertResponse(403);
-    $this->assertNoField('edit-comment', 'Comment body field found.');
+    $this->assertSession()->statusCodeEquals(403);
+    $this->assertSession()->fieldNotExists('edit-comment');
 
     // Attempt to post to node with comments enabled (check field names etc).
     $this->node = $this->drupalCreateNode(['type' => 'article', 'promote' => 1, 'comment' => [['status' => CommentItemInterface::OPEN]]]);
-    $this->assertTrue($this->node, 'Article node created.');
+    $this->assertNotNull($this->node, 'Article node created.');
     $this->drupalGet('comment/reply/node/' . $this->node->id() . '/comment');
-    $this->assertNoText('This discussion is closed', 'Posting to node with comments enabled');
-    $this->assertField('edit-comment-body-0-value', 'Comment body field found.');
+    $this->assertSession()->pageTextNotContains('This discussion is closed');
+    // Ensure that the comment body field exists.
+    $this->assertSession()->fieldExists('edit-comment-body-0-value');
 
     // Delete comment and make sure that reply is also removed.
     $this->drupalLogout();
@@ -220,7 +225,7 @@ class CommentInterfaceTest extends CommentTestBase {
   }
 
   /**
-   * Test that the subject is automatically filled if disabled or left blank.
+   * Tests that the subject is automatically filled if disabled or left blank.
    *
    * When the subject field is blank or disabled, the first 29 characters of the
    * comment body are used for the subject. If this would break within a word,
@@ -234,16 +239,16 @@ class CommentInterfaceTest extends CommentTestBase {
     $body_text = 'Lorem ipsum Lorem ipsum Loreming ipsum Lorem ipsum';
     $comment1 = $this->postComment(NULL, $body_text, '', TRUE);
     $this->assertTrue($this->commentExists($comment1), 'Form comment found.');
-    $this->assertEqual('Lorem ipsum Lorem ipsum…', $comment1->getSubject());
+    $this->assertEquals('Lorem ipsum Lorem ipsum…', $comment1->getSubject());
 
     // Break at 29 characters where there's no boundary before that.
     $body_text2 = 'LoremipsumloremipsumLoremingipsumLoremipsum';
     $comment2 = $this->postComment(NULL, $body_text2, '', TRUE);
-    $this->assertEqual('LoremipsumloremipsumLoreming…', $comment2->getSubject());
+    $this->assertEquals('LoremipsumloremipsumLoreming…', $comment2->getSubject());
   }
 
   /**
-   * Test that automatic subject is correctly created from HTML comment text.
+   * Tests that automatic subject is correctly created from HTML comment text.
    *
    * This is the same test as in CommentInterfaceTest::testAutoFilledSubject()
    * with the additional check that HTML is stripped appropriately prior to
@@ -282,8 +287,8 @@ class CommentInterfaceTest extends CommentTestBase {
       'comment_body[0][value]' => $body_text1,
       'comment_body[0][format]' => 'filtered_html',
     ];
-    $this->drupalPostForm(NULL, $edit1, t('Save'));
-    $this->assertEqual('Hello World', Comment::load(1)->getSubject());
+    $this->submitForm($edit1, 'Save');
+    $this->assertEquals('Hello World', Comment::load(1)->getSubject());
 
     // If there's nothing other than HTML, the subject should be '(No subject)'.
     $body_text2 = '<span></span><strong> </strong><span> </span><strong></strong> <br />';
@@ -291,8 +296,8 @@ class CommentInterfaceTest extends CommentTestBase {
       'comment_body[0][value]' => $body_text2,
       'comment_body[0][format]' => 'filtered_html',
     ];
-    $this->drupalPostForm(NULL, $edit2, t('Save'));
-    $this->assertEqual('(No subject)', Comment::load(2)->getSubject());
+    $this->submitForm($edit2, 'Save');
+    $this->assertEquals('(No subject)', Comment::load(2)->getSubject());
   }
 
   /**
@@ -306,12 +311,12 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->postComment($this->node, $comment_text);
 
     // Comment displayed in 'default' display mode found and has body text.
-    $comment_element = $this->cssSelect('.comment-wrapper');
-    $this->assertTrue(!empty($comment_element));
-    $this->assertRaw('<p>' . $comment_text . '</p>');
+    $comment_element = $this->cssSelect('#comment-1');
+    $this->assertNotEmpty($comment_element);
+    $this->assertSession()->responseContains('<p>' . $comment_text . '</p>');
 
     // Create a new comment entity view mode.
-    $mode = Unicode::strtolower($this->randomMachineName());
+    $mode = mb_strtolower($this->randomMachineName());
     EntityViewMode::create([
       'targetEntityType' => 'comment',
       'id' => "comment.$mode",
@@ -339,9 +344,9 @@ class CommentInterfaceTest extends CommentTestBase {
     $this->drupalGet($this->node->toUrl());
     // The comment should exist but without the body text because we used $mode
     // mode this time.
-    $comment_element = $this->cssSelect('.comment-wrapper');
-    $this->assertTrue(!empty($comment_element));
-    $this->assertNoRaw('<p>' . $comment_text . '</p>');
+    $comment_element = $this->cssSelect('#comment-1');
+    $this->assertNotEmpty($comment_element);
+    $this->assertSession()->responseNotContains('<p>' . $comment_text . '</p>');
   }
 
 }

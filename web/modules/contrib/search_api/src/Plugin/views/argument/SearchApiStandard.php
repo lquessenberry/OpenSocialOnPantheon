@@ -30,7 +30,7 @@ class SearchApiStandard extends ArgumentPluginBase {
    *
    * @see \Drupal\views\Plugin\views\argument\ArgumentPluginBase::unpackArgumentValue()
    */
-  public $operator;
+  public string $operator;
 
   /**
    * {@inheritdoc}
@@ -40,7 +40,7 @@ class SearchApiStandard extends ArgumentPluginBase {
     unset($defaults['summary']);
 
     if ($which) {
-      return isset($defaults[$which]) ? $defaults[$which] : NULL;
+      return $defaults[$which] ?? NULL;
     }
     return $defaults;
   }
@@ -168,9 +168,19 @@ class SearchApiStandard extends ArgumentPluginBase {
   public function query($group_by = FALSE) {
     $this->fillValue();
 
+    // If there are multiple arguments, add query conditions accordingly.
+    // E.g 1+2+3 (for OR) or 1,2,3 (for AND).
     if (count($this->value) > 1) {
-      $operator = empty($this->options['not']) ? 'IN' : 'NOT IN';
-      $this->query->addCondition($this->realField, $this->value, $operator);
+      if ($this->operator === 'or') {
+        $operator = empty($this->options['not']) ? 'IN' : 'NOT IN';
+        $this->query->addCondition($this->realField, $this->value, $operator);
+      }
+      else {
+        foreach ($this->value as $value) {
+          $operator = empty($this->options['not']) ? '=' : '<>';
+          $this->query->addCondition($this->realField, $value, $operator);
+        }
+      }
     }
     elseif ($this->value) {
       $operator = empty($this->options['not']) ? '=' : '<>';

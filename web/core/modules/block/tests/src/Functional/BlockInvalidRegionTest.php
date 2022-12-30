@@ -18,9 +18,14 @@ class BlockInvalidRegionTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['block', 'block_test'];
+  protected static $modules = ['block', 'block_test'];
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
     // Create an admin user.
     $admin_user = $this->drupalCreateUser([
@@ -40,23 +45,26 @@ class BlockInvalidRegionTest extends BrowserTestBase {
     \Drupal::configFactory()->getEditable('block.block.' . $block->id())->set('region', 'invalid_region')->save();
     $block = Block::load($block->id());
 
-    $warning_message = t('The block %info was assigned to the invalid region %region and has been disabled.', ['%info' => $block->id(), '%region' => 'invalid_region']);
+    $warning_message = 'The block ' . $block->id() . ' was assigned to the invalid region invalid_region and has been disabled.';
 
     // Clearing the cache should disable the test block placed in the invalid region.
-    $this->drupalPostForm('admin/config/development/performance', [], 'Clear all caches');
-    $this->assertRaw($warning_message, 'Enabled block was in the invalid region and has been disabled.');
+    $this->drupalGet('admin/config/development/performance');
+    $this->submitForm([], 'Clear all caches');
+    $this->assertSession()->statusMessageContains($warning_message, 'warning');
 
     // Clear the cache to check if the warning message is not triggered.
-    $this->drupalPostForm('admin/config/development/performance', [], 'Clear all caches');
-    $this->assertNoRaw($warning_message, 'Disabled block in the invalid region will not trigger the warning.');
+    $this->drupalGet('admin/config/development/performance');
+    $this->submitForm([], 'Clear all caches');
+    $this->assertSession()->statusMessageNotContains($warning_message, 'warning');
 
     // Place disabled test block in the invalid region of the default theme.
     \Drupal::configFactory()->getEditable('block.block.' . $block->id())->set('region', 'invalid_region')->save();
     $block = Block::load($block->id());
 
     // Clear the cache to check if the warning message is not triggered.
-    $this->drupalPostForm('admin/config/development/performance', [], 'Clear all caches');
-    $this->assertNoRaw($warning_message, 'Disabled block in the invalid region will not trigger the warning.');
+    $this->drupalGet('admin/config/development/performance');
+    $this->submitForm([], 'Clear all caches');
+    $this->assertSession()->statusMessageNotContains($warning_message, 'warning');
   }
 
 }

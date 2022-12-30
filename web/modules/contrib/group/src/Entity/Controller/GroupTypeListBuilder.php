@@ -17,9 +17,9 @@ class GroupTypeListBuilder extends ConfigEntityListBuilder {
    * {@inheritdoc}
    */
   public function buildHeader() {
-    $header['label'] = t('Name');
+    $header['label'] = $this->t('Name');
     $header['description'] = [
-      'data' => t('Description'),
+      'data' => $this->t('Description'),
       'class' => [RESPONSIVE_PRIORITY_MEDIUM],
     ];
     return $header + parent::buildHeader();
@@ -51,7 +51,7 @@ class GroupTypeListBuilder extends ConfigEntityListBuilder {
 
     if ($entity->hasLinkTemplate('permissions-form')) {
       $operations['permissions'] = [
-        'title' => t('Edit permissions'),
+        'title' => $this->t('Edit permissions'),
         'weight' => 35,
         'url' => $entity->toUrl('permissions-form'),
       ];
@@ -60,14 +60,14 @@ class GroupTypeListBuilder extends ConfigEntityListBuilder {
     // Can't use a link template because the group roles route doesn't start
     // with entity.group_type, see: https://www.drupal.org/node/2645136.
     $operations['group_roles'] = [
-      'title' => t('Edit group roles'),
+      'title' => $this->t('Edit group roles'),
       'weight' => 40,
       'url' => Url::fromRoute('entity.group_role.collection', ['group_type' => $entity->id()]),
     ];
 
     if ($entity->hasLinkTemplate('content-plugins')) {
       $operations['content'] = [
-        'title' => t('Set available content'),
+        'title' => $this->t('Set available content'),
         'weight' => 45,
         'url' => $entity->toUrl('content-plugins'),
       ];

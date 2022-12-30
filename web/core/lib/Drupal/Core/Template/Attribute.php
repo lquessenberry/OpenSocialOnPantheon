@@ -4,6 +4,7 @@ namespace Drupal\Core\Template;
 
 use Drupal\Component\Render\PlainTextOutput;
 use Drupal\Component\Render\MarkupInterface;
+use Drupal\Component\Utility\NestedArray;
 
 /**
  * Collects, sanitizes, and renders HTML attributes.
@@ -31,13 +32,16 @@ use Drupal\Component\Render\MarkupInterface;
  * template, use the "without" filter to prevent attributes that have already
  * been printed from being printed again. For example:
  * @code
- *  <cat class="{{ attributes.class }} my-custom-class"{{ attributes|without('class') }}>
- *  {# Produces <cat class="cat black-cat white-cat black-white-cat my-custom-class" id="socks"> #}
+ * <cat class="{{ attributes.class }} my-custom-class"{{ attributes|without('class') }}>
+ * @endcode
+ * Produces:
+ * @code
+ * <cat class="cat black-cat white-cat black-white-cat my-custom-class" id="socks">
  * @endcode
  *
  * The attribute keys and values are automatically escaped for output with
  * Html::escape(). No protocol filtering is applied, so when using user-entered
- * input as a value for an attribute that expects an URI (href, src, ...),
+ * input as a value for an attribute that expects a URI (href, src, ...),
  * UrlHelper::stripDangerousProtocols() should be used to ensure dangerous
  * protocols (such as 'javascript:') are removed. For example:
  * @code
@@ -86,6 +90,7 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function offsetGet($name) {
     if (isset($this->storage[$name])) {
       return $this->storage[$name];
@@ -95,6 +100,7 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function offsetSet($name, $value) {
     $this->storage[$name] = $this->createAttributeValue($name, $value);
   }
@@ -148,6 +154,7 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function offsetUnset($name) {
     unset($this->storage[$name]);
   }
@@ -155,6 +162,7 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function offsetExists($name) {
     return isset($this->storage[$name]);
   }
@@ -206,6 +214,19 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
     $this->offsetSet($attribute, $value);
 
     return $this;
+  }
+
+  /**
+   * Checks if the storage has an attribute with the given name.
+   *
+   * @param string $name
+   *   The name of the attribute to check for.
+   *
+   * @return bool
+   *   Returns TRUE if the attribute exists, or FALSE otherwise.
+   */
+  public function hasAttribute($name) {
+    return array_key_exists($name, $this->storage);
   }
 
   /**
@@ -262,6 +283,20 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   }
 
   /**
+   * Gets the class attribute value if set.
+   *
+   * This method is implemented to take precedence over hasClass() for Twig 2.0.
+   *
+   * @return \Drupal\Core\Template\AttributeValueBase
+   *   The class attribute value if set.
+   *
+   * @see twig_get_attribute()
+   */
+  public function getClass() {
+    return $this->offsetGet('class');
+  }
+
+  /**
    * Checks if the class array has the given CSS class.
    *
    * @param string $class
@@ -285,7 +320,7 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   public function __toString() {
     $return = '';
     /** @var \Drupal\Core\Template\AttributeValueBase $value */
-    foreach ($this->storage as $name => $value) {
+    foreach ($this->storage as $value) {
       $rendered = $value->render();
       if ($rendered) {
         $return .= ' ' . $rendered;
@@ -321,6 +356,7 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function getIterator() {
     return new \ArrayIterator($this->storage);
   }
@@ -338,8 +374,25 @@ class Attribute implements \ArrayAccess, \IteratorAggregate, MarkupInterface {
    * @return string
    *   The safe string content.
    */
+  #[\ReturnTypeWillChange]
   public function jsonSerialize() {
     return (string) $this;
+  }
+
+  /**
+   * Merges an Attribute object into the current storage.
+   *
+   * @param \Drupal\Core\Template\Attribute $collection
+   *   The Attribute object to merge.
+   *
+   * @return $this
+   */
+  public function merge(Attribute $collection) {
+    $merged_attributes = NestedArray::mergeDeep($this->toArray(), $collection->toArray());
+    foreach ($merged_attributes as $name => $value) {
+      $this->storage[$name] = $this->createAttributeValue($name, $value);
+    }
+    return $this;
   }
 
 }

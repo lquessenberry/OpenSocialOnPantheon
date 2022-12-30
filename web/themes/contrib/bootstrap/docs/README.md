@@ -16,32 +16,29 @@ Below are some topics to help get you started using the [Drupal Bootstrap] base
 theme. They are ordered based on the level one typically progresses while using
 a base theme like this.
 
-#### @link contributing Contributing @endlink
+#### [Contributing](<!-- @url contributing -->)
 
-#### @link getting_started Getting Started @endlink
+#### [Getting Started](<!-- @url getting_started -->)
 
-#### @link theme_settings Theme Settings @endlink
+#### [Theme Settings](<!-- @url theme_settings -->)
 
-#### @link sub_theming Sub-Theming @endlink
-- @link sub_theming_cdn CDN Starterkit @endlink
-- @link sub_theming_less Less Starterkit @endlink
-- @link sub_theming_sass Sass Starterkit @endlink
+#### [Sub-Theming](<!-- @url sub_theming -->)
 
-#### @link templates Templates @endlink
+#### [Templates](<!-- @url templates -->)
 
-#### @link utility Utilities @endlink
+#### [Utilities](<!-- @url utility -->)
 
-#### @link plugins Plugin System @endlink
-- @link plugins_alter @BootstrapAlter @endlink
-- @link plugins_form @BootstrapForm @endlink
-- @link plugins_preprocess @BootstrapPreprocess @endlink
-- @link plugins_prerender @BootstrapPrerender @endlink
-- @link plugins_process @BootstrapProcess @endlink
-- @link plugins_provider @BootstrapProvider @endlink
-- @link plugins_setting @BootstrapSetting @endlink
-- @link plugins_update @BootstrapUpdate @endlink
+#### [Plugin System](<!-- @url plugins -->)
+- [@BootstrapAlter](<!-- @url plugins_alter -->)
+- [@BootstrapForm](<!-- @url plugins_form -->)
+- [@BootstrapPreprocess](<!-- @url plugins_preprocess -->)
+- [@BootstrapPrerender](<!-- @url plugins_prerender -->)
+- [@BootstrapProcess](<!-- @url plugins_process -->)
+- [@BootstrapProvider](<!-- @url plugins_provider -->)
+- [@BootstrapSetting](<!-- @url plugins_setting -->)
+- [@BootstrapUpdate](<!-- @url plugins_update -->)
 
-#### @link maintainers Project Maintainers @endlink
+#### [Project Maintainers](<!-- @url maintainers -->)
 
 ---
 
@@ -52,20 +49,28 @@ documentation. For clarity, we will always attempt to use this word verbosely
 in one of the following ways:
 
 - **[Drupal Bootstrap]** refers to the Drupal base theme project.
-- **[Bootstrap Framework](https://getbootstrap.com/docs/3.3/)** refers to the external
-  front end framework.
+- **[Bootstrap Framework](https://getbootstrap.com/docs/3.4/)** refers to the
+  external front end framework.
 - **[drupal_bootstrap](https://api.drupal.org/apis/drupal_bootstrap)** refers
   to Drupal's bootstrapping process or phase.
   
 When referring to files inside the [Drupal Bootstrap] project directory, they
-will always start with `./bootstrap` and continue to specify the full path to
-the file or directory inside it. For example, the file that is responsible for
-displaying the text on this page is located at `./bootstrap/docs/README.md`.
+will always start with `./themes/bootstrap` and continue to specify the full
+path to the file or directory inside it. The dot (`.`) is representative of
+your Drupal installation's `DOCROOT` folder. For example, the file that is
+responsible for displaying the text on this page is located at
+`./themes/bootstrap/docs/README.md`.
 
 When referring to files inside a sub-theme, they will always start with
-`./THEMENAME/`, where `THEMENAME` is the machine name of your sub-theme. They
-will continue to specify the full path to the file or directory inside it. For
-example, the primary file Drupal uses to determine if a theme
-exists is: `./THEMENAME/THEMENAME.info.yml`.
+`./themes/THEMENAME/`, where `THEMENAME` is the machine name of your sub-theme.
+They will continue to specify the full path to the file or directory inside it.
+For example, the primary file Drupal uses to determine if a theme exists is:
+`./themes/THEMENAME/THEMENAME.info.yml`.
+
+{.alert.alert-info} **NOTE:** It is common practice to place projects found on
+Drupal.org inside a sub-folder named `contrib` and custom/site-specific code
+inside a `custom` folder. If your site is set up this way, please adjust all
+paths accordingly (i.e. `./themes/contrib/bootstrap` and
+`./themes/custom/THEMENAME`).
 
 [Drupal Bootstrap]: https://www.drupal.org/project/bootstrap

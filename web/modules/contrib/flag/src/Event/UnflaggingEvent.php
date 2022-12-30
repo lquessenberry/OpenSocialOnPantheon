@@ -20,7 +20,7 @@ class UnflaggingEvent extends Event {
    * Builds a new UnflaggingEvent.
    *
    * @param \Drupal\flag\FlaggingInterface[] $flaggings
-   *   The flaggings
+   *   The flaggings.
    */
   public function __construct(array $flaggings) {
     $this->flaggings = $flaggings;

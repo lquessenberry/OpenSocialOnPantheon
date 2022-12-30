@@ -4,21 +4,12 @@ namespace Drupal\flag\Annotation;
 
 use Drupal\Component\Annotation\Plugin;
 
-
 /**
  * Defines a FlagType annotation object.
  *
  * @Annotation
  */
 class FlagType extends Plugin {
-
-  /**
-   * The plugin ID.
-   *
-   * @var string
-   */
-  public $id;
-
   /**
    * The title of the plugin.
    *

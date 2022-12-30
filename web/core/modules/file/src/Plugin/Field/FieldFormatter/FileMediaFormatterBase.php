@@ -8,6 +8,7 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Template\Attribute;
+use Symfony\Component\Mime\MimeTypeGuesserInterface;
 
 /**
  * Base class for media file formatter.
@@ -75,13 +76,18 @@ abstract class FileMediaFormatterBase extends FileFormatterBase implements FileM
     if (!parent::isApplicable($field_definition)) {
       return FALSE;
     }
-    /** @var \Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface $extension_mime_type_guesser */
+    /** @var \Symfony\Component\Mime\MimeTypeGuesserInterface $extension_mime_type_guesser */
     $extension_mime_type_guesser = \Drupal::service('file.mime_type.guesser.extension');
     $extension_list = array_filter(preg_split('/\s+/', $field_definition->getSetting('file_extensions')));
 
     foreach ($extension_list as $extension) {
-      $mime_type = $extension_mime_type_guesser->guess('fakedFile.' . $extension);
-
+      if ($extension_mime_type_guesser instanceof MimeTypeGuesserInterface) {
+        $mime_type = $extension_mime_type_guesser->guessMimeType('fakedFile.' . $extension);
+      }
+      else {
+        $mime_type = $extension_mime_type_guesser->guess('fakedFile.' . $extension);
+        @trigger_error('\Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. Implement \Symfony\Component\Mime\MimeTypeGuesserInterface instead. See https://www.drupal.org/node/3133341', E_USER_DEPRECATED);
+      }
       if (static::mimeTypeApplies($mime_type)) {
         return TRUE;
       }
@@ -151,7 +157,7 @@ abstract class FileMediaFormatterBase extends FileFormatterBase implements FileM
    */
   protected function prepareAttributes(array $additional_attributes = []) {
     $attributes = new Attribute();
-    foreach (['controls', 'autoplay', 'loop'] + $additional_attributes as $attribute) {
+    foreach (array_merge(['controls', 'autoplay', 'loop'], $additional_attributes) as $attribute) {
       if ($this->getSetting($attribute)) {
         $attributes->setAttribute($attribute, $attribute);
       }
@@ -169,7 +175,7 @@ abstract class FileMediaFormatterBase extends FileFormatterBase implements FileM
    *   TRUE if the MIME type applies, FALSE otherwise.
    */
   protected static function mimeTypeApplies($mime_type) {
-    list($type) = explode('/', $mime_type, 2);
+    [$type] = explode('/', $mime_type, 2);
     return $type === static::getMediaType();
   }
 
@@ -196,7 +202,7 @@ abstract class FileMediaFormatterBase extends FileFormatterBase implements FileM
       if (static::mimeTypeApplies($file->getMimeType())) {
         $source_attributes = new Attribute();
         $source_attributes
-          ->setAttribute('src', file_url_transform_relative(file_create_url($file->getFileUri())))
+          ->setAttribute('src', $file->createFileUrl())
           ->setAttribute('type', $file->getMimeType());
         if ($this->getSetting('multiple_file_display_type') === 'tags') {
           $source_files[] = [

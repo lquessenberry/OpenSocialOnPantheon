@@ -15,7 +15,7 @@
    * @type {Drupal~behavior}
    *
    * @prop {Drupal~behaviorAttach} attach
-   *   Attaches admin behaviour to the "stylescombo" button.
+   *   Attaches admin behavior to the "stylescombo" button.
    */
   Drupal.behaviors.ckeditorStylesComboSettings = {
     attach(context) {
@@ -30,11 +30,13 @@
       const $ckeditorActiveToolbar = $context
         .find('.ckeditor-toolbar-configuration')
         .find('.ckeditor-toolbar-active');
-      let previousStylesSet = drupalSettings.ckeditor.hiddenCKEditorConfig.stylesSet;
+      let previousStylesSet =
+        drupalSettings.ckeditor.hiddenCKEditorConfig.stylesSet;
       const that = this;
-      $context.find('[name="editor[settings][plugins][stylescombo][styles]"]')
+      $context
+        .find('[name="editor[settings][plugins][stylescombo][styles]"]')
         .on('blur.ckeditorStylesComboSettings', function () {
-          const styles = $.trim($(this).val());
+          const styles = this.value.trim();
           const stylesSet = that._generateStylesSetSetting(styles);
           if (!_.isEqual(previousStylesSet, stylesSet)) {
             previousStylesSet = stylesSet;
@@ -66,7 +68,7 @@
       styles = styles.replace(/\r/g, '\n');
       const lines = styles.split('\n');
       for (let i = 0; i < lines.length; i++) {
-        const style = $.trim(lines[i]);
+        const style = lines[i].trim();
 
         // Ignore empty lines in between non-empty lines.
         if (style.length === 0) {
@@ -74,7 +76,10 @@
         }
 
         // Validate syntax: element[.class...]|label pattern expected.
-        if (style.match(/^ *[a-zA-Z0-9]+ *(\.[a-zA-Z0-9_-]+ *)*\| *.+ *$/) === null) {
+        if (
+          style.match(/^ *[a-zA-Z0-9]+ *(\.[a-zA-Z0-9_-]+ *)*\| *.+ *$/) ===
+          null
+        ) {
           // Instead of failing, we just ignore any invalid styles.
           continue;
         }
@@ -87,7 +92,7 @@
         const element = classes.shift();
 
         // Build the data structure CKEditor's stylescombo plugin expects.
-        // @see http://docs.cksource.com/CKEditor_3.x/Developers_Guide/Styles
+        // @see https://ckeditor.com/docs/ckeditor4/latest/guide/dev_howtos_styles.html
         stylesSet.push({
           attributes: { class: classes.join(' ') },
           element,
@@ -105,19 +110,25 @@
    * @type {Drupal~behavior}
    *
    * @prop {Drupal~behaviorAttach} attach
-   *   Attaches summary behaviour to the plugin settings vertical tab.
+   *   Attaches summary behavior to the plugin settings vertical tab.
    */
   Drupal.behaviors.ckeditorStylesComboSettingsSummary = {
     attach() {
-      $('[data-ckeditor-plugin-id="stylescombo"]').drupalSetSummary((context) => {
-        const styles = $.trim($('[data-drupal-selector="edit-editor-settings-plugins-stylescombo-styles"]').val());
-        if (styles.length === 0) {
-          return Drupal.t('No styles configured');
-        }
+      $('[data-ckeditor-plugin-id="stylescombo"]').drupalSetSummary(
+        (context) => {
+          const stylesElement = document.querySelector(
+            '[data-drupal-selector="edit-editor-settings-plugins-stylescombo-styles"]',
+          );
+          const styles = stylesElement ? stylesElement.value.trim() : '';
 
-        const count = $.trim(styles).split('\n').length;
-        return Drupal.t('@count styles configured', { '@count': count });
-      });
+          if (styles.length === 0) {
+            return Drupal.t('No styles configured');
+          }
+
+          const count = styles.split('\n').length;
+          return Drupal.t('@count styles configured', { '@count': count });
+        },
+      );
     },
   };
-}(jQuery, Drupal, drupalSettings, _));
+})(jQuery, Drupal, drupalSettings, _);

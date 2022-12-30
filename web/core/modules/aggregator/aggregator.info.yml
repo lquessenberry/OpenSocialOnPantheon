@@ -1,10 +1,11 @@
 name: Aggregator
 type: module
-description: 'Aggregates syndicated content (RSS, RDF, and Atom feeds) from external sources.'
+description: 'Gathers and displays syndicated content (RSS, RDF, and Atom feeds) from external sources.'
 package: Core
 version: VERSION
-core: 8.x
+lifecycle: deprecated
+lifecycle_link: https://www.drupal.org/node/3223395#s-aggregator
 configure: aggregator.admin_settings
 dependencies:
-  - file
-  - options
+  - drupal:file
+  - drupal:options

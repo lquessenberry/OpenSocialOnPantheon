@@ -1,14 +1,17 @@
 name: 'Social Event Organisers'
 type: module
 description: 'Social Event Organisers'
-core: 8.x
+core_version_requirement: ^9
 package: Social
 dependencies:
   - drupal:block
   - drupal:field
   - drupal:node
+  - drupal:options
   - drupal:profile
-  - social_event:social_event
-  - social_profile:social_profile
-  - drupal:user
+  - social:social_editor
+  - social:social_event
+  - social:social_profile
+  - social:social_user
   - drupal:views
+  - views_bulk_operations:views_bulk_operations

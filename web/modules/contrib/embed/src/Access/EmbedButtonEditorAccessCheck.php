@@ -10,6 +10,9 @@ use Drupal\editor\EditorInterface;
 use Drupal\embed\EmbedButtonInterface;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
+/**
+ * Routing requirement access check for embed buttons and text editors.
+ */
 class EmbedButtonEditorAccessCheck implements AccessInterface {
 
   /**
@@ -21,7 +24,7 @@ class EmbedButtonEditorAccessCheck implements AccessInterface {
    * @code
    * pattern: '/foo/{editor}/{embed_button}'
    * requirements:
-   *   _embed_button_filter_access: 'TRUE'
+   *   _embed_button_editor_access: 'TRUE'
    * @endcode
    *
    * @param \Drupal\Core\Routing\RouteMatchInterface $route_match

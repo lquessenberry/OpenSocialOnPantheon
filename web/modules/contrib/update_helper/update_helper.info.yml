@@ -1,0 +1,12 @@
+name: 'Update Helper'
+description: 'Helper tool for generation and applying of configuration updates.'
+type: module
+core_version_requirement: ^9
+dependencies:
+  - config_update:config_update
+package: Configuration
+
+# Information added by Drupal.org packaging script on 2022-05-24
+version: '3.0.3'
+project: 'update_helper'
+datestamp: 1653397663

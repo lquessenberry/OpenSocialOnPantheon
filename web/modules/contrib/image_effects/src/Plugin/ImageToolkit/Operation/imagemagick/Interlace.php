@@ -24,7 +24,7 @@ class Interlace extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    $this->getToolkit()->addArgument("-interlace {$arguments['type']}");
+    $this->addArgument("-interlace {$arguments['type']}");
     return TRUE;
   }
 

@@ -21,12 +21,13 @@ class LinkReply extends LinkBase {
   protected function getUrlInfo(ResultRow $row) {
     /** @var \Drupal\comment\CommentInterface $comment */
     $comment = $this->getEntity($row);
-    return Url::fromRoute('comment.reply', [
-      'entity_type' => $comment->getCommentedEntityTypeId(),
-      'entity' => $comment->getCommentedEntityId(),
-      'field_name' => $comment->getFieldName(),
-      'pid' => $comment->id(),
-    ]);
+    return $comment ?
+      Url::fromRoute('comment.reply', [
+        'entity_type' => $comment->getCommentedEntityTypeId(),
+        'entity' => $comment->getCommentedEntityId(),
+        'field_name' => $comment->getFieldName(),
+        'pid' => $comment->id(),
+      ]) : NULL;
   }
 
   /**

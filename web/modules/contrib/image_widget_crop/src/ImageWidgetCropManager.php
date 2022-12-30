@@ -2,10 +2,13 @@
 
 namespace Drupal\image_widget_crop;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerTrait;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\crop\Entity\Crop;
 use Drupal\crop\Entity\CropType;
 use Drupal\file\Plugin\Field\FieldType\FileFieldItemList;
@@ -15,6 +18,9 @@ use Drupal\image\Entity\ImageStyle;
  * ImageWidgetCropManager calculation class.
  */
 class ImageWidgetCropManager implements ImageWidgetCropInterface {
+
+  use MessengerTrait;
+  use StringTranslationTrait;
 
   /**
    * The entity type manager service.
@@ -52,17 +58,30 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
   protected $fileStorage;
 
   /**
+   * The ImageWidgetCrop general settings.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  protected $imageWidgetCropSettings;
+
+  /**
    * Constructs a ImageWidgetCropManager object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   Entity type manager service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The configuration factory.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory) {
     $this->entityTypeManager = $entity_type_manager;
     $this->cropStorage = $this->entityTypeManager->getStorage('crop');
     $this->cropTypeStorage = $this->entityTypeManager->getStorage('crop_type');
     $this->imageStyleStorage = $this->entityTypeManager->getStorage('image_style');
     $this->fileStorage = $this->entityTypeManager->getStorage('file');
+    $this->imageWidgetCropSettings = $config_factory->get('image_widget_crop.settings');
   }
 
   /**
@@ -75,7 +94,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
         $crop_properties,
         $field_value,
         $crop_type,
-        FALSE
+        $this->imageWidgetCropSettings->get('settings.notify_apply')
       );
     }
   }
@@ -93,7 +112,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
       }
 
       if (empty($crops)) {
-        $this->saveCrop($crop_properties, $field_value, $crop_type);
+        $this->saveCrop($crop_properties, $field_value, $crop_type, $this->imageWidgetCropSettings->get('settings.notify_update'));
         return;
       }
 
@@ -104,7 +123,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
         }
 
         $this->updateCropProperties($crop, $crop_properties);
-        drupal_set_message(t('The crop "@cropType" were successfully updated for image "@filename".', ['@cropType' => $crop_type->label(), '@filename' => $this->fileStorage->load($field_value['file-id'])->getFilename()]));
+        $this->messenger()->addMessage($this->t('The crop "@cropType" were successfully updated for image "@filename".', ['@cropType' => $crop_type->label(), '@filename' => $this->fileStorage->load($field_value['file-id'])->getFilename()]));
       }
     }
   }
@@ -129,7 +148,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
     $crop->save();
 
     if ($notify) {
-      drupal_set_message(t('The crop "@cropType" was successfully added for image "@filename".', ['@cropType' => $crop_type->label(), '@filename' => $this->fileStorage->load($field_value['file-id'])->getFilename()]));
+      $this->messenger()->addMessage($this->t('The crop "@cropType" was successfully added for image "@filename".', ['@cropType' => $crop_type->label(), '@filename' => $this->fileStorage->load($field_value['file-id'])->getFilename()]));
     }
   }
 
@@ -144,7 +163,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
     ]);
     $this->cropStorage->delete($crop);
     $this->imageStylesOperations($image_styles, $file_uri);
-    drupal_set_message(t('The crop "@cropType" was successfully deleted for image "@filename".', [
+    $this->messenger()->addMessage($this->t('The crop "@cropType" was successfully deleted for image "@filename".', [
       '@cropType' => $crop_type->label(),
       '@filename' => $this->fileStorage->load($file_id)->getFilename(),
     ]));
@@ -169,9 +188,9 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
     /** @var \Drupal\Core\Image\Image $image */
     $image = \Drupal::service('image.factory')->get($field_values['file-uri']);
     if (!$image->isValid()) {
-      drupal_set_message(t('The file "@file" is not valid, your crop is not applied.', [
+      $this->messenger()->addError($this->t('The file "@file" is not valid, your crop is not applied.', [
         '@file' => $field_values['file-uri'],
-      ]), 'error');
+      ]));
       return $crop_coordinates;
     }
 
@@ -322,6 +341,12 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
           foreach ($entity_fields->getValue() as $crop_elements) {
             foreach ($crop_elements as $crop_element) {
               if (is_array($crop_element) && isset($crop_element['crop_wrapper'])) {
+
+                // If file-id key is not available, set it same as parent elements target_id
+                if (empty($crop_element['file-id']) && !empty($crop_elements['target_id'])) {
+                  $crop_element['file-id'] = $crop_elements['target_id'];
+                }
+
                 // Reload image since its URI could have been changed,
                 // by other modules.
                 /** @var \Drupal\file_entity\Entity\FileEntity $file */
@@ -336,7 +361,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
 
                   // If the crop type needed is disabled or delete.
                   if (empty($crop_type) && $crop_type instanceof CropType) {
-                    drupal_set_message(t("The CropType ('@cropType') is not active or not defined. Please verify configuration of image style or ImageWidgetCrop formatter configuration", ['@cropType' => $crop_type->id()]), 'error');
+                    $this->messenger()->addError($this->t("The CropType ('@cropType') is not active or not defined. Please verify configuration of image style or ImageWidgetCrop formatter configuration", ['@cropType' => $crop_type->id()]));
                     return;
                   }
 
@@ -383,7 +408,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
 
           // If the crop type needed is disabled or delete.
           if (empty($crop_type) && $crop_type instanceof CropType) {
-            drupal_set_message(t("The CropType ('@cropType') is not active or not defined. Please verify configuration of image style or ImageWidgetCrop formatter configuration", ['@cropType' => $crop_type->id()]), 'error');
+            $this->messenger()->addError($this->t("The CropType ('@cropType') is not active or not defined. Please verify configuration of image style or ImageWidgetCrop formatter configuration", ['@cropType' => $crop_type->id()]));
             return;
           }
 
@@ -415,7 +440,7 @@ class ImageWidgetCropManager implements ImageWidgetCropInterface {
       }
     }
     else {
-      drupal_set_message(t('No File element found.'), 'error');
+      $this->messenger()->addError($this->t('No File element found.'));
       return;
     }
   }

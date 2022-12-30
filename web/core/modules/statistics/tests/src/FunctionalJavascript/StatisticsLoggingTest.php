@@ -3,7 +3,7 @@
 namespace Drupal\Tests\statistics\FunctionalJavascript;
 
 use Drupal\Core\Session\AccountInterface;
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\user\Entity\Role;
 
@@ -12,12 +12,17 @@ use Drupal\user\Entity\Role;
  *
  * @group system
  */
-class StatisticsLoggingTest extends JavascriptTestBase {
+class StatisticsLoggingTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'statistics', 'language'];
+  protected static $modules = ['node', 'statistics', 'language'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Node for tests.
@@ -29,7 +34,7 @@ class StatisticsLoggingTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->config('statistics.settings')
@@ -41,7 +46,7 @@ class StatisticsLoggingTest extends JavascriptTestBase {
       ->save();
 
     // Add another language to enable multilingual path processor.
-    ConfigurableLanguage::create(['id' => 'xx'])->save();
+    ConfigurableLanguage::create(['id' => 'xx', 'label' => 'Test language'])->save();
     $this->config('language.negotiation')->set('url.prefixes.en', 'en')->save();
 
     $this->drupalCreateContentType(['type' => 'page', 'name' => 'Basic page']);
@@ -80,7 +85,7 @@ class StatisticsLoggingTest extends JavascriptTestBase {
     // update information on the page. See statistics_node_links_alter().
     $this->node->save();
 
-    $field_counter = $this->getSession()->getPage()->find('css', '.statistics-counter');
+    $field_counter = $this->getSession()->getPage()->find('css', '.links li');
     return $field_counter ? (int) explode(' ', $field_counter->getText())[0] : NULL;
   }
 

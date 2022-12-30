@@ -4,7 +4,6 @@ namespace Drupal\rest;
 
 use Drupal\Component\Utility\ArgumentsResolver;
 use Drupal\Core\Cache\CacheableResponseInterface;
-use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -25,13 +24,6 @@ use Symfony\Component\Serializer\SerializerInterface;
 class RequestHandler implements ContainerInjectionInterface {
 
   /**
-   * The config factory.
-   *
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
-   */
-  protected $configFactory;
-
-  /**
    * The serializer.
    *
    * @var \Symfony\Component\Serializer\SerializerInterface|\Symfony\Component\Serializer\Encoder\DecoderInterface
@@ -41,13 +33,10 @@ class RequestHandler implements ContainerInjectionInterface {
   /**
    * Creates a new RequestHandler instance.
    *
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   The config factory.
    * @param \Symfony\Component\Serializer\SerializerInterface|\Symfony\Component\Serializer\Encoder\DecoderInterface $serializer
    *   The serializer.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, SerializerInterface $serializer) {
-    $this->configFactory = $config_factory;
+  public function __construct(SerializerInterface $serializer) {
     $this->serializer = $serializer;
   }
 
@@ -56,7 +45,6 @@ class RequestHandler implements ContainerInjectionInterface {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('config.factory'),
       $container->get('serializer')
     );
   }
@@ -69,21 +57,51 @@ class RequestHandler implements ContainerInjectionInterface {
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The HTTP request object.
    * @param \Drupal\rest\RestResourceConfigInterface $_rest_resource_config
-   *   REST resource config entity ID.
+   *   The REST resource config entity.
    *
    * @return \Drupal\rest\ResourceResponseInterface|\Symfony\Component\HttpFoundation\Response
    *   The REST resource response.
    */
   public function handle(RouteMatchInterface $route_match, Request $request, RestResourceConfigInterface $_rest_resource_config) {
-    $response = $this->delegateToRestResourcePlugin($route_match, $request, $_rest_resource_config->getResourcePlugin());
+    $resource = $_rest_resource_config->getResourcePlugin();
+    $unserialized = $this->deserialize($route_match, $request, $resource);
+    $response = $this->delegateToRestResourcePlugin($route_match, $request, $unserialized, $resource);
+    return $this->prepareResponse($response, $_rest_resource_config);
+  }
 
+  /**
+   * Handles a REST API request without deserializing the request body.
+   *
+   * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
+   *   The route match.
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The HTTP request object.
+   * @param \Drupal\rest\RestResourceConfigInterface $_rest_resource_config
+   *   The REST resource config entity.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response|\Drupal\rest\ResourceResponseInterface
+   *   The REST resource response.
+   */
+  public function handleRaw(RouteMatchInterface $route_match, Request $request, RestResourceConfigInterface $_rest_resource_config) {
+    $resource = $_rest_resource_config->getResourcePlugin();
+    $response = $this->delegateToRestResourcePlugin($route_match, $request, NULL, $resource);
+    return $this->prepareResponse($response, $_rest_resource_config);
+  }
+
+  /**
+   * Prepares the REST resource response.
+   *
+   * @param \Drupal\rest\ResourceResponseInterface $response
+   *   The REST resource response.
+   * @param \Drupal\rest\RestResourceConfigInterface $resource_config
+   *   The REST resource config entity.
+   *
+   * @return \Drupal\rest\ResourceResponseInterface
+   *   The prepared REST resource response.
+   */
+  protected function prepareResponse($response, RestResourceConfigInterface $resource_config) {
     if ($response instanceof CacheableResponseInterface) {
-      $response->addCacheableDependency($_rest_resource_config);
-      // Add global rest settings config's cache tag, for BC flags.
-      // @see \Drupal\rest\Plugin\rest\resource\EntityResource::permissions()
-      // @see \Drupal\rest\EventSubscriber\RestConfigSubscriber
-      // @todo Remove in https://www.drupal.org/node/2893804
-      $response->addCacheableDependency($this->configFactory->get('rest.settings'));
+      $response->addCacheableDependency($resource_config);
     }
 
     return $response;
@@ -181,26 +199,21 @@ class RequestHandler implements ContainerInjectionInterface {
    *   The route match.
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The HTTP request object.
+   * @param mixed|null $unserialized
+   *   The unserialized request body, if any.
    * @param \Drupal\rest\Plugin\ResourceInterface $resource
    *   The REST resource plugin.
    *
    * @return \Symfony\Component\HttpFoundation\Response|\Drupal\rest\ResourceResponseInterface
    *   The REST resource response.
    */
-  protected function delegateToRestResourcePlugin(RouteMatchInterface $route_match, Request $request, ResourceInterface $resource) {
-    $unserialized = $this->deserialize($route_match, $request, $resource);
+  protected function delegateToRestResourcePlugin(RouteMatchInterface $route_match, Request $request, $unserialized, ResourceInterface $resource) {
     $method = static::getNormalizedRequestMethod($route_match);
 
     // Determine the request parameters that should be passed to the resource
     // plugin.
     $argument_resolver = $this->createArgumentResolver($route_match, $unserialized, $request);
-    try {
-      $arguments = $argument_resolver->getArguments([$resource, $method]);
-    }
-    catch (\RuntimeException $exception) {
-      @trigger_error('Passing in arguments the legacy way is deprecated in Drupal 8.4.0 and will be removed before Drupal 9.0.0. Provide the right parameter names in the method, similar to controllers. See https://www.drupal.org/node/2894819', E_USER_DEPRECATED);
-      $arguments = $this->getLegacyParameters($route_match, $unserialized, $request);
-    }
+    $arguments = $argument_resolver->getArguments([$resource, $method]);
 
     // Invoke the operation on the resource plugin.
     return call_user_func_array([$resource, $method], $arguments);
@@ -248,9 +261,15 @@ class RequestHandler implements ContainerInjectionInterface {
     }
 
     if (in_array($request->getMethod(), ['PATCH', 'POST'], TRUE)) {
-      $upcasted_route_arguments['entity'] = $unserialized;
-      $upcasted_route_arguments['data'] = $unserialized;
-      $upcasted_route_arguments['unserialized'] = $unserialized;
+      if (is_object($unserialized)) {
+        $upcasted_route_arguments['entity'] = $unserialized;
+        $upcasted_route_arguments['data'] = $unserialized;
+        $upcasted_route_arguments['unserialized'] = $unserialized;
+      }
+      else {
+        $raw_route_arguments['data'] = $unserialized;
+        $raw_route_arguments['unserialized'] = $unserialized;
+      }
       $upcasted_route_arguments['original_entity'] = $route_arguments_entity;
     }
     else {
@@ -267,39 +286,6 @@ class RequestHandler implements ContainerInjectionInterface {
     }
 
     return new ArgumentsResolver($raw_route_arguments, $upcasted_route_arguments, $wildcard_arguments);
-  }
-
-  /**
-   * Provides the parameter usable without an argument resolver.
-   *
-   * This creates an list of parameters in a statically defined order.
-   *
-   * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
-   *   The route match
-   * @param mixed $unserialized
-   *   The unserialized data.
-   * @param \Symfony\Component\HttpFoundation\Request $request
-   *   The request.
-   *
-   * @deprecated in Drupal 8.4.0, will be removed before Drupal 9.0.0. Use the
-   *   argument resolver method instead, see ::createArgumentResolver().
-   *
-   * @see https://www.drupal.org/node/2894819
-   *
-   * @return array
-   *   An array of parameters.
-   */
-  protected function getLegacyParameters(RouteMatchInterface $route_match, $unserialized, Request $request) {
-    $route_parameters = $route_match->getParameters();
-    $parameters = [];
-    // Filter out all internal parameters starting with "_".
-    foreach ($route_parameters as $key => $parameter) {
-      if ($key{0} !== '_') {
-        $parameters[] = $parameter;
-      }
-    }
-
-    return array_merge($parameters, [$unserialized, $request]);
   }
 
 }

@@ -2,6 +2,7 @@
 
 namespace Drupal\responsive_image;
 
+use Drupal\Core\Url;
 use Drupal\breakpoint\BreakpointManagerInterface;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Form\FormStateInterface;
@@ -81,8 +82,8 @@ class ResponsiveImageStyleForm extends EntityForm {
     ];
 
     $image_styles = image_style_options(TRUE);
-    $image_styles[RESPONSIVE_IMAGE_ORIGINAL_IMAGE] = $this->t('- None (original image) -');
-    $image_styles[RESPONSIVE_IMAGE_EMPTY_IMAGE] = $this->t('- empty image -');
+    $image_styles[ResponsiveImageStyleInterface::ORIGINAL_IMAGE] = $this->t('- None (original image) -');
+    $image_styles[ResponsiveImageStyleInterface::EMPTY_IMAGE] = $this->t('- empty image -');
 
     if ((bool) $responsive_image_style->id() && $this->operation != 'duplicate') {
       $description = $this->t('Select a breakpoint group from the installed themes and modules. Below you can select which breakpoints to use from this group. You can also select which image style or styles to use for each breakpoint you use.') . ' ' . $this->t("Warning: if you change the breakpoint group you lose all your image style selections for each breakpoint.");
@@ -127,7 +128,7 @@ class ResponsiveImageStyleForm extends EntityForm {
         ];
         $image_style_mapping = $responsive_image_style->getImageStyleMapping($breakpoint_id, $multiplier);
         if (\Drupal::moduleHandler()->moduleExists('help')) {
-          $description = $this->t('See the <a href=":responsive_image_help">Responsive Image help page</a> for information on the sizes attribute.', [':responsive_image_help' => \Drupal::url('help.page', ['name' => 'responsive_image'])]);
+          $description = $this->t('See the <a href=":responsive_image_help">Responsive Image help page</a> for information on the sizes attribute.', [':responsive_image_help' => Url::fromRoute('help.page', ['name' => 'responsive_image'])->toString()]);
         }
         else {
           $description = $this->t('Enable the Help module for more information on the sizes attribute.');
@@ -140,7 +141,7 @@ class ResponsiveImageStyleForm extends EntityForm {
             'image_style' => $this->t('Select a single image style.'),
             '_none' => $this->t('Do not use this breakpoint.'),
           ],
-          '#default_value' => isset($image_style_mapping['image_mapping_type']) ? $image_style_mapping['image_mapping_type'] : '_none',
+          '#default_value' => $image_style_mapping['image_mapping_type'] ?? '_none',
           '#description' => $description,
         ];
         $form['keyed_styles'][$breakpoint_id][$multiplier]['image_style'] = [
@@ -156,9 +157,9 @@ class ResponsiveImageStyleForm extends EntityForm {
           ],
         ];
         $form['keyed_styles'][$breakpoint_id][$multiplier]['sizes'] = [
-          '#type' => 'textfield',
+          '#type' => 'textarea',
           '#title' => $this->t('Sizes'),
-          '#default_value' => isset($image_style_mapping['image_mapping']['sizes']) ? $image_style_mapping['image_mapping']['sizes'] : '100vw',
+          '#default_value' => $image_style_mapping['image_mapping']['sizes'] ?? '100vw',
           '#description' => $this->t('Enter the value for the sizes attribute, for example: %example_sizes.', ['%example_sizes' => '(min-width:700px) 700px, 100vw']),
           '#states' => [
             'visible' => [
@@ -174,7 +175,7 @@ class ResponsiveImageStyleForm extends EntityForm {
           '#type' => 'checkboxes',
           '#options' => array_diff_key($image_styles, ['' => '']),
           '#description' => $this->t('Select image styles with widths that range from the smallest amount of space this image will take up in the layout to the largest, bearing in mind that high resolution screens will need images 1.5x to 2x larger.'),
-          '#default_value' => isset($image_style_mapping['image_mapping']['sizes_image_styles']) ? $image_style_mapping['image_mapping']['sizes_image_styles'] : [],
+          '#default_value' => $image_style_mapping['image_mapping']['sizes_image_styles'] ?? [],
           '#states' => [
             'visible' => [
               ':input[name="keyed_styles[' . $breakpoint_id . '][' . $multiplier . '][image_mapping_type]"]' => ['value' => 'sizes'],
@@ -198,7 +199,7 @@ class ResponsiveImageStyleForm extends EntityForm {
       '#default_value' => $responsive_image_style->getFallbackImageStyle(),
       '#options' => $image_styles,
       '#required' => TRUE,
-      '#description' => t('Select the smallest image style you expect to appear in this space. The fallback image style should only appear on the site if an error occurs.'),
+      '#description' => $this->t('Select the smallest image style you expect to appear in this space. The fallback image style should only appear on the site if an error occurs.'),
     ];
 
     $form['#tree'] = TRUE;
@@ -259,7 +260,7 @@ class ResponsiveImageStyleForm extends EntityForm {
               'image_mapping' => [
                 'sizes' => $image_style_mapping['sizes'],
                 'sizes_image_styles' => array_keys(array_filter($image_style_mapping['sizes_image_styles'])),
-              ]
+              ],
             ];
             $responsive_image_style->addImageStyleMapping($breakpoint_id, $multiplier, $mapping);
           }
@@ -276,7 +277,7 @@ class ResponsiveImageStyleForm extends EntityForm {
     $responsive_image_style->save();
 
     $this->logger('responsive_image')->notice('Responsive image style @label saved.', ['@label' => $responsive_image_style->label()]);
-    drupal_set_message($this->t('Responsive image style %label saved.', ['%label' => $responsive_image_style->label()]));
+    $this->messenger()->addStatus($this->t('Responsive image style %label saved.', ['%label' => $responsive_image_style->label()]));
 
     // Redirect to edit form after creating a new responsive image style or
     // after selecting another breakpoint group.
@@ -287,7 +288,7 @@ class ResponsiveImageStyleForm extends EntityForm {
       );
     }
     else {
-      $form_state->setRedirectUrl($this->entity->urlInfo('collection'));
+      $form_state->setRedirectUrl($this->entity->toUrl('collection'));
     }
   }
 

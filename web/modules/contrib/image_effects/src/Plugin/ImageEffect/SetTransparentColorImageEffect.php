@@ -8,7 +8,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\image\ConfigurableImageEffectBase;
 
 /**
- * Adjust image contrast.
+ * Set the image transparent color for GIF images.
  *
  * @ImageEffect(
  *   id = "image_effects_set_transparent_color",

@@ -1,0 +1,193 @@
+parameters:
+  graphql.config:
+    # Development mode:
+    #
+    # Enables debugging mode and disables field security and caching.
+    #
+    # When enabled, all fields can be resolved without restrictions
+    # and the caching strategy of the schema and query results is
+    # disabled entirely.
+    #
+    # @default false
+    development: false
+
+services:
+  # Check access for executing graphql queries.
+  access_check.graphql.query:
+    class: Drupal\graphql\Access\QueryAccessCheck
+    arguments: ['@request_stack']
+    tags:
+      - { name: access_check, applies_to: _graphql_query_access }
+  access_check.graphql.explorer:
+    class: Drupal\graphql\Access\ExplorerAccessCheck
+    tags:
+      - { name: access_check, applies_to: _graphql_explorer_access }
+  access_check.graphql.voyager:
+    class: Drupal\graphql\Access\VoyagerAccessCheck
+    tags:
+      - { name: access_check, applies_to: _graphql_voyager_access }
+
+  # Logger channel for graphql related logging.
+  logger.channel.graphql:
+    parent: logger.channel_base
+    arguments: ['graphql']
+
+  # Allows to statically define cache contexts.
+  # TODO: This seems to be a missing feature in core.
+  cache_context.static:
+    class: Drupal\graphql\Cache\Context\StaticCacheContext
+    tags:
+      - { name: cache.context }
+
+  # Cache bin for the parsed sdl ast.
+  cache.graphql.ast:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    tags:
+      - { name: cache.bin }
+    factory: cache_factory:get
+    arguments: [graphql_ast]
+
+  # Cache bin for graphql plugin definitions.
+  cache.graphql.definitions:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    tags:
+      - { name: cache.bin }
+    factory: cache_factory:get
+    arguments: [graphql_definitions]
+
+  # Cache bin for graphql query results.
+  cache.graphql.results:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    tags:
+      - { name: cache.bin }
+    factory: cache_factory:get
+    arguments: [graphql_results]
+
+  # Executor factory.
+  graphql.executor:
+    class: Drupal\graphql\GraphQL\Execution\ExecutorFactory
+    arguments: ['@service_container']
+
+  # Upcasting for graphql query request parameters.
+  graphql.route_enhancer.query:
+    class: Drupal\graphql\Routing\QueryRouteEnhancer
+    arguments: ['@request_stack']
+    tags:
+      - { name: route_enhancer }
+
+  # Handles the dynamic creation of routes (see graphql.routing.yml).
+  graphql.route_provider:
+    class: Drupal\graphql\RouteProvider
+    arguments: ['@entity_type.manager', '@authentication_collector']
+
+  # Handles the dynamic creation of routes (see graphql.permissions.yml).
+  graphql.permission_provider:
+    class: Drupal\graphql\PermissionProvider
+    arguments: ['@entity_type.manager']
+
+  # Schema introspection service.
+  graphql.introspection:
+    class: Drupal\graphql\GraphQL\Utility\Introspection
+
+  # Validator service.
+  graphql.validator:
+    class: Drupal\graphql\GraphQL\Validator
+    arguments: ['@plugin.manager.graphql.schema', '@logger.channel.graphql']
+
+  # Reset the current language during sub-requests.
+  graphql.subrequest_subscriber:
+    class: Drupal\graphql\EventSubscriber\SubrequestSubscriber
+    arguments: ['@language_manager', '@string_translation', '@current_user', '@?language_negotiator']
+    tags:
+      - { name: event_subscriber }
+
+  # Reset the current language during operations.
+  graphql.operation_subscriber:
+    class: Drupal\graphql\EventSubscriber\OperationSubscriber
+    arguments: ['@module_handler', '@language_manager', '@string_translation', '@current_user', '@?language_negotiator']
+    tags:
+      - { name: event_subscriber }
+
+  # Plugin manager for schemas
+  plugin.manager.graphql.schema:
+    class: Drupal\graphql\Plugin\SchemaPluginManager
+    arguments:
+      - 'Plugin/GraphQL/Schema'
+      - '@container.namespaces'
+      - '@module_handler'
+      - '@cache.graphql.definitions'
+      - '\Drupal\graphql\Plugin\SchemaPluginInterface'
+      - '\Drupal\graphql\Annotation\Schema'
+      - '%graphql.config%'
+
+  # Plugin manager for schemas
+  plugin.manager.graphql.schema_extension:
+    class: Drupal\graphql\Plugin\SchemaExtensionPluginManager
+    arguments:
+      - 'Plugin/GraphQL/SchemaExtension'
+      - '@container.namespaces'
+      - '@module_handler'
+      - '@cache.graphql.definitions'
+      - '\Drupal\graphql\Plugin\SchemaExtensionPluginInterface'
+      - '\Drupal\graphql\Annotation\SchemaExtension'
+      - '%graphql.config%'
+
+  plugin.manager.graphql.data_producer:
+    class: Drupal\graphql\Plugin\DataProducerPluginManager
+    arguments:
+      - 'Plugin/GraphQL/DataProducer'
+      - '@container.namespaces'
+      - '@module_handler'
+      - '@cache.graphql.definitions'
+      - '@request_stack'
+      - '@cache_contexts_manager'
+      - '@cache.graphql.results'
+      - '\Drupal\graphql\Plugin\DataProducerPluginInterface'
+      - '\Drupal\graphql\Annotation\DataProducer'
+      - '%graphql.config%'
+
+  # File upload.
+  graphql.file_upload:
+    class: Drupal\graphql\GraphQL\Utility\FileUpload
+    arguments:
+      - '@entity_type.manager'
+      - '@current_user'
+      - '@file.mime_type.guesser'
+      - '@file_system'
+      - '@logger.channel.graphql'
+      - '@token'
+      - '@lock'
+      - '@config.factory'
+      - '@renderer'
+
+  plugin.manager.graphql.persisted_query:
+    class: Drupal\graphql\Plugin\PersistedQueryPluginManager
+    arguments:
+      - 'Plugin/GraphQL/PersistedQuery'
+      - '@container.namespaces'
+      - '@module_handler'
+      - '@cache.graphql.definitions'
+      - '\Drupal\graphql\Plugin\PersistedQueryPluginInterface'
+      - '\Drupal\graphql\Annotation\PersistedQuery'
+      - '%graphql.config%'
+
+  # Buffers.
+  graphql.buffer.entity:
+    class: Drupal\graphql\GraphQL\Buffers\EntityBuffer
+    arguments: ['@entity_type.manager']
+  graphql.buffer.entity_revision:
+    class: Drupal\graphql\GraphQL\Buffers\EntityRevisionBuffer
+    arguments: ['@entity_type.manager']
+  graphql.buffer.entity_uuid:
+    class: Drupal\graphql\GraphQL\Buffers\EntityUuidBuffer
+    arguments: ['@entity_type.manager']
+  graphql.buffer.subrequest:
+    class: Drupal\graphql\GraphQL\Buffers\SubRequestBuffer
+    arguments: ['@http_kernel', '@request_stack']
+
+  # Ensure our language negotiation method is always first.
+  graphql.config_factory_override:
+    class: Drupal\graphql\Config\LanguageConfigOverride
+    arguments: ['@config.storage', '@?plugin.manager.language_negotiation_method']
+    tags:
+      - { name: config.factory.override, priority: -253 }

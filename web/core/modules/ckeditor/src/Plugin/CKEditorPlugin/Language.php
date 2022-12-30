@@ -81,12 +81,13 @@ class Language extends CKEditorPluginBase implements CKEditorPluginConfigurableI
    * {@inheritdoc}
    */
   public function getButtons() {
+    $label = $this->t('Language');
     return [
       'Language' => [
-        'label' => $this->t('Language'),
+        'label' => $label,
         'image_alternative' => [
           '#type' => 'inline_template',
-          '#template' => '<a href="#" class="cke-icon-only" role="button" title="' . $this->t('Language') . '" aria-label="' . $this->t('Language') . '"><span class="cke_button_icon cke_button__language_icon">' . $this->t('Language') . '</span></a>',
+          '#template' => '<a href="#" class="cke-icon-only" role="button" title="' . $label . '" aria-label="' . $label . '"><span class="cke_button_icon cke_button__language_icon">' . $label . '</span></a>',
         ],
       ],
     ];
@@ -128,7 +129,7 @@ class Language extends CKEditorPluginBase implements CKEditorPluginConfigurableI
    */
   public function getCssFiles(Editor $editor) {
     return [
-        drupal_get_path('module', 'ckeditor') . '/css/plugins/language/ckeditor.language.css'
+      $this->getModulePath('ckeditor') . '/css/plugins/language/ckeditor.language.css',
     ];
   }
 

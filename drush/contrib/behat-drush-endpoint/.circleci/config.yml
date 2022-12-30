@@ -1,0 +1,59 @@
+defaults: &defaults
+  working_directory: ~/behat-drush
+  environment:
+    TZ: "/usr/share/zoneinfo/America/Los_Angeles"
+    TERM: dumb
+    PHPUNIT_ARGS: ""
+    PHP_SENDMAIL_PATH: /dev/null
+
+version: 2.1
+jobs:
+  test_72_drupal8:
+    <<: *defaults
+    docker:
+      - image: wodby/php:7.2
+        environment:
+          - MYSQL_HOST=127.0.0.1
+          - UNISH_DB_URL=mysql://root:@127.0.0.1
+      - image: circleci/mysql:5.7.24
+    steps:
+      - checkout
+      - run: cp .circleci/zz-php.ini /usr/local/etc/php/conf.d/
+      - run: composer install -n
+      - run: composer test
+
+  test_72_drush8:
+    <<: *defaults
+    docker:
+      - image: wodby/php:7.2
+        environment:
+          - MYSQL_HOST=127.0.0.1
+          - UNISH_DB_URL=mysql://root:@127.0.0.1
+      - image: circleci/mysql:5.7.24
+    steps:
+      - checkout
+      - run: cp .circleci/zz-php.ini /usr/local/etc/php/conf.d/
+      - run: .scenarios.lock/install drush8
+      - run: composer test
+
+  test_73_drupal9:
+    <<: *defaults
+    docker:
+      - image: wodby/php:7.3
+        environment:
+          - MYSQL_HOST=127.0.0.1
+          - UNISH_DB_URL=mysql://root:@127.0.0.1
+      - image: circleci/mysql:5.7.24
+    steps:
+      - checkout
+      - run: cp .circleci/zz-php.ini /usr/local/etc/php/conf.d/
+      - run: .scenarios.lock/install drupal9
+      - run: composer test
+
+workflows:
+  version: 2
+  behat-drush:
+    jobs:
+      - test_72_drupal8
+      - test_72_drush8
+      - test_73_drupal9

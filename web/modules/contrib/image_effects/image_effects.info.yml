@@ -1,18 +1,15 @@
 type: module
-# core: 8.x
+core_version_requirement: ^9.2
 name: Image Effects
 description: 'Provides effects and operations for the Image API.'
 package: Media
 configure: image_effects.settings
 dependencies:
   - drupal:image
-  - drupal:system (>=8.2.0)
-test_dependencies:
-  - imagemagick:imagemagick
-  - jquery_colorpicker:jquery_colorpicker
+  - file_mdm:file_mdm_exif
+  - file_mdm:file_mdm_font
 
-# Information added by Drupal.org packaging script on 2017-04-17
-version: '8.x-1.0'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-07-02
+version: '8.x-3.3'
 project: 'image_effects'
-datestamp: 1492431845
+datestamp: 1656755135

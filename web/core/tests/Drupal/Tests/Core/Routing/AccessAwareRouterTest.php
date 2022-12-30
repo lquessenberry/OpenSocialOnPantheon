@@ -6,7 +6,7 @@ use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Routing\AccessAwareRouter;
 use Drupal\Core\Routing\AccessAwareRouterInterface;
 use Drupal\Tests\UnitTestCase;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Route;
@@ -18,51 +18,56 @@ use Symfony\Component\Routing\Route;
 class AccessAwareRouterTest extends UnitTestCase {
 
   /**
+   * @var \Drupal\Core\Routing\Router
+   */
+  protected $router;
+
+  /**
    * @var \Symfony\Component\Routing\Route
    */
   protected $route;
 
   /**
-   * @var \Symfony\Cmf\Component\Routing\ChainRouter|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Routing\Router|\PHPUnit\Framework\MockObject\MockObject
    */
-  protected $chainRouter;
+  protected $coreRouter;
 
   /**
-   * @var \Drupal\Core\Access\AccessManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Access\AccessManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $accessManager;
 
   /**
-   * @var \Drupal\Core\Session\AccountInterface||\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Session\AccountInterface||\PHPUnit\Framework\MockObject\MockObject
    */
   protected $currentUser;
 
   /**
    * @var \Drupal\Core\Routing\AccessAwareRouter
    */
-  protected $router;
+  protected $accessAwareRouter;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->route = new Route('test');
-    $this->accessManager = $this->getMock('Drupal\Core\Access\AccessManagerInterface');
-    $this->currentUser = $this->getMock('Drupal\Core\Session\AccountInterface');
+    $this->accessManager = $this->createMock('Drupal\Core\Access\AccessManagerInterface');
+    $this->currentUser = $this->createMock('Drupal\Core\Session\AccountInterface');
   }
 
   /**
    * Sets up a chain router with matchRequest.
    */
   protected function setupRouter() {
-    $this->chainRouter = $this->getMockBuilder('Symfony\Cmf\Component\Routing\ChainRouter')
+    $this->router = $this->getMockBuilder('Drupal\Core\Routing\Router')
       ->disableOriginalConstructor()
       ->getMock();
-    $this->chainRouter->expects($this->once())
+    $this->router->expects($this->once())
       ->method('matchRequest')
       ->will($this->returnValue([RouteObjectInterface::ROUTE_OBJECT => $this->route]));
-    $this->router = new AccessAwareRouter($this->chainRouter, $this->accessManager, $this->currentUser);
+    $this->accessAwareRouter = new AccessAwareRouter($this->router, $this->accessManager, $this->currentUser);
   }
 
   /**
@@ -76,7 +81,7 @@ class AccessAwareRouterTest extends UnitTestCase {
       ->method('checkRequest')
       ->with($request)
       ->willReturn($access_result);
-    $parameters = $this->router->matchRequest($request);
+    $parameters = $this->accessAwareRouter->matchRequest($request);
     $expected = [
       RouteObjectInterface::ROUTE_OBJECT => $this->route,
       AccessAwareRouterInterface::ACCESS_RESULT => $access_result,
@@ -96,8 +101,8 @@ class AccessAwareRouterTest extends UnitTestCase {
       ->method('checkRequest')
       ->with($request)
       ->willReturn($access_result);
-    $this->setExpectedException(AccessDeniedHttpException::class);
-    $this->router->matchRequest($request);
+    $this->expectException(AccessDeniedHttpException::class);
+    $this->accessAwareRouter->matchRequest($request);
   }
 
   /**
@@ -112,8 +117,9 @@ class AccessAwareRouterTest extends UnitTestCase {
       ->method('checkRequest')
       ->with($request)
       ->willReturn($access_result);
-    $this->setExpectedException(AccessDeniedHttpException::class, $reason);
-    $this->router->matchRequest($request);
+    $this->expectException(AccessDeniedHttpException::class);
+    $this->expectExceptionMessage($reason);
+    $this->accessAwareRouter->matchRequest($request);
   }
 
   /**
@@ -122,19 +128,19 @@ class AccessAwareRouterTest extends UnitTestCase {
    * @covers ::__call
    */
   public function testCall() {
-    $mock_router = $this->getMock('Symfony\Component\Routing\RouterInterface');
+    $mock_router = $this->createMock('Symfony\Component\Routing\RouterInterface');
 
-    $this->chainRouter = $this->getMockBuilder('Symfony\Cmf\Component\Routing\ChainRouter')
+    $this->router = $this->getMockBuilder('Drupal\Core\Routing\Router')
       ->disableOriginalConstructor()
-      ->setMethods(['add'])
+      ->addMethods(['add'])
       ->getMock();
-    $this->chainRouter->expects($this->once())
+    $this->router->expects($this->once())
       ->method('add')
       ->with($mock_router)
       ->willReturnSelf();
-    $this->router = new AccessAwareRouter($this->chainRouter, $this->accessManager, $this->currentUser);
+    $this->accessAwareRouter = new AccessAwareRouter($this->router, $this->accessManager, $this->currentUser);
 
-    $this->router->add($mock_router);
+    $this->accessAwareRouter->add($mock_router);
   }
 
 }

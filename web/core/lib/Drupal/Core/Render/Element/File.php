@@ -23,7 +23,7 @@ class File extends FormElement {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#input' => TRUE,
       '#multiple' => FALSE,
@@ -44,7 +44,7 @@ class File extends FormElement {
    */
   public static function processFile(&$element, FormStateInterface $form_state, &$complete_form) {
     if ($element['#multiple']) {
-      $element['#attributes'] = ['multiple' => 'multiple'];
+      $element['#attributes']['multiple'] = 'multiple';
       $element['#name'] .= '[]';
     }
     return $element;

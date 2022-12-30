@@ -20,7 +20,7 @@ class SearchApiStandard extends FieldPluginBase implements MultiItemsFieldHandle
    * {@inheritdoc}
    */
   public function render_item($count, $item) {
-    $type = !empty($this->definition['filter_type']) ? $this->definition['filter_type'] : 'plain';
+    $type = $this->definition['filter_type'] ?? 'plain';
     return $this->sanitizeValue($item['value'], $type);
   }
 

@@ -4,8 +4,13 @@ namespace Drupal\system\Controller;
 
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Extension\ExtensionLifecycle;
+use Drupal\Core\Extension\ModuleDependencyMessageTrait;
+use Drupal\Core\Extension\ModuleExtensionList;
+use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Core\Form\FormBuilderInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Menu\MenuLinkTreeInterface;
 use Drupal\Core\Menu\MenuTreeParameters;
 use Drupal\Core\Theme\ThemeAccessCheck;
@@ -17,6 +22,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * Returns responses for System routes.
  */
 class SystemController extends ControllerBase {
+
+  use ModuleDependencyMessageTrait;
 
   /**
    * System Manager Service.
@@ -54,6 +61,13 @@ class SystemController extends ControllerBase {
   protected $menuLinkTree;
 
   /**
+   * The module extension list.
+   *
+   * @var \Drupal\Core\Extension\ModuleExtensionList
+   */
+  protected $moduleExtensionList;
+
+  /**
    * Constructs a new SystemController.
    *
    * @param \Drupal\system\SystemManager $systemManager
@@ -66,13 +80,20 @@ class SystemController extends ControllerBase {
    *   The theme handler.
    * @param \Drupal\Core\Menu\MenuLinkTreeInterface $menu_link_tree
    *   The menu link tree service.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $module_extension_list
+   *   The module extension list.
    */
-  public function __construct(SystemManager $systemManager, ThemeAccessCheck $theme_access, FormBuilderInterface $form_builder, ThemeHandlerInterface $theme_handler, MenuLinkTreeInterface $menu_link_tree) {
+  public function __construct(SystemManager $systemManager, ThemeAccessCheck $theme_access, FormBuilderInterface $form_builder, ThemeHandlerInterface $theme_handler, MenuLinkTreeInterface $menu_link_tree, ModuleExtensionList $module_extension_list = NULL) {
     $this->systemManager = $systemManager;
     $this->themeAccess = $theme_access;
     $this->formBuilder = $form_builder;
     $this->themeHandler = $theme_handler;
     $this->menuLinkTree = $menu_link_tree;
+    if ($module_extension_list === NULL) {
+      @trigger_error('The extension.list.module service must be passed to ' . __NAMESPACE__ . '\SystemController::__construct. It was added in Drupal 8.9.0 and will be required before Drupal 10.0.0.', E_USER_DEPRECATED);
+      $module_extension_list = \Drupal::service('extension.list.module');
+    }
+    $this->moduleExtensionList = $module_extension_list;
   }
 
   /**
@@ -84,7 +105,8 @@ class SystemController extends ControllerBase {
       $container->get('access_check.theme'),
       $container->get('form_builder'),
       $container->get('theme_handler'),
-      $container->get('menu.link_tree')
+      $container->get('menu.link_tree'),
+      $container->get('extension.list.module')
     );
   }
 
@@ -99,8 +121,8 @@ class SystemController extends ControllerBase {
    */
   public function overview($link_id) {
     // Check for status report errors.
-    if ($this->systemManager->checkRequirements() && $this->currentUser()->hasPermission('administer site configuration')) {
-      drupal_set_message($this->t('One or more problems were detected with your Drupal installation. Check the <a href=":status">status report</a> for more information.', [':status' => $this->url('system.status')]), 'error');
+    if ($this->currentUser()->hasPermission('administer site configuration') && $this->systemManager->checkRequirements()) {
+      $this->messenger()->addError($this->t('One or more problems were detected with your Drupal installation. Check the <a href=":status">status report</a> for more information.', [':status' => Url::fromRoute('system.status')->toString()]));
     }
     // Load all menu links below it.
     $parameters = new MenuTreeParameters();
@@ -173,7 +195,7 @@ class SystemController extends ControllerBase {
   }
 
   /**
-   * Returns a theme listing.
+   * Returns a theme listing which excludes obsolete themes.
    *
    * @return string
    *   An HTML string of the theme listing page.
@@ -184,19 +206,32 @@ class SystemController extends ControllerBase {
     $config = $this->config('system.theme');
     // Get all available themes.
     $themes = $this->themeHandler->rebuildThemeData();
-    uasort($themes, 'system_sort_modules_by_info_name');
+
+    // Remove obsolete themes.
+    $themes = array_filter($themes, function ($theme) {
+      return !$theme->isObsolete();
+    });
+    uasort($themes, [ThemeExtensionList::class, 'sortByName']);
 
     $theme_default = $config->get('default');
-    $theme_groups  = ['installed' => [], 'uninstalled' => []];
+    $theme_groups = ['installed' => [], 'uninstalled' => []];
     $admin_theme = $config->get('admin');
     $admin_theme_options = [];
+    $incompatible_installed = FALSE;
 
     foreach ($themes as &$theme) {
       if (!empty($theme->info['hidden'])) {
         continue;
       }
+      if (!$incompatible_installed && $theme->info['core_incompatible'] && $theme->status) {
+        $incompatible_installed = TRUE;
+        $this->messenger()->addWarning($this->t(
+          'There are errors with some installed themes. Visit the <a href=":link">status report page</a> for more information.',
+          [':link' => Url::fromRoute('system.status')->toString()]
+        ));
+      }
       $theme->is_default = ($theme->getName() == $theme_default);
-      $theme->is_admin = ($theme->getName() == $admin_theme || ($theme->is_default && $admin_theme == '0'));
+      $theme->is_admin = ($theme->getName() == $admin_theme || ($theme->is_default && empty($admin_theme)));
 
       // Identify theme screenshot.
       $theme->screenshot = NULL;
@@ -222,8 +257,6 @@ class SystemController extends ControllerBase {
       }
 
       if (empty($theme->status)) {
-        // Ensure this theme is compatible with this version of core.
-        $theme->incompatible_core = !isset($theme->info['core']) || ($theme->info['core'] != \DRUPAL::CORE_COMPATIBILITY);
         // Require the 'content' region to make sure the main page
         // content has a common place in all themes.
         $theme->incompatible_region = !isset($theme->info['regions']['content']);
@@ -232,9 +265,41 @@ class SystemController extends ControllerBase {
         $theme->incompatible_base = (isset($theme->info['base theme']) && !($theme->base_themes === array_filter($theme->base_themes)));
         // Confirm that the theme engine is available.
         $theme->incompatible_engine = isset($theme->info['engine']) && !isset($theme->owner);
+        // Confirm that module dependencies are available.
+        $theme->incompatible_module = FALSE;
+        // Confirm that the user has permission to enable modules.
+        $theme->insufficient_module_permissions = FALSE;
       }
+
+      // Check module dependencies.
+      if ($theme->module_dependencies) {
+        $modules = $this->moduleExtensionList->getList();
+        foreach ($theme->module_dependencies as $dependency => $dependency_object) {
+          if ($incompatible = $this->checkDependencyMessage($modules, $dependency, $dependency_object)) {
+            $theme->module_dependencies_list[$dependency] = $incompatible;
+            $theme->incompatible_module = TRUE;
+            continue;
+          }
+
+          // @todo Add logic for not displaying hidden modules in
+          //   https://drupal.org/node/3117829.
+          $module_name = $modules[$dependency]->info['name'];
+          $theme->module_dependencies_list[$dependency] = $modules[$dependency]->status ? $this->t('@module_name', ['@module_name' => $module_name]) : $this->t('@module_name (<span class="admin-disabled">disabled</span>)', ['@module_name' => $module_name]);
+
+          // Create an additional property that contains only disabled module
+          // dependencies. This will determine if it is possible to install the
+          // theme, or if modules must first be enabled.
+          if (!$modules[$dependency]->status) {
+            $theme->module_dependencies_disabled[$dependency] = $module_name;
+            if (!$this->currentUser()->hasPermission('administer modules')) {
+              $theme->insufficient_module_permissions = TRUE;
+            }
+          }
+        }
+      }
+
       $theme->operations = [];
-      if (!empty($theme->status) || !$theme->incompatible_core && !$theme->incompatible_php && !$theme->incompatible_base && !$theme->incompatible_engine) {
+      if (!empty($theme->status) || !$theme->info['core_incompatible'] && !$theme->incompatible_php && !$theme->incompatible_base && !$theme->incompatible_engine && !$theme->incompatible_module && empty($theme->module_dependencies_disabled)) {
         // Create the operations links.
         $query['theme'] = $theme->getName();
         if ($this->themeAccess->checkAccess($theme->getName())) {
@@ -271,7 +336,7 @@ class SystemController extends ControllerBase {
               'attributes' => ['title' => $this->t('Set @theme as default theme', ['@theme' => $theme->info['name']])],
             ];
           }
-          $admin_theme_options[$theme->getName()] = $theme->info['name'];
+          $admin_theme_options[$theme->getName()] = $theme->info['name'] . ($theme->isExperimental() ? ' (' . t('Experimental') . ')' : '');
         }
         else {
           $theme->operations[] = [
@@ -289,13 +354,31 @@ class SystemController extends ControllerBase {
         }
       }
 
-      // Add notes to default and administration theme.
+      // Add notes to default theme, administration theme and non-stable themes.
       $theme->notes = [];
       if ($theme->is_default) {
         $theme->notes[] = $this->t('default theme');
       }
       if ($theme->is_admin) {
         $theme->notes[] = $this->t('administration theme');
+      }
+      $lifecycle = $theme->info[ExtensionLifecycle::LIFECYCLE_IDENTIFIER];
+      if (!empty($theme->info[ExtensionLifecycle::LIFECYCLE_LINK_IDENTIFIER])) {
+        $theme->notes[] = Link::fromTextAndUrl($this->t('@lifecycle', ['@lifecycle' => ucfirst($lifecycle)]),
+          Url::fromUri($theme->info[ExtensionLifecycle::LIFECYCLE_LINK_IDENTIFIER], [
+            'attributes' =>
+              [
+                'class' => 'theme-link--non-stable',
+                'aria-label' => $this->t('View information on the @lifecycle status of the theme @theme', [
+                  '@lifecycle' => ucfirst($lifecycle),
+                  '@theme' => $theme->info['name'],
+                ]),
+              ],
+          ])
+        )->toString();
+      }
+      if ($theme->isExperimental() && empty($theme->info[ExtensionLifecycle::LIFECYCLE_LINK_IDENTIFIER])) {
+        $theme->notes[] = $this->t('experimental theme');
       }
 
       // Sort installed and uninstalled themes into their own groups.

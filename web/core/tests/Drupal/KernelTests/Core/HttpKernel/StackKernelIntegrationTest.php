@@ -19,15 +19,7 @@ class StackKernelIntegrationTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['httpkernel_test', 'system'];
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp() {
-    parent::setUp();
-    \Drupal::service('router.builder')->rebuild();
-  }
+  protected static $modules = ['httpkernel_test', 'system'];
 
   /**
    * Tests a request.
@@ -38,8 +30,8 @@ class StackKernelIntegrationTest extends KernelTestBase {
     $http_kernel = \Drupal::service('http_kernel');
     $http_kernel->handle($request, HttpKernelInterface::MASTER_REQUEST, FALSE);
 
-    $this->assertEqual($request->attributes->get('_hello'), 'world');
-    $this->assertEqual($request->attributes->get('_previous_optional_argument'), 'test_argument');
+    $this->assertEquals('world', $request->attributes->get('_hello'));
+    $this->assertEquals('test_argument', $request->attributes->get('_previous_optional_argument'));
   }
 
   /**

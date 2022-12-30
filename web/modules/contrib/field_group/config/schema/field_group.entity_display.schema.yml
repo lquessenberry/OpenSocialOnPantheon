@@ -12,7 +12,7 @@ core.entity_view_display.*.*.*.third_party.field_group:
             - type: string
               label: 'The field name'
         label:
-          type: string
+          type: label
           label: Readable name of the group
         parent_name:
           type: string
@@ -43,7 +43,7 @@ core.entity_form_display.*.*.*.third_party.field_group:
             - type: string
               label: 'The field name'
         label:
-          type: string
+          type: label
           label: Readable name of the group
         region:
           type: string

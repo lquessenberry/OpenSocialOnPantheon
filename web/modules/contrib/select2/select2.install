@@ -1,0 +1,44 @@
+<?php
+
+/**
+ * @file
+ * This is the Select2 module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function select2_requirements($phase) {
+  if ($phase !== 'runtime') {
+    return [];
+  }
+
+  $requirements['select2'] = [
+    'title' => 'select2',
+    'value' => t('Select2 library found'),
+    'severity' => REQUIREMENT_OK,
+  ];
+
+  // library.libraries_directory_file_finder is available since D8.9.
+  if (\Drupal::hasService('library.libraries_directory_file_finder') && \Drupal::service('library.libraries_directory_file_finder')->find('select2')) {
+    return $requirements;
+  }
+
+  // @todo This code can be removed when we drop D8.8 support.
+  if (function_exists('libraries_get_path') && libraries_get_path('select2')) {
+    return $requirements;
+  }
+
+  if (file_exists(\Drupal::service('library.discovery')->getLibraryByName('select2', 'select2.min')['js'][0]['data'])) {
+    return $requirements;
+  }
+
+  return [
+    'select2' => [
+      'title' => 'select2',
+      'value' => t("Select2 library doesn't exists"),
+      'description' => t('Make sure that the select2 lib is placed in the library folder. You can download the release of your choice from <a href=":link" target="_blank">GitHub</a>.', [':link' => 'https://github.com/select2/select2/tags']),
+      'severity' => REQUIREMENT_ERROR,
+    ],
+  ];
+}

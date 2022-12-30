@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * ImageMagick arguments effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class ImagemagickArgumentsTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * ImageMagick arguments effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,22 +33,15 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testImagemagickArgumentsEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * ImageMagick arguments effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testImagemagickArgumentsEffect() {
     $original_uri = $this->getTestImageCopyUri('/tests/images/portrait-painting.jpg', 'image_effects');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
     // Test source image EXIF data.
     $exif = @exif_read_data(\Drupal::service('file_system')->realpath($original_uri));
-    $this->assertEqual(8, isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
+    $this->assertEquals(8, isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
 
     // 1. Test effect with 'keep' dimensions.
     $effect = [
@@ -70,17 +63,17 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" width="640" height="480" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"640\" height=\"480\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Create derivative image.
     $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
 
     // Check that ::applyEffect stripped EXIF metadata.
     $image = $this->imageFactory->get($derivative_uri);
-    $this->assertEqual(640, $image->getWidth());
-    $this->assertEqual(480, $image->getHeight());
+    $this->assertEquals(640, $image->getWidth());
+    $this->assertEquals(480, $image->getHeight());
     $exif = @exif_read_data(\Drupal::service('file_system')->realpath($derivative_uri));
-    $this->assertEqual(NULL, isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
+    $this->assertEquals(NULL, isset($exif['Orientation']) ? $exif['Orientation'] : NULL);
 
     // Remove effect.
     $this->removeEffectFromTestStyle($uuid);
@@ -106,7 +99,7 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Create derivative image.
     $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
@@ -114,8 +107,8 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
     // Check that ::applyEffect generated a derivative with same size as
     // original.
     $image = $this->imageFactory->get($derivative_uri);
-    $this->assertEqual(640, $image->getWidth());
-    $this->assertEqual(480, $image->getHeight());
+    $this->assertEquals(640, $image->getWidth());
+    $this->assertEquals(480, $image->getHeight());
 
     // Remove effect.
     $this->removeEffectFromTestStyle($uuid);
@@ -144,7 +137,7 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" width="320" height="120" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"320\" height=\"120\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Remove effect.
     $this->removeEffectFromTestStyle($uuid);
@@ -173,7 +166,7 @@ class ImagemagickArgumentsTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" width="64" height="48" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"64\" height=\"48\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Remove effect.
     $this->removeEffectFromTestStyle($uuid);

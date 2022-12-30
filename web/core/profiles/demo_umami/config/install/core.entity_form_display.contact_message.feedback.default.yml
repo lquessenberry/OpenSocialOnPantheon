@@ -13,6 +13,13 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
+  langcode:
+    type: language_select
+    weight: 2
+    region: content
+    settings:
+      include_locked: true
+    third_party_settings: {  }
   mail:
     weight: 1
     region: content
@@ -21,10 +28,10 @@ content:
   message:
     type: string_textarea
     weight: 3
+    region: content
     settings:
       rows: 12
       placeholder: ''
-    region: content
     third_party_settings: {  }
   name:
     weight: 0

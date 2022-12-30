@@ -60,7 +60,6 @@ class ProfileViewsRelationship extends RelationshipPluginBase {
       '#default_value' => $this->options['profile_type'],
       '#required' => TRUE,
     ];
-
     foreach (ProfileType::loadMultiple() as $profile_id => $profile_type) {
       $form['profile_type']['#options'][$profile_id] = $profile_type->label();
     }
@@ -75,7 +74,7 @@ class ProfileViewsRelationship extends RelationshipPluginBase {
 
     $this->definition['extra'][] = [
       'field' => 'type',
-      'value' => $this->options['profile_type']
+      'value' => $this->options['profile_type'],
     ];
 
     parent::query();

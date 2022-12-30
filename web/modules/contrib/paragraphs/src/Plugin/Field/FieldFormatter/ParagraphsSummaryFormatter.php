@@ -5,7 +5,6 @@ namespace Drupal\paragraphs\Plugin\Field\FieldFormatter;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\Plugin\Field\FieldFormatter\EntityReferenceFormatterBase;
-use Drupal\paragraphs\Entity\Paragraph;
 use Drupal\paragraphs\ParagraphInterface;
 
 /**
@@ -29,11 +28,31 @@ class ParagraphsSummaryFormatter extends EntityReferenceFormatterBase {
     foreach ($this->getEntitiesToView($items, $langcode) as $delta => $entity) {
       if ($entity->id()) {
         $elements[$delta] = [
-          '#markup' => $entity->getSummary(),
+          '#type' => 'container',
+          '#attributes' => [
+            'class' => ['paragraph-formatter']
+          ]
+        ];
+        $elements[$delta]['info'] = [
+          '#type' => 'container',
+          '#attributes' => [
+            'class' => ['paragraph-info']
+          ]
+        ];
+        $elements[$delta]['info'] += $entity->getIcons();
+        $elements[$delta]['summary'] = [
+          '#type' => 'container',
+          '#attributes' => [
+            'class' => ['paragraph-summary']
+          ]
+        ];
+        $elements[$delta]['summary']['description'] = [
+          '#theme' => 'paragraphs_summary',
+          '#summary' => $entity->getSummaryItems(),
         ];
       }
     }
-
+    $elements['#attached']['library'][] = 'paragraphs/drupal.paragraphs.formatter';
     return $elements;
   }
 
@@ -44,7 +63,7 @@ class ParagraphsSummaryFormatter extends EntityReferenceFormatterBase {
     $target_type = $field_definition->getSetting('target_type');
     $paragraph_type = \Drupal::entityTypeManager()->getDefinition($target_type);
     if ($paragraph_type) {
-      return $paragraph_type->isSubclassOf(ParagraphInterface::class);
+      return $paragraph_type->entityClassImplements(ParagraphInterface::class);
     }
 
     return FALSE;

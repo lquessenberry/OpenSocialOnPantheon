@@ -1,9 +1,9 @@
 services:
   data_policy.manager:
     class: Drupal\data_policy\DataPolicyConsentManager
-    arguments: ['@config.factory', '@current_user', '@entity_type.manager']
+    arguments: ['@config.factory', '@current_user', '@entity_type.manager', '@database', '@entity.repository']
   data_policy.redirect_subscriber:
     class: Drupal\data_policy\RedirectSubscriber
-    arguments: ['@current_route_match', '@redirect.destination', '@current_user', '@config.factory', '@entity_type.manager', '@messenger', '@data_policy.manager']
+    arguments: ['@current_route_match', '@redirect.destination', '@current_user', '@config.factory', '@entity_type.manager', '@messenger', '@data_policy.manager', '@module_handler', '@database']
     tags:
       - { name: event_subscriber }

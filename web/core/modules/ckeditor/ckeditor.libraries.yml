@@ -2,6 +2,7 @@ drupal.ckeditor:
   version: VERSION
   js:
     js/ckeditor.js: {}
+    js/ckeditor.off-canvas-css-reset.js: {}
   css:
     state:
       css/ckeditor.css: {}
@@ -13,8 +14,6 @@ drupal.ckeditor:
     - core/drupal.displace
     - core/ckeditor
     - editor/drupal.editor
-    # Ensure to run after core/matchmedia.
-    - core/matchmedia
 
 drupal.ckeditor.plugins.drupalimagecaption:
   version: VERSION
@@ -50,14 +49,13 @@ drupal.ckeditor.admin:
     - core/jquery
     - core/drupal
     - core/drupalSettings
-    - core/jquery.once
-    - core/jquery.ui.sortable
-    - core/jquery.ui.draggable
-    - core/jquery.ui.touch-punch
-    - core/backbone
+    - core/once
+    - core/jquery.once.bc
+    - core/internal.backbone
     - core/drupal.dialog
     - core/drupal.announce
     - core/ckeditor
+    - core/sortable
     - editor/drupal.editor.admin
     # Ensure to run after core/drupal.vertical-tabs.
     - core/drupal.vertical-tabs
@@ -69,7 +67,8 @@ drupal.ckeditor.drupalimage.admin:
   dependencies:
     - core/jquery
     - core/drupal
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
     - core/drupal.vertical-tabs
     - core/drupalSettings
 

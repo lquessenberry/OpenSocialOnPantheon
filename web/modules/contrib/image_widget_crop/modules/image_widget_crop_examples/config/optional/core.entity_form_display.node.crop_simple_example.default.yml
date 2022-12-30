@@ -38,6 +38,8 @@ content:
       show_crop_area: true
       show_default_crop: true
       warn_multiple_usages: true
+      crop_types_required:
+        - crop_16_9
       preview_image_style: thumbnail
       crop_preview_image_style: crop_thumbnail
       crop_list:

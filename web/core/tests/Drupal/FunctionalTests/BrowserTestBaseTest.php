@@ -2,12 +2,16 @@
 
 namespace Drupal\FunctionalTests;
 
+use Behat\Mink\Exception\ElementNotFoundException;
 use Behat\Mink\Exception\ExpectationException;
 use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Url;
 use Drupal\Tests\BrowserTestBase;
+use Drupal\Tests\StreamCapturer;
 use Drupal\Tests\Traits\Core\CronRunTrait;
+use Drupal\user\Entity\Role;
+use PHPUnit\Framework\ExpectationFailedException;
 
 /**
  * Tests BrowserTestBase functionality.
@@ -23,7 +27,17 @@ class BrowserTestBaseTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['test_page_test', 'form_test', 'system_test'];
+  protected static $modules = [
+    'test_page_test',
+    'form_test',
+    'system_test',
+    'node',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'classy';
 
   /**
    * Tests basic page test.
@@ -41,10 +55,14 @@ class BrowserTestBaseTest extends BrowserTestBase {
 
     // Check that returned plain text is correct.
     $text = $this->getTextContent();
-    $this->assertContains('Test page text.', $text);
-    $this->assertNotContains('</html>', $text);
+    $this->assertStringContainsString('Test page text.', $text);
+    $this->assertStringNotContainsString('</html>', $text);
+    // Ensure Drupal Javascript settings are not part of the page text.
+    $this->assertArrayHasKey('currentPathIsAdmin', $this->getDrupalSettings()['path']);
+    $this->assertStringNotContainsString('currentPathIsAdmin', $text);
 
     // Response includes cache tags that we can assert.
+    $this->assertSession()->responseHeaderExists('X-Drupal-Cache-Tags');
     $this->assertSession()->responseHeaderEquals('X-Drupal-Cache-Tags', 'http_response rendered');
 
     // Test that we can read the JS settings.
@@ -63,8 +81,12 @@ class BrowserTestBaseTest extends BrowserTestBase {
     $this->drupalGet('system-test/header', [], [
       'Test-Header' => 'header value',
     ]);
-    $returned_header = $this->getSession()->getResponseHeader('Test-Header');
-    $this->assertSame('header value', $returned_header);
+    $this->assertSession()->responseHeaderExists('Test-Header');
+    $this->assertSession()->responseHeaderEquals('Test-Header', 'header value');
+
+    // Ensure that \Drupal\Tests\UiHelperTrait::isTestUsingGuzzleClient() works
+    // as expected.
+    $this->assertTrue($this->isTestUsingGuzzleClient());
   }
 
   /**
@@ -112,20 +134,42 @@ class BrowserTestBaseTest extends BrowserTestBase {
     $value = $config_factory->get('form_test.object')->get('bananas');
     $this->assertSame('green', $value);
 
-    // Test drupalPostForm().
-    $edit = ['bananas' => 'red'];
-    $result = $this->drupalPostForm('form-test/object-builder', $edit, 'Save');
-    $this->assertSame($this->getSession()->getPage()->getContent(), $result);
+    // Test submitForm().
+    $this->drupalGet('form-test/object-builder');
+
+    // Submit the form using the button label.
+    $this->submitForm(['bananas' => 'red'], 'Save');
     $value = $config_factory->get('form_test.object')->get('bananas');
     $this->assertSame('red', $value);
 
-    $this->drupalPostForm('form-test/object-builder', NULL, 'Save');
+    $this->submitForm([], 'Save');
     $value = $config_factory->get('form_test.object')->get('bananas');
     $this->assertSame('', $value);
 
-    // Test drupalPostForm() with no-html response.
-    $values = Json::decode($this->drupalPostForm('form_test/form-state-values-clean', [], t('Submit')));
-    $this->assertTrue(1000, $values['beer']);
+    // Submit the form using the button id.
+    $this->submitForm(['bananas' => 'blue'], 'edit-submit');
+    $value = $config_factory->get('form_test.object')->get('bananas');
+    $this->assertSame('blue', $value);
+
+    // Submit the form using the button name.
+    $this->submitForm(['bananas' => 'purple'], 'op');
+    $value = $config_factory->get('form_test.object')->get('bananas');
+    $this->assertSame('purple', $value);
+
+    // Test submitForm() with no-html response.
+    $this->drupalGet('form_test/form-state-values-clean');
+    $this->submitForm([], 'Submit');
+    $values = Json::decode($this->getSession()->getPage()->getContent());
+    $this->assertSame(1000, $values['beer']);
+
+    // Test submitForm() with form by HTML id.
+    $this->drupalCreateContentType(['type' => 'page']);
+    $this->drupalLogin($this->drupalCreateUser(['create page content']));
+    $this->drupalGet('form-test/two-instances-of-same-form');
+    $this->getSession()->getPage()->fillField('edit-title-0-value', 'form1');
+    $this->getSession()->getPage()->fillField('edit-title-0-value--2', 'form2');
+    $this->submitForm([], 'Save', 'node-page-form--2');
+    $this->assertSession()->pageTextContains('Page form2 has been created.');
   }
 
   /**
@@ -134,17 +178,18 @@ class BrowserTestBaseTest extends BrowserTestBase {
   public function testClickLink() {
     $this->drupalGet('test-page');
     $this->clickLink('Visually identical test links');
-    $this->assertContains('user/login', $this->getSession()->getCurrentUrl());
+    $this->assertStringContainsString('user/login', $this->getSession()->getCurrentUrl());
     $this->drupalGet('test-page');
     $this->clickLink('Visually identical test links', 0);
-    $this->assertContains('user/login', $this->getSession()->getCurrentUrl());
+    $this->assertStringContainsString('user/login', $this->getSession()->getCurrentUrl());
     $this->drupalGet('test-page');
     $this->clickLink('Visually identical test links', 1);
-    $this->assertContains('user/register', $this->getSession()->getCurrentUrl());
+    $this->assertStringContainsString('user/register', $this->getSession()->getCurrentUrl());
   }
 
   public function testError() {
-    $this->setExpectedException('\Exception', 'User notice: foo');
+    $this->expectException('\Exception');
+    $this->expectExceptionMessage('User notice: foo');
     $this->drupalGet('test-error');
   }
 
@@ -175,7 +220,8 @@ class BrowserTestBaseTest extends BrowserTestBase {
    */
   public function testInvalidLinkExistsExact() {
     $this->drupalGet('test-pipe-char');
-    $this->setExpectedException(ExpectationException::class, 'Link with label foo|bar found');
+    $this->expectException(ExpectationException::class);
+    $this->expectExceptionMessage('Link with label foo|bar found');
     $this->assertSession()->linkExistsExact('foo|bar');
   }
 
@@ -190,14 +236,60 @@ class BrowserTestBaseTest extends BrowserTestBase {
   }
 
   /**
+   * Tests responseHeaderDoesNotExist() functionality.
+   *
+   * @see \Drupal\Tests\WebAssert::responseHeaderDoesNotExist()
+   */
+  public function testResponseHeaderDoesNotExist() {
+    $this->drupalGet('test-pipe-char');
+    $this->assertSession()->responseHeaderDoesNotExist('Foo-Bar');
+  }
+
+  /**
    * Tests linkNotExistsExact() functionality fail.
    *
    * @see \Drupal\Tests\WebAssert::linkNotExistsExact()
    */
   public function testInvalidLinkNotExistsExact() {
     $this->drupalGet('test-pipe-char');
-    $this->setExpectedException(ExpectationException::class, 'Link with label foo|bar|baz not found');
+    $this->expectException(ExpectationException::class);
+    $this->expectExceptionMessage('Link with label foo|bar|baz not found');
     $this->assertSession()->linkNotExistsExact('foo|bar|baz');
+  }
+
+  /**
+   * Tests legacy assertResponse().
+   *
+   * @group legacy
+   */
+  public function testAssertResponse() {
+    $this->expectDeprecation('AssertLegacyTrait::assertResponse() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->statusCodeEquals() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-encoded');
+    $this->assertResponse(200);
+  }
+
+  /**
+   * Tests legacy assertTitle().
+   *
+   * @group legacy
+   */
+  public function testAssertTitle() {
+    $this->expectDeprecation('AssertLegacyTrait::assertTitle() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->titleEquals() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-encoded');
+    $this->assertTitle("Page with encoded HTML | Drupal");
+  }
+
+  /**
+   * Tests legacy assertHeader().
+   *
+   * @group legacy
+   */
+  public function testAssertHeader() {
+    $this->expectDeprecation('AssertLegacyTrait::assertHeader() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->responseHeaderEquals() instead. See https://www.drupal.org/node/3129738');
+    $account = $this->drupalCreateUser();
+    $this->drupalLogin($account);
+    $this->drupalGet('test-page');
+    $this->assertHeader('X-Drupal-Cache-Tags', 'http_response rendered');
   }
 
   /**
@@ -207,11 +299,77 @@ class BrowserTestBaseTest extends BrowserTestBase {
     $this->drupalGet('test-encoded');
     $dangerous = 'Bad html <script>alert(123);</script>';
     $sanitized = Html::escape($dangerous);
-    $this->assertNoText($dangerous);
-    $this->assertText($sanitized);
+    $this->assertSession()->responseNotContains($dangerous);
+    $this->assertSession()->responseContains($sanitized);
+  }
 
-    // Test getRawContent().
+  /**
+   * Tests legacy assertPattern().
+   *
+   * @group legacy
+   */
+  public function testAssertPattern() {
+    $this->expectDeprecation('AssertLegacyTrait::assertPattern() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->responseMatches() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-escaped-characters');
+    $this->assertPattern('/div class.*escaped/');
+  }
+
+  /**
+   * Tests deprecated assertText.
+   *
+   * @group legacy
+   */
+  public function testAssertText() {
+    $this->expectDeprecation('AssertLegacyTrait::assertText() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->responseContains() or $this->assertSession()->pageTextContains() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('Calling AssertLegacyTrait::assertText() with more than one argument is deprecated in drupal:8.2.0 and the method is removed from drupal:10.0.0. Use $this->assertSession()->responseContains() or $this->assertSession()->pageTextContains() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-encoded');
+    $dangerous = 'Bad html <script>alert(123);</script>';
+    $this->assertText(Html::escape($dangerous), 'Sanitized text should be present.');
+  }
+
+  /**
+   * Tests deprecated assertNoText.
+   *
+   * @group legacy
+   */
+  public function testAssertNoText() {
+    $this->expectDeprecation('AssertLegacyTrait::assertNoText() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->responseNotContains() or $this->assertSession()->pageTextNotContains() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('Calling AssertLegacyTrait::assertNoText() with more than one argument is deprecated in drupal:8.2.0 and the method is removed from drupal:10.0.0. Use $this->assertSession()->responseNotContains() or $this->assertSession()->pageTextNotContains() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-encoded');
+    $dangerous = 'Bad html <script>alert(123);</script>';
+    $this->assertNoText($dangerous, 'Dangerous text should not be present.');
+  }
+
+  /**
+   * Tests legacy getRawContent().
+   *
+   * @group legacy
+   */
+  public function testGetRawContent() {
+    $this->expectDeprecation('AssertLegacyTrait::getRawContent() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->getSession()->getPage()->getContent() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-encoded');
     $this->assertSame($this->getSession()->getPage()->getContent(), $this->getRawContent());
+  }
+
+  /**
+   * Tests legacy buildXPathQuery().
+   *
+   * @group legacy
+   */
+  public function testBuildXPathQuery() {
+    $this->expectDeprecation('AssertLegacyTrait::buildXPathQuery() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->buildXPathQuery() instead. See https://www.drupal.org/node/3129738');
+    $this->buildXPathQuery('\\html');
+  }
+
+  /**
+   * Tests legacy assertFieldsByValue().
+   *
+   * @group legacy
+   */
+  public function testAssertFieldsByValue() {
+    $this->expectDeprecation('AssertLegacyTrait::assertFieldsByValue() is deprecated in drupal:8.3.0 and is removed from drupal:10.0.0. Use iteration over the fields yourself instead and directly check the values in the test. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-field-xpath');
+    $this->assertFieldsByValue($this->xpath("//h1[@class = 'page-title']"), NULL);
   }
 
   /**
@@ -219,190 +377,182 @@ class BrowserTestBaseTest extends BrowserTestBase {
    */
   public function testXpathAsserts() {
     $this->drupalGet('test-field-xpath');
-    $this->assertFieldsByValue($this->xpath("//h1[@class = 'page-title']"), NULL);
-    $this->assertFieldsByValue($this->xpath('//table/tbody/tr[2]/td[1]'), 'one');
-    $this->assertFieldByXPath('//table/tbody/tr[2]/td[1]', 'one');
+    $this->assertSession()->elementTextContains('xpath', '//table/tbody/tr[2]/td[1]', 'one');
 
-    $this->assertFieldsByValue($this->xpath("//input[@id = 'edit-name']"), 'Test name');
-    $this->assertFieldByXPath("//input[@id = 'edit-name']", 'Test name');
-    $this->assertFieldsByValue($this->xpath("//select[@id = 'edit-options']"), '2');
-    $this->assertFieldByXPath("//select[@id = 'edit-options']", '2');
+    $this->assertSession()->fieldValueEquals('edit-name', 'Test name');
+    $this->assertSession()->fieldValueEquals('edit-options', '2');
 
-    $this->assertNoFieldByXPath('//notexisting');
-    $this->assertNoFieldByXPath("//input[@id = 'edit-name']", 'wrong value');
+    $this->assertSession()->elementNotExists('xpath', '//notexisting');
+    $this->assertSession()->fieldValueNotEquals('edit-name', 'wrong value');
 
     // Test that the assertion fails correctly.
     try {
-      $this->assertFieldByXPath("//input[@id = 'notexisting']");
+      $this->assertSession()->fieldExists('notexisting');
       $this->fail('The "notexisting" field was found.');
     }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('assertFieldByXPath correctly failed. The "notexisting" field was not found.');
+    catch (ExpectationException $e) {
+      // Expected exception; just continue testing.
     }
 
     try {
-      $this->assertNoFieldByXPath("//input[@id = 'edit-name']");
+      $this->assertSession()->fieldNotExists('edit-name');
       $this->fail('The "edit-name" field was not found.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoFieldByXPath correctly failed. The "edit-name" field was found.');
-    }
-
-    try {
-      $this->assertFieldsByValue($this->xpath("//input[@id = 'edit-name']"), 'not the value');
-      $this->fail('The "edit-name" field is found with the value "not the value".');
-    }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('The "edit-name" field is not found with the value "not the value".');
+      // Expected exception; just continue testing.
     }
   }
 
   /**
    * Tests legacy field asserts using textfields.
+   *
+   * @group legacy
+   */
+  public function testAssertField() {
+    $this->expectDeprecation('AssertLegacyTrait::assertField() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->fieldExists() or $this->assertSession()->buttonExists() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertNoField() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->fieldNotExists() or $this->assertSession()->buttonNotExists() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-field-xpath');
+    $this->assertField('name');
+    $this->assertNoField('invalid_name_and_id');
+  }
+
+  /**
+   * Tests legacy field asserts by id and by Xpath.
+   *
+   * @group legacy
+   */
+  public function testAssertFieldById() {
+    $this->expectDeprecation('AssertLegacyTrait::assertFieldById() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->fieldExists() or $this->assertSession()->buttonExists() or $this->assertSession()->fieldValueEquals() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertNoFieldById() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->fieldNotExists() or $this->assertSession()->buttonNotExists() or $this->assertSession()->fieldValueNotEquals() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertFieldByXPath() is deprecated in drupal:8.3.0 and is removed from drupal:10.0.0. Use $this->xpath() instead and check the values directly in the test. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertNoFieldByXPath() is deprecated in drupal:8.3.0 and is removed from drupal:10.0.0. Use $this->xpath() instead and assert that the result is empty. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-field-xpath');
+    $this->assertFieldById('edit-save', NULL);
+    $this->assertNoFieldById('invalid', NULL);
+    $this->assertFieldByXPath("//input[@id = 'edit-name']", 'Test name');
+    $this->assertNoFieldByXPath("//input[@id = 'edit-name']", 'wrong value');
+  }
+
+  /**
+   * Tests field asserts using textfields.
    */
   public function testFieldAssertsForTextfields() {
     $this->drupalGet('test-field-xpath');
 
-    // *** 1. assertNoField().
-    $this->assertNoField('invalid_name_and_id');
+    // *** 1. fieldNotExists().
+    $this->assertSession()->fieldNotExists('invalid_name_and_id');
 
     // Test that the assertion fails correctly when searching by name.
     try {
-      $this->assertNoField('name');
+      $this->assertSession()->fieldNotExists('name');
       $this->fail('The "name" field was not found based on name.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoField correctly failed. The "name" field was found by name.');
+      // Expected exception; just continue testing.
     }
 
     // Test that the assertion fails correctly when searching by id.
     try {
-      $this->assertNoField('edit-name');
+      $this->assertSession()->fieldNotExists('edit-name');
       $this->fail('The "name" field was not found based on id.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoField correctly failed. The "name" field was found by id.');
+      // Expected exception; just continue testing.
     }
 
-    // *** 2. assertField().
-    $this->assertField('name');
-    $this->assertField('edit-name');
+    // *** 2. fieldExists().
+    $this->assertSession()->fieldExists('name');
+    $this->assertSession()->fieldExists('edit-name');
 
     // Test that the assertion fails correctly if the field does not exist.
     try {
-      $this->assertField('invalid_name_and_id');
+      $this->assertSession()->fieldExists('invalid_name_and_id');
       $this->fail('The "invalid_name_and_id" field was found.');
     }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('assertField correctly failed. The "invalid_name_and_id" field was not found.');
+    catch (ElementNotFoundException $e) {
+      // Expected exception; just continue testing.
     }
-
     // *** 3. assertNoFieldById().
-    $this->assertNoFieldById('name');
-    $this->assertNoFieldById('name', 'not the value');
-    $this->assertNoFieldById('notexisting');
-    $this->assertNoFieldById('notexisting', NULL);
-
+    $this->assertSession()->fieldValueNotEquals('name', 'not the value');
+    $this->assertSession()->fieldNotExists('notexisting');
     // Test that the assertion fails correctly if no value is passed in.
     try {
-      $this->assertNoFieldById('edit-description');
+      $this->assertSession()->fieldNotExists('edit-description');
       $this->fail('The "description" field, with no value was not found.');
     }
     catch (ExpectationException $e) {
-      $this->pass('The "description" field, with no value was found.');
+      // Expected exception; just continue testing.
     }
 
     // Test that the assertion fails correctly if a NULL value is passed in.
     try {
-      $this->assertNoFieldById('edit-name', NULL);
+      $this->assertSession()->fieldNotExists('name', NULL);
       $this->fail('The "name" field was not found.');
     }
     catch (ExpectationException $e) {
-      $this->pass('The "name" field was found.');
+      // Expected exception; just continue testing.
     }
 
     // *** 4. assertFieldById().
-    $this->assertFieldById('edit-name', NULL);
-    $this->assertFieldById('edit-name', 'Test name');
-    $this->assertFieldById('edit-description', NULL);
-    $this->assertFieldById('edit-description');
+    $this->assertSession()->fieldExists('edit-name');
+    $this->assertSession()->fieldValueEquals('edit-name', 'Test name');
+    $this->assertSession()->fieldExists('edit-description');
+    $this->assertSession()->fieldValueEquals('edit-description', '');
 
     // Test that the assertion fails correctly if no value is passed in.
     try {
-      $this->assertFieldById('edit-name');
-      $this->fail('The "edit-name" field with no value was found.');
+      $this->assertSession()->fieldValueNotEquals('edit-name', '');
     }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('The "edit-name" field with no value was not found.');
+    catch (ExpectationFailedException $e) {
+      // Expected exception; just continue testing.
     }
 
     // Test that the assertion fails correctly if the wrong value is passed in.
     try {
-      $this->assertFieldById('edit-name', 'not the value');
-      $this->fail('The "name" field was found, using the wrong value.');
+      $this->assertSession()->fieldValueNotEquals('edit-name', 'not the value');
     }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('The "name" field was not found, using the wrong value.');
+    catch (ExpectationFailedException $e) {
+      // Expected exception; just continue testing.
     }
 
-    // *** 5. assertNoFieldByName().
-    $this->assertNoFieldByName('name');
-    $this->assertNoFieldByName('name', 'not the value');
-    $this->assertNoFieldByName('notexisting');
-    $this->assertNoFieldByName('notexisting', NULL);
+    // *** 5. fieldValueNotEquals().
+    $this->assertSession()->fieldValueNotEquals('name', 'not the value');
 
-    // Test that the assertion fails correctly if no value is passed in.
+    // Test that the assertion fails correctly if given the right value.
     try {
-      $this->assertNoFieldByName('description');
-      $this->fail('The "description" field, with no value was not found.');
+      $this->assertSession()->fieldValueNotEquals('name', 'Test name');
+      $this->fail('fieldValueNotEquals failed to throw an exception.');
     }
     catch (ExpectationException $e) {
-      $this->pass('The "description" field, with no value was found.');
+      // Expected exception; just continue testing.
     }
 
-    // Test that the assertion fails correctly if a NULL value is passed in.
-    try {
-      $this->assertNoFieldByName('name', NULL);
-      $this->fail('The "name" field was not found.');
-    }
-    catch (ExpectationException $e) {
-      $this->pass('The "name" field was found.');
-    }
-
-    // *** 6. assertFieldByName().
-    $this->assertFieldByName('name');
-    $this->assertFieldByName('name', NULL);
-    $this->assertFieldByName('name', 'Test name');
-    $this->assertFieldByName('description');
-    $this->assertFieldByName('description', '');
-    $this->assertFieldByName('description', NULL);
-
-    // Test that the assertion fails correctly if given the wrong name.
-    try {
-      $this->assertFieldByName('non-existing-name');
-      $this->fail('The "non-existing-name" field was found.');
-    }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('The "non-existing-name" field was not found');
-    }
+    // *** 6. fieldValueEquals().
+    $this->assertSession()->fieldValueEquals('name', 'Test name');
+    $this->assertSession()->fieldValueEquals('description', '');
 
     // Test that the assertion fails correctly if given the wrong value.
     try {
-      $this->assertFieldByName('name', 'not the value');
-      $this->fail('The "name" field with incorrect value was found.');
+      $this->assertSession()->fieldValueEquals('name', 'not the value');
+      $this->fail('fieldValueEquals failed to throw an exception.');
     }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass('assertFieldByName correctly failed. The "name" field with incorrect value was not found.');
+    catch (ExpectationException $e) {
+      // Expected exception; just continue testing.
     }
 
     // Test that text areas can contain new lines.
-    $this->assertFieldsByValue($this->xpath("//textarea[@id = 'edit-test-textarea-with-newline']"), "Test text with\nnewline");
+    $this->assertSession()->fieldValueEquals('edit-test-textarea-with-newline', "Test text with\nnewline");
   }
 
   /**
    * Tests legacy field asserts for options field type.
+   *
+   * @group legacy
    */
   public function testFieldAssertsForOptions() {
+    $this->expectDeprecation('AssertLegacyTrait::assertOptionByText() is deprecated in drupal:8.4.0 and is removed from drupal:10.0.0. Use $this->assertSession()->optionExists() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertOption() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->optionExists() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertNoOption() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->optionNotExists() instead. See https://www.drupal.org/node/3129738');
     $this->drupalGet('test-field-xpath');
 
     // Option field type.
@@ -412,7 +562,7 @@ class BrowserTestBaseTest extends BrowserTestBase {
       $this->fail('The select option "four" was found.');
     }
     catch (ExpectationException $e) {
-      $this->pass($e->getMessage());
+      // Expected exception; just continue testing.
     }
 
     $this->assertOption('options', 1);
@@ -421,7 +571,7 @@ class BrowserTestBaseTest extends BrowserTestBase {
       $this->fail('The select option "4" was found.');
     }
     catch (ExpectationException $e) {
-      $this->pass($e->getMessage());
+      // Expected exception; just continue testing.
     }
 
     $this->assertNoOption('options', 'non-existing');
@@ -430,29 +580,26 @@ class BrowserTestBaseTest extends BrowserTestBase {
       $this->fail('The select option "one" was not found.');
     }
     catch (ExpectationException $e) {
-      $this->pass($e->getMessage());
+      // Expected exception; just continue testing.
     }
 
-    $this->assertOptionSelected('options', 2);
+    $this->assertTrue($this->assertSession()->optionExists('options', 2)->isSelected());
     try {
-      $this->assertOptionSelected('options', 4);
+      $this->assertTrue($this->assertSession()->optionExists('options', 4)->isSelected());
       $this->fail('The select option "4" was selected.');
     }
     catch (ExpectationException $e) {
-      $this->pass($e->getMessage());
+      // Expected exception; just continue testing.
     }
 
     try {
-      $this->assertOptionSelected('options', 1);
+      $this->assertTrue($this->assertSession()->optionExists('options', 1)->isSelected());
       $this->fail('The select option "1" was selected.');
     }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass($e->getMessage());
+    catch (ExpectationFailedException $e) {
+      // Expected exception; just continue testing.
     }
 
-    // Test \Drupal\FunctionalTests\AssertLegacyTrait::getAllOptions.
-    $this->drupalGet('/form-test/select');
-    $this->assertCount(6, $this->getAllOptions($this->cssSelect('select[name="opt_groups"]')[0]));
   }
 
   /**
@@ -461,40 +608,46 @@ class BrowserTestBaseTest extends BrowserTestBase {
   public function testFieldAssertsForButton() {
     $this->drupalGet('test-field-xpath');
 
-    $this->assertFieldById('edit-save', NULL);
-    // Test that the assertion fails correctly if the field value is passed in
-    // rather than the id.
-    try {
-      $this->assertFieldById('Save', NULL);
-      $this->fail('The field with id of "Save" was found.');
-    }
-    catch (\PHPUnit_Framework_ExpectationFailedException $e) {
-      $this->pass($e->getMessage());
-    }
+    // Verify if the test passes with button ID.
+    $this->assertSession()->buttonExists('edit-save');
+    // Verify if the test passes with button Value.
+    $this->assertSession()->buttonExists('Save');
+    // Verify if the test passes with button Name.
+    $this->assertSession()->buttonExists('op');
 
-    $this->assertNoFieldById('Save', NULL);
-    // Test that the assertion fails correctly if the id of an actual field is
-    // passed in.
-    try {
-      $this->assertNoFieldById('edit-save', NULL);
-      $this->fail('The field with id of "edit-save" was not found.');
-    }
-    catch (ExpectationException $e) {
-      $this->pass($e->getMessage());
-    }
+    // Verify if the test passes with button ID.
+    $this->assertSession()->buttonNotExists('i-do-not-exist');
+    // Verify if the test passes with button Value.
+    $this->assertSession()->buttonNotExists('I do not exist');
+    // Verify if the test passes with button Name.
+    $this->assertSession()->buttonNotExists('no');
 
     // Test that multiple fields with the same name are validated correctly.
-    $this->assertFieldByName('duplicate_button', 'Duplicate button 1');
-    $this->assertFieldByName('duplicate_button', 'Duplicate button 2');
-    $this->assertNoFieldByName('duplicate_button', 'Rabbit');
+    $this->assertSession()->buttonExists('duplicate_button');
+    $this->assertSession()->buttonExists('Duplicate button 1');
+    $this->assertSession()->buttonExists('Duplicate button 2');
+    $this->assertSession()->buttonNotExists('Rabbit');
 
     try {
-      $this->assertNoFieldByName('duplicate_button', 'Duplicate button 2');
+      $this->assertSession()->buttonNotExists('Duplicate button 2');
       $this->fail('The "duplicate_button" field with the value Duplicate button 2 was not found.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoFieldByName correctly failed. The "duplicate_button" field with the value Duplicate button 2 was found.');
+      // Expected exception; just continue testing.
     }
+  }
+
+  /**
+   * Tests legacy assertFieldChecked() and assertNoFieldChecked().
+   *
+   * @group legacy
+   */
+  public function testLegacyFieldAssertsForCheckbox() {
+    $this->expectDeprecation('AssertLegacyTrait::assertFieldChecked() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->checkboxChecked() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertNoFieldChecked() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->checkboxNotChecked() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-field-xpath');
+    $this->assertFieldChecked('edit-checkbox-enabled');
+    $this->assertNoFieldChecked('edit-checkbox-disabled');
   }
 
   /**
@@ -506,93 +659,86 @@ class BrowserTestBaseTest extends BrowserTestBase {
     // Part 1 - Test by name.
     // Test that checkboxes are found/not found correctly by name, when using
     // TRUE or FALSE to match their 'checked' state.
-    $this->assertFieldByName('checkbox_enabled', TRUE);
-    $this->assertFieldByName('checkbox_disabled', FALSE);
-    $this->assertNoFieldByName('checkbox_enabled', FALSE);
-    $this->assertNoFieldByName('checkbox_disabled', TRUE);
-
-    // Test that checkboxes are found by name when using NULL to ignore the
-    // 'checked' state.
-    $this->assertFieldByName('checkbox_enabled', NULL);
-    $this->assertFieldByName('checkbox_disabled', NULL);
-
-    // Test that checkboxes are found by name when passing no second parameter.
-    $this->assertFieldByName('checkbox_enabled');
-    $this->assertFieldByName('checkbox_disabled');
+    $this->assertSession()->fieldExists('checkbox_enabled');
+    $this->assertSession()->fieldExists('checkbox_disabled');
+    $this->assertSession()->fieldValueEquals('checkbox_enabled', TRUE);
+    $this->assertSession()->fieldValueEquals('checkbox_disabled', FALSE);
+    $this->assertSession()->fieldValueNotEquals('checkbox_enabled', FALSE);
+    $this->assertSession()->fieldValueNotEquals('checkbox_disabled', TRUE);
 
     // Test that we have legacy support.
-    $this->assertFieldByName('checkbox_enabled', '1');
-    $this->assertFieldByName('checkbox_disabled', '');
+    $this->assertSession()->fieldValueEquals('checkbox_enabled', '1');
+    $this->assertSession()->fieldValueEquals('checkbox_disabled', '');
 
-    // Test that the assertion fails correctly when using NULL to ignore state.
+    // Test that the assertion fails correctly if given the right value.
     try {
-      $this->assertNoFieldByName('checkbox_enabled', NULL);
-      $this->fail('The "checkbox_enabled" field was not found by name, using NULL value.');
+      $this->assertSession()->fieldValueNotEquals('checkbox_enabled', TRUE);
+      $this->fail('fieldValueNotEquals failed to throw an exception.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoFieldByName failed correctly. The "checkbox_enabled" field was found using NULL value.');
+      // Expected exception; just continue testing.
     }
 
     // Part 2 - Test by ID.
     // Test that checkboxes are found/not found correctly by ID, when using
     // TRUE or FALSE to match their 'checked' state.
-    $this->assertFieldById('edit-checkbox-enabled', TRUE);
-    $this->assertFieldById('edit-checkbox-disabled', FALSE);
-    $this->assertNoFieldById('edit-checkbox-enabled', FALSE);
-    $this->assertNoFieldById('edit-checkbox-disabled', TRUE);
+    $this->assertSession()->fieldValueEquals('edit-checkbox-enabled', TRUE);
+    $this->assertSession()->fieldValueEquals('edit-checkbox-disabled', FALSE);
+    $this->assertSession()->fieldValueNotEquals('edit-checkbox-enabled', FALSE);
+    $this->assertSession()->fieldValueNotEquals('edit-checkbox-disabled', TRUE);
 
     // Test that checkboxes are found by ID, when using NULL to ignore the
     // 'checked' state.
-    $this->assertFieldById('edit-checkbox-enabled', NULL);
-    $this->assertFieldById('edit-checkbox-disabled', NULL);
+    $this->assertSession()->fieldExists('edit-checkbox-enabled');
+    $this->assertSession()->fieldExists('edit-checkbox-disabled');
 
     // Test that checkboxes are found by ID when passing no second parameter.
-    $this->assertFieldById('edit-checkbox-enabled');
-    $this->assertFieldById('edit-checkbox-disabled');
+    $this->assertSession()->fieldExists('edit-checkbox-enabled');
+    $this->assertSession()->fieldExists('edit-checkbox-disabled');
 
     // Test that we have legacy support.
-    $this->assertFieldById('edit-checkbox-enabled', '1');
-    $this->assertFieldById('edit-checkbox-disabled', '');
+    $this->assertSession()->fieldValueEquals('edit-checkbox-enabled', '1');
+    $this->assertSession()->fieldValueEquals('edit-checkbox-disabled', '');
 
     // Test that the assertion fails correctly when using NULL to ignore state.
     try {
-      $this->assertNoFieldById('edit-checkbox-disabled', NULL);
+      $this->assertSession()->fieldNotExists('edit-checkbox-disabled', NULL);
       $this->fail('The "edit-checkbox-disabled" field was not found by ID, using NULL value.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoFieldById failed correctly. The "edit-checkbox-disabled" field was found by ID using NULL value.');
+      // Expected exception; just continue testing.
     }
 
     // Part 3 - Test the specific 'checked' assertions.
-    $this->assertFieldChecked('edit-checkbox-enabled');
-    $this->assertNoFieldChecked('edit-checkbox-disabled');
+    $this->assertSession()->checkboxChecked('edit-checkbox-enabled');
+    $this->assertSession()->checkboxNotChecked('edit-checkbox-disabled');
 
-    // Test that the assertion fails correctly with non-existant field id.
+    // Test that the assertion fails correctly with non-existent field id.
     try {
-      $this->assertNoFieldChecked('incorrect_checkbox_id');
+      $this->assertSession()->checkboxNotChecked('incorrect_checkbox_id');
       $this->fail('The "incorrect_checkbox_id" field was found');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoFieldChecked correctly failed. The "incorrect_checkbox_id" field was not found.');
+      // Expected exception; just continue testing.
     }
 
     // Test that the assertion fails correctly for a checkbox that is checked.
     try {
-      $this->assertNoFieldChecked('edit-checkbox-enabled');
+      $this->assertSession()->checkboxNotChecked('edit-checkbox-enabled');
       $this->fail('The "edit-checkbox-enabled" field was not found in a checked state.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertNoFieldChecked correctly failed. The "edit-checkbox-enabled" field was found in a checked state.');
+      // Expected exception; just continue testing.
     }
 
     // Test that the assertion fails correctly for a checkbox that is not
     // checked.
     try {
-      $this->assertFieldChecked('edit-checkbox-disabled');
+      $this->assertSession()->checkboxChecked('edit-checkbox-disabled');
       $this->fail('The "edit-checkbox-disabled" field was found and checked.');
     }
     catch (ExpectationException $e) {
-      $this->pass('assertFieldChecked correctly failed. The "edit-checkbox-disabled" field was not found in a checked state.');
+      // Expected exception; just continue testing.
     }
   }
 
@@ -613,21 +759,30 @@ class BrowserTestBaseTest extends BrowserTestBase {
    */
   public function testInstall() {
     $htaccess_filename = $this->tempFilesDirectory . '/.htaccess';
-    $this->assertTrue(file_exists($htaccess_filename), "$htaccess_filename exists");
+    $this->assertFileExists($htaccess_filename);
+
+    // Ensure the update module is not installed.
+    $this->assertFalse(\Drupal::moduleHandler()->moduleExists('update'), 'The Update module is not installed.');
   }
 
   /**
    * Tests the assumption that local time is in 'Australia/Sydney'.
    */
   public function testLocalTimeZone() {
+    $expected = 'Australia/Sydney';
     // The 'Australia/Sydney' time zone is set in core/tests/bootstrap.php
-    $this->assertEquals('Australia/Sydney', date_default_timezone_get());
+    $this->assertEquals($expected, date_default_timezone_get());
 
     // The 'Australia/Sydney' time zone is also set in
     // FunctionalTestSetupTrait::initConfig().
     $config_factory = $this->container->get('config.factory');
     $value = $config_factory->get('system.date')->get('timezone.default');
-    $this->assertEquals('Australia/Sydney', $value);
+    $this->assertEquals($expected, $value);
+
+    // Test that users have the correct time zone set.
+    $this->assertEquals($expected, $this->rootUser->getTimeZone());
+    $admin_user = $this->drupalCreateUser(['administer site configuration']);
+    $this->assertEquals($expected, $admin_user->getTimeZone());
   }
 
   /**
@@ -652,6 +807,213 @@ class BrowserTestBaseTest extends BrowserTestBase {
     putenv('MINK_DRIVER_ARGS=' . json_encode([NULL, ['key1' => ['key2' => ['key3' => 3, 'key3.1' => 3.1]]]]));
     $this->getDefaultDriverInstance();
     $this->assertEquals([NULL, ['key1' => ['key2' => ['key3' => 3, 'key3.1' => 3.1]]]], $this->minkDefaultDriverArgs);
+  }
+
+  /**
+   * Ensures we can't access modules we shouldn't be able to after install.
+   */
+  public function testProfileModules() {
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('The module demo_umami_content does not exist.');
+    $this->assertFileExists('core/profiles/demo_umami/modules/demo_umami_content/demo_umami_content.info.yml');
+    \Drupal::service('extension.list.module')->getPathname('demo_umami_content');
+  }
+
+  /**
+   * Tests the protections provided by .htkey.
+   */
+  public function testHtkey() {
+    // Remove the Simpletest private key file so we can test the protection
+    // against requests that forge a valid testing user agent to gain access
+    // to the installer.
+    // @see drupal_valid_test_ua()
+    // Not using File API; a potential error must trigger a PHP warning.
+    $install_url = Url::fromUri('base:core/install.php', ['external' => TRUE, 'absolute' => TRUE])->toString();
+    $this->drupalGet($install_url);
+    $this->assertSession()->statusCodeEquals(200);
+    unlink($this->siteDirectory . '/.htkey');
+    $this->drupalGet($install_url);
+    $this->assertSession()->statusCodeEquals(403);
+  }
+
+  /**
+   * Tests pageContainsNoDuplicateId() functionality.
+   *
+   * @see \Drupal\Tests\WebAssert::pageContainsNoDuplicateId()
+   */
+  public function testPageContainsNoDuplicateId() {
+    $assert_session = $this->assertSession();
+    $this->drupalGet(Url::fromRoute('test_page_test.page_without_duplicate_ids'));
+    $assert_session->pageContainsNoDuplicateId();
+
+    $this->drupalGet(Url::fromRoute('test_page_test.page_with_duplicate_ids'));
+    $this->expectException(ExpectationException::class);
+    $this->expectExceptionMessage('The page contains a duplicate HTML ID "page-element".');
+    $assert_session->pageContainsNoDuplicateId();
+  }
+
+  /**
+   * Tests assertEscaped() and assertUnescaped().
+   *
+   * @see \Drupal\Tests\WebAssert::assertNoEscaped()
+   * @see \Drupal\Tests\WebAssert::assertEscaped()
+   */
+  public function testEscapingAssertions() {
+    $assert = $this->assertSession();
+
+    $this->drupalGet('test-escaped-characters');
+    $assert->assertNoEscaped('<div class="escaped">');
+    $assert->responseContains('<div class="escaped">');
+    $assert->assertEscaped('Escaped: <"\'&>');
+
+    $this->drupalGet('test-escaped-script');
+    $assert->assertNoEscaped('<div class="escaped">');
+    $assert->responseContains('<div class="escaped">');
+    $assert->assertEscaped("<script>alert('XSS');alert(\"XSS\");</script>");
+
+    $this->drupalGet('test-unescaped-script');
+    $assert->assertNoEscaped('<div class="unescaped">');
+    $assert->responseContains('<div class="unescaped">');
+    $assert->responseContains("<script>alert('Marked safe');alert(\"Marked safe\");</script>");
+    $assert->assertNoEscaped("<script>alert('Marked safe');alert(\"Marked safe\");</script>");
+  }
+
+  /**
+   * Tests deprecation of legacy assertEscaped() and assertNoEscaped().
+   *
+   * @group legacy
+   */
+  public function testLegacyEscapingAssertions(): void {
+    $this->expectDeprecation('AssertLegacyTrait::assertNoEscaped() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->assertNoEscaped() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertEscaped() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->assertEscaped() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-escaped-characters');
+    $this->assertNoEscaped('<div class="escaped">');
+    $this->assertEscaped('Escaped: <"\'&>');
+  }
+
+  /**
+   * Tests deprecation of drupalPostForm().
+   *
+   * @group legacy
+   */
+  public function testLegacyDrupalPostForm(): void {
+    $this->expectDeprecation('UiHelperTrait::drupalPostForm() is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. Use $this->submitForm() instead. See https://www.drupal.org/node/3168858');
+    $this->expectDeprecation('Calling Drupal\Tests\UiHelperTrait::drupalPostForm() with $submit as an object is deprecated in drupal:9.2.0 and the method is removed in drupal:10.0.0. Use $this->submitForm() instead. See https://www.drupal.org/node/3168858');
+    $this->expectDeprecation('Calling Drupal\Tests\UiHelperTrait::drupalPostForm() with $edit set to NULL is deprecated in drupal:9.1.0 and the method is removed in drupal:10.0.0. Use $this->submitForm() instead. See https://www.drupal.org/node/3168858');
+    $this->drupalPostForm('form-test/object-builder', NULL, t('Save'));
+    $this->expectDeprecation('Calling Drupal\Tests\UiHelperTrait::drupalPostForm() with $path set to NULL is deprecated in drupal:9.2.0 and the method is removed in drupal:10.0.0. Use $this->submitForm() instead. See https://www.drupal.org/node/3168858');
+    $this->drupalPostForm(NULL, [], 'Save');
+  }
+
+  /**
+   * Tests that deprecation headers do not get duplicated.
+   *
+   * @group legacy
+   *
+   * @see \Drupal\Core\Test\HttpClientMiddleware\TestHttpClientMiddleware::__invoke()
+   */
+  public function testDeprecationHeaders() {
+    $this->drupalGet('/test-deprecations');
+
+    $deprecation_messages = [];
+    foreach ($this->getSession()->getResponseHeaders() as $name => $values) {
+      if (preg_match('/^X-Drupal-Assertion-[0-9]+$/', $name, $matches)) {
+        foreach ($values as $value) {
+          $parameters = unserialize(urldecode($value));
+          if (count($parameters) === 3) {
+            if ($parameters[1] === 'User deprecated function') {
+              $deprecation_messages[] = (string) $parameters[0];
+            }
+          }
+        }
+      }
+    }
+
+    $this->assertContains('Test deprecation message', $deprecation_messages);
+    $test_deprecation_messages = array_filter($deprecation_messages, function ($message) {
+      return $message === 'Test deprecation message';
+    });
+    $this->assertCount(1, $test_deprecation_messages);
+  }
+
+  /**
+   * Tests legacy assertFieldByName() and assertNoFieldByName().
+   *
+   * @group legacy
+   */
+  public function testLegacyFieldAssertsByName() {
+    $this->expectDeprecation('AssertLegacyTrait::assertFieldByName() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->fieldExists() or $this->assertSession()->buttonExists() or $this->assertSession()->fieldValueEquals() instead. See https://www.drupal.org/node/3129738');
+    $this->expectDeprecation('AssertLegacyTrait::assertNoFieldByName() is deprecated in drupal:8.2.0 and is removed from drupal:10.0.0. Use $this->assertSession()->fieldNotExists() or $this->assertSession()->buttonNotExists() or $this->assertSession()->fieldValueNotEquals() instead. See https://www.drupal.org/node/3129738');
+    $this->drupalGet('test-field-xpath');
+    $this->assertFieldByName('checkbox_enabled', TRUE);
+    $this->assertNoFieldByName('checkbox_enabled', FALSE);
+  }
+
+  /**
+   * Tests legacy drupalGetHeader().
+   *
+   * @group legacy
+   */
+  public function testDrupalGetHeader() {
+    $this->expectDeprecation('BrowserTestBase::drupalGetHeader() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use $this->getSession()->getResponseHeader() instead. See https://www.drupal.org/node/3168383');
+    $this->drupalGet('test-page');
+    $this->drupalGetHeader('Content-Type');
+  }
+
+  /**
+   * Tests legacy debug().
+   *
+   * @group legacy
+   */
+  public function testDebug() {
+    $this->expectDeprecation('debug() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use dump() instead. See https://www.drupal.org/node/3192283');
+    $this->expectError();
+    debug("There's a star man waiting in the sky");
+  }
+
+  /**
+   * Tests the dump() function provided by the var-dumper Symfony component.
+   */
+  public function testVarDump() {
+    // Append the stream capturer to the STDOUT stream, so that we can test the
+    // dump() output and also prevent it from actually outputting in this
+    // particular test.
+    stream_filter_register("capture", StreamCapturer::class);
+    stream_filter_append(STDOUT, "capture");
+
+    // Dump some variables to check that dump() in test code produces output
+    // on the command line that is running the test.
+    $role = Role::load('authenticated');
+    dump($role);
+    dump($role->id());
+
+    $this->assertStringContainsString('Drupal\user\Entity\Role', StreamCapturer::$cache);
+    $this->assertStringContainsString('authenticated', StreamCapturer::$cache);
+
+    // Visit a Drupal page with call to the dump() function to check that dump()
+    // in site code produces output in the requested web page's HTML.
+    $body = $this->drupalGet('test-page-var-dump');
+    $this->assertSession()->statusCodeEquals(200);
+
+    // It is too strict to assert all properties of the Role and it is easy to
+    // break if one of these properties gets removed or gets a new default
+    // value. It should be sufficient to test just a couple of properties.
+    $this->assertStringContainsString('<span class=sf-dump-note>', $body);
+    $this->assertStringContainsString('  #<span class=sf-dump-protected title="Protected property">id</span>: "<span class=sf-dump-str title="9 characters">test_role</span>"', $body);
+    $this->assertStringContainsString('  #<span class=sf-dump-protected title="Protected property">label</span>: "<span class=sf-dump-str title="9 characters">Test role</span>"', $body);
+    $this->assertStringContainsString('  #<span class=sf-dump-protected title="Protected property">permissions</span>: []', $body);
+    $this->assertStringContainsString('  #<span class=sf-dump-protected title="Protected property">uuid</span>: "', $body);
+    $this->assertStringContainsString('</samp>}', $body);
+  }
+
+  /**
+   * Test if setting an invalid scheme in SIMPLETEST_BASE_URL throws an exception.
+   */
+  public function testSimpleTestBaseUrlValidation() {
+    putenv('SIMPLETEST_BASE_URL=mysql://user:pass@localhost/database');
+    $this->expectException(\Exception::class);
+    $this->expectExceptionMessage('You must provide valid scheme for the SIMPLETEST_BASE_URL environment variable. Valid schema are: http, https.');
+    $this->setupBaseUrl();
   }
 
 }

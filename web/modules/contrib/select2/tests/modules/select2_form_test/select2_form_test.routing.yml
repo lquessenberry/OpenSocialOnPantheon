@@ -1,0 +1,26 @@
+select2_form_test.optgroup:
+  path: '/select2-optgroup-form'
+  defaults:
+    _form: '\Drupal\select2_form_test\Form\Select2OptgroupForm'
+    _title: 'Select2 optgroup test'
+  requirements:
+    # Only for tests used.
+    _access: 'TRUE'
+
+select2_form_test.ajax:
+  path: '/select2-ajax-form'
+  defaults:
+    _form: '\Drupal\select2_form_test\Form\Select2AjaxForm'
+    _title: 'Select2 ajax test'
+  requirements:
+    # Only for tests used.
+    _access: 'TRUE'
+
+select2_form_test.autocomplete:
+  path: '/select2-autocomplete-form'
+  defaults:
+    _form: '\Drupal\select2_form_test\Form\Select2AutocompleteForm'
+    _title: 'Select2 autocomplete test'
+  requirements:
+    # Only for tests used.
+    _access: 'TRUE'

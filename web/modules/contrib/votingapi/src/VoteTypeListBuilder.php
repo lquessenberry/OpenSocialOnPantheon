@@ -17,11 +17,11 @@ class VoteTypeListBuilder extends ConfigEntityListBuilder {
    * {@inheritdoc}
    */
   public function buildHeader() {
-    $header['id'] = t('Id');
-    $header['label'] = t('Label');
-    $header['value_type'] = t('Value type');
+    $header['id'] = $this->t('Id');
+    $header['label'] = $this->t('Label');
+    $header['value_type'] = $this->t('Value type');
     $header['description'] = [
-      'data' => t('Description'),
+      'data' => $this->t('Description'),
       'class' => [RESPONSIVE_PRIORITY_MEDIUM],
     ];
     return $header + parent::buildHeader();
@@ -64,4 +64,5 @@ class VoteTypeListBuilder extends ConfigEntityListBuilder {
     ]);
     return $build;
   }
+
 }

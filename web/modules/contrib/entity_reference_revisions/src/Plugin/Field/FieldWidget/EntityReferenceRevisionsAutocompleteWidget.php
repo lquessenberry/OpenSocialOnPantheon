@@ -2,7 +2,6 @@
 
 namespace Drupal\entity_reference_revisions\Plugin\Field\FieldWidget;
 
-use Drupal\Core\Entity\Entity;
 use Drupal\Core\Field\Plugin\Field\FieldWidget\EntityReferenceAutocompleteWidget;
 use Drupal\Core\Form\FormStateInterface;
 

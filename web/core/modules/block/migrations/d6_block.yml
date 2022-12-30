@@ -1,5 +1,6 @@
 id: d6_block
 label: Blocks
+# This configuration migration depends on the d6_custom_block content migration.
 migration_tags:
   - Drupal 6
   - Configuration
@@ -19,7 +20,7 @@ process:
     entity_type: block
     field: id
     postfix: _
-    length: 32
+    length: 29
     source: module
   plugin:
     -

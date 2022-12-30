@@ -1,7 +1,9 @@
 @media print {
   * {
+    /* Black prints faster */
+    /* https://github.com/h5bp/main.css/blob/main/dist/_print.css#L14 */
+    color: #000 !important;
     background-color: transparent !important;
-    color: #000 !important; /* Black prints faster: h5bp.com/s */
     box-shadow: none !important;
     text-shadow: none !important;
   }
@@ -18,7 +20,7 @@
     page-break-inside: avoid;
   }
   thead {
-    display: table-header-group; /* h5bp.com/t */
+    display: table-header-group;
   }
   tr,
   img {
@@ -39,8 +41,8 @@
   }
   a,
   .link {
-    color: #000;
     text-decoration: underline;
+    color: #000;
   }
   .button,
   .button--primary {
@@ -68,8 +70,8 @@
     display: none;
   }
   .js .dropbutton-multiple .dropbutton-widget {
-    background: none;
     border-radius: 4px;
+    background: none;
   }
   input.form-autocomplete,
   input.form-text,

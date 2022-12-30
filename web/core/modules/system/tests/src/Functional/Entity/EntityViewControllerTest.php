@@ -17,7 +17,12 @@ class EntityViewControllerTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['entity_test'];
+  protected static $modules = ['entity_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'classy';
 
   /**
    * Array of test entities.
@@ -26,7 +31,7 @@ class EntityViewControllerTest extends BrowserTestBase {
    */
   protected $entities = [];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     // Create some dummy entity_test entities.
     for ($i = 0; $i < 2; $i++) {
@@ -50,17 +55,17 @@ class EntityViewControllerTest extends BrowserTestBase {
 
     foreach ($this->entities as $entity) {
       $this->drupalGet('entity_test/' . $entity->id());
-      $this->assertRaw($entity->label());
-      $this->assertRaw($get_label_markup($entity->label()));
-      $this->assertRaw('full');
+      $this->assertSession()->pageTextContains($entity->label());
+      $this->assertSession()->responseContains($get_label_markup($entity->label()));
+      $this->assertSession()->pageTextContains('full');
 
       $this->drupalGet('entity_test_converter/' . $entity->id());
-      $this->assertRaw($entity->label());
-      $this->assertRaw('full');
+      $this->assertSession()->pageTextContains($entity->label());
+      $this->assertSession()->pageTextContains('full');
 
       $this->drupalGet('entity_test_no_view_mode/' . $entity->id());
-      $this->assertRaw($entity->label());
-      $this->assertRaw('full');
+      $this->assertSession()->pageTextContains($entity->label());
+      $this->assertSession()->pageTextContains('full');
     }
 
     // Test viewing a revisionable entity.
@@ -71,13 +76,13 @@ class EntityViewControllerTest extends BrowserTestBase {
     $entity_test_rev->isDefaultRevision(TRUE);
     $entity_test_rev->save();
     $this->drupalGet('entity_test_rev/' . $entity_test_rev->id() . '/revision/' . $entity_test_rev->revision_id->value . '/view');
-    $this->assertRaw($entity_test_rev->label());
-    $this->assertRaw($get_label_markup($entity_test_rev->label()));
+    $this->assertSession()->pageTextContains($entity_test_rev->label());
+    $this->assertSession()->responseContains($get_label_markup($entity_test_rev->label()));
 
     // As entity_test IDs must be integers, make sure requests for non-integer
     // IDs return a page not found error.
     $this->drupalGet('entity_test/invalid');
-    $this->assertResponse(404);
+    $this->assertSession()->statusCodeEquals(404);
   }
 
   /**
@@ -85,7 +90,8 @@ class EntityViewControllerTest extends BrowserTestBase {
    */
   public function testFieldItemAttributes() {
     // Make sure the test field will be rendered.
-    entity_get_display('entity_test', 'entity_test', 'default')
+    \Drupal::service('entity_display.repository')
+      ->getViewDisplay('entity_test', 'entity_test')
       ->setComponent('field_test_text', ['type' => 'text_default'])
       ->save();
 
@@ -98,8 +104,7 @@ class EntityViewControllerTest extends BrowserTestBase {
     // Browse to the entity and verify that the attribute is rendered in the
     // field item HTML markup.
     $this->drupalGet('entity_test/' . $entity->id());
-    $xpath = $this->xpath('//div[@data-field-item-attr="foobar"]/p[text()=:value]', [':value' => $test_value]);
-    $this->assertTrue($xpath, 'The field item attribute has been found in the rendered output of the field.');
+    $this->assertSession()->elementTextEquals('xpath', '//div[@data-field-item-attr="foobar"]/p', $test_value);
 
     // Enable the RDF module to ensure that two modules can add attributes to
     // the same field item.
@@ -115,8 +120,7 @@ class EntityViewControllerTest extends BrowserTestBase {
     // Browse to the entity and verify that the attributes from both modules
     // are rendered in the field item HTML markup.
     $this->drupalGet('entity_test/' . $entity->id());
-    $xpath = $this->xpath('//div[@data-field-item-attr="foobar" and @property="schema:text"]/p[text()=:value]', [':value' => $test_value]);
-    $this->assertTrue($xpath, 'The field item attributes from both modules have been found in the rendered output of the field.');
+    $this->assertSession()->elementTextEquals('xpath', '//div[@data-field-item-attr="foobar" and @property="schema:text"]/p', $test_value);
   }
 
   /**
@@ -126,7 +130,7 @@ class EntityViewControllerTest extends BrowserTestBase {
     $entity_test = $this->createTestEntity('entity_test_view_builder');
     $entity_test->save();
     $this->drupalGet('entity_test_view_builder/' . $entity_test->id());
-    $this->assertText($entity_test->label());
+    $this->assertSession()->pageTextContains($entity_test->label());
   }
 
   /**
@@ -143,7 +147,7 @@ class EntityViewControllerTest extends BrowserTestBase {
       'bundle' => $entity_type,
       'name' => $this->randomMachineName(),
     ];
-    return $this->container->get('entity.manager')->getStorage($entity_type)->create($data);
+    return $this->container->get('entity_type.manager')->getStorage($entity_type)->create($data);
   }
 
 }

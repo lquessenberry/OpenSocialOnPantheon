@@ -8,8 +8,8 @@ use Drupal\Core\Discovery\YamlDiscovery;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\DestructableInterface;
-use Symfony\Component\EventDispatcher\Event;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Drupal\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Routing\RouteCollection;
 use Symfony\Component\Routing\Route;
 
@@ -35,7 +35,7 @@ class RouteBuilder implements RouteBuilderInterface, DestructableInterface {
   /**
    * The event dispatcher to notify of routes.
    *
-   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   * @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    */
   protected $dispatcher;
 
@@ -88,7 +88,7 @@ class RouteBuilder implements RouteBuilderInterface, DestructableInterface {
    *   The matcher dumper used to store the route information.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
    *   The lock backend.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $dispatcher
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $dispatcher
    *   The event dispatcher to notify of routes.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
@@ -168,6 +168,11 @@ class RouteBuilder implements RouteBuilderInterface, DestructableInterface {
           'methods' => [],
           'condition' => '',
         ];
+        // Ensure routes default to using Drupal's route compiler instead of
+        // Symfony's.
+        $route_info['options'] += [
+          'compiler_class' => RouteCompiler::class,
+        ];
 
         $route = new Route($route_info['path'], $route_info['defaults'], $route_info['requirements'], $route_info['options'], $route_info['host'], $route_info['schemes'], $route_info['methods'], $route_info['condition']);
         $collection->add($name, $route);
@@ -176,12 +181,12 @@ class RouteBuilder implements RouteBuilderInterface, DestructableInterface {
 
     // DYNAMIC is supposed to be used to add new routes based upon all the
     // static defined ones.
-    $this->dispatcher->dispatch(RoutingEvents::DYNAMIC, new RouteBuildEvent($collection));
+    $this->dispatcher->dispatch(new RouteBuildEvent($collection), RoutingEvents::DYNAMIC);
 
     // ALTER is the final step to alter all the existing routes. We cannot stop
     // people from adding new routes here, but we define two separate steps to
     // make it clear.
-    $this->dispatcher->dispatch(RoutingEvents::ALTER, new RouteBuildEvent($collection));
+    $this->dispatcher->dispatch(new RouteBuildEvent($collection), RoutingEvents::ALTER);
 
     $this->checkProvider->setChecks($collection);
 
@@ -189,7 +194,7 @@ class RouteBuilder implements RouteBuilderInterface, DestructableInterface {
     $this->dumper->dump();
 
     $this->lock->release('router_rebuild');
-    $this->dispatcher->dispatch(RoutingEvents::FINISHED, new Event());
+    $this->dispatcher->dispatch(new Event(), RoutingEvents::FINISHED);
     $this->building = FALSE;
 
     $this->rebuildNeeded = FALSE;

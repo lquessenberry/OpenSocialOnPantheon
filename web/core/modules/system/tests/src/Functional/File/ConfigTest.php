@@ -11,9 +11,16 @@ use Drupal\Tests\BrowserTestBase;
  */
 class ConfigTest extends BrowserTestBase {
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
-    $this->drupalLogin($this->drupalCreateUser(['administer site configuration']));
+    $this->drupalLogin($this->drupalCreateUser([
+      'administer site configuration',
+    ]));
   }
 
   /**
@@ -25,20 +32,18 @@ class ConfigTest extends BrowserTestBase {
     // Set the file paths to non-default values.
     // The respective directories are created automatically
     // upon form submission.
-    $file_path = $this->publicFilesDirectory;
     $fields = [
-      'file_temporary_path' => $file_path . '/file_config_page_test/temporary',
       'file_default_scheme' => 'private',
     ];
 
     // Check that public and private can be selected as default scheme.
-    $this->assertText('Public local files served by the webserver.');
-    $this->assertText('Private local files served by Drupal.');
+    $this->assertSession()->pageTextContains('Public local files served by the webserver.');
+    $this->assertSession()->pageTextContains('Private local files served by Drupal.');
 
-    $this->drupalPostForm(NULL, $fields, t('Save configuration'));
-    $this->assertText(t('The configuration options have been saved.'));
+    $this->submitForm($fields, 'Save configuration');
+    $this->assertSession()->pageTextContains('The configuration options have been saved.');
     foreach ($fields as $field => $value) {
-      $this->assertFieldByName($field, $value);
+      $this->assertSession()->fieldValueEquals($field, $value);
     }
 
     // Remove the private path, rebuild the container and verify that private
@@ -51,8 +56,8 @@ class ConfigTest extends BrowserTestBase {
     $this->rebuildContainer();
 
     $this->drupalGet('admin/config/media/file-system');
-    $this->assertText('Public local files served by the webserver.');
-    $this->assertNoText('Private local files served by Drupal.');
+    $this->assertSession()->pageTextContains('Public local files served by the webserver.');
+    $this->assertSession()->pageTextNotContains('Private local files served by Drupal.');
   }
 
 }

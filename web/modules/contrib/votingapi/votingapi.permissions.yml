@@ -5,3 +5,7 @@ administer voting api:
 administer vote types:
   title: 'Administer Vote Types'
   description: 'Allow access to create/edit vote types.'
+
+delete votes:
+  title: 'Delete Votes'
+  description: 'Allow access to delete any vote.'

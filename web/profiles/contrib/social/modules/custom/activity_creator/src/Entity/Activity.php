@@ -8,7 +8,9 @@ use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\activity_creator\ActivityInterface;
+use Drupal\flag\Entity\Flagging;
 use Drupal\user\UserInterface;
+use Drupal\node\NodeInterface;
 
 /**
  * Defines the Activity entity.
@@ -124,7 +126,7 @@ class Activity extends ContentEntityBase implements ActivityInterface {
    * {@inheritdoc}
    */
   public function setPublished($published) {
-    $this->set('status', $published ? NODE_PUBLISHED : NODE_NOT_PUBLISHED);
+    $this->set('status', $published ? NodeInterface::PUBLISHED : NodeInterface::NOT_PUBLISHED);
     return $this;
   }
 
@@ -147,7 +149,7 @@ class Activity extends ContentEntityBase implements ActivityInterface {
       ->setRevisionable(TRUE)
       ->setSetting('target_type', 'user')
       ->setSetting('handler', 'default')
-      ->setDefaultValueCallback('Drupal\node\Entity\Node::getCurrentUserId')
+      ->setDefaultValueCallback('Drupal\node\Entity\Node::getDefaultEntityOwner')
       ->setTranslatable(TRUE)
       ->setDisplayOptions('view', [
         'label' => 'hidden',
@@ -193,6 +195,27 @@ class Activity extends ContentEntityBase implements ActivityInterface {
   }
 
   /**
+   * Get related entity.
+   *
+   * @return \Drupal\Core\Entity\EntityInterface|null
+   *   Returns NULL or Entity object.
+   */
+  public function getRelatedEntity() {
+
+    $related_object = $this->get('field_activity_entity')->getValue();
+    if (!empty($related_object)) {
+      $target_type = $related_object['0']['target_type'];
+      $target_id = $related_object['0']['target_id'];
+      $entity_storage = $this->entityTypeManager()->getStorage($target_type);
+      /** @var  \Drupal\Core\Entity\EntityInterface $entity */
+      $entity = $entity_storage->load($target_id);
+      return $entity;
+    }
+    return NULL;
+
+  }
+
+  /**
    * Get related entity url.
    *
    * @return \Drupal\Core\Url|string
@@ -209,23 +232,44 @@ class Activity extends ContentEntityBase implements ActivityInterface {
       // Make an exception for Votes.
       if ($target_type === 'vote') {
         /** @var \Drupal\votingapi\Entity\Vote $vote */
-        if ($vote = entity_load($target_type, $target_id)) {
+        if ($vote = \Drupal::service('entity_type.manager')->getStorage($target_type)->load($target_id)) {
           $target_type = $vote->getVotedEntityType();
           $target_id = $vote->getVotedEntityId();
         }
       }
       elseif ($target_type === 'group_content') {
         /** @var \Drupal\group\Entity\GroupContent $group_content */
-        if ($group_content = entity_load($target_type, $target_id)) {
+        if ($group_content = \Drupal::service('entity_type.manager')->getStorage($target_type)->load($target_id)) {
           $target_type = $group_content->getEntity()->getEntityTypeId();
           $target_id = $group_content->getEntity()->id();
         }
       }
+      elseif ($target_type === 'event_enrollment') {
+        $entity_storage = \Drupal::entityTypeManager()
+          ->getStorage($target_type);
+        $entity = $entity_storage->load($target_id);
 
-      $entity = entity_load($target_type, $target_id);
-      if (!empty($entity)) {
+        // Lets make the Event node the target for Enrollments.
+        if ($entity !== NULL) {
+          /** @var \Drupal\social_event\Entity\EventEnrollment $entity */
+          $event_id = $entity->getFieldValue('field_event', 'target_id');
+          $target_id = $event_id;
+          $target_type = 'node';
+        }
+      }
+      elseif ($target_type === 'flagging') {
+        $flagging = Flagging::load($target_id);
+        $target_type = $flagging->getFlaggableType();
+        $target_id = $flagging->getFlaggableId();
+      }
+
+      $entity_storage = \Drupal::entityTypeManager()
+        ->getStorage($target_type);
+      $entity = $entity_storage->load($target_id);
+      if ($entity !== NULL) {
         /** @var \Drupal\Core\Url $link */
-        $link = $entity->urlInfo('canonical');
+        /** @var \Drupal\Core\Entity\EntityInterface $entity */
+        $link = $entity->toUrl('canonical');
       }
     }
     return $link;
@@ -237,11 +281,9 @@ class Activity extends ContentEntityBase implements ActivityInterface {
   public function getDestinations() {
     $values = [];
     $field_activity_destinations = $this->field_activity_destinations;
-    if (isset($field_activity_destinations)) {
-      $destinations = $field_activity_destinations->getValue();
-      foreach ($destinations as $destination) {
-        $values[] = $destination['value'];
-      }
+    $destinations = $field_activity_destinations->getValue();
+    foreach ($destinations as $destination) {
+      $values[] = $destination['value'];
     }
     return $values;
   }
@@ -251,30 +293,24 @@ class Activity extends ContentEntityBase implements ActivityInterface {
    *
    * Assume that activity can't have recipient group and user at the same time.
    *
-   * @todo: Split it to two separate functions.
+   * @todo Split it to two separate functions.
    */
   public function getRecipient() {
-    $value = NULL;
-
     $field_activity_recipient_user = $this->field_activity_recipient_user;
-    if (isset($field_activity_recipient_user)) {
-      $recipient_user = $field_activity_recipient_user->getValue();
-      if (!empty($recipient_user)) {
-        $recipient_user['0']['target_type'] = 'user';
-        return $recipient_user;
-      }
+    $recipient_user = $field_activity_recipient_user->getValue();
+    if (!empty($recipient_user)) {
+      $recipient_user['0']['target_type'] = 'user';
+      return $recipient_user;
     }
 
     $field_activity_recipient_group = $this->field_activity_recipient_group;
-    if (isset($field_activity_recipient_group)) {
-      $recipient_group = $field_activity_recipient_group->getValue();
-      if (!empty($recipient_group)) {
-        $recipient_group['0']['target_type'] = 'group';
-        return $recipient_group;
-      }
+    $recipient_group = $field_activity_recipient_group->getValue();
+    if (!empty($recipient_group)) {
+      $recipient_group['0']['target_type'] = 'group';
+      return $recipient_group;
     }
 
-    return $value;
+    return NULL;
   }
 
 }

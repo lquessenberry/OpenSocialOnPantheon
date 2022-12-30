@@ -4,9 +4,8 @@ namespace Drupal\Core\EventSubscriber;
 
 use Drupal\Core\Form\EnforcedResponse;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
-use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
@@ -17,8 +16,8 @@ class EnforcedFormResponseSubscriber implements EventSubscriberInterface {
   /**
    * Replaces the response in case an EnforcedResponseException was thrown.
    */
-  public function onKernelException(GetResponseForExceptionEvent $event) {
-    if ($response = EnforcedResponse::createFromException($event->getException())) {
+  public function onKernelException(ExceptionEvent $event) {
+    if ($response = EnforcedResponse::createFromException($event->getThrowable())) {
       // Setting the response stops the event propagation.
       $event->setResponse($response);
     }
@@ -27,13 +26,12 @@ class EnforcedFormResponseSubscriber implements EventSubscriberInterface {
   /**
    * Unwraps an enforced response.
    */
-  public function onKernelResponse(FilterResponseEvent $event) {
+  public function onKernelResponse(ResponseEvent $event) {
     $response = $event->getResponse();
-    if ($response instanceof EnforcedResponse && $event->getRequestType() === HttpKernelInterface::MASTER_REQUEST) {
+    if ($response instanceof EnforcedResponse && $event->isMainRequest()) {
       $event->setResponse($response->getResponse());
     }
   }
-
 
   /**
    * {@inheritdoc}

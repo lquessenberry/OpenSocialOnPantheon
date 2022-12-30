@@ -17,13 +17,14 @@ class ConfigSnapshotTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['config_test', 'system'];
+  protected static $modules = ['config_test', 'system'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
+    $this->installConfig(['system']);
     // Update the config snapshot. This allows the parent::setUp() to write
     // configuration files.
     \Drupal::service('config.manager')->createSnapshot(\Drupal::service('config.storage'), \Drupal::service('config.storage.snapshot'));
@@ -37,13 +38,12 @@ class ConfigSnapshotTest extends KernelTestBase {
     $active = $this->container->get('config.storage');
     $sync = $this->container->get('config.storage.sync');
     $snapshot = $this->container->get('config.storage.snapshot');
-    $config_manager = $this->container->get('config.manager');
     $config_name = 'config_test.system';
     $config_key = 'foo';
     $new_data = 'foobar';
 
-    $active_snapshot_comparer = new StorageComparer($active, $snapshot, $config_manager);
-    $sync_snapshot_comparer = new StorageComparer($sync, $snapshot, $config_manager);
+    $active_snapshot_comparer = new StorageComparer($active, $snapshot);
+    $sync_snapshot_comparer = new StorageComparer($sync, $snapshot);
 
     // Verify that we have an initial snapshot that matches the active
     // configuration. This has to be true as no config should be installed.
@@ -76,7 +76,7 @@ class ConfigSnapshotTest extends KernelTestBase {
 
     // Verify changed config was properly imported.
     \Drupal::configFactory()->reset($config_name);
-    $this->assertIdentical($this->config($config_name)->get($config_key), $new_data);
+    $this->assertSame($new_data, $this->config($config_name)->get($config_key));
 
     // Verify that a new snapshot was created which and that it matches
     // the active config.

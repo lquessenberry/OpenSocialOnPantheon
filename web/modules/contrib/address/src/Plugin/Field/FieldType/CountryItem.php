@@ -76,7 +76,7 @@ class CountryItem extends FieldItemBase {
    */
   public function getConstraints() {
     $constraints = parent::getConstraints();
-    $constraint_manager = \Drupal::typedDataManager()->getValidationConstraintManager();
+    $constraint_manager = $this->getTypedDataManager()->getValidationConstraintManager();
     $constraints[] = $constraint_manager->create('ComplexData', [
       'value' => [
         'Country' => [

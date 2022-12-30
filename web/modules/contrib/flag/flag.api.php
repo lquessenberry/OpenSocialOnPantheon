@@ -7,7 +7,6 @@
 
 use Drupal\flag\FlagInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\flag\FlaggingInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Access\AccessResult;
 
@@ -53,7 +52,7 @@ function hook_flag_options_alter(array &$options, FlagInterface $flag) {
  * This hook may be placed in a $module.flag.inc file.
  *
  * @param $link_types
- *  An array of the link types defined by all modules.
+ *   An array of the link types defined by all modules.
  *
  * @see \Drupal\flag\ActionLink\ActionLinkPluginManager
  */

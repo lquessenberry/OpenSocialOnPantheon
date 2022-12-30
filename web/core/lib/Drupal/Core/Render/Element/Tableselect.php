@@ -26,21 +26,21 @@ use Drupal\Core\StringTranslation\TranslatableMarkup;
  * Usage example:
  * @code
  * $header = [
- *   'first_name' => $this->t('First Name'),
- *   'last_name' => $this->t('Last Name'),
+ *   'color' => $this->t('Color'),
+ *   'shape' => $this->t('Shape'),
  * ];
  *
  * $options = [
- *   1 => ['first_name' => 'Indy', 'last_name' => 'Jones'],
- *   2 => ['first_name' => 'Darth', 'last_name' => 'Vader'],
- *   3 => ['first_name' => 'Super', 'last_name' => 'Man'],
+ *   1 => ['color' => 'Red', 'shape' => 'Triangle'],
+ *   2 => ['color' => 'Green', 'shape' => 'Square'],
+ *   3 => ['color' => 'Blue', 'shape' => 'Hexagon'],
  * ];
  *
  * $form['table'] = array(
  *   '#type' => 'tableselect',
  *   '#header' => $header,
  *   '#options' => $options,
- *   '#empty' => $this->t('No users found'),
+ *   '#empty' => $this->t('No shapes found'),
  * );
  * @endcode
  *
@@ -56,7 +56,7 @@ class Tableselect extends Table {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#input' => TRUE,
       '#js_select' => TRUE,
@@ -254,7 +254,7 @@ class Tableselect extends Table {
               '#return_value' => $key,
               '#default_value' => isset($value[$key]) ? $key : NULL,
               '#attributes' => $element['#attributes'],
-              '#ajax' => isset($element['#ajax']) ? $element['#ajax'] : NULL,
+              '#ajax' => $element['#ajax'] ?? NULL,
             ];
           }
           else {
@@ -269,7 +269,7 @@ class Tableselect extends Table {
               '#attributes' => $element['#attributes'],
               '#parents' => $element['#parents'],
               '#id' => HtmlUtility::getUniqueId('edit-' . implode('-', $parents_for_id)),
-              '#ajax' => isset($element['#ajax']) ? $element['#ajax'] : NULL,
+              '#ajax' => $element['#ajax'] ?? NULL,
             ];
           }
           if (isset($element['#options'][$key]['#weight'])) {

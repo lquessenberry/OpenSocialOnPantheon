@@ -2,10 +2,10 @@ action.configuration.entity_delete_action:*:
   type: action_configuration_default
   label: 'Delete entity configuration'
 
-views.field.rendered_entity:
-  type: views_field
-  label: 'Rendered entity'
-  mapping:
-    view_mode:
-      type: string
-      label: 'View mode'
+views.field.entity_link_revision:
+  type: views.field.entity_link
+  label: 'Entity revision link'
+
+views.field.entity_link_revision_revert:
+  type: views.field.entity_link
+  label: 'Entity revision revert link'

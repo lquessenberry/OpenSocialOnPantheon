@@ -64,5 +64,26 @@ function hook_bootstrap_iconize_text_alter(array &$texts) {
 }
 
 /**
+ * Allows sub-themes to alter element types that should be rendered as inline.
+ *
+ * @param array $types
+ *   The list of element types that should be rendered as inline.
+ *
+ * @deprecated in bootstrap:8.x-3.21 and is removed from bootstrap:8.x-4.0.
+ *   This method will be removed when process managers can be sub-classed.
+ *
+ * @see https://www.drupal.org/project/bootstrap/issues/2868538
+ */
+function hook_bootstrap_inline_element_types_alter(array &$types) {
+  // Remove certain types from the list.
+  foreach (['number', 'tel'] as $type) {
+    $index = array_search($type, $types);
+    if ($index !== FALSE) {
+      unset($types[$index]);
+    }
+  }
+}
+
+/**
  * @} End of "addtogroup".
  */

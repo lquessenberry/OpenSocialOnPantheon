@@ -13,6 +13,7 @@ use Drupal\layout_builder\Section;
  * Plugin implementation of the 'layout_section' field type.
  *
  * @internal
+ *   Plugin classes are internal.
  *
  * @FieldType(
  *   id = "layout_section",
@@ -23,7 +24,7 @@ use Drupal\layout_builder\Section;
  *   cardinality = \Drupal\Core\Field\FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED
  * )
  *
- * @property \Drupal\layout_builder\Section section
+ * @property \Drupal\layout_builder\Section $section
  */
 class LayoutSectionItem extends FieldItemBase {
 

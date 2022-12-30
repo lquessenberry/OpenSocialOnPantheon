@@ -15,7 +15,7 @@ class FieldIntegrationTest extends SearchApiBrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'entity_test',
     'search_api_test_db',
   ];
@@ -29,7 +29,7 @@ class FieldIntegrationTest extends SearchApiBrowserTestBase {
     $fields = $index->getFields();
 
     // Load and parse the same configuration file.
-    $yaml_file = __DIR__ . '/../../search_api_test_db/config/install/search_api.index.database_search_index.yml';
+    $yaml_file = __DIR__ . '/../../modules/search_api_test_db/config/install/search_api.index.database_search_index.yml';
     $index_configuration = Yaml::decode(file_get_contents($yaml_file));
     $field_settings = $index_configuration['field_settings'];
 

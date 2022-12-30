@@ -3,7 +3,8 @@
 namespace Drupal\private_message\Plugin\Field\FieldFormatter;
 
 use Drupal\Component\Render\FormattableMarkup;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -29,9 +30,9 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
   /**
    * The entity manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The current user.
@@ -39,6 +40,13 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
    * @var \Drupal\Core\Session\AccountProxyInterface
    */
   protected $currentUser;
+
+  /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
 
   /**
    * Construct a PrivateMessageThreadFormatter object.
@@ -57,10 +65,12 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
    *   The current view mode.
    * @param array $third_party_settings
    *   The third party settings.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entityManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity manager service.
    * @param |Drupal\Core\Session\AccountProxyInterface $currentUser
    *   The current user.
+   * @param \Drupal\Core\Entity\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository.
    */
   public function __construct(
     $plugin_id,
@@ -70,13 +80,14 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
     $label,
     $view_mode,
     array $third_party_settings,
-    EntityManagerInterface $entityManager,
-    AccountProxyInterface $currentUser
-  ) {
+    EntityTypeManagerInterface $entityTypeManager,
+    AccountProxyInterface $currentUser,
+    EntityDisplayRepositoryInterface $entity_display_repository) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
 
-    $this->entityManager = $entityManager;
+    $this->entityTypeManager = $entityTypeManager;
     $this->currentUser = $currentUser;
+    $this->entityDisplayRepository = $entity_display_repository;
   }
 
   /**
@@ -91,8 +102,9 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
       $configuration['label'],
       $configuration['view_mode'],
       $configuration['third_party_settings'],
-      $container->get('entity.manager'),
-      $container->get('current_user')
+      $container->get('entity_type.manager'),
+      $container->get('current_user'),
+      $container->get('entity_display.repository')
     );
   }
 
@@ -116,7 +128,31 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
       $format = $this->t('Displays members using the %display_mode display mode of the user entity', ['%display_mode' => $this->getSetting('entity_display_mode')]);
     }
 
-    $summary[] = $format;
+    $summary['format'] = $format;
+
+    $members_prefix = $this->getSetting('members_prefix');
+    if (empty($members_prefix)) {
+      $summary['field_prefix'] = $this->t('The members list is shown without a prefix');
+    }
+    else {
+      $summary['field_prefix'] = $this->t('The members list is prefixed with the text: %members_prefix.', ['%members_prefix' => $members_prefix]);
+    }
+
+    $separator = $this->getSetting('separator');
+    if (empty($separator)) {
+      $summary['separator'] = $this->t('No separator between the members list.');
+    }
+    else {
+      $summary['separator'] = $this->t('The string "%separator" is used to split the members list.', ['%separator' => $separator]);
+    }
+
+    $display_current_user = $this->getSetting('display_current_user');
+    if ($display_current_user) {
+      $summary['display_current_user'] = $this->t('The current user is displayed.');
+    }
+    else {
+      $summary['display_current_user'] = $this->t('The current user is hidden.');
+    }
 
     return $summary;
   }
@@ -128,6 +164,10 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
     return [
       'display_type' => 'label',
       'entity_display_mode' => 'private_message_author',
+      'members_prefix' => 'You',
+      'separator' => ', ',
+      'prefix_separator' => TRUE,
+      'display_current_user' => FALSE,
     ] + parent::defaultSettings();
   }
 
@@ -154,7 +194,7 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
       '#suffix' => '</div>',
     ];
 
-    foreach ($this->entityManager->getViewModes('user') as $display_mode_id => $display_mode) {
+    foreach ($this->entityDisplayRepository->getViewModes('user') as $display_mode_id => $display_mode) {
       $options[$display_mode_id] = $display_mode['label'];
     }
 
@@ -184,6 +224,31 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
       $element['entity_display_mode']['#markup'] = '';
     }
 
+    $element['members_prefix'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Field prefix'),
+      '#default_value' => $this->getSetting('members_prefix'),
+    ];
+
+    $element['separator'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Separator'),
+      '#default_value' => $this->getSetting('separator'),
+    ];
+
+    $element['prefix_separator'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Add separator after prefix'),
+      '#escription' => $this->t('No separator will be shown if the prefix is empty.'),
+      '#default_value' => $this->getSetting('prefix_separator'),
+    ];
+
+    $element['display_current_user'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Display current user'),
+      '#default_value' => $this->getSetting('display_current_user'),
+    ];
+
     return $element;
   }
 
@@ -202,12 +267,13 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
 
     $access_profiles = $this->currentUser->hasPermission('access user profiles');
     $users = [];
+    $display_current_user = $this->getSetting('display_current_user');
 
-    $view_builder = $this->entityManager->getViewBuilder('user');
+    $view_builder = $this->entityTypeManager->getViewBuilder('user');
     foreach ($items as $delta => $item) {
       $user = $item->entity;
       if ($user) {
-        if ($user->id() != $this->currentUser->id()) {
+        if ($user->id() != $this->currentUser->id() || ($user->id() == $this->currentUser->id() && $display_current_user)) {
           if ($this->getSetting('display_type') == 'label') {
             if ($access_profiles) {
               $url = Url::fromRoute('entity.user.canonical', ['user' => $user->id()]);
@@ -228,13 +294,22 @@ class PrivateMessageThreadMemberFormatter extends FormatterBase implements Conta
       }
     }
 
-    $separator = $this->getSetting('display_type') == 'label' ? ', ' : '';
-
     $element = [
       '#prefix' => '<div class="private-message-recipients">',
       '#suffix' => '</div>',
-      '#markup' => '<span>' . $this->t('You and') . ' </span>' . implode($separator, $users),
+      '#markup' => '',
     ];
+
+    $separator = $this->getSetting('separator');
+    $prefix_separator = $this->getSetting('prefix_separator');
+
+    $members_prefix = $this->getSetting('members_prefix');
+    if (strlen($members_prefix)) {
+      $first_separator = $prefix_separator && (count($users) > 0) ? $separator : '';
+      $element['#markup'] .= '<span>' . $this->t($members_prefix) . $first_separator . '</span>';
+    }
+
+    $element['#markup'] .= implode($separator, $users);
 
     return $element;
   }

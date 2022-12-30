@@ -1,0 +1,5 @@
+services:
+  typed_data_global_context_test.simple_test_context:
+    class: Drupal\typed_data_global_context_test\ContextProvider\SimpleTestContext
+    tags:
+      - { name: 'context_provider' }

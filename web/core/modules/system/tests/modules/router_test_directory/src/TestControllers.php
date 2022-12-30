@@ -5,22 +5,24 @@ namespace Drupal\router_test;
 use Drupal\Core\Cache\CacheableResponse;
 use Drupal\Core\ParamConverter\ParamNotConvertedException;
 use Drupal\user\UserInterface;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Zend\Diactoros\Response\HtmlResponse;
+use Laminas\Diactoros\Response\HtmlResponse;
 
 /**
  * Controller routines for testing the routing system.
  */
 class TestControllers {
 
+  const LONG_TEXT = 'This is text long enough to trigger Apache mod_deflate to add a `vary: accept-encoding` header to the response.';
+
   public function test() {
     return new Response('test');
   }
 
   public function test1() {
-    return new Response('test1');
+    return new Response(self::LONG_TEXT);
   }
 
   public function test2() {
@@ -65,7 +67,7 @@ class TestControllers {
   }
 
   /**
-   * Test controller for ExceptionHandlingTest::testBacktraceEscaping().
+   * Tests controller for ExceptionHandlingTest::testBacktraceEscaping().
    *
    * Passes unsafe HTML as an argument to a method which throws an exception.
    * This can be used to test if the generated backtrace is properly escaped.

@@ -159,7 +159,7 @@ class InspectorTest extends TestCase {
       [__CLASS__, 'callMeStatic'],
       function () {
         return TRUE;
-      }
+      },
     ]));
 
     $this->assertFalse(Inspector::assertAllCallable([
@@ -169,7 +169,7 @@ class InspectorTest extends TestCase {
       function () {
         return TRUE;
       },
-      "I'm not callable"
+      "I'm not callable",
     ]));
   }
 
@@ -237,14 +237,14 @@ class InspectorTest extends TestCase {
   }
 
   /**
-   * Test method referenced by ::testAllCallable().
+   * Defines a test method referenced by ::testAllCallable().
    */
   public function callMe() {
     return TRUE;
   }
 
   /**
-   * Test method referenced by ::testAllCallable().
+   * Defines a test method referenced by ::testAllCallable().
    */
   public static function callMeStatic() {
     return TRUE;
@@ -256,6 +256,7 @@ class InspectorTest extends TestCase {
  * Quick class for testing for objects with __toString.
  */
 class StringObject {
+
   /**
    * {@inheritdoc}
    */

@@ -1,3 +1,7 @@
+'bypass create group access':
+  title: 'Bypass create group access control'
+  description: 'Ignore an option on the setting page for creating groups.'
+  restrict access: TRUE
 'access group search':
   title: 'Access group search'
 'manage all groups':
@@ -15,3 +19,9 @@ view groups on my profile:
   title: 'View the My groups overview and block on your own profile'
 view groups on other profiles:
   title: 'View the My groups overview and block on other peoples profile'
+'edit group types':
+  title: 'Edit existing groups their group type'
+  description: 'This permission grants access to change group types on already existing groups.'
+'access cross-group posting':
+  title: 'Access cross-group posting'
+  description: 'This permission grants access to add node to multiple groups.'

@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\taxonomy\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\taxonomy\Entity\Term;
 
 /**
@@ -11,7 +12,12 @@ use Drupal\taxonomy\Entity\Term;
  */
 class LoadMultipleTest extends TaxonomyTestBase {
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
     $this->drupalLogin($this->drupalCreateUser(['administer taxonomy']));
   }
@@ -31,32 +37,32 @@ class LoadMultipleTest extends TaxonomyTestBase {
       $this->createTerm($vocabulary);
     }
     // Load the terms from the vocabulary.
-    $terms = entity_load_multiple_by_properties('taxonomy_term', ['vid' => $vocabulary->id()]);
+    $term_storage = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
+    $terms = $term_storage->loadByProperties(['vid' => $vocabulary->id()]);
     $count = count($terms);
-    $this->assertEqual($count, 5, format_string('Correct number of terms were loaded. @count terms.', ['@count' => $count]));
+    $this->assertEquals(5, $count, new FormattableMarkup('Correct number of terms were loaded. @count terms.', ['@count' => $count]));
 
     // Load the same terms again by tid.
     $terms2 = Term::loadMultiple(array_keys($terms));
-    $this->assertEqual($count, count($terms2), 'Five terms were loaded by tid.');
-    $this->assertEqual($terms, $terms2, 'Both arrays contain the same terms.');
+    $this->assertEquals($terms, $terms2, 'Both arrays contain the same terms.');
 
     // Remove one term from the array, then delete it.
     $deleted = array_shift($terms2);
     $deleted->delete();
     $deleted_term = Term::load($deleted->id());
-    $this->assertFalse($deleted_term);
+    $this->assertNull($deleted_term);
 
     // Load terms from the vocabulary by vid.
-    $terms3 = entity_load_multiple_by_properties('taxonomy_term', ['vid' => $vocabulary->id()]);
-    $this->assertEqual(count($terms3), 4, 'Correct number of terms were loaded.');
+    $terms3 = $term_storage->loadByProperties(['vid' => $vocabulary->id()]);
+    $this->assertCount(4, $terms3, 'Correct number of terms were loaded.');
     $this->assertFalse(isset($terms3[$deleted->id()]));
 
     // Create a single term and load it by name.
     $term = $this->createTerm($vocabulary);
-    $loaded_terms = entity_load_multiple_by_properties('taxonomy_term', ['name' => $term->getName()]);
-    $this->assertEqual(count($loaded_terms), 1, 'One term was loaded.');
+    $loaded_terms = $term_storage->loadByProperties(['name' => $term->getName()]);
+    $this->assertCount(1, $loaded_terms, 'One term was loaded.');
     $loaded_term = reset($loaded_terms);
-    $this->assertEqual($term->id(), $loaded_term->id(), 'Term loaded by name successfully.');
+    $this->assertEquals($term->id(), $loaded_term->id(), 'Term loaded by name successfully.');
   }
 
 }

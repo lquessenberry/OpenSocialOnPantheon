@@ -7,6 +7,10 @@ use Drupal\Component\Utility\UrlHelper;
 use Drupal\Component\Utility\Xss;
 use PHPUnit\Framework\TestCase;
 
+// cspell:ignore ascript barbaz ckers cript CVEs dynsrc fooÿñ metacharacters
+// cspell:ignore msgbox ncript nfocus nmedi nosuchscheme nosuchtag onmediaerror
+// cspell:ignore scrscriptipt tascript vbscript
+
 /**
  * XSS Filtering tests.
  *
@@ -19,13 +23,15 @@ use PHPUnit\Framework\TestCase;
  * Relevant CVEs:
  * - CVE-2002-1806, ~CVE-2005-0682, ~CVE-2005-2106, CVE-2005-3973,
  *   CVE-2006-1226 (= rev. 1.112?), CVE-2008-0273, CVE-2008-3740.
+ *
+ * @runTestsInSeparateProcesses
  */
 class XssTest extends TestCase {
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $allowed_protocols = [
@@ -82,7 +88,7 @@ class XssTest extends TestCase {
    *     - The value to filter.
    *     - The value to expect after filtering.
    *     - The assertion message.
-   *     - (optional) The allowed HTML HTML tags array that should be passed to
+   *     - (optional) The allowed HTML tags array that should be passed to
    *       \Drupal\Component\Utility\Xss::filter().
    */
   public function providerTestFilterXssNormalized() {
@@ -149,7 +155,7 @@ class XssTest extends TestCase {
    *     - The value to filter.
    *     - The value to expect that's missing after filtering.
    *     - The assertion message.
-   *     - (optional) The allowed HTML HTML tags array that should be passed to
+   *     - (optional) The allowed HTML tags array that should be passed to
    *       \Drupal\Component\Utility\Xss::filter().
    */
   public function providerTestFilterXssNotNormalized() {
@@ -247,7 +253,7 @@ class XssTest extends TestCase {
       [
         '<blockquote><script>alert(0)</script></blockquote>',
         'script',
-        'HTML tag stripping evasion -- script in a blockqoute.',
+        'HTML tag stripping evasion -- script in a blockquote.',
         ['blockquote'],
       ],
       [
@@ -427,7 +433,7 @@ class XssTest extends TestCase {
         ['p'],
       ],
     ];
-    // @fixme This dataset currently fails under 5.4 because of
+    // @todo This dataset currently fails under 5.4 because of
     //   https://www.drupal.org/node/1210798. Restore after its fixed.
     if (version_compare(PHP_VERSION, '5.4.0', '<')) {
       $cases[] = [
@@ -480,7 +486,7 @@ class XssTest extends TestCase {
    */
   public function testQuestionSign() {
     $value = Xss::filter('<?xml:namespace ns="urn:schemas-microsoft-com:time">');
-    $this->assertTrue(stripos($value, '<?xml') === FALSE, 'HTML tag stripping evasion -- starting with a question sign (processing instructions).');
+    $this->assertStringNotContainsStringIgnoringCase('<?xml', $value, 'HTML tag stripping evasion -- starting with a question sign (processing instructions).');
   }
 
   /**
@@ -503,31 +509,31 @@ class XssTest extends TestCase {
         '<img src="http://example.com/foo.jpg" title="Example: title" alt="Example: alt">',
         '<img src="http://example.com/foo.jpg" title="Example: title" alt="Example: alt">',
         'Image tag with alt and title attribute',
-        ['img']
+        ['img'],
       ],
       [
         '<a href="https://www.drupal.org/" rel="dc:publisher">Drupal</a>',
         '<a href="https://www.drupal.org/" rel="dc:publisher">Drupal</a>',
         'Link tag with rel attribute',
-        ['a']
+        ['a'],
       ],
       [
         '<span property="dc:subject">Drupal 8: The best release ever.</span>',
         '<span property="dc:subject">Drupal 8: The best release ever.</span>',
         'Span tag with property attribute',
-        ['span']
+        ['span'],
       ],
       [
         '<img src="http://example.com/foo.jpg" data-caption="Drupal 8: The best release ever.">',
         '<img src="http://example.com/foo.jpg" data-caption="Drupal 8: The best release ever.">',
         'Image tag with data attribute',
-        ['img']
+        ['img'],
       ],
       [
         '<a data-a2a-url="foo"></a>',
         '<a data-a2a-url="foo"></a>',
         'Link tag with numeric data attribute',
-        ['a']
+        ['a'],
       ],
     ];
   }
@@ -537,7 +543,7 @@ class XssTest extends TestCase {
    */
   public function testFilterXSSAdmin() {
     $value = Xss::filterAdmin('<style /><iframe /><frame /><frameset /><meta /><link /><embed /><applet /><param /><layer />');
-    $this->assertEquals($value, '', 'Admin HTML filter -- should never allow some tags.');
+    $this->assertEquals('', $value, 'Admin HTML filter -- should never allow some tags.');
   }
 
   /**
@@ -590,11 +596,11 @@ class XssTest extends TestCase {
    *   Lowercase, plain text to look for.
    * @param string $message
    *   (optional) Message to display if failed. Defaults to an empty string.
-   * @param string $group
-   *   (optional) The group this message belongs to. Defaults to 'Other'.
+   *
+   * @internal
    */
-  protected function assertNormalized($haystack, $needle, $message = '', $group = 'Other') {
-    $this->assertTrue(strpos(strtolower(Html::decodeEntities($haystack)), $needle) !== FALSE, $message, $group);
+  protected function assertNormalized(string $haystack, string $needle, string $message = ''): void {
+    $this->assertStringContainsString($needle, strtolower(Html::decodeEntities($haystack)), $message);
   }
 
   /**
@@ -612,11 +618,11 @@ class XssTest extends TestCase {
    *   Lowercase, plain text to look for.
    * @param string $message
    *   (optional) Message to display if failed. Defaults to an empty string.
-   * @param string $group
-   *   (optional) The group this message belongs to. Defaults to 'Other'.
+   *
+   * @internal
    */
-  protected function assertNotNormalized($haystack, $needle, $message = '', $group = 'Other') {
-    $this->assertTrue(strpos(strtolower(Html::decodeEntities($haystack)), $needle) === FALSE, $message, $group);
+  protected function assertNotNormalized(string $haystack, string $needle, string $message = ''): void {
+    $this->assertStringNotContainsString($needle, strtolower(Html::decodeEntities($haystack)), $message);
   }
 
 }

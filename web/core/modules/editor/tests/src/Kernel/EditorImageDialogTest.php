@@ -28,15 +28,21 @@ class EditorImageDialogTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'file', 'editor', 'editor_test', 'user', 'system'];
+  protected static $modules = [
+    'node',
+    'file',
+    'editor',
+    'editor_test',
+    'user',
+    'system',
+  ];
 
   /**
    * Sets up the test.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('file');
-    $this->installSchema('system', ['key_value_expire']);
     $this->installSchema('node', ['node_access']);
     $this->installSchema('file', ['file_usage']);
     $this->installConfig(['node']);
@@ -72,7 +78,6 @@ class EditorImageDialogTest extends EntityKernelTestBase {
     $type->save();
     node_add_body_field($type);
     $this->installEntitySchema('user');
-    \Drupal::service('router.builder')->rebuild();
   }
 
   /**
@@ -81,7 +86,7 @@ class EditorImageDialogTest extends EntityKernelTestBase {
   public function testEditorImageDialog() {
     $input = [
       'editor_object' => [
-        'src' => '/sites/default/files/inline-images/somefile.png',
+        'src' => '/sites/default/files/inline-images/some-file.png',
         'alt' => 'fda',
         'width' => '',
         'height' => '',
@@ -108,7 +113,7 @@ class EditorImageDialogTest extends EntityKernelTestBase {
       ->addBuildInfo('args', [$this->editor]);
 
     $form_builder = $this->container->get('form_builder');
-    $form_object = new EditorImageDialog(\Drupal::entityManager()->getStorage('file'));
+    $form_object = new EditorImageDialog(\Drupal::entityTypeManager()->getStorage('file'));
     $form_id = $form_builder->getFormId($form_object, $form_state);
     $form = $form_builder->retrieveForm($form_id, $form_state);
     $form_builder->prepareForm($form_id, $form, $form_state);
@@ -116,7 +121,7 @@ class EditorImageDialogTest extends EntityKernelTestBase {
 
     // Assert these two values are present and we don't get the 'not-this'
     // default back.
-    $this->assertEqual(FALSE, $form_state->getValue(['attributes', 'hasCaption'], 'not-this'));
+    $this->assertFalse($form_state->getValue(['attributes', 'hasCaption'], 'not-this'));
   }
 
 }

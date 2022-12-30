@@ -13,8 +13,10 @@ use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 
 /**
- * Configuration entity that contains widget options for all components of a
- * entity form in a given form mode.
+ * Configuration entity.
+ *
+ * Contains widget options for all components of an entity form in a given
+ * form mode.
  *
  * @ConfigEntityType(
  *   id = "entity_form_display",
@@ -52,10 +54,11 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
    *
    * This method should only be used internally when rendering an entity form.
    * When assigning suggested display options for a component in a given form
-   * mode, entity_get_form_display() should be used instead, in order to avoid
-   * inadvertently modifying the output of other form modes that might happen to
-   * use the 'default' display too. Those options will then be effectively
-   * applied only if the form mode is configured to use them.
+   * mode, EntityDisplayRepositoryInterface::getFormDisplay() should be used
+   * instead, in order to avoid inadvertently modifying the output of other form
+   * modes that might happen to use the 'default' display too. Those options
+   * will then be effectively applied only if the form mode is configured to use
+   * them.
    *
    * hook_entity_form_display_alter() is invoked on each display, allowing 3rd
    * party code to alter the display options held in the display before they are
@@ -65,16 +68,23 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
    *   The entity for which the form is being built.
    * @param string $form_mode
    *   The form mode.
+   * @param bool $default_fallback
+   *   (optional) Whether the default display should be used to initialize the
+   *   form display in case the specified display does not exist. Defaults to
+   *   TRUE.
    *
    * @return \Drupal\Core\Entity\Display\EntityFormDisplayInterface
    *   The display object that should be used to build the entity form.
    *
-   * @see entity_get_form_display()
+   * @see \Drupal\Core\Entity\EntityDisplayRepositoryInterface::getFormDisplay()
    * @see hook_entity_form_display_alter()
    */
-  public static function collectRenderDisplay(FieldableEntityInterface $entity, $form_mode) {
+  public static function collectRenderDisplay(FieldableEntityInterface $entity, $form_mode, $default_fallback = TRUE) {
     $entity_type = $entity->getEntityTypeId();
     $bundle = $entity->bundle();
+
+    // Allow modules to change the form mode.
+    \Drupal::moduleHandler()->alter('entity_form_mode', $form_mode, $entity);
 
     // Check the existence and status of:
     // - the display for the form mode,
@@ -82,14 +92,16 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
     if ($form_mode != 'default') {
       $candidate_ids[] = $entity_type . '.' . $bundle . '.' . $form_mode;
     }
-    $candidate_ids[] = $entity_type . '.' . $bundle . '.default';
+    if ($default_fallback) {
+      $candidate_ids[] = $entity_type . '.' . $bundle . '.default';
+    }
     $results = \Drupal::entityQuery('entity_form_display')
       ->condition('id', $candidate_ids)
       ->condition('status', TRUE)
       ->execute();
 
     // Load the first valid candidate display, if any.
-    $storage = \Drupal::entityManager()->getStorage('entity_form_display');
+    $storage = \Drupal::entityTypeManager()->getStorage('entity_form_display');
     foreach ($candidate_ids as $candidate_id) {
       if (isset($results[$candidate_id])) {
         $display = $storage->load($candidate_id);
@@ -101,7 +113,7 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
       $display = $storage->create([
         'targetEntityType' => $entity_type,
         'bundle' => $bundle,
-        'mode' => $form_mode,
+        'mode' => $default_fallback ? $form_mode : static::CUSTOM_MODE,
         'status' => TRUE,
       ]);
     }
@@ -144,7 +156,7 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
         'form_mode' => $this->originalMode,
         // No need to prepare, defaults have been merged in setComponent().
         'prepare' => FALSE,
-        'configuration' => $configuration
+        'configuration' => $configuration,
       ]);
     }
     else {
@@ -205,8 +217,8 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
     }
 
     // Hide extra fields.
-    $extra_fields = \Drupal::entityManager()->getExtraFields($this->targetEntityType, $this->bundle);
-    $extra_fields = isset($extra_fields['form']) ? $extra_fields['form'] : [];
+    $extra_fields = \Drupal::service('entity_field.manager')->getExtraFields($this->targetEntityType, $this->bundle);
+    $extra_fields = $extra_fields['form'] ?? [];
     foreach ($extra_fields as $extra_field => $info) {
       if (!$this->getComponent($extra_field)) {
         $element[$extra_field]['#access'] = FALSE;
@@ -330,7 +342,7 @@ class EntityFormDisplay extends EntityDisplayBase implements EntityFormDisplayIn
     }
 
     return [
-      'widgets' => new EntityDisplayPluginCollection($this->pluginManager, $configurations)
+      'widgets' => new EntityDisplayPluginCollection($this->pluginManager, $configurations),
     ];
   }
 

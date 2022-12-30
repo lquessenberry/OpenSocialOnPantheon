@@ -1,11 +1,12 @@
 <?php
+
 namespace Robo\Task\Testing;
 
 use Robo\Contract\PrintedInterface;
 use Robo\Exception\TaskException;
 use Robo\Task\BaseTask;
 use Robo\Contract\CommandInterface;
-use Symfony\Component\Process\Process;
+use Robo\Common\ExecOneCommand;
 
 /**
  * Executes Codeception tests
@@ -27,12 +28,13 @@ use Symfony\Component\Process\Process;
  */
 class Codecept extends BaseTask implements CommandInterface, PrintedInterface
 {
-    use \Robo\Common\ExecOneCommand;
-    
+    use ExecOneCommand;
+
     /**
      * @var string
      */
     protected $command;
+    protected $providedPathToCodeception;
 
     /**
      * @param string $pathToCodeception
@@ -41,14 +43,7 @@ class Codecept extends BaseTask implements CommandInterface, PrintedInterface
      */
     public function __construct($pathToCodeception = '')
     {
-        $this->command = $pathToCodeception;
-        if (!$this->command) {
-            $this->command = $this->findExecutable('codecept');
-        }
-        if (!$this->command) {
-            throw new TaskException(__CLASS__, "Neither composer nor phar installation of Codeception found.");
-        }
-        $this->command .= ' run';
+        $this->providedPathToCodeception = $pathToCodeception;
     }
 
     /**
@@ -242,6 +237,15 @@ class Codecept extends BaseTask implements CommandInterface, PrintedInterface
     }
 
     /**
+     * @return $this
+     */
+    public function noExit()
+    {
+        $this->option("no-exit");
+        return $this;
+    }
+
+    /**
      * @param string $failGroup
      * @return $this
      */
@@ -256,6 +260,18 @@ class Codecept extends BaseTask implements CommandInterface, PrintedInterface
      */
     public function getCommand()
     {
+        if (!$this->command) {
+            $this->command = $this->providedPathToCodeception;
+            if (!$this->command) {
+                $this->command = $this->findExecutable('codecept');
+            }
+            if (!$this->command) {
+                debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+                throw new TaskException(__CLASS__, "Neither composer nor phar installation of Codeception found.");
+            }
+            $this->command .= ' run';
+        }
+
         return $this->command . $this->arguments;
     }
 

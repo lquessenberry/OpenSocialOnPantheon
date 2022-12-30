@@ -283,8 +283,8 @@ class ThemeManager implements ThemeManagerInterface {
     }
     if (isset($info['preprocess functions'])) {
       foreach ($info['preprocess functions'] as $preprocessor_function) {
-        if (function_exists($preprocessor_function)) {
-          $preprocessor_function($variables, $hook, $info);
+        if (is_callable($preprocessor_function)) {
+          call_user_func_array($preprocessor_function, [&$variables, $hook, $info]);
         }
       }
       // Allow theme preprocess functions to set $variables['#attached'] and
@@ -427,11 +427,7 @@ class ThemeManager implements ThemeManagerInterface {
       }
     }
 
-    $theme_keys = [];
-    foreach ($theme->getBaseThemes() as $base) {
-      $theme_keys[] = $base->getName();
-    }
-
+    $theme_keys = array_keys($theme->getBaseThemeExtensions());
     $theme_keys[] = $theme->getName();
     $functions = [];
     foreach ($theme_keys as $theme_key) {

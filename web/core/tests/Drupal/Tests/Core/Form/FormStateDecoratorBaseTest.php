@@ -7,6 +7,7 @@ use Drupal\Core\Form\FormStateDecoratorBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Tests\UnitTestCase;
+use Prophecy\Argument;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -34,7 +35,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->decoratedFormState = $this->prophesize(FormStateInterface::class);
@@ -70,8 +71,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setAlwaysProcess
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $always_process
    */
   public function testSetAlwaysProcess($always_process) {
     $this->decoratedFormState->setAlwaysProcess($always_process)
@@ -84,8 +83,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::getAlwaysProcess
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $always_process
    */
   public function testGetAlwaysProcess($always_process) {
     $this->decoratedFormState->getAlwaysProcess()
@@ -128,8 +125,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setCached
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $cache
    */
   public function testSetCached($cache) {
     $this->decoratedFormState->setCached($cache)
@@ -142,8 +137,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isCached
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $cache
    */
   public function testIsCached($cache) {
     $this->decoratedFormState->isCached()
@@ -156,13 +149,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setCached
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $cache
    */
   public function testSetCachedWithLogicException($cache) {
     $this->decoratedFormState->setCached($cache)
       ->willThrow(\LogicException::class);
-    $this->setExpectedException(\LogicException::class);
+    $this->expectException(\LogicException::class);
     $this->formStateDecoratorBase->setCached($cache);
   }
 
@@ -181,7 +172,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    */
   public function testSetExecuted() {
     $this->decoratedFormState->setExecuted()
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($this->formStateDecoratorBase, $this->formStateDecoratorBase->setExecuted());
   }
@@ -192,6 +183,8 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSingleBooleanArgument
    *
    * @param bool $executed
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::isExecuted()'s
+   *   return value.
    */
   public function testIsExecuted($executed) {
     $this->decoratedFormState->isExecuted()
@@ -225,7 +218,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getGroups')
       ->willReturn($groups);
@@ -239,8 +232,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setHasFileElement
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $has_file_element
    */
   public function testSetHasFileElement($has_file_element) {
     $this->decoratedFormState->setHasFileElement($has_file_element)
@@ -253,8 +244,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::hasFileElement
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $has_file_element
    */
   public function testHasFileElement($has_file_element) {
     $this->decoratedFormState->hasFileElement()
@@ -268,15 +257,10 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setLimitValidationErrors
    *
    * @dataProvider providerLimitValidationErrors
-   *
-   * @param array[]|null $limit_validation_errors
-   *   Any valid value for
-   *   \Drupal\Core\Form\FormStateInterface::setLimitValidationErrors()'s
-   *   $limit_validation_errors argument;
    */
   public function testSetLimitValidationErrors($limit_validation_errors) {
     $this->decoratedFormState->setLimitValidationErrors($limit_validation_errors)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($this->formStateDecoratorBase, $this->formStateDecoratorBase->setLimitValidationErrors($limit_validation_errors));
   }
@@ -285,11 +269,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::getLimitValidationErrors
    *
    * @dataProvider providerLimitValidationErrors
-   *
-   * @param array[]|null $limit_validation_errors
-   *   Any valid vlaue for
-   *   \Drupal\Core\Form\FormStateInterface::getLimitValidationErrors()'s
-   *   return value;
    */
   public function testGetLimitValidationErrors($limit_validation_errors) {
     $this->decoratedFormState->getLimitValidationErrors()
@@ -317,12 +296,10 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setMethod
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $method
    */
   public function testSetMethod($method) {
     $this->decoratedFormState->setMethod($method)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($this->formStateDecoratorBase, $this->formStateDecoratorBase->setMethod($method));
   }
@@ -331,15 +308,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isMethodType
    *
    * @dataProvider providerIsMethodType
-   *
-   * @param bool $expected_return_value
-   * @param string $method_type
-   *   Either "GET" or "POST".
    */
   public function testIsMethodType($expected_return_value, $method_type) {
     $this->decoratedFormState->isMethodType($method_type)
       ->willReturn($expected_return_value)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($expected_return_value, $this->formStateDecoratorBase->isMethodType($method_type));
   }
@@ -360,8 +333,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setRequestMethod
    *
    * @dataProvider providerSetRequestMethod
-   *
-   * @param bool $method
    */
   public function testSetRequestMethod($method) {
     $this->decoratedFormState->setRequestMethod($method)
@@ -384,8 +355,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setValidationEnforced
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $must_validate
    */
   public function testSetValidationEnforced($must_validate) {
     $this->decoratedFormState->setValidationEnforced($must_validate)
@@ -398,13 +367,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isValidationEnforced
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $must_validate
    */
   public function testIsValidationEnforced($must_validate) {
     $this->decoratedFormState->isValidationEnforced()
       ->willReturn($must_validate)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($must_validate, $this->formStateDecoratorBase->isValidationEnforced());
   }
@@ -413,8 +380,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::disableRedirect
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $no_redirect
    */
   public function testDisableRedirect($no_redirect) {
     $this->decoratedFormState->disableRedirect($no_redirect)
@@ -427,8 +392,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isRedirectDisabled
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $no_redirect
    */
   public function testIsRedirectDisabled($no_redirect) {
     $this->decoratedFormState->isRedirectDisabled()
@@ -442,8 +405,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setProcessInput
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $process_input
    */
   public function testSetProcessInput($process_input) {
     $this->decoratedFormState->setProcessInput($process_input)
@@ -456,13 +417,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isProcessingInput
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $process_input
    */
   public function testIsProcessingInput($process_input) {
     $this->decoratedFormState->isProcessingInput()
       ->willReturn($process_input)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($process_input, $this->formStateDecoratorBase->isProcessingInput());
   }
@@ -471,12 +430,10 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setProgrammed
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $programmed
    */
   public function testSetProgrammed($programmed) {
     $this->decoratedFormState->setProgrammed($programmed)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($this->formStateDecoratorBase, $this->formStateDecoratorBase->setProgrammed($programmed));
   }
@@ -485,13 +442,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isProgrammed
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $programmed
    */
   public function testIsProgrammed($programmed) {
     $this->decoratedFormState->isProgrammed()
       ->willReturn($programmed)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($programmed, $this->formStateDecoratorBase->isProgrammed());
   }
@@ -500,12 +455,10 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setProgrammedBypassAccessCheck
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $programmed_bypass_access_check
    */
   public function testSetProgrammedBypassAccessCheck($programmed_bypass_access_check) {
     $this->decoratedFormState->setProgrammedBypassAccessCheck($programmed_bypass_access_check)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($this->formStateDecoratorBase, $this->formStateDecoratorBase->setProgrammedBypassAccessCheck($programmed_bypass_access_check));
   }
@@ -514,8 +467,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isBypassingProgrammedAccessChecks
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $programmed_bypass_access_check
    */
   public function testIsBypassingProgrammedAccessChecks($programmed_bypass_access_check) {
     $this->decoratedFormState->isBypassingProgrammedAccessChecks()
@@ -590,7 +541,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getStorage')
       ->willReturn($storage);
@@ -645,6 +596,9 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSingleBooleanArgument
    *
    * @param bool $submitted
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::isSubmitted()'s return
+   *   value.
    */
   public function testIsSubmitted($submitted) {
     $this->decoratedFormState->isSubmitted()
@@ -688,7 +642,13 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSetTemporaryValue
    *
    * @param string $key
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::setTemporaryValue()'s $key
+   *   argument.
    * @param mixed $value
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::setTemporaryValue()'s $value
+   *   argument.
    */
   public function testSetTemporaryValue($key, $value) {
     $this->decoratedFormState->setTemporaryValue($key, $value)
@@ -713,12 +673,18 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerGetTemporaryValue
    *
    * @param string $key
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::getTemporaryValue()'s $key
+   *   argument.
    * @param mixed $value
+   *   (optional) Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::getTemporaryValue()'s return
+   *   value.
    */
   public function testGetTemporaryValue($key, $value = NULL) {
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getTemporaryValue')
       ->with($key)
@@ -745,7 +711,13 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerHasTemporaryValue
    *
    * @param bool $exists
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::hasTemporaryValue()'s return
+   *   value.
    * @param string $key
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::hasTemporaryValue()'s $key
+   *   argument.
    */
   public function testHasTemporaryValue($exists, $key) {
     $this->decoratedFormState->hasTemporaryValue($key)
@@ -789,7 +761,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getTriggeringElement')
       ->willReturn($triggering_element);
@@ -823,7 +795,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     $this->decoratedFormState->getValidateHandlers()
       ->willReturn($validate_handlers)
-      ->shouldBecalled();
+      ->shouldBeCalled();
 
     $this->assertSame($validate_handlers, $this->formStateDecoratorBase->getValidateHandlers());
   }
@@ -834,6 +806,9 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSingleBooleanArgument
    *
    * @param bool $complete
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::setValidationComplete()'s $complete
+   *   argument.
    */
   public function testSetValidationComplete($complete) {
     $this->decoratedFormState->setValidationComplete($complete)
@@ -848,6 +823,9 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSingleBooleanArgument
    *
    * @param bool $complete
+   *   Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::isValidationComplete()'s return
+   *   value.
    */
   public function testIsValidationComplete($complete) {
     $this->decoratedFormState->isValidationComplete()
@@ -863,9 +841,17 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerLoadInclude
    *
    * @param string|false $expected
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::loadInclude()'s
+   *   return value.
    * @param string $module
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::loadInclude()'s
+   *   $module argument.
    * @param string $type
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::loadInclude()'s
+   *   $type argument.
    * @param string|null $name
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::loadInclude()'s
+   *   $name argument.
    */
   public function testLoadInclude($expected, $module, $type, $name) {
     $this->decoratedFormState->loadInclude($module, $type, $name)
@@ -929,7 +915,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getCompleteForm')
       ->willReturn($complete_form);
@@ -946,7 +932,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSet
    *
    * @param string $key
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::set()'s $key
+   *   argument.
    * @param mixed $value
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::set()'s $value
+   *   argument.
    */
   public function testSet($key, $value) {
     $this->decoratedFormState->set($key, $value)
@@ -971,13 +961,17 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerGet
    *
    * @param string $key
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::get()'s $key
+   *   argument.
    * @param mixed $value
+   *   (optional) Any valid value for
+   *   \Drupal\Core\Form\FormStateInterface::get()'s return value.
    */
   public function testGet($key, $value = NULL) {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('get')
       ->with($key)
@@ -1004,7 +998,11 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerHas
    *
    * @param bool $exists
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::has()'s return
+   *   value.
    * @param string $key
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::has()'s $key
+   *   argument.
    */
   public function testHas($exists, $key) {
     $this->decoratedFormState->has($key)
@@ -1090,7 +1088,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getUserInput')
       ->willReturn($user_input);
@@ -1110,7 +1108,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getValues')
       ->willReturn($values);
@@ -1119,6 +1117,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     $this->assertSame($values, $this->formStateDecoratorBase->getValues());
   }
+
   /**
    * @covers ::getValue
    */
@@ -1128,7 +1127,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
 
     // Use PHPUnit for mocking, because Prophecy cannot mock methods that return
     // by reference. See \Prophecy\Doubler\Generator\Node::getCode().
-    $decorated_form_state = $this->getMock(FormStateInterface::class);
+    $decorated_form_state = $this->createMock(FormStateInterface::class);
     $decorated_form_state->expects($this->once())
       ->method('getValue')
       ->with($key, $value)
@@ -1226,7 +1225,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setResponse
    */
   public function testSetResponse() {
-    $response = $this->getMock(Response::class);
+    $response = $this->createMock(Response::class);
 
     $this->decoratedFormState->setResponse($response)
       ->shouldBeCalled();
@@ -1238,7 +1237,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::getResponse
    */
   public function testGetResponse() {
-    $response = $this->getMock(Response::class);
+    $response = $this->createMock(Response::class);
 
     $this->decoratedFormState->getResponse()
       ->willReturn($response)
@@ -1253,7 +1252,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
   public function testSetRedirect() {
     $route_name = 'foo';
     $route_parameters = [
-      'bar' => 'baz'
+      'bar' => 'baz',
     ];
     $options = [
       'qux' => 'foo',
@@ -1283,6 +1282,8 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerGetRedirect
    *
    * @param bool $expected
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::getRedirect()'s
+   *   return value.
    */
   public function testGetRedirect($expected) {
     $this->decoratedFormState->getRedirect()
@@ -1378,6 +1379,8 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @dataProvider providerSingleBooleanArgument
    *
    * @param bool $rebuild
+   *   Any valid value for \Drupal\Core\Form\FormStateInterface::setRebuild()'s
+   *   $rebuild argument.
    */
   public function testSetRebuild($rebuild) {
     $this->decoratedFormState->setRebuild($rebuild)
@@ -1390,8 +1393,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::isRebuilding
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $rebuild
    */
   public function testIsRebuilding($rebuild) {
     $this->decoratedFormState->isRebuilding()
@@ -1405,8 +1406,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setInvalidToken
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $expected
    */
   public function testSetInvalidToken($expected) {
     $this->decoratedFormState->setInvalidToken($expected)
@@ -1419,8 +1418,6 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::hasInvalidToken
    *
    * @dataProvider providerSingleBooleanArgument
-   *
-   * @param bool $expected
    */
   public function testHasInvalidToken($expected) {
     $this->decoratedFormState->hasInvalidToken()
@@ -1434,12 +1431,9 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::prepareCallback
    *
    * @dataProvider providerPrepareCallback
-   *
-   * @param string|callable $unprepared_callback
-   * @param callable $prepared_callback
    */
   public function testPrepareCallback($unprepared_callback, callable $prepared_callback) {
-    $this->decoratedFormState->prepareCallback($unprepared_callback)
+    $this->decoratedFormState->prepareCallback(Argument::is($unprepared_callback))
       ->willReturn($prepared_callback)
       ->shouldBeCalled();
 
@@ -1473,10 +1467,10 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::setFormObject
    */
   public function testSetFormObject() {
-    $form = $this->getMock(FormInterface::class);
+    $form = $this->createMock(FormInterface::class);
 
     $this->decoratedFormState->setFormObject($form)
-      ->shouldBeCalled();;
+      ->shouldBeCalled();
 
     $this->assertSame($this->formStateDecoratorBase, $this->formStateDecoratorBase->setFormObject($form));
   }
@@ -1485,7 +1479,7 @@ class FormStateDecoratorBaseTest extends UnitTestCase {
    * @covers ::getFormObject
    */
   public function testGetFormObject() {
-    $form = $this->getMock(FormInterface::class);
+    $form = $this->createMock(FormInterface::class);
 
     $this->decoratedFormState->getFormObject()
       ->willReturn($form)

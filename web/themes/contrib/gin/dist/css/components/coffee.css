@@ -1,0 +1,44 @@
+#coffee-form {
+  padding: 4px;
+  background: #000;
+  border-radius: var(--ginBorderMedium);
+}
+
+#coffee-form #coffee-form-inner,
+#coffee-form #coffee-q {
+  color: var(--colorGinTitle);
+  background: var(--colorGinLayerBackground);
+  border-radius: var(--ginBorderDefault);
+}
+
+#coffee-form #coffee-results a {
+  color: var(--colorGinTitle);
+  border-radius: var(--ginBorderDefault);
+}
+
+#coffee-form #coffee-results a .description {
+  color: var(--colorGinTextLight);
+  padding-top: .25rem;
+}
+
+#coffee-form #coffee-results a:hover, #coffee-form #coffee-results a.ui-state-active {
+  background: var(--colorGinPrimary);
+}
+
+#coffee-form #coffee-results a:hover, #coffee-form #coffee-results a:hover .description, #coffee-form #coffee-results a.ui-state-active, #coffee-form #coffee-results a.ui-state-active .description {
+  color: var(--colorGinButtonText);
+}
+
+#coffee-form #coffee-results a:hover .description, #coffee-form #coffee-results a.ui-state-active .description {
+  opacity: .9;
+}
+
+#coffee-form .ui-autocomplete {
+  background: transparent;
+  box-shadow: none;
+}
+
+#coffee-form .ui-autocomplete .ui-menu-item-wrapper {
+  padding: 16px;
+}
+

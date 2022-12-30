@@ -117,3 +117,11 @@ message.purge.quota:
     quota:
       label: 'Messages quota'
       type: integer
+
+views.field.get_text:
+  type: views_field
+  label: 'Text'
+  mapping:
+    delta:
+      type: integer
+      label: 'Delta'

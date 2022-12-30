@@ -3,17 +3,17 @@
 namespace Drupal\Tests\responsive_image\Functional\Rest;
 
 use Drupal\responsive_image\Entity\ResponsiveImageStyle;
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 
 /**
  * ResourceTestBase for ResponsiveImageStyle entity.
  */
-abstract class ResponsiveImageStyleResourceTestBase extends EntityResourceTestBase {
+abstract class ResponsiveImageStyleResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['responsive_image'];
+  protected static $modules = ['responsive_image'];
 
   /**
    * {@inheritdoc}
@@ -117,16 +117,13 @@ abstract class ResponsiveImageStyleResourceTestBase extends EntityResourceTestBa
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     return "The 'administer responsive images' permission is required.";
   }
 

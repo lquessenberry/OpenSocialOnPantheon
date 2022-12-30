@@ -1,4 +1,4 @@
-(function ($, Drupal) {
+(function ($, Drupal, Bootstrap) {
   /*global jQuery:false */
   /*global Drupal:false */
   "use strict";
@@ -11,7 +11,7 @@
       var $context = $(context);
 
       // General.
-      $context.find('#edit-general').drupalSetSummary(function () {
+      $context.find('[data-drupal-selector="edit-general"]').drupalSetSummary(function () {
         var summary = [];
         // Buttons.
         var size = $context.find('select[name="button_size"] :selected');
@@ -42,7 +42,7 @@
       });
 
       // Components.
-      $context.find('#edit-components').drupalSetSummary(function () {
+      $context.find('[data-drupal-selector="edit-components"]').drupalSetSummary(function () {
         var summary = [];
         // Breadcrumbs.
         var breadcrumb = parseInt($context.find('select[name="breadcrumb"]').val(), 10);
@@ -59,10 +59,63 @@
       });
 
       // JavaScript.
-      $context.find('#edit-javascript').drupalSetSummary(function () {
+      var $jQueryUiBridge = $context.find('input[name="modal_jquery_ui_bridge"]');
+      $jQueryUiBridge.once('bs.jquery.ui.dialog.bridge').each(function () {
+        $jQueryUiBridge
+          .off('change.bs.jquery.ui.dialog.bridge')
+          .on('change.bs.jquery.ui.dialog.bridge', function (e) {
+            if ($jQueryUiBridge[0].checked) {
+              return;
+            }
+
+            var disable = false;
+            var title = Drupal.t('<p><strong>Warning: Disabling the jQuery UI Dialog bridge may have major consequences.</strong></p>');
+            var message = Drupal.t('<p>If you are unfamiliar with how to properly handle Bootstrap modals and jQuery UI dialogs together, it is highly recommended this remains <strong>enabled</strong>.</p> <p>Are you sure you want to disable this?</p>');
+            var callback = function () {
+              if (!disable) {
+                $jQueryUiBridge[0].checked = true;
+                $jQueryUiBridge.trigger('change');
+              }
+            };
+
+            if (!$.fn.dialog) {
+              disable = window.confirm(Bootstrap.stripHtml(title + ' ' + message));
+              callback();
+            }
+            else {
+              $('<div title="Disable jQuery UI Dialog Bridge?"><div class="alert alert-danger alert-sm">' + title + '</div>' + message + '</div>')
+                .appendTo('body')
+                .dialog({
+                  modal: true,
+                  close: callback,
+                  buttons: [
+                    {
+                      text: Drupal.t('Disable'),
+                      classes: {
+                        'ui-button': 'btn-danger',
+                      },
+                      click: function () {
+                        disable = true;
+                        $(this).dialog('close');
+                      }
+                    },
+                    {
+                      text: 'Cancel',
+                      primary: true,
+                      click: function () {
+                        $(this).dialog('close');
+                      }
+                    }
+                  ]
+                });
+            }
+          });
+      });
+
+      $context.find('[data-drupal-selector="edit-javascript"]').drupalSetSummary(function () {
         var summary = [];
         if ($context.find('input[name="modal_enabled"]').is(':checked')) {
-          if ($context.find('input[name="modal_jquery_ui_bridge"]').is(':checked')) {
+          if ($jQueryUiBridge.is(':checked')) {
             summary.push(Drupal.t('Modals (Bridged)'));
           }
           else {
@@ -78,26 +131,44 @@
         return summary.join(', ');
       });
 
-      // Advanced.
-      $context.find('#edit-advanced').drupalSetSummary(function () {
+      // CDN.
+      $context.find('[data-drupal-selector="edit-cdn"]').drupalSetSummary(function () {
         var summary = [];
         var $cdnProvider = $context.find('select[name="cdn_provider"] :selected');
-        var cdnProvider = $cdnProvider.val();
-        if ($cdnProvider.length && cdnProvider.length) {
-          summary.push(Drupal.t('CDN provider: %provider', { '%provider': $cdnProvider.text() }));
+        if ($cdnProvider.length) {
+          var provider = $cdnProvider.text();
 
-          // jsDelivr CDN.
-          if (cdnProvider === 'jsdelivr') {
-            var $jsDelivrVersion = $context.find('select[name="cdn_jsdelivr_version"] :selected');
-            if ($jsDelivrVersion.length && $jsDelivrVersion.val().length) {
-              summary.push($jsDelivrVersion.text());
-            }
-            var $jsDelivrTheme = $context.find('select[name="cdn_jsdelivr_theme"] :selected');
-            if ($jsDelivrTheme.length && $jsDelivrTheme.val() !== 'bootstrap') {
-              summary.push($jsDelivrTheme.text());
+          var $version = $context.find('select[name="cdn_version"] :selected');
+          if ($version.length && $version.val().length) {
+            provider += ' - ' + $version.text();
+            var $theme = $context.find('select[name="cdn_theme"] :selected');
+            if ($theme.length) {
+              provider += ' (' + $theme.text() + ')';
             }
           }
+          else if ($cdnProvider.val() === 'custom') {
+            var $urls = $context.find('textarea[name="cdn_custom"]');
+            var urls = ($urls.val() + '').split(/\r\n|\n/).filter(Boolean);
+            provider += ' (' + Drupal.formatPlural(urls.length, '1 URL', '@count URLs') + ')';
+          }
+
+          summary.push(provider);
         }
+        return summary.join(', ');
+      });
+
+
+      // Advanced.
+      $context.find('[data-drupal-selector="edit-advanced"]').drupalSetSummary(function () {
+        var summary = [];
+        var deprecations = [];
+        if ($context.find('input[name="include_deprecated"]').is(':checked')) {
+          deprecations.push(Drupal.t('Included'));
+        }
+        deprecations.push($context.find('input[name="suppress_deprecated_warnings"]').is(':checked') ? Drupal.t('Warnings Suppressed') : Drupal.t('Warnings Shown'));
+        summary.push(Drupal.t('Deprecations: @value', {
+          '@value': deprecations.join(', '),
+        }));
         return summary.join(', ');
       });
     }
@@ -116,7 +187,7 @@
         // Unfortunately getbootstrap.com does not have HTTPS enabled, so the
         // preview image cannot be protocol relative.
         // @todo Make protocol relative if/when Bootstrap enables HTTPS.
-        $preview.append('<a id="bootstrap-theme-preview-bootstrap_theme" class="bootswatch-preview element-invisible" href="https://getbootstrap.com/docs/3.3/examples/theme/" target="_blank"><img class="img-responsive" src="//getbootstrap.com/docs/3.3/examples/screenshots/theme.jpg" alt="' + Drupal.t('Preview of the Bootstrap theme') + '" /></a>');
+        $preview.append('<a id="bootstrap-theme-preview-bootstrap_theme" class="bootswatch-preview element-invisible" href="https://getbootstrap.com/docs/3.4/examples/theme/" target="_blank"><img class="img-responsive" src="//getbootstrap.com/docs/3.4/examples/screenshots/theme.jpg" alt="' + Drupal.t('Preview of the Bootstrap theme') + '" /></a>');
 
         // Retrieve the Bootswatch theme preview images.
         // @todo This should be moved into PHP.
@@ -130,10 +201,11 @@
             }
           },
           complete: function () {
-            $preview.parent().find('select[name="cdn_jsdelivr_theme"]').bind('change', function () {
+            $preview.parent().find('select[name="cdn_theme"]').bind('change', function () {
               $preview.find('.bootswatch-preview').addClass('visually-hidden');
-              if ($(this).val().length) {
-                $preview.find('#bootstrap-theme-preview-' + $(this).val()).removeClass('visually-hidden');
+              var theme = $(this).val();
+              if (theme && theme.length) {
+                $preview.find('#bootstrap-theme-preview-' + theme).removeClass('visually-hidden');
               }
             }).change();
           }
@@ -204,4 +276,4 @@
     }
   };
 
-})(jQuery, Drupal);
+})(jQuery, Drupal, Drupal.bootstrap);

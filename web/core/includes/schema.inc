@@ -5,6 +5,8 @@
  * Schema API handling functions.
  */
 
+use Drupal\Core\Update\UpdateHookRegistry;
+
 /**
  * @addtogroup schemaapi
  * @{
@@ -12,8 +14,14 @@
 
 /**
  * Indicates that a module has not been installed yet.
+ *
+ * @deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use
+ *   \Drupal\Core\Update\UpdateHookRegistry::SCHEMA_UNINSTALLED constant
+ *   instead.
+ *
+ * @see https://www.drupal.org/node/2444417
  */
-const SCHEMA_UNINSTALLED = -1;
+const SCHEMA_UNINSTALLED = UpdateHookRegistry::SCHEMA_UNINSTALLED;
 
 /**
  * Returns an array of available schema versions for a module.
@@ -24,38 +32,16 @@ const SCHEMA_UNINSTALLED = -1;
  * @return array|bool
  *   If the module has updates, an array of available updates sorted by
  *   version. Otherwise, FALSE.
+ *
+ * @deprecated in drupal:9.3.0 and is removed from drupal:10.0.0.
+ *   Use \Drupal\Core\Update\SchemaDataInterface::getAvailableUpdates() instead.
+ *
+ * @see https://www.drupal.org/node/2444417
+ * @see \Drupal\Core\Update\UpdateHookRegistry::getAvailableUpdates()
  */
 function drupal_get_schema_versions($module) {
-  $updates = &drupal_static(__FUNCTION__, NULL);
-  if (!isset($updates[$module])) {
-    $updates = [];
-    foreach (\Drupal::moduleHandler()->getModuleList() as $loaded_module => $filename) {
-      $updates[$loaded_module] = [];
-    }
-
-    // Prepare regular expression to match all possible defined hook_update_N().
-    $regexp = '/^(?<module>.+)_update_(?<version>\d+)$/';
-    $functions = get_defined_functions();
-    // Narrow this down to functions ending with an integer, since all
-    // hook_update_N() functions end this way, and there are other
-    // possible functions which match '_update_'. We use preg_grep() here
-    // instead of foreaching through all defined functions, since the loop
-    // through all PHP functions can take significant page execution time
-    // and this function is called on every administrative page via
-    // system_requirements().
-    foreach (preg_grep('/_\d+$/', $functions['user']) as $function) {
-      // If this function is a module update function, add it to the list of
-      // module updates.
-      if (preg_match($regexp, $function, $matches)) {
-        $updates[$matches['module']][] = $matches['version'];
-      }
-    }
-    // Ensure that updates are applied in numerical order.
-    foreach ($updates as &$module_updates) {
-      sort($module_updates, SORT_NUMERIC);
-    }
-  }
-  return empty($updates[$module]) ? FALSE : $updates[$module];
+  @trigger_error('drupal_get_schema_versions() is deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use \Drupal\Core\Update\UpdateHookRegistry::getAvailableUpdates() instead. See https://www.drupal.org/node/2444417', E_USER_DEPRECATED);
+  return \Drupal::service('update.update_hook_registry')->getAvailableUpdates($module);
 }
 
 /**
@@ -72,26 +58,23 @@ function drupal_get_schema_versions($module) {
  * @return string|int
  *   The currently installed schema version, or SCHEMA_UNINSTALLED if the
  *   module is not installed.
+ *
+ * @deprecated in drupal:9.3.0 and is removed from drupal:10.0.0.
+ *   Use \Drupal\Core\Update\UpdateHookRegistry::getInstalledVersion() or
+ *   \Drupal\Core\Update\UpdateHookRegistry::getAllInstalledVersions()
+ *   instead.
+ *
+ * @see https://www.drupal.org/node/2444417
+ * @see \Drupal\Core\Update\UpdateHookRegistry::getInstalledVersion()
  */
 function drupal_get_installed_schema_version($module, $reset = FALSE, $array = FALSE) {
-  $versions = &drupal_static(__FUNCTION__, []);
-
-  if ($reset) {
-    $versions = [];
-  }
-
-  if (!$versions) {
-    if (!$versions = \Drupal::keyValue('system.schema')->getAll()) {
-      $versions = [];
-    }
-  }
-
+  @trigger_error('drupal_get_installed_schema_version() is deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use \Drupal\Core\Update\UpdateHookRegistry::getInstalledVersion() or \Drupal\Core\Update\UpdateHookRegistry::getAllInstalledVersions() instead. See https://www.drupal.org/node/2444417', E_USER_DEPRECATED);
+  /** @var \Drupal\Core\Update\UpdateHookRegistry $service */
+  $service = \Drupal::service('update.update_hook_registry');
   if ($array) {
-    return $versions;
+    return $service->getAllInstalledVersions();
   }
-  else {
-    return isset($versions[$module]) ? $versions[$module] : SCHEMA_UNINSTALLED;
-  }
+  return $service->getInstalledVersion((string) $module);
 }
 
 /**
@@ -101,11 +84,17 @@ function drupal_get_installed_schema_version($module, $reset = FALSE, $array = F
  *   A module name.
  * @param string $version
  *   The new schema version.
+ *
+ * @deprecated in drupal:9.3.0 and is removed from drupal:10.0.0.
+ *   Use \Drupal\Core\Update\UpdateHookRegistry::setInstalledVersion()
+ *   instead.
+ *
+ * @see https://www.drupal.org/node/2444417
+ * @see \Drupal\Core\Update\UpdateHookRegistry::setInstalledVersion()
  */
 function drupal_set_installed_schema_version($module, $version) {
-  \Drupal::keyValue('system.schema')->set($module, $version);
-  // Reset the static cache of module schema versions.
-  drupal_get_installed_schema_version(NULL, TRUE);
+  @trigger_error('drupal_set_installed_schema_version() is deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use \Drupal\Core\Update\UpdateHookRegistry::setInstalledVersion() instead. See https://www.drupal.org/node/2444417', E_USER_DEPRECATED);
+  \Drupal::service('update.update_hook_registry')->setInstalledVersion($module, $version);
 }
 
 /**
@@ -113,8 +102,15 @@ function drupal_set_installed_schema_version($module, $version) {
  *
  * @param string $module
  *   The module for which the tables will be created.
+ *
+ * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct
+ *   replacement is provided.
+ *
+ * @see https://www.drupal.org/node/2970993
+ * @see \Drupal\Core\Extension\ModuleInstaller::installSchema()
  */
 function drupal_install_schema($module) {
+  @trigger_error('drupal_install_schema() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct replacement is provided. See https://www.drupal.org/node/2970993', E_USER_DEPRECATED);
   $schema = drupal_get_module_schema($module);
   _drupal_schema_initialize($schema, $module, FALSE);
 
@@ -128,14 +124,21 @@ function drupal_install_schema($module) {
  *
  * @param string $module
  *   The module for which the tables will be removed.
+ *
+ * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct
+ *   replacement is provided.
+ *
+ * @see https://www.drupal.org/node/2970993
+ * @see \Drupal\Core\Extension\ModuleInstaller::uninstallSchema()
  */
 function drupal_uninstall_schema($module) {
-  $schema = drupal_get_module_schema($module);
-  _drupal_schema_initialize($schema, $module, FALSE);
-
-  foreach ($schema as $table) {
-    if (db_table_exists($table['name'])) {
-      db_drop_table($table['name']);
+  @trigger_error('drupal_uninstall_schema() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct replacement is provided. See https://www.drupal.org/node/2970993', E_USER_DEPRECATED);
+  $tables = drupal_get_module_schema($module);
+  _drupal_schema_initialize($tables, $module, FALSE);
+  $schema = \Drupal::database()->schema();
+  foreach ($tables as $table) {
+    if ($schema->tableExists($table['name'])) {
+      $schema->dropTable($table['name']);
     }
   }
 }
@@ -152,8 +155,16 @@ function drupal_uninstall_schema($module) {
  * @param string $table
  *   The name of the table. If not given, the module's complete schema
  *   is returned.
+ *
+ * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct
+ *   replacement is provided. Testing classes could use
+ *   \Drupal\TestTools\Extension\SchemaInspector for introspection.
+ *
+ * @see https://www.drupal.org/node/2970993
+ * @see \Drupal\TestTools\Extension\SchemaInspector::getTablesSpecification()
  */
 function drupal_get_module_schema($module, $table = NULL) {
+  @trigger_error('drupal_get_module_schema() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct replacement is provided. Testing classes could use \Drupal\TestTools\Extension\SchemaInspector for introspection. See https://www.drupal.org/node/2970993', E_USER_DEPRECATED);
   // Load the .install file to get hook_schema.
   module_load_install($module);
   $schema = \Drupal::moduleHandler()->invoke($module, 'schema');
@@ -182,8 +193,14 @@ function drupal_get_module_schema($module, $table = NULL) {
  *   (optional) Whether to additionally remove 'description' keys of all tables
  *   and fields to improve performance of serialize() and unserialize().
  *   Defaults to TRUE.
+ *
+ * @deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct
+ *   replacement is provided.
+ *
+ * @see https://www.drupal.org/node/2970993
  */
 function _drupal_schema_initialize(&$schema, $module, $remove_descriptions = TRUE) {
+  @trigger_error('_drupal_schema_initialize() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. No direct replacement is provided. See https://www.drupal.org/node/2970993', E_USER_DEPRECATED);
   // Set the name and module key for all tables.
   foreach ($schema as $name => &$table) {
     if (empty($table['module'])) {
@@ -199,37 +216,6 @@ function _drupal_schema_initialize(&$schema, $module, $remove_descriptions = TRU
       }
     }
   }
-}
-
-/**
- * Typecasts values to proper data types.
- *
- * MySQL PDO silently casts, e.g. FALSE and '' to 0, when inserting the value
- * into an integer column, but PostgreSQL PDO does not. Look up the schema
- * information and use that to correctly typecast the value.
- *
- * @param array $info
- *   An array describing the schema field info.
- * @param mixed $value
- *   The value to be converted.
- *
- * @return mixed
- *   The converted value.
- */
-function drupal_schema_get_field_value(array $info, $value) {
-  // Preserve legal NULL values.
-  if (isset($value) || !empty($info['not null'])) {
-    if ($info['type'] == 'int' || $info['type'] == 'serial') {
-      $value = (int) $value;
-    }
-    elseif ($info['type'] == 'float') {
-      $value = (float) $value;
-    }
-    elseif (!is_array($value)) {
-      $value = (string) $value;
-    }
-  }
-  return $value;
 }
 
 /**

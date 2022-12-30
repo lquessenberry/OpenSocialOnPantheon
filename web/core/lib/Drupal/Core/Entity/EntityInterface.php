@@ -90,30 +90,10 @@ interface EntityInterface extends AccessibleInterface, CacheableDependencyInterf
   /**
    * Gets the label of the entity.
    *
-   * @return string|null
+   * @return string|\Drupal\Core\StringTranslation\TranslatableMarkup|null
    *   The label of the entity, or NULL if there is no label defined.
    */
   public function label();
-
-  /**
-   * Gets the URL object for the entity.
-   *
-   * @param string $rel
-   *   The link relationship type, for example: canonical or edit-form.
-   * @param array $options
-   *   See \Drupal\Core\Routing\UrlGeneratorInterface::generateFromRoute() for
-   *   the available options.
-   *
-   * @return \Drupal\Core\Url
-   *   The URL object.
-   *
-   * @deprecated in Drupal 8.0.0, intended to be removed in Drupal 9.0.0
-   *   Use \Drupal\Core\Entity\EntityInterface::toUrl() instead.
-   *
-   * @see https://www.drupal.org/node/2614344
-   * @see \Drupal\Core\Entity\EntityInterface::toUrl
-   */
-  public function urlInfo($rel = 'canonical', array $options = []);
 
   /**
    * Gets the URL object for the entity.
@@ -154,54 +134,11 @@ interface EntityInterface extends AccessibleInterface, CacheableDependencyInterf
   public function toUrl($rel = 'canonical', array $options = []);
 
   /**
-   * Gets the public URL for this entity.
-   *
-   * @param string $rel
-   *   The link relationship type, for example: canonical or edit-form.
-   * @param array $options
-   *   See \Drupal\Core\Routing\UrlGeneratorInterface::generateFromRoute() for
-   *   the available options.
-   *
-   * @return string
-   *   The URL for this entity.
-   *
-   * @deprecated in Drupal 8.0.0, intended to be removed in Drupal 9.0.0
-   *   Please use toUrl() instead.
-   *
-   * @see https://www.drupal.org/node/2614344
-   * @see \Drupal\Core\Entity\EntityInterface::toUrl
-   */
-  public function url($rel = 'canonical', $options = []);
-
-  /**
-   * Deprecated way of generating a link to the entity. See toLink().
-   *
-   * @param string|null $text
-   *   (optional) The link text for the anchor tag as a translated string.
-   *   If NULL, it will use the entity's label. Defaults to NULL.
-   * @param string $rel
-   *   (optional) The link relationship type. Defaults to 'canonical'.
-   * @param array $options
-   *   See \Drupal\Core\Routing\UrlGeneratorInterface::generateFromRoute() for
-   *   the available options.
-   *
-   * @return string
-   *   An HTML string containing a link to the entity.
-   *
-   * @deprecated in Drupal 8.0.0, intended to be removed in Drupal 9.0.0
-   *   Please use toLink() instead.
-   *
-   * @see https://www.drupal.org/node/2614344
-   * @see \Drupal\Core\Entity\EntityInterface::toLink
-   */
-  public function link($text = NULL, $rel = 'canonical', array $options = []);
-
-  /**
    * Generates the HTML for a link to this entity.
    *
-   * @param string|null $text
-   *   (optional) The link text for the anchor tag as a translated string.
-   *   If NULL, it will use the entity's label. Defaults to NULL.
+   * @param string|null|array|\Drupal\Component\Render\MarkupInterface $text
+   *   (optional) The link text for the anchor tag as a translated string or
+   *   render array. If NULL, it will use the entity's label. Defaults to NULL.
    * @param string $rel
    *   (optional) The link relationship type. Defaults to 'canonical'.
    * @param array $options
@@ -241,7 +178,7 @@ interface EntityInterface extends AccessibleInterface, CacheableDependencyInterf
    * @param mixed $id
    *   The id of the entity to load.
    *
-   * @return static
+   * @return static|null
    *   The entity object or NULL if there is no entity with the given ID.
    */
   public static function load($id);

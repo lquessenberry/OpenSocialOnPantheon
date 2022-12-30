@@ -57,7 +57,7 @@ class EntityTestForm extends ContentEntityForm {
       }
 
       $is_new = $entity->isNew();
-      $entity->save();
+      $status = $entity->save();
 
       if ($is_new) {
         $message = t('%entity_type @id has been created.', ['@id' => $entity->id(), '%entity_type' => $entity->getEntityTypeId()]);
@@ -65,7 +65,7 @@ class EntityTestForm extends ContentEntityForm {
       else {
         $message = t('%entity_type @id has been updated.', ['@id' => $entity->id(), '%entity_type' => $entity->getEntityTypeId()]);
       }
-      drupal_set_message($message);
+      $this->messenger()->addStatus($message);
 
       if ($entity->id()) {
         $entity_type = $entity->getEntityTypeId();
@@ -76,13 +76,14 @@ class EntityTestForm extends ContentEntityForm {
       }
       else {
         // Error on save.
-        drupal_set_message(t('The entity could not be saved.'), 'error');
+        $this->messenger()->addError($this->t('The entity could not be saved.'));
         $form_state->setRebuild();
       }
     }
     catch (\Exception $e) {
       \Drupal::state()->set('entity_test.form.save.exception', get_class($e) . ': ' . $e->getMessage());
     }
+    return $status ?? FALSE;
   }
 
 }

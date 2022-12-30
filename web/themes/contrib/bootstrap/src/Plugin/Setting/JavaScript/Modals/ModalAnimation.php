@@ -32,7 +32,21 @@ class ModalAnimation extends SettingBase {
   public function alterFormElement(Element $form, FormStateInterface $form_state, $form_id = NULL) {
     parent::alterFormElement($form, $form_state, $form_id);
     $group = $this->getGroupElement($form, $form_state);
-    $group->setProperty('description', t('These are global options. Each modal can independently override desired settings by appending the option name to <code>data-</code>. Example: <code>data-backdrop="false"</code>.'));
+    $group->note = [
+      '#type' => 'container',
+      '#weight' => -1,
+      '#attributes' => ['class' => ['alert', 'alert-info', 'alert-sm']],
+      0 => [
+        '#markup' => $this->t('<strong>Note:</strong> jQuery UI dialog options will be mapped to Bootstrap modal options whenever possible, however they always take precedent over any global Bootstrap modal options set here for compatibility reasons.'),
+      ],
+      '#states' => [
+        'visible' => [
+          ':input[name="modal_enabled"]' => ['checked' => TRUE],
+          ':input[name="modal_jquery_ui_bridge"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+    $group->setProperty('description', $this->t('These are global options. Each modal can independently override desired settings by appending the option name to <code>data-</code>. Example: <code>data-backdrop="false"</code>.'));
     $group->setProperty('states', [
       'visible' => [
         ':input[name="modal_enabled"]' => ['checked' => TRUE],

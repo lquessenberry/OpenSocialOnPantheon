@@ -21,7 +21,7 @@ class UserName extends User {
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
 
-    $entity_type = $this->entityManager->getDefinition('user');
+    $entity_type = $this->entityTypeManager->getDefinition('user');
 
     $form['multiple']['#options'] = [
       0 => $this->t('Single name', ['%type' => $entity_type->getLabel()]),
@@ -56,7 +56,7 @@ class UserName extends User {
 
     // Validate each account. If any fails break out and return false.
     foreach ($accounts as $account) {
-      if (!in_array($account->getUserName(), $names) || !$this->validateEntity($account)) {
+      if (!in_array($account->getAccountName(), $names) || !$this->validateEntity($account)) {
         return FALSE;
       }
     }
@@ -68,7 +68,7 @@ class UserName extends User {
    * {@inheritdoc}
    */
   public function processSummaryArguments(&$args) {
-    // If the validation says the input is an username, we should reverse the
+    // If the validation says the input is a username, we should reverse the
     // argument so it works for example for generation summary urls.
     $uids_arg_keys = array_flip($args);
 

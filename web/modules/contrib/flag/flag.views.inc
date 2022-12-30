@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * Contains views API hooks for Flag module.

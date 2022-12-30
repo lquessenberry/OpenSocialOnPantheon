@@ -42,7 +42,7 @@ class ImageStyleEditForm extends ImageStyleFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorage('image_style'),
+      $container->get('entity_type.manager')->getStorage('image_style'),
       $container->get('plugin.manager.image.effect')
     );
   }
@@ -84,7 +84,7 @@ class ImageStyleEditForm extends ImageStyleFormBase {
       '#attributes' => [
         'id' => 'image-style-effects',
       ],
-      '#empty' => t('There are currently no effects in this style. Add one by selecting an option below.'),
+      '#empty' => $this->t('There are currently no effects in this style. Add one by selecting an option below.'),
       // Render effects below parent elements.
       '#weight' => 5,
     ];
@@ -153,7 +153,7 @@ class ImageStyleEditForm extends ImageStyleFormBase {
     }
     $form['effects']['new'] = [
       '#tree' => FALSE,
-      '#weight' => isset($user_input['weight']) ? $user_input['weight'] : NULL,
+      '#weight' => $user_input['weight'] ?? NULL,
       '#attributes' => ['class' => ['draggable']],
     ];
     $form['effects']['new']['effect'] = [
@@ -231,7 +231,7 @@ class ImageStyleEditForm extends ImageStyleFormBase {
       $effect_id = $this->entity->addImageEffect($effect);
       $this->entity->save();
       if (!empty($effect_id)) {
-        drupal_set_message($this->t('The image effect was successfully applied.'));
+        $this->messenger()->addStatus($this->t('The image effect was successfully applied.'));
       }
     }
   }
@@ -254,17 +254,7 @@ class ImageStyleEditForm extends ImageStyleFormBase {
    */
   public function save(array $form, FormStateInterface $form_state) {
     parent::save($form, $form_state);
-    drupal_set_message($this->t('Changes to the style have been saved.'));
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function actions(array $form, FormStateInterface $form_state) {
-    $actions = parent::actions($form, $form_state);
-    $actions['submit']['#value'] = $this->t('Update style');
-
-    return $actions;
+    $this->messenger()->addStatus($this->t('Changes to the style have been saved.'));
   }
 
   /**

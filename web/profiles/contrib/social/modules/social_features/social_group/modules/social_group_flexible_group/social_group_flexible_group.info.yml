@@ -1,0 +1,24 @@
+name: 'Social Flexible Group'
+description: 'Provides a flexible Group feature allowing members to configure the group to their liking.'
+type: module
+core_version_requirement: ^9
+dependencies:
+  - address
+  - field
+  - field_group
+  - gnode
+  - group
+  - image
+  - image_widget_crop
+  - node
+  - options
+  - path
+  - social:social_group
+  - social_core
+  - social_event
+  - social_group
+  - social_topic
+  - text
+  - user
+package: Social
+core_incompatible: false

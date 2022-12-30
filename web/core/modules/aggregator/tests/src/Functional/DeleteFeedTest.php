@@ -6,6 +6,7 @@ namespace Drupal\Tests\aggregator\Functional;
  * Delete feed test.
  *
  * @group aggregator
+ * @group legacy
  */
 class DeleteFeedTest extends AggregatorTestBase {
 
@@ -14,7 +15,12 @@ class DeleteFeedTest extends AggregatorTestBase {
    *
    * @var array
    */
-  public static $modules = ['block'];
+  protected static $modules = ['block'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Deletes a feed and ensures that all of its services are deleted.
@@ -33,18 +39,23 @@ class DeleteFeedTest extends AggregatorTestBase {
 
     // Delete feed.
     $this->deleteFeed($feed1);
-    $this->assertText($feed2->label());
-    $block_storage = $this->container->get('entity.manager')->getStorage('block');
+    $this->assertSession()->pageTextContains($feed2->label());
+    $block_storage = $this->container->get('entity_type.manager')->getStorage('block');
     $this->assertNull($block_storage->load($block->id()), 'Block for the deleted feed was deleted.');
-    $this->assertEqual($block2->id(), $block_storage->load($block2->id())->id(), 'Block for not deleted feed still exists.');
+    $this->assertEquals($block2->id(), $block_storage->load($block2->id())->id(), 'Block for not deleted feed still exists.');
 
     // Check feed source.
     $this->drupalGet('aggregator/sources/' . $feed1->id());
-    $this->assertResponse(404, 'Deleted feed source does not exists.');
+    $this->assertSession()->statusCodeEquals(404);
 
     // Check database for feed.
-    $result = db_query("SELECT COUNT(*) FROM {aggregator_feed} WHERE title = :title AND url = :url", [':title' => $feed1->label(), ':url' => $feed1->getUrl()])->fetchField();
-    $this->assertFalse($result, 'Feed not found in database');
+    $result = \Drupal::entityQuery('aggregator_feed')
+      ->accessCheck(FALSE)
+      ->condition('title', $feed1->label())
+      ->condition('url', $feed1->getUrl())
+      ->count()
+      ->execute();
+    $this->assertEquals(0, $result, 'Feed not found in database');
   }
 
 }

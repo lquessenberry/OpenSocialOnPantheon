@@ -5,9 +5,7 @@ namespace Drupal\views\Entity;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Entity\ContentEntityTypeInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
-use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\views\Plugin\DependentWithRemovalPluginInterface;
 use Drupal\views\Views;
@@ -19,6 +17,14 @@ use Drupal\views\ViewEntityInterface;
  * @ConfigEntityType(
  *   id = "view",
  *   label = @Translation("View", context = "View entity type"),
+ *   label_collection = @Translation("Views", context = "View entity type"),
+ *   label_singular = @Translation("view", context = "View entity type"),
+ *   label_plural = @Translation("views", context = "View entity type"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count view",
+ *     plural = "@count views",
+ *     context = "View entity type",
+ *   ),
  *   admin_permission = "administer views",
  *   entity_keys = {
  *     "id" = "id",
@@ -33,7 +39,6 @@ use Drupal\views\ViewEntityInterface;
  *     "tag",
  *     "base_table",
  *     "base_field",
- *     "core",
  *     "display",
  *   }
  * )
@@ -56,6 +61,8 @@ class View extends ConfigEntityBase implements ViewEntityInterface {
 
   /**
    * The label of the view.
+   *
+   * @var string
    */
   protected $label;
 
@@ -75,13 +82,6 @@ class View extends ConfigEntityBase implements ViewEntityInterface {
    * @var string
    */
   protected $tag = '';
-
-  /**
-   * The core version the view was created for.
-   *
-   * @var string
-   */
-  protected $core = \Drupal::CORE_COMPATIBILITY;
 
   /**
    * Stores all display handlers of this view.
@@ -293,56 +293,15 @@ class View extends ConfigEntityBase implements ViewEntityInterface {
 
     $displays = $this->get('display');
 
-    $this->fixTableNames($displays);
-
     // Sort the displays.
     ksort($displays);
     $this->set('display', ['default' => $displays['default']] + $displays);
 
-    // @todo Check whether isSyncing is needed.
-    if (!$this->isSyncing()) {
+    // Calculating the cacheability metadata is only needed when the view is
+    // saved through the UI or API. It should not be done when we are syncing
+    // configuration or installing modules.
+    if (!$this->isSyncing() && !$this->hasTrustedData()) {
       $this->addCacheMetadata();
-    }
-  }
-
-  /**
-   * Fixes table names for revision metadata fields of revisionable entities.
-   *
-   * Views for revisionable entity types using revision metadata fields might
-   * be using the wrong table to retrieve the fields after system_update_8300
-   * has moved them correctly to the revision table. This method updates the
-   * views to use the correct tables.
-   *
-   * @param array &$displays
-   *   An array containing display handlers of a view.
-   *
-   * @deprecated in Drupal 8.3.0, will be removed in Drupal 9.0.0.
-   *
-   * @see https://www.drupal.org/node/2831499
-   */
-  private function fixTableNames(array &$displays) {
-    // Fix wrong table names for entity revision metadata fields.
-    foreach ($displays as $display => $display_data) {
-      if (isset($display_data['display_options']['fields'])) {
-        foreach ($display_data['display_options']['fields'] as $property_name => $property_data) {
-          if (isset($property_data['entity_type']) && isset($property_data['field']) && isset($property_data['table'])) {
-            $entity_type = $this->entityTypeManager()->getDefinition($property_data['entity_type']);
-            // We need to update the table name only for revisionable entity
-            // types, otherwise the view is already using the correct table.
-            if (($entity_type instanceof ContentEntityTypeInterface) && is_subclass_of($entity_type->getClass(), FieldableEntityInterface::class) && $entity_type->isRevisionable()) {
-              $revision_metadata_fields = $entity_type->getRevisionMetadataKeys();
-              // @see \Drupal\Core\Entity\Sql\SqlContentEntityStorage::initTableLayout()
-              $revision_table = $entity_type->getRevisionTable() ?: $entity_type->id() . '_revision';
-
-              // Check if this is a revision metadata field and if it uses the
-              // wrong table.
-              if (in_array($property_data['field'], $revision_metadata_fields) && $property_data['table'] != $revision_table) {
-                $displays[$display]['display_options']['fields'][$property_name]['table'] = $revision_table;
-              }
-            }
-          }
-        }
-      }
     }
   }
 
@@ -375,6 +334,8 @@ class View extends ConfigEntityBase implements ViewEntityInterface {
       // Always include at least the 'languages:' context as there will most
       // probably be translatable strings in the view output.
       $display['cache_metadata']['contexts'] = Cache::mergeContexts($display['cache_metadata']['contexts'], ['languages:' . LanguageInterface::TYPE_INTERFACE]);
+      sort($display['cache_metadata']['tags']);
+      sort($display['cache_metadata']['contexts']);
     }
     // Restore the previous active display.
     $executable->setDisplay($current_display);
@@ -419,11 +380,11 @@ class View extends ConfigEntityBase implements ViewEntityInterface {
         'default' => [
           'display_plugin' => 'default',
           'id' => 'default',
-          'display_title' => 'Master',
+          'display_title' => 'Default',
           'position' => 0,
           'display_options' => [],
         ],
-      ]
+      ],
     ];
   }
 

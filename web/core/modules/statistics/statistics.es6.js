@@ -12,4 +12,4 @@
       data: drupalSettings.statistics.data,
     });
   });
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

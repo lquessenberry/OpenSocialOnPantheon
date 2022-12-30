@@ -1,0 +1,420 @@
+<?php
+
+/**
+ * @file
+ * Contains simple_oauth.module.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Url;
+use Drupal\consumers\Entity\ConsumerInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\Component\Utility\UrlHelper;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+
+/**
+ * Implements hook_cron().
+ */
+function simple_oauth_cron() {
+  /** @var \Drupal\simple_oauth\ExpiredCollector $collector */
+  $collector = \Drupal::service('simple_oauth.expired_collector');
+  $config = \Drupal::config('simple_oauth.settings');
+  $logger = \Drupal::logger('simple_oauth');
+  $token_cron_batch_size = $config->get('token_cron_batch_size');
+  // Deleting one batch of expired tokens.
+  if (!empty($expired_tokens = $collector->collect($token_cron_batch_size))) {
+    $collector->deleteMultipleTokens($expired_tokens);
+    $logger->notice('Deleted @limit expired tokens in cron.', [
+      '@limit' => $token_cron_batch_size,
+    ]);
+  }
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function simple_oauth_entity_update(EntityInterface $entity) {
+  /** @var \Drupal\simple_oauth\ExpiredCollector $collector */
+  $collector = \Drupal::service('simple_oauth.expired_collector');
+  // Collect the affected tokens and expire them.
+  if ($entity instanceof AccountInterface) {
+    $collector->deleteMultipleTokens($collector->collectForAccount($entity));
+  }
+  if ($entity instanceof ConsumerInterface) {
+    $collector->deleteMultipleTokens($collector->collectForClient($entity));
+  }
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ */
+function simple_oauth_entity_base_field_info(EntityTypeInterface $entity_type) {
+  $fields = [];
+  if ($entity_type->id() == 'consumer') {
+    $fields['secret'] = BaseFieldDefinition::create('password')
+      ->setLabel(new TranslatableMarkup('Secret'))
+      ->setDescription(new TranslatableMarkup('The secret key of this client (hashed).'));
+
+    $fields['grant_types'] = BaseFieldDefinition::create('list_string')
+      ->setLabel(new TranslatableMarkup('Grant types'))
+      ->setDescription(new TranslatableMarkup('Enabled grant types.'))
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setRequired(TRUE)
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED)
+      ->setSetting('allowed_values_function', 'Drupal\simple_oauth\Plugin\Oauth2GrantManager::getAvailablePluginsAsOptions')
+      ->setDisplayOptions('view', [
+        'label' => 'above',
+        'type' => 'string',
+        'weight' => 1,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'options_buttons',
+        'weight' => 1,
+      ]);
+
+    $fields['confidential'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(new TranslatableMarkup('Is Confidential?'))
+      ->setDescription(new TranslatableMarkup('A boolean indicating whether the client is confidential or public.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'boolean',
+        'weight' => 4,
+      ])
+      ->setDisplayOptions('form', [
+        'weight' => 4,
+      ])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setDefaultValue(TRUE);
+
+    $fields['scopes'] = BaseFieldDefinition::create('oauth2_scope_reference')
+      ->setLabel(new TranslatableMarkup('Scopes'))
+      ->setDescription(new TranslatableMarkup('Here you can select scopes that would be the default scopes when authorizing.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'oauth2_scope_reference_label',
+        'weight' => 0,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'oauth2_scope_reference',
+        'weight' => 0,
+      ])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
+
+    // Uri does not allow custom URL scheme, that's why we use string.
+    $fields['redirect'] = BaseFieldDefinition::create('string')
+      ->setLabel(new TranslatableMarkup('Redirect URIs'))
+      ->setDescription(new TranslatableMarkup('The absolute URIs to validate against.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'weight' => 5,
+      ])
+      ->setDisplayOptions('form', [
+        'weight' => 5,
+      ])
+      ->setDisplayConfigurable('view', TRUE)
+      ->setTranslatable(TRUE)
+      ->setRequired(TRUE)
+      // todo: Cardinality should be set to: 10, while having the "Add another item" functionality.
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED)
+      // URIs are not length limited by RFC 2616, but we can only store 255
+      // characters in our entity DB schema.
+      ->setSetting('max_length', 255)
+      ->addConstraint('Oauth2RedirectUri');
+
+    $fields['access_token_expiration'] = BaseFieldDefinition::create('integer')
+      ->setLabel(new TranslatableMarkup('Access token expiration time'))
+      ->setDescription(new TranslatableMarkup('The number of seconds that the access token will be valid.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'weight' => 6,
+      ])
+      ->setDisplayOptions('form', [
+        'weight' => 6,
+      ])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setRequired(TRUE)
+      ->setSetting('unsigned', TRUE)
+      ->setDefaultValue(300);
+
+    $fields['refresh_token_expiration'] = BaseFieldDefinition::create('integer')
+      ->setLabel(new TranslatableMarkup('Refresh token expiration time'))
+      ->setDescription(new TranslatableMarkup('The number of seconds that the refresh token will be valid.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'weight' => 6,
+      ])
+      ->setDisplayOptions('form', [
+        'weight' => 6,
+      ])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setSetting('unsigned', TRUE)
+      ->setDefaultValue(1209600);
+
+    $fields['user_id'] = BaseFieldDefinition::create('entity_reference')
+      ->setLabel(new TranslatableMarkup('User'))
+      ->setDescription(new TranslatableMarkup('When no specific user is authenticated Drupal will use this user as the author of all the actions made.'))
+      ->setRevisionable(TRUE)
+      ->setSetting('target_type', 'user')
+      ->setSetting('handler', 'default')
+      ->setTranslatable(FALSE)
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'entity_reference_label',
+        'weight' => 1,
+      ])
+      ->setCardinality(1)
+      ->setDisplayOptions('form', [
+        'type' => 'entity_reference_autocomplete',
+        'weight' => 2,
+        'settings' => [
+          'match_operator' => 'CONTAINS',
+          'size' => '60',
+          'autocomplete_type' => 'tags',
+          'placeholder' => '',
+        ],
+      ]);
+
+    $fields['pkce'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(new TranslatableMarkup('Use PKCE?'))
+      ->setDescription(new TranslatableMarkup('A boolean indicating whether the client uses @pkce (e.g., a native client or SPA)'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'boolean',
+        'weight' => 2,
+      ])
+      ->setDisplayOptions('form', ['weight' => 2])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setDefaultValue(FALSE);
+
+    $fields['automatic_authorization'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(new TranslatableMarkup('Automatic authorization'))
+      ->setDescription(new TranslatableMarkup('This will cause the authorization form to be skipped.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'boolean',
+        'weight' => 0,
+      ])
+      ->setDisplayOptions('form', ['weight' => 0])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setDefaultValue(FALSE);
+
+    $fields['remember_approval'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(new TranslatableMarkup('Remember previous approval'))
+      ->setDescription(new TranslatableMarkup('When enabled, if previous authorization request with the same scopes got approved, authorization will be automatically accepted.'))
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'boolean',
+        'weight' => 1,
+      ])
+      ->setDisplayOptions('form', ['weight' => 1])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setDefaultValue(TRUE);
+  }
+  return $fields;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function simple_oauth_form_consumer_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
+  // Add a custom submit behavior.
+  $form['#entity_builders'][] = 'simple_oauth_form_consumer_form_submit';
+
+  // @todo: Implement vertical tabs when this fix lands in core: https://www.drupal.org/project/drupal/issues/1148950.
+  $form['authorization_code'] = [
+    '#type' => 'details',
+    '#title' => t('Authorization Code settings'),
+    '#open' => TRUE,
+    '#weight' => 2,
+    '#states' => [
+      'visible' => [
+        ':input[name="grant_types[authorization_code]"]' => [
+          'checked' => TRUE,
+        ],
+      ],
+    ],
+    'automatic_authorization' => $form['automatic_authorization'],
+    'remember_approval' => $form['remember_approval'],
+    'pkce' => $form['pkce'],
+  ];
+
+  // User is required when client credentials grant type is active.
+  $form['user_id']['widget'][0]['target_id']['#states'] = [
+    'required' => [
+      ':input[name="grant_types[client_credentials]"]' => [
+        'checked' => TRUE,
+      ],
+    ],
+  ];
+
+  $form['client_credentials'] = [
+    '#type' => 'details',
+    '#title' => t('Client Credentials settings'),
+    '#open' => TRUE,
+    '#weight' => 2,
+    '#states' => [
+      'visible' => [
+        ':input[name="grant_types[client_credentials]"]' => [
+          'checked' => TRUE,
+        ],
+      ],
+    ],
+    'user_id' => $form['user_id'],
+    'scopes' => $form['scopes'],
+  ];
+
+  // Refresh token expiration is required when client credentials
+  // grant type is active.
+  $form['refresh_token_expiration']['widget'][0]['value']['#states'] = [
+    'required' => [
+      ':input[name="grant_types[refresh_token]"]' => [
+        'checked' => TRUE,
+      ],
+    ],
+  ];
+
+  $form['refresh_token'] = [
+    '#type' => 'details',
+    '#title' => t('Refresh Token settings'),
+    '#open' => TRUE,
+    '#weight' => 3,
+    '#states' => [
+      'visible' => [
+        ':input[name="grant_types[refresh_token]"]' => [
+          'checked' => TRUE,
+        ],
+      ],
+    ],
+    'refresh_token_expiration' => $form['refresh_token_expiration'],
+  ];
+
+  unset(
+    $form['user_id'],
+    $form['scopes'],
+    $form['automatic_authorization'],
+    $form['remember_approval'],
+    $form['refresh_token_expiration'],
+    $form['pkce'],
+  );
+
+  $description = t(
+    'Use this field to create a hash of the secret key. This module will never store your consumer key, only a hash of it.'
+  );
+  $form['new_secret'] = [
+    '#type' => 'password',
+    '#title' => t('New Secret'),
+    '#description' => $description,
+  ];
+}
+
+/**
+ * Extra submit handler.
+ *
+ * @param array $form
+ *   The form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The state.
+ */
+function simple_oauth_form_consumer_form_submit($entity_type_id, ConsumerInterface $entity, array &$form, FormStateInterface $form_state) {
+  if ($entity_type_id !== 'consumer') {
+    return;
+  }
+  // If the secret was changed, then digest it before saving. If not, then
+  // leave it alone.
+  if ($new_secret = $form_state->getValue('new_secret')) {
+    $entity->get('secret')->value = $new_secret;
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function simple_oauth_form_user_register_form_alter(&$form, FormStateInterface $form_state) {
+  $form['actions']['submit']['#submit'][] = 'simple_oauth_user_register_form_submit';
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function simple_oauth_form_user_form_alter(&$form, FormStateInterface $form_state) {
+  // Only add submit handler when resetting password.
+  if ($form_state->get('user_pass_reset')) {
+    $form['actions']['submit']['#submit'][] = 'simple_oauth_user_form_submit';
+  }
+}
+
+/**
+ * Submit handler for redirecting the user back to the authorize endpoint.
+ */
+function simple_oauth_user_form_submit(array &$form, FormStateInterface $form_state) {
+  $user = $form_state->getFormObject()->getEntity();
+  $current_user = \Drupal::currentUser();
+
+  // Only when the user is editing his own account on password reset,
+  // we redirect the user if there is an active authorization in progress.
+  if ($current_user->id() === $user->id() && $form_state->get('user_pass_reset')) {
+    $temp_store = \Drupal::service('tempstore.shared');
+    $store = $temp_store->get('simple_oauth');
+    $key = 'authorize:user:' . $user->id();
+    $authorize_query = $store->get($key);
+
+    if ($authorize_query) {
+      $store->delete($key);
+      $url = Url::fromRoute('oauth2_token.authorize', [], [
+        'query' => $authorize_query,
+      ]);
+      $response = new RedirectResponse($url->toString());
+      $form_state->setResponse($response);
+    }
+  }
+}
+
+/**
+ * Submit handler for storing the authorize input.
+ */
+function simple_oauth_user_register_form_submit(array &$form, FormStateInterface $form_state) {
+  $request = \Drupal::request();
+  $query = $request->query;
+  if ($query->has('destination')) {
+    $options = UrlHelper::parse($query->get('destination'));
+    if ($options['path'] === Url::fromRoute('oauth2_token.authorize')->toString()) {
+      $user = $form_state->getFormObject()->getEntity();
+      $temp_store = \Drupal::service('tempstore.shared');
+      $store = $temp_store->get('simple_oauth');
+      $key = 'authorize:user:' . $user->id();
+      $store->set($key, $options['query']);
+    }
+  }
+}
+
+/**
+ * Implements hook_consumers_list_alter().
+ */
+function simple_oauth_consumers_list_alter(&$data, $context) {
+  if ($context['type'] === 'header') {
+    $data['redirect'] = t('Redirects');
+  }
+  elseif ($context['type'] === 'row') {
+    $entity = $context['entity'];
+    $data['redirect'] = [
+      'data' => ['#theme' => 'item_list', '#items' => []],
+    ];
+    foreach ($entity->get('redirect')->getValue() as $redirect) {
+      $data['redirect']['data']['#items'][] = $redirect['value'];
+    }
+  }
+}

@@ -102,6 +102,7 @@ class LabelHelper {
   public static function getAdministrativeAreaLabels() {
     return [
       AdministrativeAreaType::AREA => t('Area', [], ['context' => 'Address label']),
+      AdministrativeAreaType::CANTON => t('Canton', [], ['context' => 'Address label']),
       AdministrativeAreaType::COUNTY => t('County', [], ['context' => 'Address label']),
       AdministrativeAreaType::DEPARTMENT => t('Department', [], ['context' => 'Address label']),
       AdministrativeAreaType::DISTRICT => t('District', [], ['context' => 'Address label']),

@@ -12,21 +12,20 @@
 namespace Symfony\Component\HttpKernel\EventListener;
 
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Debug\Exception\FlattenException;
+use Symfony\Component\ErrorHandler\Exception\FlattenException;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
 use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
 
+@trigger_error(sprintf('The "%s" class is deprecated since Symfony 4.4, use "ErrorListener" instead.', ExceptionListener::class), \E_USER_DEPRECATED);
+
 /**
- * ExceptionListener.
- *
- * @author Fabien Potencier <fabien@symfony.com>
+ * @deprecated since Symfony 4.4, use ErrorListener instead
  */
 class ExceptionListener implements EventSubscriberInterface
 {
@@ -41,28 +40,36 @@ class ExceptionListener implements EventSubscriberInterface
         $this->debug = $debug;
     }
 
+    public function logKernelException(GetResponseForExceptionEvent $event)
+    {
+        $e = FlattenException::createFromThrowable($event->getException());
+
+        $this->logException($event->getException(), sprintf('Uncaught PHP Exception %s: "%s" at %s line %s', $e->getClass(), $e->getMessage(), $e->getFile(), $e->getLine()));
+    }
+
     public function onKernelException(GetResponseForExceptionEvent $event)
     {
+        if (null === $this->controller) {
+            return;
+        }
+
         $exception = $event->getException();
-        $request = $event->getRequest();
+        $request = $this->duplicateRequest($exception, $event->getRequest());
         $eventDispatcher = \func_num_args() > 2 ? func_get_arg(2) : null;
-
-        $this->logException($exception, sprintf('Uncaught PHP Exception %s: "%s" at %s line %s', \get_class($exception), $exception->getMessage(), $exception->getFile(), $exception->getLine()));
-
-        $request = $this->duplicateRequest($exception, $request);
 
         try {
             $response = $event->getKernel()->handle($request, HttpKernelInterface::SUB_REQUEST, false);
         } catch (\Exception $e) {
-            $this->logException($e, sprintf('Exception thrown when handling an exception (%s: %s at %s line %s)', \get_class($e), $e->getMessage(), $e->getFile(), $e->getLine()));
+            $f = FlattenException::createFromThrowable($e);
 
-            $wrapper = $e;
+            $this->logException($e, sprintf('Exception thrown when handling an exception (%s: %s at %s line %s)', $f->getClass(), $f->getMessage(), $e->getFile(), $e->getLine()));
 
-            while ($prev = $wrapper->getPrevious()) {
+            $prev = $e;
+            do {
                 if ($exception === $wrapper = $prev) {
                     throw $e;
                 }
-            }
+            } while ($prev = $wrapper->getPrevious());
 
             $prev = new \ReflectionProperty($wrapper instanceof \Exception ? \Exception::class : \Error::class, 'previous');
             $prev->setAccessible(true);
@@ -74,7 +81,7 @@ class ExceptionListener implements EventSubscriberInterface
         $event->setResponse($response);
 
         if ($this->debug && $eventDispatcher instanceof EventDispatcherInterface) {
-            $cspRemovalListener = function (FilterResponseEvent $event) use (&$cspRemovalListener, $eventDispatcher) {
+            $cspRemovalListener = function ($event) use (&$cspRemovalListener, $eventDispatcher) {
                 $event->getResponse()->headers->remove('Content-Security-Policy');
                 $eventDispatcher->removeListener(KernelEvents::RESPONSE, $cspRemovalListener);
             };
@@ -84,9 +91,12 @@ class ExceptionListener implements EventSubscriberInterface
 
     public static function getSubscribedEvents()
     {
-        return array(
-            KernelEvents::EXCEPTION => array('onKernelException', -128),
-        );
+        return [
+            KernelEvents::EXCEPTION => [
+                ['logKernelException', 0],
+                ['onKernelException', -128],
+            ],
+        ];
     }
 
     /**
@@ -99,9 +109,9 @@ class ExceptionListener implements EventSubscriberInterface
     {
         if (null !== $this->logger) {
             if (!$exception instanceof HttpExceptionInterface || $exception->getStatusCode() >= 500) {
-                $this->logger->critical($message, array('exception' => $exception));
+                $this->logger->critical($message, ['exception' => $exception]);
             } else {
-                $this->logger->error($message, array('exception' => $exception));
+                $this->logger->error($message, ['exception' => $exception]);
             }
         }
     }
@@ -109,18 +119,15 @@ class ExceptionListener implements EventSubscriberInterface
     /**
      * Clones the request for the exception.
      *
-     * @param \Exception $exception The thrown exception
-     * @param Request    $request   The original request
-     *
-     * @return Request $request The cloned request
+     * @return Request The cloned request
      */
     protected function duplicateRequest(\Exception $exception, Request $request)
     {
-        $attributes = array(
+        $attributes = [
             '_controller' => $this->controller,
-            'exception' => FlattenException::create($exception),
+            'exception' => FlattenException::createFromThrowable($exception),
             'logger' => $this->logger instanceof DebugLoggerInterface ? $this->logger : null,
-        );
+        ];
         $request = $request->duplicate(null, null, $attributes);
         $request->setMethod('GET');
 

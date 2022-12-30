@@ -3,18 +3,15 @@
 namespace Drupal\Tests\file\Functional\Rest;
 
 use Drupal\file\Entity\File;
-use Drupal\Tests\rest\Functional\BcTimestampNormalizerUnixTestTrait;
 use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
 use Drupal\user\Entity\User;
 
 abstract class FileResourceTestBase extends EntityResourceTestBase {
 
-  use BcTimestampNormalizerUnixTestTrait;
-
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['file', 'user'];
+  protected static $modules = ['file', 'user'];
 
   /**
    * {@inheritdoc}
@@ -30,11 +27,11 @@ abstract class FileResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected static $patchProtectedFieldNames = [
-    'uri',
-    'filemime',
-    'filesize',
-    'status',
-    'changed',
+    'uri' => NULL,
+    'filemime' => NULL,
+    'filesize' => NULL,
+    'status' => NULL,
+    'changed' => NULL,
   ];
 
   /**
@@ -63,18 +60,6 @@ abstract class FileResourceTestBase extends EntityResourceTestBase {
   }
 
   /**
-   * {@inheritdoc}
-   */
-  protected function grantPermissionsToTestedRole(array $permissions) {
-    // testPatch() and testDelete() test the 'bc_entity_resource_permissions' BC
-    // layer; also call makeCurrentUserFileOwner() then.
-    if ($permissions === ['restful patch entity:file'] || $permissions === ['restful delete entity:file']) {
-      $this->makeCurrentUserFileOwner();
-    }
-    parent::grantPermissionsToTestedRole($permissions);
-  }
-
-  /**
    * Makes the current user the file owner.
    */
   protected function makeCurrentUserFileOwner() {
@@ -95,7 +80,7 @@ abstract class FileResourceTestBase extends EntityResourceTestBase {
     $file->setFilename('drupal.txt');
     $file->setMimeType('text/plain');
     $file->setFileUri('public://drupal.txt');
-    $file->set('status', FILE_STATUS_PERMANENT);
+    $file->setPermanent();
     $file->save();
 
     file_put_contents($file->getFileUri(), 'Drupal');
@@ -109,10 +94,16 @@ abstract class FileResourceTestBase extends EntityResourceTestBase {
   protected function getExpectedNormalizedEntity() {
     return [
       'changed' => [
-        $this->formatExpectedTimestampItemValues($this->entity->getChangedTime()),
+        [
+          'value' => (new \DateTime())->setTimestamp($this->entity->getChangedTime())->setTimezone(new \DateTimeZone('UTC'))->format(\DateTime::RFC3339),
+          'format' => \DateTime::RFC3339,
+        ],
       ],
       'created' => [
-        $this->formatExpectedTimestampItemValues((int) $this->entity->getCreatedTime()),
+        [
+          'value' => (new \DateTime())->setTimestamp((int) $this->entity->getCreatedTime())->setTimezone(new \DateTimeZone('UTC'))->format(\DateTime::RFC3339),
+          'format' => \DateTime::RFC3339,
+        ],
       ],
       'fid' => [
         [
@@ -204,7 +195,12 @@ abstract class FileResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   public function testPost() {
-    // @todo https://www.drupal.org/node/1927648
+    // Drupal does not allow creating file entities independently. It allows you
+    // to create file entities that are referenced from another entity (e.g. an
+    // image for a node's image field).
+    // For that purpose, there is the "file_upload" REST resource plugin.
+    // @see \Drupal\file\FileAccessControlHandler::checkCreateAccess()
+    // @see \Drupal\file\Plugin\rest\resource\FileUploadResource
     $this->markTestSkipped();
   }
 
@@ -212,15 +208,11 @@ abstract class FileResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     if ($method === 'GET') {
       return "The 'access content' permission is required.";
     }
-    if ($method === 'PATCH') {
-      return 'You are not authorized to update this file entity.';
+    if ($method === 'PATCH' || $method === 'DELETE') {
+      return 'Only the file owner can update or delete the file entity.';
     }
     return parent::getExpectedUnauthorizedAccessMessage($method);
   }

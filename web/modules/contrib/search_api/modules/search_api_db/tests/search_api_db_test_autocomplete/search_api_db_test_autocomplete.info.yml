@@ -1,15 +1,13 @@
 name: 'Search API Database Autocomplete Test'
 type: module
 description: 'Support module for testing Autocomplete support of the "Database" backend'
-package: Search
+package: Testing
 dependencies:
   - search_api:search_api_test_views
   - search_api_autocomplete:search_api_autocomplete
-# core: 8.x
 hidden: true
 
-# Information added by Drupal.org packaging script on 2017-12-24
-version: '8.x-1.6'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-10-19
+version: '8.x-1.27'
 project: 'search_api'
-datestamp: 1514109797
+datestamp: 1666181444

@@ -1,0 +1,22 @@
+blockquote {
+  font-size: 1.1em;
+  position: relative;
+  padding-left: 1.5rem;
+  margin: 1rem;
+
+  @include mq($breakpointMedium) {
+    font-size: 1.2em;
+  }
+
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: var(--colorGinPrimary);
+    border-radius: 2px;
+  }
+}

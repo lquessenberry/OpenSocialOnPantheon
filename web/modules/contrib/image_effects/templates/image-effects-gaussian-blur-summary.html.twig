@@ -15,9 +15,9 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   - {{ 'Radius: '|t }}{{ data.radius }}{{ 'px'|t }}
   {% if data.sigma %}
     - {{ 'Sigma: '|t }}{{ data.sigma }}
   {% endif %}
-{% endspaceless %}
+{% endapply %}

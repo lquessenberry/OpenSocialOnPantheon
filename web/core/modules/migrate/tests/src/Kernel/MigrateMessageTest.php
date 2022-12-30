@@ -8,6 +8,7 @@ use Drupal\migrate\Event\MigrateEvents;
 use Drupal\migrate\Event\MigrateIdMapMessageEvent;
 use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate\MigrateMessageInterface;
+use Drupal\migrate\Plugin\migrate\id_map\Sql;
 
 /**
  * Tests whether idmap messages are sent to message interface when requested.
@@ -21,7 +22,7 @@ class MigrateMessageTest extends KernelTestBase implements MigrateMessageInterfa
    *
    * @var array
    */
-  public static $modules = ['migrate', 'system'];
+  protected static $modules = ['migrate', 'system'];
 
   /**
    * Migration to run.
@@ -40,7 +41,7 @@ class MigrateMessageTest extends KernelTestBase implements MigrateMessageInterfa
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installConfig(['system']);
@@ -80,7 +81,7 @@ class MigrateMessageTest extends KernelTestBase implements MigrateMessageInterfa
     // We don't ask for messages to be teed, so don't expect any.
     $executable = new MigrateExecutable($this->migration, $this);
     $executable->import();
-    $this->assertIdentical(count($this->messages), 0);
+    $this->assertCount(0, $this->messages);
   }
 
   /**
@@ -92,14 +93,41 @@ class MigrateMessageTest extends KernelTestBase implements MigrateMessageInterfa
       [$this, 'mapMessageRecorder']);
     $executable = new MigrateExecutable($this->migration, $this);
     $executable->import();
-    $this->assertIdentical(count($this->messages), 1);
-    $this->assertIdentical(reset($this->messages), "source_message: 'a message' is not an array");
+    $this->assertCount(1, $this->messages);
+    $id = $this->migration->getPluginId();
+    $this->assertSame("source_message: $id:message:concat: 'a message' is not an array", reset($this->messages));
+  }
+
+  /**
+   * Tests the return value of getMessages().
+   *
+   * This method returns an iterator of StdClass objects. Check that these
+   * objects have the expected keys.
+   */
+  public function testGetMessages() {
+    $id = $this->migration->getPluginId();
+    $expected_message = (object) [
+      'src_name' => 'source_message',
+      'dest_config_name' => NULL,
+      'msgid' => '1',
+      Sql::SOURCE_IDS_HASH => '170cde81762e22552d1b1578cf3804c89afefe9efbc7cc835185d7141060b032',
+      'level' => '1',
+      'message' => "$id:message:concat: 'a message' is not an array",
+    ];
+    $executable = new MigrateExecutable($this->migration, $this);
+    $executable->import();
+    $count = 0;
+    foreach ($this->migration->getIdMap()->getMessages() as $message) {
+      ++$count;
+      $this->assertEquals($expected_message, $message);
+    }
+    $this->assertEquals(1, $count);
   }
 
   /**
    * Reacts to map message event.
    *
-   * @param \Drupal\Migrate\Event\MigrateIdMapMessageEvent $event
+   * @param \Drupal\migrate\Event\MigrateIdMapMessageEvent $event
    *   The migration event.
    * @param string $name
    *   The event name.

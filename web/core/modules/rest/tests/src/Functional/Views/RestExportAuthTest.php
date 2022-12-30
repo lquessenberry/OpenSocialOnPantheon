@@ -15,13 +15,18 @@ class RestExportAuthTest extends ViewTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['rest', 'views_ui', 'basic_auth'];
+  protected static $modules = ['rest', 'views_ui', 'basic_auth'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp($import_test_views = TRUE, $modules = []): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->drupalLogin($this->drupalCreateUser(['administer views']));
   }
@@ -38,27 +43,28 @@ class RestExportAuthTest extends ViewTestBase {
     $view_rest_path = 'test-view/rest-export';
 
     // Create new view.
-    $this->drupalPostForm('admin/structure/views/add', [
+    $this->drupalGet('admin/structure/views/add');
+    $this->submitForm([
       'id' => $view_id,
       'label' => $view_label,
       'show[wizard_key]' => 'users',
       'rest_export[path]' => $view_rest_path,
       'rest_export[create]' => TRUE,
-    ], t('Save and edit'));
+    ], 'Save and edit');
 
     $this->drupalGet("admin/structure/views/nojs/display/$view_id/$view_display/auth");
     // The "basic_auth" will always be available since module,
     // providing it, has the same name.
-    $this->assertField('edit-auth-basic-auth', 'Basic auth is available for choosing.');
+    $this->assertSession()->fieldExists('edit-auth-basic-auth');
     // The "cookie" authentication provider defined by "user" module.
-    $this->assertField('edit-auth-cookie', 'Cookie-based auth can be chosen.');
+    $this->assertSession()->fieldExists('edit-auth-cookie');
     // Wrong behavior in "getAuthOptions()" method makes this option available
     // instead of "cookie".
     // @see \Drupal\rest\Plugin\views\display\RestExport::getAuthOptions()
-    $this->assertNoField('edit-auth-user', 'Wrong authentication option is unavailable.');
+    $this->assertSession()->fieldNotExists('edit-auth-user');
 
-    $this->drupalPostForm(NULL, ['auth[basic_auth]' => 1, 'auth[cookie]' => 1], 'Apply');
-    $this->drupalPostForm(NULL, [], 'Save');
+    $this->submitForm(['auth[basic_auth]' => 1, 'auth[cookie]' => 1], 'Apply');
+    $this->submitForm([], 'Save');
 
     $view = View::load($view_id);
     $this->assertEquals(['basic_auth', 'cookie'], $view->getDisplay('rest_export_1')['display_options']['auth']);

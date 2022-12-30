@@ -6,7 +6,7 @@ use Drupal\Core\Config\ConfigImporterException;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
-use Drupal\workflows\Entity\Workflow;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
 
 /**
  * Tests how Content Moderation handles workflow config changes.
@@ -15,10 +15,12 @@ use Drupal\workflows\Entity\Workflow;
  */
 class ContentModerationWorkflowConfigTest extends KernelTestBase {
 
+  use ContentModerationTestTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'content_moderation',
     'user',
@@ -50,20 +52,20 @@ class ContentModerationWorkflowConfigTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installSchema('node', 'node_access');
     $this->installEntitySchema('node');
     $this->installEntitySchema('user');
     $this->installEntitySchema('content_moderation_state');
-    $this->installConfig('content_moderation');
+    $this->installConfig(['system', 'content_moderation']);
 
     NodeType::create([
       'type' => 'example',
     ])->save();
 
-    $workflow = Workflow::load('editorial');
+    $workflow = $this->createEditorialWorkflow();
     $workflow->getTypePlugin()
       ->addState('test1', 'Test one')
       ->addState('test2', 'Test two')
@@ -76,7 +78,7 @@ class ContentModerationWorkflowConfigTest extends KernelTestBase {
   }
 
   /**
-   * Test deleting a state via config import.
+   * Tests deleting a state via config import.
    */
   public function testDeletingStateViaConfiguration() {
     $config_sync = \Drupal::service('config.storage.sync');
@@ -118,10 +120,10 @@ class ContentModerationWorkflowConfigTest extends KernelTestBase {
       $this->fail('ConfigImporterException not thrown, invalid import was not stopped due to deleted state.');
     }
     catch (ConfigImporterException $e) {
-      $this->assertEqual($e->getMessage(), 'There were errors validating the config synchronization.');
+      $this->assertEquals('There were errors validating the config synchronization.' . PHP_EOL . 'The moderation state Test two is being used, but is not in the source storage.', $e->getMessage());
       $error_log = $this->configImporter->getErrors();
       $expected = ['The moderation state Test two is being used, but is not in the source storage.'];
-      $this->assertEqual($expected, $error_log);
+      $this->assertEquals($expected, $error_log);
     }
 
     \Drupal::service('config.storage.sync')->delete('workflows.workflow.editorial');
@@ -132,13 +134,12 @@ class ContentModerationWorkflowConfigTest extends KernelTestBase {
       $this->fail('ConfigImporterException not thrown, invalid import was not stopped due to deleted workflow.');
     }
     catch (ConfigImporterException $e) {
-      $this->assertEqual($e->getMessage(), 'There were errors validating the config synchronization.');
+      $this->assertEquals('There were errors validating the config synchronization.' . PHP_EOL . 'The workflow Editorial is being used, and cannot be deleted.', $e->getMessage());
       $error_log = $this->configImporter->getErrors();
       $expected = [
-        'The moderation state Test two is being used, but is not in the source storage.',
         'The workflow Editorial is being used, and cannot be deleted.',
       ];
-      $this->assertEqual($expected, $error_log);
+      $this->assertEquals($expected, $error_log);
     }
   }
 

@@ -35,11 +35,11 @@ class AddressFormatRepository extends ExternalAddressFormatRepository {
   /**
    * {@inheritdoc}
    */
-  protected function processDefinition($countryCode, array $definition) {
+  protected function processDefinition($countryCode, array $definition): array {
     $definition = parent::processDefinition($countryCode, $definition);
     // Allow other modules to alter the address format.
     $event = new AddressFormatEvent($definition);
-    $this->eventDispatcher->dispatch(AddressEvents::ADDRESS_FORMAT, $event);
+    $this->eventDispatcher->dispatch($event, AddressEvents::ADDRESS_FORMAT);
     $definition = $event->getDefinition();
 
     return $definition;

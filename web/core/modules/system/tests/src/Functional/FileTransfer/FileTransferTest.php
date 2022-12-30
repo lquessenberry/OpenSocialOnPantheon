@@ -18,9 +18,19 @@ class FileTransferTest extends BrowserTestBase {
   protected $password = 'password';
   protected $port = '42';
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * @var \Drupal\Tests\system\Functional\FileTransfer\TestFileTransfer
+   */
+  protected $testConnection;
+
+  protected function setUp(): void {
     parent::setUp();
-    $this->testConnection = TestFileTransfer::factory(\Drupal::root(), ['hostname' => $this->hostname, 'username' => $this->username, 'password' => $this->password, 'port' => $this->port]);
+    $this->testConnection = TestFileTransfer::factory($this->root, ['hostname' => $this->hostname, 'username' => $this->username, 'password' => $this->password, 'port' => $this->port]);
   }
 
   public function _getFakeModuleFiles() {
@@ -28,11 +38,11 @@ class FileTransferTest extends BrowserTestBase {
       'fake.module',
       'fake.info.yml',
       'theme' => [
-        'fake.html.twig'
+        'fake.html.twig',
       ],
       'inc' => [
-        'fake.inc'
-      ]
+        'fake.inc',
+      ],
     ];
     return $files;
   }
@@ -82,7 +92,7 @@ class FileTransferTest extends BrowserTestBase {
 
     $gotit = TRUE;
     try {
-      $this->testConnection->copyDirectory($source, \Drupal::root() . '/' . PublicStream::basePath());
+      $this->testConnection->copyDirectory($source, $this->root . '/' . PublicStream::basePath());
     }
     catch (FileTransferException $e) {
       $gotit = FALSE;

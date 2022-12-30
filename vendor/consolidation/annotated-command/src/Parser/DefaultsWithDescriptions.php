@@ -3,7 +3,7 @@ namespace Consolidation\AnnotatedCommand\Parser;
 
 /**
  * An associative array that maps from key to default value;
- * each entry can also have a description.
+ * each entry can also have a description and suggested values.
  */
 class DefaultsWithDescriptions
 {
@@ -24,6 +24,11 @@ class DefaultsWithDescriptions
     protected $descriptions;
 
     /**
+     * @var array Associative array of key : suggestions mappings
+     */
+    protected $suggestedValues;
+
+    /**
      * @var mixed Default value that the default value of items in
      * the collection should take when not specified in the 'add' method.
      */
@@ -36,6 +41,7 @@ class DefaultsWithDescriptions
             return isset($value);
         });
         $this->descriptions = [];
+        $this->suggestedValues = [];
         $this->defaultDefault = $defaultDefault;
     }
 
@@ -85,6 +91,22 @@ class DefaultsWithDescriptions
     }
 
     /**
+     * Remove a matching entry, if it exists.
+     *
+     * @param string $key The key of the value to remove
+     * @return string The value of the removed item, or empty
+     */
+    public function removeMatching($key)
+    {
+        if (!array_key_exists($key, $this->values)) {
+            return '';
+        }
+        $result = $this->values[$key];
+        unset($this->values[$key]);
+        return $result;
+    }
+
+    /**
      * Get the description of one entry.
      *
      * @param string $key The key of the item.
@@ -99,13 +121,28 @@ class DefaultsWithDescriptions
     }
 
     /**
+     * Get the suggested values for an item.
+     *
+     * @param string $key The key of the item.
+     * @return array|\Closure
+     */
+    public function getSuggestedValues($key)
+    {
+        if (array_key_exists($key, $this->suggestedValues)) {
+            return $this->suggestedValues[$key];
+        }
+        return [];
+    }
+
+    /**
      * Add another argument to this command.
      *
      * @param string $key Name of the argument.
      * @param string $description Help text for the argument.
      * @param mixed $defaultValue The default value for the argument.
+     * @param array|\Closure $suggestions Possible values for the argument or option.
      */
-    public function add($key, $description = '', $defaultValue = null)
+    public function add($key, $description = '', $defaultValue = null, $suggestedValues = [])
     {
         if (!$this->exists($key) || isset($defaultValue)) {
             $this->values[$key] = isset($defaultValue) ? $defaultValue : $this->defaultDefault;
@@ -113,6 +150,10 @@ class DefaultsWithDescriptions
         unset($this->descriptions[$key]);
         if (!empty($description)) {
             $this->descriptions[$key] = $description;
+        }
+        unset($this->suggestedValues[$key]);
+        if (!empty($suggestedValues)) {
+            $this->suggestedValues[$key] = $suggestedValues;
         }
     }
 
@@ -149,6 +190,7 @@ class DefaultsWithDescriptions
     {
         unset($this->values[$key]);
         unset($this->descriptions[$key]);
+        unset($this->suggestedValues[$key]);
     }
 
     /**

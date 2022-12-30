@@ -14,7 +14,7 @@ abstract class GroupNodeAccessTestBase extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['group', 'node', 'gnode'];
+  public static $modules = ['group', 'options', 'entity', 'variationcache', 'node', 'gnode'];
 
   /**
    * The entity type manager service.
@@ -80,11 +80,11 @@ abstract class GroupNodeAccessTestBase extends EntityKernelTestBase {
 
     $this->entityTypeManager = $this->container->get('entity_type.manager');
 
-    $this->installConfig(['group', 'node']);
     $this->installEntitySchema('group');
     $this->installEntitySchema('group_type');
     $this->installEntitySchema('group_content');
     $this->installEntitySchema('group_content_type');
+    $this->installConfig(['group', 'node']);
 
     // Create the test user account.
     $this->account = $this->createUser(['uid' => 2]);

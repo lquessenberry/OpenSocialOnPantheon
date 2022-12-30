@@ -1,0 +1,132 @@
+[data-gin-accent] {
+  --colorGinPrimary: rgb(var(--colorGinPrimaryRGB));
+  --colorGinPrimaryLight: rgba(var(--colorGinPrimaryRGB), .15);
+  --colorGinAppBackground: rgb(var(--colorGinAppBackgroundRGB));
+  --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .1);
+  --colorGinPrimaryLightHover: rgba(var(--colorGinPrimaryRGB), .2);
+  --colorGinPrimaryLightActive: rgba(var(--colorGinPrimaryRGB), .3);
+  --colorGinPrimaryLightShadow: rgba(var(--colorGinPrimaryRGB), .45);
+}
+
+.gin--dark-mode[data-gin-accent],
+.gin--dark-mode [data-gin-accent] {
+  --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .08);
+  --colorGinAppBackgroundRGB: #{color.red($colorDarkAppBackground)}, #{color.green($colorDarkAppBackground)}, #{color.blue($colorDarkAppBackground)};
+}
+
+// Light mode
+$ginColors: (
+  blue: #0550e6,
+  light_blue: #3275e0,
+  dark_purple: #4300bf,
+  purple: #5b00ff,
+  teal: #10857f,
+  green: #00875f,
+  red: #d8002f,
+  orange: #ef5c20,
+  yellow: #c58900,
+  pink: #e23177,
+  neutral: #111111,
+  custom: #111111,
+);
+
+@each $name, $color in $ginColors {
+  [data-gin-accent=#{'' + $name}] {
+    $bgColor: mix(white, $color, 97%);
+    $lightColor: mix(white, $color, 80%);
+
+    --colorGinPrimaryRGB: #{color.red($color)}, #{color.green($color)}, #{color.blue($color)};
+    --colorGinPrimaryLightRGB: #{color.red($lightColor)}, #{color.green($lightColor)}, #{color.blue($lightColor)};
+    --colorGinPrimaryHover: #{mix(black, $color, 15%)};
+    --colorGinPrimaryActive: #{mix(black, $color, 25%)};
+    --colorGinAppBackgroundRGB: #{color.red($bgColor)}, #{color.green($bgColor)}, #{color.blue($bgColor)};
+    --colorGinTableHeader: #{mix(white, $color, 88%)};
+
+    @if $name == dark_purple or $name == purple {
+      --colorGinPrimaryLightHover: rgba(var(--colorGinPrimaryRGB), .2);
+      --colorGinPrimaryLightActive: rgba(var(--colorGinPrimaryRGB), .25);
+      --colorGinPrimaryLightShadow: rgba(var(--colorGinPrimaryRGB), .4);
+      --colorGinItemHover: rgba(var(--colorGinPrimaryRGB), .08);
+    }
+  }
+}
+
+// Dark mode
+$ginDarkmodeColors: (
+  blue: #90aeef,
+  claro_blue: #7391d8,
+  light_blue: #82bfe8,
+  dark_purple: #ad8fe8,
+  purple: #dba5ef,
+  teal: #00ead0,
+  green: #6bd4a1,
+  red: #ec8989,
+  orange: #f79576,
+  yellow: #f1c970,
+  pink: #e79da3,
+  neutral: #ffffff,
+  custom: #ffffff,
+);
+
+@each $name, $color in $ginDarkmodeColors {
+  $lightColor: mix(#2A2A2D, $color, 80%);
+
+  .gin--dark-mode[data-gin-accent=#{'' + $name}],
+  .gin--dark-mode [data-gin-accent=#{'' + $name}] {
+    --colorGinPrimaryRGB: #{color.red($color)}, #{color.green($color)}, #{color.blue($color)};
+    --colorGinPrimaryLightRGB: #{color.red($lightColor)}, #{color.green($lightColor)}, #{color.blue($lightColor)};
+    --colorGinPrimaryHover: #{mix(white, $color, 10%)};
+    --colorGinPrimaryActive: #{mix(white, $color, 15%)};
+    --colorGinTableHeader: #{mix(#2A2A2D, $color, 87.5%)};
+  }
+}
+
+// High contrast mode
+.gin--high-contrast-mode {
+  $highContrastMode: rgba(0, 0, 0, .8);
+
+  --colorGinAppBackground: #d9dbde;
+  --colorGinText: #{$highContrastMode};
+  --colorGinTextLight: #{$highContrastMode};
+  --colorGinIcons: #{$highContrastMode};
+  --colorGinFocus: #{$highContrastMode};
+  --colorGinBorder: #{$highContrastMode};
+  --colorGinSecondaryBorder: rgba(0, 0, 0, .6);
+  --colorGinLayerBorder: rgba(0, 0, 0, .6);
+  --colorGinLayer2Border: #{$highContrastMode};
+  --colorGinTableBorder: #{$highContrastMode};
+  --colorGinTabsBorder: #{$highContrastMode};
+  --colorGinFormElementBorder: #{$highContrastMode};
+
+  .gin--dark-mode & {
+    $highContrastMode: rgba(255, 255, 255, .8);
+
+    --colorGinAppBackground: #000;
+    --colorGinText: #{$highContrastMode};
+    --colorGinTextLight: #{$highContrastMode};
+    --colorGinIcons: #{$highContrastMode};
+    --colorGinFocus: #{$highContrastMode};
+    --colorGinBorder: #{$highContrastMode};
+    --colorGinSecondaryBorder: rgba(255, 255, 255, .6);
+    --colorGinLayerBorder: rgba(255, 255, 255, .6);
+    --colorGinLayer2Border: #{$highContrastMode};
+    --colorGinTableBorder: #{$highContrastMode};
+    --colorGinTabsBorder: #{$highContrastMode};
+    --colorGinFormElementBorder: #{$highContrastMode};
+  }
+}
+
+// Focus
+$ginFocusColors: (
+  green: rgba(8, 163, 144, .6), //= #08a390
+  claro: rgba(38, 167, 105, .6), //= #26a769
+  orange: rgba(236, 124, 87, .6), //= #ec7c57
+  dark: var(--colorGinFocusNeutralRGB),
+  accent: rgba(var(--colorGinPrimaryRGB), .6),
+);
+
+@each $name, $color in $ginFocusColors {
+  [data-gin-focus=#{'' + $name}] {
+    --colorGinFocus: #{$color};
+  }
+}

@@ -20,7 +20,7 @@ class DateTimeSchemaTest extends DateTimeHandlerTestBase {
   public static $testViews = ['test_argument_datetime', 'test_filter_datetime', 'test_sort_datetime'];
 
   /**
-   * Test argument plugin schema.
+   * Tests argument plugin schema.
    */
   public function testDateTimeSchema() {
     // Test argument schema.
@@ -37,7 +37,8 @@ class DateTimeSchemaTest extends DateTimeHandlerTestBase {
     $view = Views::getView('test_filter_datetime');
     $view->initHandlers();
     $filters = $view->displayHandlers->get('default')->getOption('filters');
-    $filters['field_date_value']['type'] = 'Date';
+    $filters['field_date_value']['type'] = 'date';
+    $view->displayHandlers->get('default')->overrideOption('filters', $filters);
     $view->save();
     $this->assertConfigSchemaByName('views.view.test_filter_datetime');
 

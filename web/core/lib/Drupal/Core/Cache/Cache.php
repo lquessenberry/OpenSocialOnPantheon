@@ -20,18 +20,15 @@ class Cache {
   /**
    * Merges arrays of cache contexts and removes duplicates.
    *
-   * @param array $a
-   *   Cache contexts array to merge.
-   * @param array $b
-   *   Cache contexts array to merge.
+   * @param string[] ...
+   *   Cache contexts arrays to merge.
    *
    * @return string[]
    *   The merged array of cache contexts.
    */
-  public static function mergeContexts(array $a = [], array $b = []) {
-    $cache_contexts = array_unique(array_merge($a, $b));
-    assert(\Drupal::service('cache_contexts_manager')->assertValidTokens($cache_contexts));
-    sort($cache_contexts);
+  public static function mergeContexts(array ...$cache_contexts) {
+    $cache_contexts = array_unique(array_merge(...$cache_contexts));
+    assert(\Drupal::service('cache_contexts_manager')->assertValidTokens($cache_contexts), sprintf('Failed to assert that "%s" are valid cache contexts.', implode(', ', $cache_contexts)));
     return $cache_contexts;
   }
 
@@ -46,19 +43,15 @@ class Cache {
    * allows items to be invalidated based on all tags attached to the content
    * they're constituted from.
    *
-   * @param array $a
-   *   Cache tags array to merge.
-   * @param array $b
-   *   Cache tags array to merge.
+   * @param string[] ...
+   *   Cache tags arrays to merge.
    *
    * @return string[]
    *   The merged array of cache tags.
    */
-  public static function mergeTags(array $a = [], array $b = []) {
-    assert(Inspector::assertAllStrings($a) && Inspector::assertAllStrings($b), 'Cache tags must be valid strings');
-
-    $cache_tags = array_unique(array_merge($a, $b));
-    sort($cache_tags);
+  public static function mergeTags(array ...$cache_tags) {
+    $cache_tags = array_unique(array_merge(...$cache_tags));
+    assert(Inspector::assertAllStrings($cache_tags), 'Cache tags must be valid strings');
     return $cache_tags;
   }
 
@@ -67,49 +60,21 @@ class Cache {
    *
    * Ensures infinite max-age (Cache::PERMANENT) is taken into account.
    *
-   * @param int $a
-   *   Max age value to merge.
-   * @param int $b
-   *   Max age value to merge.
+   * @param int ...
+   *   Max age values to merge.
    *
    * @return int
    *   The minimum max-age value.
    */
-  public static function mergeMaxAges($a = Cache::PERMANENT, $b = Cache::PERMANENT) {
-    // If one of the values is Cache::PERMANENT, return the other value.
-    if ($a === Cache::PERMANENT) {
-      return $b;
-    }
-    if ($b === Cache::PERMANENT) {
-      return $a;
-    }
+  public static function mergeMaxAges(...$max_ages) {
+    // Remove Cache::PERMANENT values to return the correct minimum value.
+    $max_ages = array_filter($max_ages, function ($max_age) {
+      return $max_age !== Cache::PERMANENT;
+    });
 
-    // If none or the values are Cache::PERMANENT, return the minimum value.
-    return min($a, $b);
-  }
-
-  /**
-   * Validates an array of cache tags.
-   *
-   * Can be called before using cache tags in operations, to ensure validity.
-   *
-   * @param string[] $tags
-   *   An array of cache tags.
-   *
-   * @deprecated
-   *   Use assert(Inspector::assertAllStrings($tags));
-   *
-   * @throws \LogicException
-   */
-  public static function validateTags(array $tags) {
-    if (empty($tags)) {
-      return;
-    }
-    foreach ($tags as $value) {
-      if (!is_string($value)) {
-        throw new \LogicException('Cache tags must be strings, ' . gettype($value) . ' given.');
-      }
-    }
+    // If there are no max ages left return Cache::PERMANENT, otherwise return
+    // the minimum value.
+    return empty($max_ages) ? Cache::PERMANENT : min($max_ages);
   }
 
   /**

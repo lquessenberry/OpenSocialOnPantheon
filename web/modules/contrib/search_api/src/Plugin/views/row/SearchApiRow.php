@@ -2,6 +2,7 @@
 
 namespace Drupal\search_api\Plugin\views\row;
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\search_api\LoggerTrait;
@@ -108,14 +109,13 @@ class SearchApiRow extends RowPluginBase {
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
 
-    /** @var \Drupal\search_api\Datasource\DatasourceInterface $datasource */
     foreach ($this->index->getDatasources() as $datasource_id => $datasource) {
       $datasource_label = $datasource->label();
       $bundles = $datasource->getBundles();
       if (!$datasource->getViewModes()) {
         $form['view_modes'][$datasource_id] = [
           '#type' => 'item',
-          '#title' => $this->t('Default View mode for datasource %name', ['%name' => $datasource_label]),
+          '#title' => $this->t('View mode for datasource %name', ['%name' => $datasource_label]),
           '#description' => $this->t("This datasource doesn't have any view modes available. It is therefore not possible to display results of this datasource using this row plugin."),
         ];
         continue;
@@ -150,10 +150,17 @@ class SearchApiRow extends RowPluginBase {
    */
   public function preRender($result) {
     // Load all result objects at once, before rendering.
+    // Set $entity->view property to be accessible in preprocess functions.
     $items_to_load = [];
     foreach ($result as $i => $row) {
       if (empty($row->_object)) {
         $items_to_load[$i] = $row->search_api_id;
+      }
+      else {
+        $entity = $row->_object->getValue();
+        if ($entity instanceof EntityInterface && !isset($entity->view)) {
+          $entity->view = $this->view;
+        }
       }
     }
 
@@ -162,6 +169,11 @@ class SearchApiRow extends RowPluginBase {
       if (isset($items[$item_id])) {
         $result[$i]->_object = $items[$item_id];
         $result[$i]->_item->setOriginalObject($items[$item_id]);
+
+        $entity = $items[$item_id]->getValue();
+        if ($entity instanceof EntityInterface && !isset($entity->view)) {
+          $entity->view = $this->view;
+        }
       }
     }
   }
@@ -191,14 +203,18 @@ class SearchApiRow extends RowPluginBase {
     }
     // Always use the default view mode if it was not set explicitly in the
     // options.
-    $view_mode = 'default';
     $bundle = $this->index->getDatasource($datasource_id)->getItemBundle($row->_object);
-    if (isset($this->options['view_modes'][$datasource_id][$bundle])) {
-      $view_mode = $this->options['view_modes'][$datasource_id][$bundle];
-    }
+    $view_mode = $this->options['view_modes'][$datasource_id][$bundle] ?? 'default';
 
     try {
-      return $this->index->getDatasource($datasource_id)->viewItem($row->_object, $view_mode);
+      $build = $this->index->getDatasource($datasource_id)
+        ->viewItem($row->_object, $view_mode);
+      // Add the excerpt to the render array to allow adding it to view modes.
+      if (isset($row->search_api_excerpt)) {
+        $build['#search_api_excerpt'] = $row->search_api_excerpt;
+      }
+
+      return $build;
     }
     catch (SearchApiException $e) {
       $this->logException($e);

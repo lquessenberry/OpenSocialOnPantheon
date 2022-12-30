@@ -15,6 +15,8 @@ use Drupal\Core\Url;
 use Drupal\file\Entity\File;
 use Symfony\Component\HttpFoundation\Request;
 
+// cspell:ignore filefield
+
 /**
  * Provides an AJAX/progress aware widget for uploading and saving a file.
  *
@@ -26,7 +28,7 @@ class ManagedFile extends FormElement {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#input' => TRUE,
       '#process' => [
@@ -96,6 +98,10 @@ class ManagedFile extends FormElement {
           foreach ($input['fids'] as $fid) {
             if ($file = File::load($fid)) {
               $fids[] = $file->id();
+              if (!$file->access('download')) {
+                $force_default = TRUE;
+                break;
+              }
               // Temporary files that belong to other users should never be
               // allowed.
               if ($file->isTemporary()) {
@@ -110,7 +116,8 @@ class ManagedFile extends FormElement {
                 // token added by $this->processManagedFile().
                 elseif (\Drupal::currentUser()->isAnonymous()) {
                   $token = NestedArray::getValue($form_state->getUserInput(), array_merge($element['#parents'], ['file_' . $file->id(), 'fid_token']));
-                  if ($token !== Crypt::hmacBase64('file-' . $file->id(), \Drupal::service('private_key')->get() . Settings::getHashSalt())) {
+                  $file_hmac = Crypt::hmacBase64('file-' . $file->id(), \Drupal::service('private_key')->get() . Settings::getHashSalt());
+                  if ($token === NULL || !hash_equals($file_hmac, $token)) {
                     $force_default = TRUE;
                     break;
                   }
@@ -129,11 +136,11 @@ class ManagedFile extends FormElement {
     // default value.
     if ($input === FALSE || $force_default) {
       if ($element['#extended']) {
-        $default_fids = isset($element['#default_value']['fids']) ? $element['#default_value']['fids'] : [];
-        $return = isset($element['#default_value']) ? $element['#default_value'] : ['fids' => []];
+        $default_fids = $element['#default_value']['fids'] ?? [];
+        $return = $element['#default_value'] ?? ['fids' => []];
       }
       else {
-        $default_fids = isset($element['#default_value']) ? $element['#default_value'] : [];
+        $default_fids = $element['#default_value'] ?? [];
         $return = ['fids' => []];
       }
 
@@ -213,18 +220,18 @@ class ManagedFile extends FormElement {
     // This is used sometimes so let's implode it just once.
     $parents_prefix = implode('_', $element['#parents']);
 
-    $fids = isset($element['#value']['fids']) ? $element['#value']['fids'] : [];
+    $fids = $element['#value']['fids'] ?? [];
 
     // Set some default element properties.
     $element['#progress_indicator'] = empty($element['#progress_indicator']) ? 'none' : $element['#progress_indicator'];
-    $element['#files'] = !empty($fids) ? File::loadMultiple($fids) : FALSE;
+    $element['#files'] = !empty($fids) ? File::loadMultiple($fids) : [];
     $element['#tree'] = TRUE;
 
     // Generate a unique wrapper HTML ID.
     $ajax_wrapper_id = Html::getUniqueId('ajax-wrapper');
 
     $ajax_settings = [
-      'callback' => [get_called_class(), 'uploadAjaxCallback'],
+      'callback' => [static::class, 'uploadAjaxCallback'],
       'options' => [
         'query' => [
           'element_parents' => implode('/', $element['#array_parents']),
@@ -286,27 +293,33 @@ class ManagedFile extends FormElement {
           '#weight' => -20,
         ];
       }
-      elseif ($implementation == 'apc') {
-        $element['APC_UPLOAD_PROGRESS'] = [
-          '#type' => 'hidden',
-          '#value' => $upload_progress_key,
-          '#attributes' => ['class' => ['file-progress']],
-          // Uploadprogress extension requires this field to be at the top of
-          // the form.
-          '#weight' => -20,
-        ];
-      }
 
       // Add the upload progress callback.
       $element['upload_button']['#ajax']['progress']['url'] = Url::fromRoute('file.ajax_progress', ['key' => $upload_progress_key]);
+
+      // Set a custom submit event so we can modify the upload progress
+      // identifier element before the form gets submitted.
+      $element['upload_button']['#ajax']['event'] = 'fileUpload';
     }
+
+    // Use a manually generated ID for the file upload field so the desired
+    // field label can be associated with it below. Use the same method for
+    // setting the ID that the form API autogenerator does.
+    // @see \Drupal\Core\Form\FormBuilder::doBuildForm()
+    $id = Html::getUniqueId('edit-' . implode('-', array_merge($element['#parents'], ['upload'])));
 
     // The file upload field itself.
     $element['upload'] = [
       '#name' => 'files[' . $parents_prefix . ']',
       '#type' => 'file',
+      // This #title will not actually be used as the upload field's HTML label,
+      // since the theme function for upload fields never passes the element
+      // through theme('form_element'). Instead the parent element's #title is
+      // used as the label (see below). That is usually a more meaningful label
+      // anyway.
       '#title' => t('Choose a file'),
       '#title_display' => 'invisible',
+      '#id' => $id,
       '#size' => $element['#size'],
       '#multiple' => $element['#multiple'],
       '#theme_wrappers' => [],
@@ -316,6 +329,10 @@ class ManagedFile extends FormElement {
     if (!empty($element['#accept'])) {
       $element['upload']['#attributes'] = ['accept' => $element['#accept']];
     }
+
+    // Indicate that $element['#title'] should be used as the HTML label for the
+    // file upload field.
+    $element['#label_for'] = $element['upload']['#id'];
 
     if (!empty($fids) && $element['#files']) {
       foreach ($element['#files'] as $delta => $file) {
@@ -349,12 +366,8 @@ class ManagedFile extends FormElement {
     // Add the extension list to the page as JavaScript settings.
     if (isset($element['#upload_validators']['file_validate_extensions'][0])) {
       $extension_list = implode(',', array_filter(explode(' ', $element['#upload_validators']['file_validate_extensions'][0])));
-      $element['upload']['#attached']['drupalSettings']['file']['elements']['#' . $element['#id']] = $extension_list;
+      $element['upload']['#attached']['drupalSettings']['file']['elements']['#' . $id] = $extension_list;
     }
-
-    // Let #id point to the file element, so the field label's 'for' corresponds
-    // with it.
-    $element['#id'] = &$element['upload']['#id'];
 
     // Prefix and suffix used for Ajax replacement.
     $element['#prefix'] = '<div id="' . $ajax_wrapper_id . '">';

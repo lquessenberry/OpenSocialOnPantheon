@@ -2,54 +2,31 @@
 
 namespace Drupal\layout_builder\Plugin\SectionStorage;
 
+use Drupal\Core\Cache\CacheableDependencyInterface;
+use Drupal\Core\Plugin\Context\Context;
+use Drupal\Core\Plugin\Context\ContextDefinition;
+use Drupal\Core\Plugin\ContextAwarePluginTrait;
 use Drupal\Core\Plugin\PluginBase;
 use Drupal\layout_builder\Routing\LayoutBuilderRoutesTrait;
 use Drupal\layout_builder\Section;
-use Drupal\layout_builder\SectionListInterface;
 use Drupal\layout_builder\SectionStorageInterface;
+use Drupal\layout_builder\TempStoreIdentifierInterface;
 
 /**
  * Provides a base class for Section Storage types.
- *
- * @internal
- *   Layout Builder is currently experimental and should only be leveraged by
- *   experimental modules and development releases of contributed modules.
- *   See https://www.drupal.org/core/experimental for more information.
  */
-abstract class SectionStorageBase extends PluginBase implements SectionStorageInterface {
+abstract class SectionStorageBase extends PluginBase implements SectionStorageInterface, TempStoreIdentifierInterface, CacheableDependencyInterface {
 
+  use ContextAwarePluginTrait;
   use LayoutBuilderRoutesTrait;
-
-  /**
-   * The section storage instance.
-   *
-   * @var \Drupal\layout_builder\SectionListInterface|null
-   */
-  protected $sectionList;
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setSectionList(SectionListInterface $section_list) {
-    $this->sectionList = $section_list;
-    return $this;
-  }
 
   /**
    * Gets the section list.
    *
    * @return \Drupal\layout_builder\SectionListInterface
    *   The section list.
-   *
-   * @throws \RuntimeException
-   *   Thrown if ::setSectionList() is not called first.
    */
-  protected function getSectionList() {
-    if (!$this->sectionList) {
-      throw new \RuntimeException(sprintf('%s::setSectionList() must be called first', static::class));
-    }
-    return $this->sectionList;
-  }
+  abstract protected function getSectionList();
 
   /**
    * {@inheritdoc}
@@ -61,6 +38,7 @@ abstract class SectionStorageBase extends PluginBase implements SectionStorageIn
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function count() {
     return $this->getSectionList()->count();
   }
@@ -101,6 +79,37 @@ abstract class SectionStorageBase extends PluginBase implements SectionStorageIn
   public function removeSection($delta) {
     $this->getSectionList()->removeSection($delta);
     return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function removeAllSections($set_blank = FALSE) {
+    $this->getSectionList()->removeAllSections($set_blank);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getContextsDuringPreview() {
+    $contexts = $this->getContexts();
+
+    // view_mode is a required context, but SectionStorage plugins are not
+    // required to return it (for example, the layout_library plugin provided
+    // in the Layout Library module. In these instances, explicitly create a
+    // view_mode context with the value "default".
+    if (!isset($contexts['view_mode']) || $contexts['view_mode']->validate()->count() || !$contexts['view_mode']->getContextValue()) {
+      $contexts['view_mode'] = new Context(new ContextDefinition('string'), 'default');
+    }
+    return $contexts;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getTempstoreKey() {
+    return $this->getStorageId();
   }
 
 }

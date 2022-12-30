@@ -30,21 +30,12 @@ class BackendChain implements CacheBackendInterface, CacheTagsInvalidatorInterfa
   protected $backends = [];
 
   /**
-   * Constructs a DatabaseBackend object.
-   *
-   * @param string $bin
-   *   The cache bin for which the object is created.
-   */
-  public function __construct($bin) {
-  }
-
-  /**
    * Appends a cache backend to the cache chain.
    *
    * @param CacheBackendInterface $backend
    *   The cache backend to be appended to the cache chain.
    *
-   * @return \Drupal\Core\Cache\BackendChain
+   * @return $this
    *   The called object.
    */
   public function appendBackend(CacheBackendInterface $backend) {
@@ -59,7 +50,7 @@ class BackendChain implements CacheBackendInterface, CacheTagsInvalidatorInterfa
    * @param CacheBackendInterface $backend
    *   The backend to be prepended to the cache chain.
    *
-   * @return \Drupal\Core\Cache\BackendChain
+   * @return $this
    *   The called object.
    */
   public function prependBackend(CacheBackendInterface $backend) {

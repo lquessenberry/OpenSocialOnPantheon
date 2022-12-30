@@ -3,7 +3,7 @@
 namespace Drupal\bootstrap\Plugin;
 
 use Drupal\bootstrap\Theme;
-use Drupal\Component\Utility\SortArray;
+use Drupal\bootstrap\Utility\SortArray;
 
 /**
  * Manages discovery and instantiation of Bootstrap theme settings.
@@ -11,6 +11,19 @@ use Drupal\Component\Utility\SortArray;
  * @ingroup plugins_setting
  */
 class SettingManager extends PluginManager {
+
+  /**
+   * Provides the order of top-level groups.
+   *
+   * @var string[]
+   */
+  protected static $groupOrder = [
+    'general',
+    'components',
+    'javascript',
+    'cdn',
+    'advanced',
+  ];
 
   /**
    * Constructs a new \Drupal\bootstrap\Plugin\SettingManager object.
@@ -26,43 +39,70 @@ class SettingManager extends PluginManager {
   /**
    * {@inheritdoc}
    */
-  public function getDefinitions($sorted = TRUE) {
-    $definitions = parent::getDefinitions(FALSE);
-    if ($sorted) {
-      $groups = [];
-      foreach ($definitions as $plugin_id => $definition) {
-        $key = !empty($definition['groups']) ? implode(':', array_keys($definition['groups'])) : '_default';
-        $groups[$key][$plugin_id] = $definition;
-      }
-      ksort($groups);
-      $definitions = [];
-      foreach ($groups as $settings) {
-        uasort($settings, [$this, 'sort']);
-        $definitions = array_merge($definitions, $settings);
-
-      }
-    }
-    return $definitions;
+  protected function sortDefinitions(array &$definitions) {
+    uasort($definitions, [$this, 'sort']);
   }
 
   /**
-   * Sorts a structured array by either a set 'weight' property or by the ID.
+   * Sorts the setting plugin definitions.
+   *
+   * Sorts setting plugin definitions in the following order:
+   * - First by top level group.
+   * - Then by sub-groups.
+   * - Then by weight.
+   * - Then by identifier.
    *
    * @param array $a
-   *   First item for comparison.
+   *   First plugin definition for comparison.
    * @param array $b
-   *   Second item for comparison.
+   *   Second plugin definition for comparison.
    *
    * @return int
-   *   The comparison result for uasort().
+   *   The comparison result.
    */
   public static function sort(array $a, array $b) {
-    if (isset($a['weight']) || isset($b['weight'])) {
-      return SortArray::sortByWeightElement($a, $b);
+    $aIndex = static::getTopLevelGroupIndex($a);
+    $bIndex = static::getTopLevelGroupIndex($b);
+
+    // Top level group isn't the same, sort by index.
+    if ($aIndex !== $bIndex) {
+      return $aIndex - $bIndex;
     }
-    else {
-      return SortArray::sortByKeyString($a, $b, 'id');
+
+    // Next sort by all groups (sub-groups).
+    $result = SortArray::sortByKeyString($a, $b, 'groups');
+
+    // Groups are the same.
+    if ($result === 0) {
+      // Sort by weight.
+      $result = SortArray::sortByWeightElement($a, $b);
+
+      // Weights are the same.
+      if ($result === 0) {
+        // Sort by plugin identifier.
+        $result = SortArray::sortByKeyString($a, $b, 'id');
+      }
     }
+
+    return $result;
+  }
+
+  /**
+   * Retrieves the index of the top level group.
+   *
+   * @param array $definition
+   *   A plugin definition.
+   *
+   * @return int
+   *   The array index of the top level group.
+   */
+  public static function getTopLevelGroupIndex(array $definition) {
+    $groups = !empty($definition['groups']) ? array_keys($definition['groups']) : [];
+    $index = array_search(reset($groups), static::$groupOrder);
+    if ($index === FALSE) {
+      $index = -1;
+    }
+    return $index;
   }
 
 }

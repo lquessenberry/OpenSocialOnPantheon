@@ -2,43 +2,29 @@
 
 namespace Drupal\FunctionalJavascriptTests\Ajax;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Tests AJAX responses.
  *
  * @group Ajax
  */
-class AjaxTest extends JavascriptTestBase {
+class AjaxTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['ajax_test'];
+  protected static $modules = ['ajax_test'];
 
   /**
-   * Wraps HTML with an AJAX target element.
-   *
-   * This reproduces recognizable parts of the wrapping markup from
-   * \Drupal\ajax_test\Controller\AjaxTestController::insertLinks and is not
-   * supposed to return valid HTML.
-   *
-   * @param string $html
-   *   The HTML to wrap.
-   *
-   * @return string
-   *   The HTML wrapped in the an AJAX target element.
-   *
-   * @see \Drupal\ajax_test\Controller\AjaxTestController::insertLinks
+   * {@inheritdoc}
    */
-  protected function wrapAjaxTarget($html) {
-    return 'data-drupal-ajax-target="">' . $html . '</';
-  }
+  protected $defaultTheme = 'stark';
 
   public function testAjaxWithAdminRoute() {
-    \Drupal::service('theme_installer')->install(['stable', 'seven']);
+    \Drupal::service('theme_installer')->install(['stable', 'claro']);
     $theme_config = \Drupal::configFactory()->getEditable('system.theme');
-    $theme_config->set('admin', 'seven');
+    $theme_config->set('admin', 'claro');
     $theme_config->set('default', 'stable');
     $theme_config->save();
 
@@ -49,7 +35,7 @@ class AjaxTest extends JavascriptTestBase {
     // admin theme.
     $this->drupalGet('admin/ajax-test/theme');
     $assert = $this->assertSession();
-    $assert->pageTextContains('Current theme: seven');
+    $assert->pageTextContains('Current theme: claro');
 
     // Now click the modal, which should also use the admin theme.
     $this->drupalGet('ajax-test/dialog');
@@ -58,11 +44,11 @@ class AjaxTest extends JavascriptTestBase {
     $assert->assertWaitOnAjaxRequest();
 
     $assert->pageTextContains('Current theme: stable');
-    $assert->pageTextNotContains('Current theme: seven');
+    $assert->pageTextNotContains('Current theme: claro');
   }
 
   /**
-   * Test that AJAX loaded libraries are not retained between requests.
+   * Tests that AJAX loaded libraries are not retained between requests.
    *
    * @see https://www.drupal.org/node/2647916
    */
@@ -73,11 +59,11 @@ class AjaxTest extends JavascriptTestBase {
 
     // Insert a fake library into the already loaded library settings.
     $fake_library = 'fakeLibrary/fakeLibrary';
-    $session->evaluateScript("drupalSettings.ajaxPageState.libraries = drupalSettings.ajaxPageState.libraries  ',$fake_library';");
+    $session->evaluateScript("drupalSettings.ajaxPageState.libraries = drupalSettings.ajaxPageState.libraries + ',$fake_library';");
 
     $libraries = $session->evaluateScript('drupalSettings.ajaxPageState.libraries');
     // Test that the fake library is set.
-    $this->assertContains($fake_library, $libraries);
+    $this->assertStringContainsString($fake_library, $libraries);
 
     // Click on the AJAX link.
     $this->clickLink('Link 8 (ajax)');
@@ -85,45 +71,20 @@ class AjaxTest extends JavascriptTestBase {
 
     // Test that the fake library is still set after the AJAX call.
     $libraries = $session->evaluateScript('drupalSettings.ajaxPageState.libraries');
-    $this->assertContains($fake_library, $libraries);
+    $this->assertStringContainsString($fake_library, $libraries);
 
     // Reload the page, this should reset the loaded libraries and remove the
     // fake library.
     $this->drupalGet('ajax-test/dialog');
     $libraries = $session->evaluateScript('drupalSettings.ajaxPageState.libraries');
-    $this->assertNotContains($fake_library, $libraries);
+    $this->assertStringNotContainsString($fake_library, $libraries);
 
     // Click on the AJAX link again, and the libraries should still not contain
     // the fake library.
     $this->clickLink('Link 8 (ajax)');
     $assert->assertWaitOnAjaxRequest();
     $libraries = $session->evaluateScript('drupalSettings.ajaxPageState.libraries');
-    $this->assertNotContains($fake_library, $libraries);
-  }
-
-/**
-   * Tests that various AJAX responses with DOM elements are correctly inserted.
-   *
-   * After inserting DOM elements, Drupal JavaScript behaviors should be
-   * reattached and all top-level elements of type Node.ELEMENT_NODE need to be
-   * part of the context.
-   *
-   * @dataProvider providerTestInsert
-   */
-  public function testInsertBlock($render_type, $expected) {
-    $assert = $this->assertSession();
-
-    $this->drupalGet('ajax-test/insert-block-wrapper');
-    $this->clickLink("Link html $render_type");
-    $assert->assertWaitOnAjaxRequest();
-    // Extra span added by a second prepend command on the ajax requests.
-    $assert->responseContains($this->wrapAjaxTarget($expected));
-
-    $this->drupalGet('ajax-test/insert-block-wrapper');
-    $this->clickLink("Link replaceWith $render_type");
-    $assert->assertWaitOnAjaxRequest();
-    $assert->responseContains($expected);
-    $assert->responseNotContains($this->wrapAjaxTarget($expected));
+    $this->assertStringNotContainsString($fake_library, $libraries);
   }
 
   /**
@@ -132,103 +93,117 @@ class AjaxTest extends JavascriptTestBase {
    * After inserting DOM elements, Drupal JavaScript behaviors should be
    * reattached and all top-level elements of type Node.ELEMENT_NODE need to be
    * part of the context.
-   *
-   * @dataProvider providerTestInsert
    */
-  public function testInsertInline($render_type, $expected) {
-    $assert = $this->assertSession();
+  public function testInsertAjaxResponse() {
+    $render_single_root = [
+      'pre-wrapped-div' => '<div class="pre-wrapped">pre-wrapped<script> var test;</script></div>',
+      'pre-wrapped-span' => '<span class="pre-wrapped">pre-wrapped<script> var test;</script></span>',
+      'pre-wrapped-whitespace' => ' <div class="pre-wrapped-whitespace">pre-wrapped-whitespace</div>' . "\n",
+      'not-wrapped' => 'not-wrapped',
+      'comment-string-not-wrapped' => '<!-- COMMENT -->comment-string-not-wrapped',
+      'comment-not-wrapped' => '<!-- COMMENT --><div class="comment-not-wrapped">comment-not-wrapped</div>',
+      'svg' => '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect x="0" y="0" height="10" width="10" fill="green"></rect></svg>',
+      'empty' => '',
+    ];
+    $render_multiple_root_unwrapper = [
+      'mixed' => ' foo <!-- COMMENT -->  foo bar<div class="a class"><p>some string</p></div> additional not wrapped strings, <!-- ANOTHER COMMENT --> <p>final string</p>',
+      'top-level-only' => '<div>element #1</div><div>element #2</div>',
+      'top-level-only-pre-whitespace' => ' <div>element #1</div><div>element #2</div> ',
+      'top-level-only-middle-whitespace-span' => '<span>element #1</span> <span>element #2</span>',
+      'top-level-only-middle-whitespace-div' => '<div>element #1</div> <div>element #2</div>',
+    ];
 
-    $this->drupalGet('ajax-test/insert-inline-wrapper');
-    $this->clickLink("Link html $render_type");
-    $assert->assertWaitOnAjaxRequest();
-    // Extra span added by a second prepend command on the ajax requests.
-    $assert->responseContains($this->wrapAjaxTarget($expected));
+    // This is temporary behavior for BC reason.
+    $render_multiple_root_wrapper = [];
+    foreach ($render_multiple_root_unwrapper as $key => $render) {
+      $render_multiple_root_wrapper["$key--effect"] = '<div>' . $render . '</div>';
+    }
 
-    $this->drupalGet('ajax-test/insert-inline-wrapper');
-    $this->clickLink("Link replaceWith $render_type");
-    $assert->assertWaitOnAjaxRequest();
-    $assert->responseContains($expected);
-    $assert->responseNotContains($this->wrapAjaxTarget($expected));
+    $expected_renders = array_merge(
+      $render_single_root,
+      $render_multiple_root_wrapper,
+      $render_multiple_root_unwrapper
+    );
+
+    // Checking default process of wrapping Ajax content.
+    foreach ($expected_renders as $render_type => $expected) {
+      $this->assertInsert($render_type, $expected);
+    }
+
+    // Checking custom ajaxWrapperMultipleRootElements wrapping.
+    $custom_wrapper_multiple_root = <<<JS
+    (function($, Drupal){
+      Drupal.theme.ajaxWrapperMultipleRootElements = function (elements) {
+        return $('<div class="my-favorite-div"></div>').append(elements);
+      };
+    }(jQuery, Drupal));
+JS;
+    $expected = '<div class="my-favorite-div"><span>element #1</span> <span>element #2</span></div>';
+    $this->assertInsert('top-level-only-middle-whitespace-span--effect', $expected, $custom_wrapper_multiple_root);
+
+    // Checking custom ajaxWrapperNewContent wrapping.
+    $custom_wrapper_new_content = <<<JS
+    (function($, Drupal){
+      Drupal.theme.ajaxWrapperNewContent = function (elements) {
+        return $('<div class="div-wrapper-forever"></div>').append(elements);
+      };
+    }(jQuery, Drupal));
+JS;
+    $expected = '<div class="div-wrapper-forever"></div>';
+    $this->assertInsert('empty', $expected, $custom_wrapper_new_content);
   }
 
   /**
-   * Provides test result data.
+   * Assert insert.
+   *
+   * @param string $render_type
+   *   Render type.
+   * @param string $expected
+   *   Expected result.
+   * @param string $script
+   *   Script for additional theming.
+   *
+   * @internal
    */
-  public function providerTestInsert() {
-    $test_cases = [];
+  public function assertInsert(string $render_type, string $expected, string $script = ''): void {
+    // Check insert to block element.
+    $this->drupalGet('ajax-test/insert-block-wrapper');
+    $this->getSession()->executeScript($script);
+    $this->clickLink("Link html $render_type");
+    $this->assertWaitPageContains('<div class="ajax-target-wrapper"><div id="ajax-target">' . $expected . '</div></div>');
 
-    // Test that no additional wrapper is added when inserting already wrapped
-    // response data and all top-level node elements (context) are processed
-    // correctly.
-    $test_cases['pre_wrapped_div'] = [
-      'pre-wrapped-div',
-      '<div class="pre-wrapped processed">pre-wrapped<script> var test;</script></div>',
-    ];
-    $test_cases['pre_wrapped_span'] = [
-      'pre-wrapped-span',
-      '<span class="pre-wrapped processed">pre-wrapped<script> var test;</script></span>',
-    ];
-    // Test that no additional empty leading div is added when the return
-    // value had a leading space and all top-level node elements (context) are
-    // processed correctly.
-    $test_cases['pre_wrapped_whitespace'] = [
-      'pre-wrapped-whitespace',
-      " <div class=\"pre-wrapped-whitespace processed\">pre-wrapped-whitespace</div>\n",
-    ];
-    // Test that not wrapped response data (text node) is inserted wrapped and
-    // all top-level node elements (context) are processed correctly.
-    $test_cases['not_wrapped'] = [
-      'not-wrapped',
-      'not-wrapped',
-    ];
-    // Test that not wrapped response data (text node and comment node) is
-    // inserted wrapped and all top-level node elements
-    // (context) are processed correctly.
-    $test_cases['comment_string_not_wrapped'] = [
-      'comment-string-not-wrapped',
-      '<!-- COMMENT -->comment-string-not-wrapped',
-    ];
-    // Test that top-level comments (which are not lead by text nodes) are
-    // inserted without wrapper.
-    $test_cases['comment_not_wrapped'] = [
-      'comment-not-wrapped',
-      '<!-- COMMENT --><div class="comment-not-wrapped processed">comment-not-wrapped</div>',
-    ];
-    // Test that mixed inline & block level elements and comments response data
-    // is inserted correctly.
-    $test_cases['mixed'] = [
-      'mixed',
-      ' foo <!-- COMMENT -->  foo bar<div class="a class processed"><p>some string</p></div> additional not wrapped strings, <!-- ANOTHER COMMENT --> <p class="processed">final string</p>',
-    ];
-    // Test that when the response has only top-level node elements, they
-    // are processed properly without extra wrapping.
-    $test_cases['top_level_only'] = [
-      'top-level-only',
-      '<div class="processed">element #1</div><div class="processed">element #2</div>',
-    ];
-    // Test that whitespaces at start or end don't wrap the response when
-    // there are multiple top-level nodes.
-    $test_cases['top_level_only_pre_whitespace'] = [
-      'top-level-only-pre-whitespace',
-      ' <div class="processed">element #1</div><div class="processed">element #2</div> ',
-    ];
-    // Test when there are whitespaces between top-level divs.
-    $test_cases['top_level_only_middle_whitespace-div'] = [
-      'top-level-only-middle-whitespace-div',
-      '<div class="processed">element #1</div> <div class="processed">element #2</div>',
-    ];
-    // Test when there are whitespaces between top-level spans.
-    $test_cases['top_level_only_middle_whitespace-span'] = [
-      'top-level-only-middle-whitespace-span',
-      '<span class="processed">element #1</span> <span class="processed">element #2</span>',
-    ];
-    // Test that empty response data.
-    $test_cases['empty'] = [
-      'empty',
-      '',
-    ];
+    $this->drupalGet('ajax-test/insert-block-wrapper');
+    $this->getSession()->executeScript($script);
+    $this->clickLink("Link replaceWith $render_type");
+    $this->assertWaitPageContains('<div class="ajax-target-wrapper">' . $expected . '</div>');
 
-    return $test_cases;
+    // Check insert to inline element.
+    $this->drupalGet('ajax-test/insert-inline-wrapper');
+    $this->getSession()->executeScript($script);
+    $this->clickLink("Link html $render_type");
+    $this->assertWaitPageContains('<div class="ajax-target-wrapper"><span id="ajax-target-inline">' . $expected . '</span></div>');
+
+    $this->drupalGet('ajax-test/insert-inline-wrapper');
+    $this->getSession()->executeScript($script);
+    $this->clickLink("Link replaceWith $render_type");
+    $this->assertWaitPageContains('<div class="ajax-target-wrapper">' . $expected . '</div>');
+  }
+
+  /**
+   * Asserts that page contains an expected value after waiting.
+   *
+   * @param string $expected
+   *   A needle text.
+   *
+   * @internal
+   */
+  protected function assertWaitPageContains(string $expected): void {
+    $page = $this->getSession()->getPage();
+    $this->assertTrue($page->waitFor(10, function () use ($page, $expected) {
+      // Clear content from empty styles and "processed" classes after effect.
+      $content = str_replace([' class="processed"', ' processed', ' style=""'], '', $page->getContent());
+      return stripos($content, $expected) !== FALSE;
+    }), "Page contains expected value: $expected");
   }
 
 }

@@ -3,6 +3,7 @@
 namespace Drupal\Tests\node\Kernel\Migrate\d7;
 
 use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
+use Drupal\taxonomy\Entity\Term;
 use Drupal\Tests\file\Kernel\Migrate\d7\FileMigrationSetupTrait;
 use Drupal\Tests\migrate_drupal\Kernel\d7\MigrateDrupal7TestBase;
 use Drupal\node\Entity\Node;
@@ -20,13 +21,11 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'content_translation',
     'comment',
     'datetime',
-    'file',
-    'filter',
-    'forum',
+    'datetime_range',
     'image',
     'language',
     'link',
@@ -40,34 +39,32 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->fileMigrationSetup();
 
-    $this->installEntitySchema('node');
     $this->installEntitySchema('comment');
     $this->installEntitySchema('taxonomy_term');
-    $this->installConfig(static::$modules);
     $this->installSchema('comment', ['comment_entity_statistics']);
-    $this->installSchema('forum', ['forum', 'forum_index']);
     $this->installSchema('node', ['node_access']);
-    $this->installSchema('system', ['sequences']);
 
+    $this->migrateUsers();
+    $this->migrateFields();
+    $this->migrateTaxonomyTerms();
     $this->executeMigrations([
       'language',
-      'd7_user_role',
-      'd7_user',
-      'd7_node_type',
+      'd7_language_content_taxonomy_vocabulary_settings',
+      'd7_taxonomy_term_localized_translation',
+      'd7_taxonomy_term_translation',
       'd7_language_content_settings',
-      'd7_comment_type',
       'd7_comment_field',
       'd7_comment_field_instance',
-      'd7_taxonomy_vocabulary',
-      'd7_field',
-      'd7_field_instance',
       'd7_node',
       'd7_node_translation',
+      'd7_entity_translation_settings',
+      'd7_taxonomy_term_entity_translation',
+      'd7_node_entity_translation',
     ]);
   }
 
@@ -106,8 +103,10 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
    *   Whether the node is expected to be promoted to the front page.
    * @param bool $sticky
    *   Whether the node is expected to be sticky.
+   *
+   * @internal
    */
-  protected function assertEntity($id, $type, $langcode, $title, $uid, $status, $created, $changed, $promoted, $sticky) {
+  protected function assertEntity(string $id, string $type, string $langcode, string $title, int $uid, bool $status, int $created, int $changed, bool $promoted, bool $sticky): void {
     /** @var \Drupal\node\NodeInterface $node */
     $node = Node::load($id);
     $this->assertInstanceOf(NodeInterface::class, $node);
@@ -133,13 +132,15 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
    *   The expected title.
    * @param int $uid
    *   The revision author ID.
-   * @param string $log
+   * @param string|null $log
    *   The revision log message.
    * @param int $timestamp
    *   The revision's time stamp.
+   *
+   * @internal
    */
-  protected function assertRevision($id, $title, $uid, $log, $timestamp) {
-    $revision = \Drupal::entityManager()->getStorage('node')->loadRevision($id);
+  protected function assertRevision(int $id, string $title, int $uid, ?string $log, int $timestamp): void {
+    $revision = \Drupal::entityTypeManager()->getStorage('node')->loadRevision($id);
     $this->assertInstanceOf(NodeInterface::class, $revision);
     $this->assertEquals($title, $revision->getTitle());
     $this->assertEquals($uid, $revision->getRevisionUser()->id());
@@ -148,23 +149,32 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
   }
 
   /**
-   * Test node migration from Drupal 7 to 8.
+   * Tests node migration from Drupal 7 to 8.
    */
   public function testNode() {
-    $this->assertEntity(1, 'test_content_type', 'en', 'A Node', '2', TRUE, '1421727515', '1441032132', TRUE, FALSE);
-    $this->assertRevision(1, 'A Node', '1', NULL, '1441032132');
+    // Confirm there are only classic node migration map tables. This shows
+    // that only the classic migration ran.
+    $results = $this->nodeMigrateMapTableCount('7');
+    $this->assertSame(9, $results['node']);
+    $this->assertSame(0, $results['node_complete']);
+
+    $this->assertEntity(1, 'test_content_type', 'en', 'An English Node', '2', TRUE, '1421727515', '1441032132', TRUE, FALSE);
+    $this->assertRevision(1, 'An English Node', '1', NULL, '1441032132');
 
     $node = Node::load(1);
-    $this->assertTrue($node->field_boolean->value);
+    $this->assertNotEmpty($node->field_boolean->value);
     $this->assertEquals('99-99-99-99', $node->field_phone->value);
-    $this->assertEquals('1', $node->field_float->value);
+    $this->assertSame('2015-01-20T04:15:00', $node->field_date->value);
+    $this->assertSame('2015-01-20', $node->field_date_without_time->value);
+    $this->assertSame('2015-01-20', $node->field_datetime_without_time->value);
+    $this->assertEquals(1, $node->field_float->value);
     $this->assertEquals('5', $node->field_integer->value);
     $this->assertEquals('Some more text', $node->field_text_list[0]->value);
     $this->assertEquals('7', $node->field_integer_list[0]->value);
     $this->assertEquals('qwerty', $node->field_text->value);
     $this->assertEquals('2', $node->field_file->target_id);
     $this->assertEquals('file desc', $node->field_file->description);
-    $this->assertTrue($node->field_file->display);
+    $this->assertNotEmpty($node->field_file->display);
     $this->assertEquals('1', $node->field_images->target_id);
     $this->assertEquals('alt text', $node->field_images->alt);
     $this->assertEquals('title text', $node->field_images->title);
@@ -185,6 +195,16 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
     $this->assertEquals('internal:/', $node->field_link->uri);
     $this->assertEquals('Home', $node->field_link->title);
     $this->assertEquals(CommentItemInterface::OPEN, $node->comment_node_article->status);
+    $term_ref = $node->get('field_vocab_localize')->target_id;
+    $this->assertSame('20', $term_ref);
+    $this->assertSame('DS9', Term::load($term_ref)->getName());
+
+    $term_ref = $node->get('field_vocab_translate')->target_id;
+    $this->assertSame('21', $term_ref);
+    $this->assertSame('High council', Term::load($term_ref)->getName());
+
+    $term_ref = $node->get('field_vocab_fixed')->target_id;
+    $this->assertSame('24', $term_ref);
     $this->assertTrue($node->hasTranslation('is'), "Node 2 has an Icelandic translation");
 
     $translation = $node->getTranslation('is');
@@ -194,6 +214,16 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
     $this->assertEquals('internal:/', $translation->field_link->uri);
     $this->assertEquals(CommentItemInterface::OPEN, $translation->comment_node_article->status);
     $this->assertEquals('Home', $translation->field_link->title);
+    $term_ref = $translation->get('field_vocab_localize')->target_id;
+    $this->assertSame('20', $term_ref);
+    $this->assertSame('DS9', Term::load($term_ref)->getName());
+
+    $term_ref = $translation->get('field_vocab_translate')->target_id;
+    $this->assertSame('23', $term_ref);
+    $this->assertSame('is - High council', Term::load($term_ref)->getName());
+
+    $term_ref = $translation->get('field_vocab_fixed')->target_id;
+    $this->assertNulL($term_ref);
 
     // Test that content_translation_source is set.
     $manager = $this->container->get('content_translation.manager');
@@ -215,6 +245,49 @@ class MigrateNodeTest extends MigrateDrupal7TestBase {
 
     $node = Node::load(7);
     $this->assertEquals(CommentItemInterface::OPEN, $node->comment_forum->status);
+
+    // Test synchronized field.
+    $value = 'Kai Opaka';
+    $node = Node::load(2);
+    $this->assertSame($value, $node->field_text_plain->value);
+    $this->assertArrayNotHasKey('field_text_plain', $node->getTranslatableFields());
+
+    $node = $node->getTranslation('is');
+    $this->assertSame($value, $node->field_text_plain->value);
+
+    // Tests node entity translations migration from Drupal 7 to 8.
+    $manager = $this->container->get('content_translation.manager');
+
+    // Get the node and its translations.
+    $node = Node::load(1);
+    $node_fr = $node->getTranslation('fr');
+    $node_is = $node->getTranslation('is');
+
+    // Test that fields translated with Entity Translation are migrated.
+    $this->assertSame('An English Node', $node->getTitle());
+    $this->assertSame('A French Node', $node_fr->getTitle());
+    $this->assertSame('An Icelandic Node', $node_is->getTitle());
+    $this->assertSame('5', $node->field_integer->value);
+    $this->assertSame('6', $node_fr->field_integer->value);
+    $this->assertSame('7', $node_is->field_integer->value);
+
+    // Test that the French translation metadata is correctly migrated.
+    $metadata_fr = $manager->getTranslationMetadata($node_fr);
+    $this->assertSame('en', $metadata_fr->getSource());
+    $this->assertTrue($metadata_fr->isOutdated());
+    $this->assertSame('2', $node_fr->getOwnerId());
+    $this->assertSame('1529615802', $node_fr->getCreatedTime());
+    $this->assertSame('1529615802', $node_fr->getChangedTime());
+    $this->assertTrue($node_fr->isPublished());
+
+    // Test that the Icelandic translation metadata is correctly migrated.
+    $metadata_is = $manager->getTranslationMetadata($node_is);
+    $this->assertSame('en', $metadata_is->getSource());
+    $this->assertFalse($metadata_is->isOutdated());
+    $this->assertSame('1', $node_is->getOwnerId());
+    $this->assertSame('1529615813', $node_is->getCreatedTime());
+    $this->assertSame('1529615813', $node_is->getChangedTime());
+    $this->assertFalse($node_is->isPublished());
   }
 
 }

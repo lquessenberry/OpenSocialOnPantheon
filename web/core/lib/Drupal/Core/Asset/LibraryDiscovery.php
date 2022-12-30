@@ -19,7 +19,7 @@ class LibraryDiscovery implements LibraryDiscoveryInterface {
   /**
    * The final library definitions, statically cached.
    *
-   * hook_library_info_alter() and hook_js_settings_alter() allows modules
+   * Hooks hook_library_info_alter() and hook_js_settings_alter() allow modules
    * and themes to dynamically alter a library definition (once per request).
    *
    * @var array
@@ -55,8 +55,14 @@ class LibraryDiscovery implements LibraryDiscoveryInterface {
    * {@inheritdoc}
    */
   public function getLibraryByName($extension, $name) {
-    $extension = $this->getLibrariesByExtension($extension);
-    return isset($extension[$name]) ? $extension[$name] : FALSE;
+    $libraries = $this->getLibrariesByExtension($extension);
+    if (!isset($libraries[$name])) {
+      return FALSE;
+    }
+    if (isset($libraries[$name]['deprecated'])) {
+      @trigger_error(str_replace('%library_id%', "$extension/$name", $libraries[$name]['deprecated']), E_USER_DEPRECATED);
+    }
+    return $libraries[$name];
   }
 
   /**

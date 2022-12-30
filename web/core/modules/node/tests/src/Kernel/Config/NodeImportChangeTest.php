@@ -17,16 +17,23 @@ class NodeImportChangeTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'field', 'text', 'system', 'node_test_config', 'user'];
+  protected static $modules = [
+    'node',
+    'field',
+    'text',
+    'system',
+    'node_test_config',
+    'user',
+  ];
 
   /**
    * Set the default field storage backend for fields created during tests.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Set default storage backend.
-    $this->installConfig(['field', 'node_test_config']);
+    $this->installConfig(['system', 'field', 'node_test_config']);
   }
 
   /**
@@ -53,7 +60,7 @@ class NodeImportChangeTest extends KernelTestBase {
 
     // Check that the updated config was correctly imported.
     $node_type = NodeType::load($node_type_id);
-    $this->assertEqual($node_type->label(), $new_label, 'Node type name has been updated.');
+    $this->assertEquals($new_label, $node_type->label(), 'Node type name has been updated.');
   }
 
 }

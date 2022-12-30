@@ -5,7 +5,6 @@
  * Implement an image field, based on the file module's file field.
  */
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Render\Element;
 
 /**
@@ -21,11 +20,6 @@ function template_preprocess_image_widget(&$variables) {
   $element = $variables['element'];
 
   $variables['attributes'] = ['class' => ['image-widget', 'js-form-managed-file', 'form-managed-file', 'clearfix']];
-
-  if (!empty($element['fids']['#value'])) {
-    $file = reset($element['#files']);
-    $element['file_' . $file->id()]['filename']['#suffix'] = ' <span class="file-size">(' . format_size($file->getSize()) . ')</span> ';
-  }
 
   $variables['data'] = [];
   foreach (Element::children($element) as $child) {
@@ -64,7 +58,7 @@ function template_preprocess_image_formatter(&$variables) {
   $item = $variables['item'];
 
   // Do not output an empty 'title' attribute.
-  if (Unicode::strlen($item->title) != 0) {
+  if (!is_null($item->title) && mb_strlen($item->title) != 0) {
     $variables['image']['#title'] = $item->title;
   }
 

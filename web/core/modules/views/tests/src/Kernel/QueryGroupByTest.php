@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\views\Kernel;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\entity_test\Entity\EntityTestMul;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
@@ -20,14 +21,27 @@ class QueryGroupByTest extends ViewsKernelTestBase {
    *
    * @var array
    */
-  public static $testViews = ['test_group_by_in_filters', 'test_aggregate_count', 'test_group_by_count', 'test_group_by_count_multicardinality', 'test_group_by_field_not_within_bundle'];
+  public static $testViews = [
+    'test_group_by_in_filters',
+    'test_aggregate_count',
+    'test_aggregate_count_function',
+    'test_group_by_count',
+    'test_group_by_count_multicardinality',
+    'test_group_by_field_not_within_bundle',
+  ];
 
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['entity_test', 'system', 'field', 'user', 'language'];
+  protected static $modules = [
+    'entity_test',
+    'system',
+    'field',
+    'user',
+    'language',
+  ];
 
   /**
    * The storage for the test entity type.
@@ -39,18 +53,17 @@ class QueryGroupByTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp();
 
     $this->installEntitySchema('user');
     $this->installEntitySchema('entity_test');
     $this->installEntitySchema('entity_test_mul');
 
-    $this->storage = $this->container->get('entity.manager')->getStorage('entity_test');
+    $this->storage = $this->container->get('entity_type.manager')->getStorage('entity_test');
 
     ConfigurableLanguage::createFromLangcode('it')->save();
   }
-
 
   /**
    * Tests aggregate count feature.
@@ -61,16 +74,29 @@ class QueryGroupByTest extends ViewsKernelTestBase {
     $view = Views::getView('test_aggregate_count');
     $this->executeView($view);
 
-    $this->assertEqual(count($view->result), 2, 'Make sure the count of items is right.');
+    $this->assertCount(2, $view->result, 'Make sure the count of items is right.');
 
     $types = [];
     foreach ($view->result as $item) {
-      // num_records is a alias for id.
+      // num_records is an alias for id.
       $types[$item->entity_test_name] = $item->num_records;
     }
 
-    $this->assertEqual($types['name1'], 4, 'Groupby the name: name1 returned the expected amount of results.');
-    $this->assertEqual($types['name2'], 3, 'Groupby the name: name2 returned the expected amount of results.');
+    $this->assertEquals(4, $types['name1']);
+    $this->assertEquals(3, $types['name2']);
+  }
+
+  /**
+   * Tests aggregate count feature with no group by.
+   */
+  public function testAggregateCountFunction() {
+    $this->setupTestEntities();
+
+    $view = Views::getView('test_aggregate_count_function');
+    $this->executeView($view);
+
+    $this->assertEquals(7, $view->result[0]->id);
+    $this->assertCount(1, $view->result, 'Make sure the count of rows is one.');
   }
 
   /**
@@ -99,14 +125,14 @@ class QueryGroupByTest extends ViewsKernelTestBase {
 
     $this->executeView($view);
 
-    $this->assertEqual(count($view->result), 2, 'Make sure the count of items is right.');
+    $this->assertCount(2, $view->result, 'Make sure the count of items is right.');
     // Group by name to identify the right count.
     $results = [];
     foreach ($view->result as $item) {
       $results[$item->entity_test_name] = $item->id;
     }
-    $this->assertEqual($results['name1'], $values[0], format_string('Aggregation with @aggregation_function and groupby name: name1 returned the expected amount of results', ['@aggregation_function' => $aggregation_function]));
-    $this->assertEqual($results['name2'], $values[1], format_string('Aggregation with @aggregation_function and groupby name: name2 returned the expected amount of results', ['@aggregation_function' => $aggregation_function]));
+    $this->assertEquals($values[0], $results['name1'], new FormattableMarkup('Aggregation with @aggregation_function and groupby name: name1 returned the expected amount of results', ['@aggregation_function' => $aggregation_function ?? 'NULL']));
+    $this->assertEquals($values[1], $results['name2'], new FormattableMarkup('Aggregation with @aggregation_function and groupby name: name2 returned the expected amount of results', ['@aggregation_function' => $aggregation_function ?? 'NULL']));
   }
 
   /**
@@ -187,8 +213,8 @@ class QueryGroupByTest extends ViewsKernelTestBase {
     $view = Views::getView('test_group_by_in_filters');
     $this->executeView($view);
 
-    $this->assertTrue(strpos($view->build_info['query'], 'GROUP BY'), 'Make sure that GROUP BY is in the query');
-    $this->assertTrue(strpos($view->build_info['query'], 'HAVING'), 'Make sure that HAVING is in the query');
+    $this->assertStringContainsString('GROUP BY', (string) $view->build_info['query'], 'Make sure that GROUP BY is in the query');
+    $this->assertStringContainsString('HAVING', (string) $view->build_info['query'], 'Make sure that HAVING is in the query');
   }
 
   /**
@@ -204,7 +230,7 @@ class QueryGroupByTest extends ViewsKernelTestBase {
     $view->displayHandlers->get('default')->options['fields']['name']['group_type'] = 'min';
     unset($view->displayHandlers->get('default')->options['fields']['id']['group_type']);
     $this->executeView($view);
-    $this->assertTrue(strpos($view->build_info['query'], 'GROUP BY entity_test.id'), 'GROUP BY field includes the base table name when grouping on the base field.');
+    $this->assertStringContainsString('GROUP BY entity_test.id', (string) $view->build_info['query'], 'GROUP BY field includes the base table name when grouping on the base field.');
   }
 
   /**
@@ -246,12 +272,12 @@ class QueryGroupByTest extends ViewsKernelTestBase {
 
     $view = Views::getView('test_group_by_count_multicardinality');
     $this->executeView($view);
-    $this->assertEqual(2, count($view->result));
+    $this->assertCount(2, $view->result);
 
-    $this->assertEqual('3', $view->getStyle()->getField(0, 'id'));
-    $this->assertEqual('1', $view->getStyle()->getField(0, 'field_test'));
-    $this->assertEqual('6', $view->getStyle()->getField(1, 'id'));
-    $this->assertEqual('2', $view->getStyle()->getField(1, 'field_test'));
+    $this->assertEquals('3', $view->getStyle()->getField(0, 'id'));
+    $this->assertEquals('1', $view->getStyle()->getField(0, 'field_test'));
+    $this->assertEquals('6', $view->getStyle()->getField(1, 'id'));
+    $this->assertEquals('2', $view->getStyle()->getField(1, 'field_test'));
 
     $entities[2]->field_test[0]->value = 3;
     $entities[2]->field_test[1]->value = 4;
@@ -260,18 +286,18 @@ class QueryGroupByTest extends ViewsKernelTestBase {
 
     $view = Views::getView('test_group_by_count_multicardinality');
     $this->executeView($view);
-    $this->assertEqual(5, count($view->result));
+    $this->assertCount(5, $view->result);
 
-    $this->assertEqual('3', $view->getStyle()->getField(0, 'id'));
-    $this->assertEqual('1', $view->getStyle()->getField(0, 'field_test'));
-    $this->assertEqual('3', $view->getStyle()->getField(1, 'id'));
-    $this->assertEqual('2', $view->getStyle()->getField(1, 'field_test'));
-    $this->assertEqual('1', $view->getStyle()->getField(2, 'id'));
-    $this->assertEqual('3', $view->getStyle()->getField(2, 'field_test'));
-    $this->assertEqual('1', $view->getStyle()->getField(3, 'id'));
-    $this->assertEqual('4', $view->getStyle()->getField(3, 'field_test'));
-    $this->assertEqual('1', $view->getStyle()->getField(4, 'id'));
-    $this->assertEqual('5', $view->getStyle()->getField(4, 'field_test'));
+    $this->assertEquals('3', $view->getStyle()->getField(0, 'id'));
+    $this->assertEquals('1', $view->getStyle()->getField(0, 'field_test'));
+    $this->assertEquals('3', $view->getStyle()->getField(1, 'id'));
+    $this->assertEquals('2', $view->getStyle()->getField(1, 'field_test'));
+    $this->assertEquals('1', $view->getStyle()->getField(2, 'id'));
+    $this->assertEquals('3', $view->getStyle()->getField(2, 'field_test'));
+    $this->assertEquals('1', $view->getStyle()->getField(3, 'id'));
+    $this->assertEquals('4', $view->getStyle()->getField(3, 'field_test'));
+    $this->assertEquals('1', $view->getStyle()->getField(4, 'id'));
+    $this->assertEquals('5', $view->getStyle()->getField(4, 'field_test'));
 
     // Check that translated values are correctly retrieved and are not grouped
     // into the original entity.
@@ -282,13 +308,13 @@ class QueryGroupByTest extends ViewsKernelTestBase {
     $view = Views::getView('test_group_by_count_multicardinality');
     $this->executeView($view);
 
-    $this->assertEqual(6, count($view->result));
-    $this->assertEqual('3', $view->getStyle()->getField(5, 'id'));
-    $this->assertEqual('6', $view->getStyle()->getField(5, 'field_test'));
+    $this->assertCount(6, $view->result);
+    $this->assertEquals('3', $view->getStyle()->getField(5, 'id'));
+    $this->assertEquals('6', $view->getStyle()->getField(5, 'field_test'));
   }
 
   /**
-   * Tests groupby with a field not existing on some bundle.
+   * Tests groupby with a non-existent field on some bundle.
    */
   public function testGroupByWithFieldsNotExistingOnBundle() {
     $field_storage = FieldStorageConfig::create([
@@ -322,13 +348,13 @@ class QueryGroupByTest extends ViewsKernelTestBase {
     $view = Views::getView('test_group_by_field_not_within_bundle');
     $this->executeView($view);
 
-    $this->assertEqual(2, count($view->result));
+    $this->assertCount(2, $view->result);
     // The first result is coming from entity_test_mul2, so no field could be
     // rendered.
-    $this->assertEqual('', $view->getStyle()->getField(0, 'field_test'));
+    $this->assertEquals('', $view->getStyle()->getField(0, 'field_test'));
     // The second result is coming from entity_test_mul, so its field value
     // could be rendered.
-    $this->assertEqual('1', $view->getStyle()->getField(1, 'field_test'));
+    $this->assertEquals('1', $view->getStyle()->getField(1, 'field_test'));
   }
 
 }

@@ -16,15 +16,21 @@ class ContentModerationWorkflowTypeTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'content_moderation',
     'node',
+    'entity_test',
   ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
     $admin = $this->drupalCreateUser([
       'administer workflows',
@@ -33,7 +39,7 @@ class ContentModerationWorkflowTypeTest extends BrowserTestBase {
   }
 
   /**
-   * Test creating a new workflow using the content moderation plugin.
+   * Tests creating a new workflow using the content moderation plugin.
    */
   public function testNewWorkflow() {
     $types[] = $this->createContentType();
@@ -42,7 +48,8 @@ class ContentModerationWorkflowTypeTest extends BrowserTestBase {
 
     $entity_bundle_info = \Drupal::service('entity_type.bundle.info');
 
-    $this->drupalPostForm('admin/config/workflow/workflows/add', [
+    $this->drupalGet('admin/config/workflow/workflows/add');
+    $this->submitForm([
       'label' => 'Test',
       'id' => 'test',
       'workflow_type' => 'content_moderation',
@@ -92,10 +99,15 @@ class ContentModerationWorkflowTypeTest extends BrowserTestBase {
     $session->fieldDisabled('type_settings[default_revision]');
 
     $this->drupalGet('admin/config/workflow/workflows/manage/test/type/node');
-    $session->pageTextContains('Select the content type entities for the Test workflow');
+    $session->pageTextContains('Select the content types for the Test workflow');
     foreach ($types as $type) {
       $session->pageTextContains($type->label());
+      $session->elementContains('css', sprintf('.form-item-bundles-%s label', $type->id()), sprintf('Update %s', $type->label()));
     }
+
+    // Ensure warning message are displayed for unsupported features.
+    $this->drupalGet('admin/config/workflow/workflows/manage/test/type/entity_test_rev');
+    $this->assertSession()->pageTextContains('Test entity - revisions entities do not support publishing statuses. For example, even after transitioning from a published workflow state to an unpublished workflow state they will still be visible to site visitors.');
   }
 
 }

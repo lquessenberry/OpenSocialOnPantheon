@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\file\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\file\Entity\File;
 use Drupal\file\FileInterface;
 use Drupal\Tests\BrowserTestBase;
@@ -17,7 +18,7 @@ abstract class FileManagedTestBase extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['file_test', 'file'];
+  protected static $modules = ['file_test', 'file'];
 
   protected function setUp() {
     parent::setUp();
@@ -42,16 +43,16 @@ abstract class FileManagedTestBase extends BrowserTestBase {
     // Determine if there were any expected that were not called.
     $uncalled = array_diff($expected, $actual);
     if (count($uncalled)) {
-      $this->assertTrue(FALSE, format_string('Expected hooks %expected to be called but %uncalled was not called.', ['%expected' => implode(', ', $expected), '%uncalled' => implode(', ', $uncalled)]));
+      $this->assertTrue(FALSE, new FormattableMarkup('Expected hooks %expected to be called but %uncalled was not called.', ['%expected' => implode(', ', $expected), '%uncalled' => implode(', ', $uncalled)]));
     }
     else {
-      $this->assertTrue(TRUE, format_string('All the expected hooks were called: %expected', ['%expected' => empty($expected) ? '(none)' : implode(', ', $expected)]));
+      $this->assertTrue(TRUE, new FormattableMarkup('All the expected hooks were called: %expected', ['%expected' => empty($expected) ? '(none)' : implode(', ', $expected)]));
     }
 
     // Determine if there were any unexpected calls.
     $unexpected = array_diff($actual, $expected);
     if (count($unexpected)) {
-      $this->assertTrue(FALSE, format_string('Unexpected hooks were called: %unexpected.', ['%unexpected' => empty($unexpected) ? '(none)' : implode(', ', $unexpected)]));
+      $this->assertTrue(FALSE, new FormattableMarkup('Unexpected hooks were called: %unexpected.', ['%unexpected' => empty($unexpected) ? '(none)' : implode(', ', $unexpected)]));
     }
     else {
       $this->assertTrue(TRUE, 'No unexpected hooks were called.');
@@ -73,16 +74,16 @@ abstract class FileManagedTestBase extends BrowserTestBase {
 
     if (!isset($message)) {
       if ($actual_count == $expected_count) {
-        $message = format_string('hook_file_@name was called correctly.', ['@name' => $hook]);
+        $message = new FormattableMarkup('hook_file_@name was called correctly.', ['@name' => $hook]);
       }
       elseif ($expected_count == 0) {
         $message = \Drupal::translation()->formatPlural($actual_count, 'hook_file_@name was not expected to be called but was actually called once.', 'hook_file_@name was not expected to be called but was actually called @count times.', ['@name' => $hook, '@count' => $actual_count]);
       }
       else {
-        $message = format_string('hook_file_@name was expected to be called %expected times but was called %actual times.', ['@name' => $hook, '%expected' => $expected_count, '%actual' => $actual_count]);
+        $message = new FormattableMarkup('hook_file_@name was expected to be called %expected times but was called %actual times.', ['@name' => $hook, '%expected' => $expected_count, '%actual' => $actual_count]);
       }
     }
-    $this->assertEqual($actual_count, $expected_count, $message);
+    $this->assertEquals($expected_count, $actual_count, $message);
   }
 
   /**
@@ -94,13 +95,13 @@ abstract class FileManagedTestBase extends BrowserTestBase {
    *   File object to compare.
    */
   public function assertFileUnchanged(FileInterface $before, FileInterface $after) {
-    $this->assertEqual($before->id(), $after->id(), t('File id is the same: %file1 == %file2.', ['%file1' => $before->id(), '%file2' => $after->id()]), 'File unchanged');
-    $this->assertEqual($before->getOwner()->id(), $after->getOwner()->id(), t('File owner is the same: %file1 == %file2.', ['%file1' => $before->getOwner()->id(), '%file2' => $after->getOwner()->id()]), 'File unchanged');
-    $this->assertEqual($before->getFilename(), $after->getFilename(), t('File name is the same: %file1 == %file2.', ['%file1' => $before->getFilename(), '%file2' => $after->getFilename()]), 'File unchanged');
-    $this->assertEqual($before->getFileUri(), $after->getFileUri(), t('File path is the same: %file1 == %file2.', ['%file1' => $before->getFileUri(), '%file2' => $after->getFileUri()]), 'File unchanged');
-    $this->assertEqual($before->getMimeType(), $after->getMimeType(), t('File MIME type is the same: %file1 == %file2.', ['%file1' => $before->getMimeType(), '%file2' => $after->getMimeType()]), 'File unchanged');
-    $this->assertEqual($before->getSize(), $after->getSize(), t('File size is the same: %file1 == %file2.', ['%file1' => $before->getSize(), '%file2' => $after->getSize()]), 'File unchanged');
-    $this->assertEqual($before->isPermanent(), $after->isPermanent(), t('File status is the same: %file1 == %file2.', ['%file1' => $before->isPermanent(), '%file2' => $after->isPermanent()]), 'File unchanged');
+    $this->assertEquals($before->id(), $after->id());
+    $this->assertEquals($before->getOwner()->id(), $after->getOwner()->id());
+    $this->assertEquals($before->getFilename(), $after->getFilename());
+    $this->assertEquals($before->getFileUri(), $after->getFileUri());
+    $this->assertEquals($before->getMimeType(), $after->getMimeType());
+    $this->assertEquals($before->getSize(), $after->getSize());
+    $this->assertEquals($before->isPermanent(), $after->isPermanent());
   }
 
   /**
@@ -112,8 +113,8 @@ abstract class FileManagedTestBase extends BrowserTestBase {
    *   File object to compare.
    */
   public function assertDifferentFile(FileInterface $file1, FileInterface $file2) {
-    $this->assertNotEqual($file1->id(), $file2->id(), t('Files have different ids: %file1 != %file2.', ['%file1' => $file1->id(), '%file2' => $file2->id()]), 'Different file');
-    $this->assertNotEqual($file1->getFileUri(), $file2->getFileUri(), t('Files have different paths: %file1 != %file2.', ['%file1' => $file1->getFileUri(), '%file2' => $file2->getFileUri()]), 'Different file');
+    $this->assertNotEquals($file1->id(), $file2->id());
+    $this->assertNotEquals($file1->getFileUri(), $file2->getFileUri());
   }
 
   /**
@@ -125,8 +126,8 @@ abstract class FileManagedTestBase extends BrowserTestBase {
    *   File object to compare.
    */
   public function assertSameFile(FileInterface $file1, FileInterface $file2) {
-    $this->assertEqual($file1->id(), $file2->id(), t('Files have the same ids: %file1 == %file2.', ['%file1' => $file1->id(), '%file2-fid' => $file2->id()]), 'Same file');
-    $this->assertEqual($file1->getFileUri(), $file2->getFileUri(), t('Files have the same path: %file1 == %file2.', ['%file1' => $file1->getFileUri(), '%file2' => $file2->getFileUri()]), 'Same file');
+    $this->assertEquals($file1->id(), $file2->id());
+    $this->assertEquals($file1->getFileUri(), $file2->getFileUri());
   }
 
   /**
@@ -142,6 +143,7 @@ abstract class FileManagedTestBase extends BrowserTestBase {
    * @param string $scheme
    *   Optional string indicating the stream scheme to use. Drupal core includes
    *   public, private, and temporary. The public wrapper is the default.
+   *
    * @return \Drupal\file\FileInterface
    *   File entity.
    */
@@ -155,7 +157,8 @@ abstract class FileManagedTestBase extends BrowserTestBase {
     $file->save();
     // Write the record directly rather than using the API so we don't invoke
     // the hooks.
-    $this->assertTrue($file->id() > 0, 'The file was added to the database.', 'Create test file');
+    // Verify that the file was added to the database.
+    $this->assertGreaterThan(0, $file->id());
 
     \Drupal::state()->set('file_test.count_hook_invocations', TRUE);
     return $file;
@@ -181,10 +184,11 @@ abstract class FileManagedTestBase extends BrowserTestBase {
     if (!isset($filepath)) {
       // Prefix with non-latin characters to ensure that all file-related
       // tests work with international filenames.
+      // cSpell:disable-next-line
       $filepath = 'Файл для тестирования ' . $this->randomMachineName();
     }
     if (!isset($scheme)) {
-      $scheme = file_default_scheme();
+      $scheme = 'public';
     }
     $filepath = $scheme . '://' . $filepath;
 
@@ -193,7 +197,7 @@ abstract class FileManagedTestBase extends BrowserTestBase {
     }
 
     file_put_contents($filepath, $contents);
-    $this->assertTrue(is_file($filepath), t('The test file exists on the disk.'), 'Create test file');
+    $this->assertFileExists($filepath);
     return $filepath;
   }
 

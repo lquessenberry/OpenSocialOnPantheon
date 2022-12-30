@@ -7,12 +7,12 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Gaussian blur effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class GaussianBlurTest extends ImageEffectsTestBase {
 
   /**
-   * Test effect on required toolkits.
+   * Gaussian blur effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -23,16 +23,9 @@ class GaussianBlurTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testGaussianBlurEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Gaussian blur effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testGaussianBlurEffect() {
     $effect = [
       'id' => 'image_effects_gaussian_blur',
       'data' => [
@@ -52,7 +45,7 @@ class GaussianBlurTest extends ImageEffectsTestBase {
     $this->assertColorsAreEqual($this->red, $this->getPixelColor($image, 50, 50));
     // The upper-left corner of the inner red square has been blurred.
     // For fully opaque, we check an actual color.
-    $this->assertColorsAreEqual([94, 161, 0, 0], $this->getPixelColor($image, 25, 25));
+    $this->assertColorsAreClose([94, 161, 0, 0], $this->getPixelColor($image, 25, 25), 5);
 
     // 2. Test blurring red on transparent.
     $original_uri = $this->getTestImageCopyUri('/tests/images/red-on-transparent.png', 'image_effects');
@@ -65,7 +58,7 @@ class GaussianBlurTest extends ImageEffectsTestBase {
     // The upper-left corner of the inner red square has been blurred.
     // For fully transparent, the background color differs by toolkit. In this
     // case, we just check for the alpha channel value equal to 80.
-    $this->assertEqual(80, imagecolorsforindex($image->getToolkit()->getResource(), imagecolorat($image->getToolkit()->getResource(), 25, 25))['alpha']);
+    $this->assertEquals(80, imagecolorsforindex($image->getToolkit()->getResource(), imagecolorat($image->getToolkit()->getResource(), 25, 25))['alpha']);
   }
 
 }

@@ -27,7 +27,7 @@ class InfoHookDecorator implements DiscoveryInterface {
   protected $hook;
 
   /**
-   * Constructs a InfoHookDecorator object.
+   * Constructs an InfoHookDecorator object.
    *
    * @param \Drupal\Component\Plugin\Discovery\DiscoveryInterface $decorated
    *   The object implementing DiscoveryInterface that is being decorated.
@@ -44,10 +44,12 @@ class InfoHookDecorator implements DiscoveryInterface {
    */
   public function getDefinitions() {
     $definitions = $this->decorated->getDefinitions();
-    foreach (\Drupal::moduleHandler()->getImplementations($this->hook) as $module) {
-      $function = $module . '_' . $this->hook;
-      $function($definitions);
-    }
+    \Drupal::moduleHandler()->invokeAllWith(
+      $this->hook,
+      function (callable $hook, string $module) use (&$definitions) {
+        $hook($definitions);
+      }
+    );
     return $definitions;
   }
 

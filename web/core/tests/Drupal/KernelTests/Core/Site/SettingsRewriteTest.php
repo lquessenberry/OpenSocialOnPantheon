@@ -16,8 +16,8 @@ class SettingsRewriteTest extends KernelTestBase {
    * Tests the drupal_rewrite_settings() function.
    */
   public function testDrupalRewriteSettings() {
-    include_once \Drupal::root() . '/core/includes/install.inc';
-    $site_path = $this->container->get('site.path');
+    include_once $this->root . '/core/includes/install.inc';
+    $site_path = $this->container->getParameter('site.path');
     $tests = [
       [
         'original' => '$no_index_value_scalar = TRUE;',
@@ -99,7 +99,7 @@ EXPECTED
       $filename = Settings::get('file_public_path', $site_path . '/files') . '/mock_settings.php';
       file_put_contents($filename, "<?php\n" . $test['original'] . "\n");
       drupal_rewrite_settings($test['settings'], $filename);
-      $this->assertEqual(file_get_contents($filename), "<?php\n" . $test['expected'] . "\n");
+      $this->assertEquals("<?php\n" . $test['expected'] . "\n", file_get_contents($filename));
     }
 
     // Test that <?php gets added to the start of an empty settings file.
@@ -111,7 +111,7 @@ EXPECTED
           'required' => TRUE,
         ],
       ],
-      'expected' => '$no_index = true;'
+      'expected' => '$no_index = true;',
     ];
     // Make an empty file.
     $filename = Settings::get('file_public_path', $site_path . '/files') . '/mock_settings.php';
@@ -121,7 +121,7 @@ EXPECTED
     drupal_rewrite_settings($test['settings'], $filename);
 
     // Check that the result is just the php opening tag and the settings.
-    $this->assertEqual(file_get_contents($filename), "<?php\n" . $test['expected'] . "\n");
+    $this->assertEquals("<?php\n" . $test['expected'] . "\n", file_get_contents($filename));
   }
 
 }

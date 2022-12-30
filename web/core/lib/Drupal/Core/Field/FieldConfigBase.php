@@ -12,6 +12,8 @@ use Drupal\Core\Field\TypedData\FieldItemDataDefinition;
  */
 abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigInterface {
 
+  use FieldInputValueNormalizerTrait;
+
   /**
    * The field ID.
    *
@@ -123,13 +125,14 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
    *
    * The default value is expressed as a numerically indexed array of items,
    * each item being an array of key/value pairs matching the set of 'columns'
-   * defined by the "field schema" for the field type, as exposed in
-   * hook_field_schema(). If the number of items exceeds the cardinality of the
-   * field, extraneous items will be ignored.
+   * defined by the "field schema" for the field type, as exposed in the class
+   * implementing \Drupal\Core\Field\FieldItemInterface::schema() method. If the
+   * number of items exceeds the cardinality of the field, extraneous items will
+   * be ignored.
    *
    * This property is overlooked if the $default_value_callback is non-empty.
    *
-   * Example for a integer field:
+   * Example for an integer field:
    * @code
    * array(
    *   array('value' => 1),
@@ -231,7 +234,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
     // Add dependencies from the field type plugin. We can not use
     // self::calculatePluginDependencies() because instantiation of a field item
     // plugin requires a parent entity.
-    /** @var $field_type_manager \Drupal\Core\Field\FieldTypePluginManagerInterface */
+    /** @var \Drupal\Core\Field\FieldTypePluginManagerInterface $field_type_manager */
     $field_type_manager = \Drupal::service('plugin.manager.field.field_type');
     $definition = $field_type_manager->getDefinition($this->getType());
     $this->addDependency('module', $definition['provider']);
@@ -244,7 +247,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
     $this->addDependencies($definition['class']::calculateDependencies($this));
 
     // Create dependency on the bundle.
-    $bundle_config_dependency = $this->entityManager()->getDefinition($this->entity_type)->getBundleConfigDependency($this->bundle);
+    $bundle_config_dependency = $this->entityTypeManager()->getDefinition($this->entity_type)->getBundleConfigDependency($this->bundle);
     $this->addDependency($bundle_config_dependency['type'], $bundle_config_dependency['name']);
 
     return $this;
@@ -262,7 +265,6 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
     }
     return $changed;
   }
-
 
   /**
    * {@inheritdoc}
@@ -282,12 +284,12 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
    */
   public function postSave(EntityStorageInterface $storage, $update = TRUE) {
     // Clear the cache.
-    $this->entityManager()->clearCachedFieldDefinitions();
+    \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
 
     // Invalidate the render cache for all affected entities.
     $entity_type = $this->getFieldStorageDefinition()->getTargetEntityTypeId();
-    if ($this->entityManager()->hasHandler($entity_type, 'view_builder')) {
-      $this->entityManager()->getViewBuilder($entity_type)->resetCache();
+    if ($this->entityTypeManager()->hasHandler($entity_type, 'view_builder')) {
+      $this->entityTypeManager()->getViewBuilder($entity_type)->resetCache();
     }
   }
 
@@ -380,7 +382,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
   }
 
   /**
-   * [@inheritdoc}
+   * {@inheritdoc}
    */
   public function setRequired($required) {
     $this->required = $required;
@@ -394,6 +396,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
     // Allow custom default values function.
     if ($callback = $this->getDefaultValueCallback()) {
       $value = call_user_func($callback, $entity, $this);
+      $value = $this->normalizeValue($value, $this->getFieldStorageDefinition()->getMainPropertyName());
     }
     else {
       $value = $this->getDefaultValueLiteral();
@@ -414,18 +417,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
    * {@inheritdoc}
    */
   public function setDefaultValue($value) {
-    if (!is_array($value)) {
-      if ($value === NULL) {
-        $value = [];
-      }
-      $key = $this->getFieldStorageDefinition()->getPropertyNames()[0];
-      // Convert to the multi value format to support fields with a cardinality
-      // greater than 1.
-      $value = [
-        [$key => $value],
-      ];
-    }
-    $this->default_value = $value;
+    $this->default_value = $this->normalizeValue($value, $this->getFieldStorageDefinition()->getMainPropertyName());
     return $this;
   }
 
@@ -449,7 +441,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
    *
    * Using the Serialize interface and serialize() / unserialize() methods
    * breaks entity forms in PHP 5.4.
-   * @todo Investigate in https://www.drupal.org/node/2074253.
+   * @todo Investigate in https://www.drupal.org/node/1977206.
    */
   public function __sleep() {
     // Only serialize necessary properties, excluding those that can be
@@ -513,7 +505,7 @@ abstract class FieldConfigBase extends ConfigEntityBase implements FieldConfigIn
    */
   public function getConstraint($constraint_name) {
     $constraints = $this->getConstraints();
-    return isset($constraints[$constraint_name]) ? $constraints[$constraint_name] : NULL;
+    return $constraints[$constraint_name] ?? NULL;
   }
 
   /**

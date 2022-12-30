@@ -8,6 +8,8 @@ var Drupal = Drupal || {};
 (function ($, Drupal, Bootstrap) {
   "use strict";
 
+  var $document = $(document);
+
   /**
    * Extend the Bootstrap Popover plugin constructor class.
    */
@@ -15,12 +17,12 @@ var Drupal = Drupal || {};
     return {
       DEFAULTS: {
         animation: !!settings.popover_animation,
+        autoClose: !!settings.popover_auto_close,
         enabled: settings.popover_enabled,
         html: !!settings.popover_html,
         placement: settings.popover_placement,
         selector: settings.popover_selector,
         trigger: settings.popover_trigger,
-        triggerAutoclose: !!settings.popover_trigger_autoclose,
         title: settings.popover_title,
         content: settings.popover_content,
         delay: parseInt(settings.popover_delay, 10),
@@ -35,38 +37,56 @@ var Drupal = Drupal || {};
    * @todo This should really be properly delegated if selector option is set.
    */
   Drupal.behaviors.bootstrapPopovers = {
+    $activePopover: null,
     attach: function (context) {
       // Immediately return if popovers are not available.
       if (!$.fn.popover || !$.fn.popover.Constructor.DEFAULTS.enabled) {
         return;
       }
 
-      // Popover autoclose.
-      if ($.fn.popover.Constructor.DEFAULTS.triggerAutoclose) {
-        var $currentPopover = null;
-        $(document)
-          .on('show.bs.popover', '[data-toggle=popover]', function () {
-            var $trigger = $(this);
-            var popover = $trigger.data('bs.popover');
+      var _this = this;
 
-            // Only keep track of clicked triggers that we're manually handling.
-            if (popover.options.originalTrigger === 'click') {
-              if ($currentPopover && !$currentPopover.is($trigger)) {
-                $currentPopover.popover('hide');
-              }
-              $currentPopover = $trigger;
+      $document
+        .on('show.bs.popover', '[data-toggle=popover]', function () {
+          var $trigger = $(this);
+          var popover = $trigger.data('bs.popover');
+
+          // Only keep track of clicked triggers that we're manually handling.
+          if (popover.options.originalTrigger === 'click') {
+            if (_this.$activePopover && _this.getOption('autoClose') && !_this.$activePopover.is($trigger)) {
+              _this.$activePopover.popover('hide');
             }
-          })
-          .on('click', function (e) {
-            var $target = $(e.target);
-            var popover = $target.is('[data-toggle=popover]') && $target.data('bs.popover');
-            if ($currentPopover && !$target.is('[data-toggle=popover]') && !$target.closest('.popover.in')[0]) {
-              $currentPopover.popover('hide');
-              $currentPopover = null;
-            }
-          })
-        ;
-      }
+            _this.$activePopover = $trigger;
+          }
+        })
+        // Unfortunately, :focusable is only made available when using jQuery
+        // UI. While this would be the most semantic pseudo selector to use
+        // here, jQuery UI may not always be loaded. Instead, just use :visible
+        // here as this just needs some sort of selector here. This activates
+        // delegate binding to elements in jQuery so it can work it's bubbling
+        // focus magic since elements don't really propagate their focus events.
+        // @see https://www.drupal.org/project/bootstrap/issues/3013236
+        .on('focus.bs.popover', ':visible', function (e) {
+          var $target = $(e.target);
+          if (_this.$activePopover && _this.getOption('autoClose') && !_this.$activePopover.is($target) && !$target.closest('.popover.in')[0]) {
+            _this.$activePopover.popover('hide');
+            _this.$activePopover = null;
+          }
+        })
+        .on('click.bs.popover', function (e) {
+          var $target = $(e.target);
+          if (_this.$activePopover && _this.getOption('autoClose') && !$target.is('[data-toggle=popover]') && !$target.closest('.popover.in')[0]) {
+            _this.$activePopover.popover('hide');
+            _this.$activePopover = null;
+          }
+        })
+        .on('keyup.bs.popover', function (e) {
+          if (_this.$activePopover && _this.getOption('autoClose') && e.which === 27) {
+            _this.$activePopover.popover('hide');
+            _this.$activePopover = null;
+          }
+        })
+      ;
 
       var elements = $(context).find('[data-toggle=popover]').toArray();
       for (var i = 0; i < elements.length; i++) {
@@ -82,7 +102,8 @@ var Drupal = Drupal || {};
         }
 
         // Retrieve content from a target element.
-        var $target = $(options.target || $element.is('a[href^="#"]') && $element.attr('href')).clone();
+        var target = options.target || $element.is('a[href^="#"]') && $element.attr('href');
+        var $target = $document.find(target).clone();
         if (!options.content && $target[0]) {
           $target.removeClass('visually-hidden hidden').removeAttr('aria-hidden');
           options.content = $target.wrap('<div/>').parent()[options.html ? 'html' : 'text']() || '';
@@ -117,6 +138,14 @@ var Drupal = Drupal || {};
         .off('click.drupal.bootstrap.popover')
         .popover('destroy')
       ;
+    },
+    getOption: function(name, defaultValue, element) {
+      var $element = element ? $(element) : this.$activePopover;
+      var options = $.extend(true, {}, $.fn.popover.Constructor.DEFAULTS, ($element && $element.data('bs.popover') || {}).options);
+      if (options[name] !== void 0) {
+        return options[name];
+      }
+      return defaultValue !== void 0 ? defaultValue : void 0;
     }
   };
 

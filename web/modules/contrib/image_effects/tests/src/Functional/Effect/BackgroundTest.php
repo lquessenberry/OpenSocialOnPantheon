@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Background effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class BackgroundTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class BackgroundTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Background effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,18 +33,11 @@ class BackgroundTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testBackgroundEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Background effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testBackgroundEffect() {
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
-    $background_uri = $this->getTestImageCopyUri('/files/image-1.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
+    $background_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-1.png');
 
     $effect = [
       'id' => 'image_effects_background',
@@ -60,8 +53,8 @@ class BackgroundTest extends ImageEffectsTestBase {
 
     // Check that ::transformDimensions returns expected dimensions.
     $image = $this->imageFactory->get($original_uri);
-    $this->assertEqual(40, $image->getWidth());
-    $this->assertEqual(20, $image->getHeight());
+    $this->assertEquals(40, $image->getWidth());
+    $this->assertEquals(20, $image->getHeight());
     $derivative_url = file_url_transform_relative($this->testImageStyle->buildUrl($original_uri));
     $variables = [
       '#theme' => 'image_style',
@@ -70,17 +63,20 @@ class BackgroundTest extends ImageEffectsTestBase {
       '#width' => $image->getWidth(),
       '#height' => $image->getHeight(),
     ];
-    $this->assertEqual('<img src="' . $derivative_url . '" width="360" height="240" alt="" class="image-style-image-effects-test" />', $this->getImageTag($variables));
+    $this->assertMatchesRegularExpression("/\<img src=\"" . preg_quote($derivative_url, '/') . "\" width=\"360\" height=\"240\" alt=\"\" .*class=\"image\-style\-image\-effects\-test\" \/\>/", $this->getImageTag($variables));
 
     // Check that ::applyEffect generates image with expected canvas.
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
     $this->testImageStyle->createDerivative($original_uri, $derivative_uri);
     $image = $this->imageFactory->get($derivative_uri, 'gd');
-    $this->assertEqual(360, $image->getWidth());
-    $this->assertEqual(240, $image->getHeight());
+    $this->assertEquals(360, $image->getWidth());
+    $this->assertEquals(240, $image->getHeight());
     $this->assertColorsAreEqual($this->red, $this->getPixelColor($image, 0, 0));
     $this->assertColorsAreEqual($this->green, $this->getPixelColor($image, 39, 0));
-    $this->assertColorsAreEqual([185, 185, 185, 0], $this->getPixelColor($image, 0, 19));
+    $this->assertColorsAreEqual(
+      [185, 185, 185, 0],
+      $this->getPixelColor($image, 0, 19)
+    );
     $this->assertColorsAreEqual($this->blue, $this->getPixelColor($image, 39, 19));
 
     // Remove effect.
@@ -103,10 +99,19 @@ class BackgroundTest extends ImageEffectsTestBase {
         ]);
         // The operation replaced the resource, check that the old one has
         // been destroyed.
-        $new_res = $image->getToolkit()->getResource();
-        $this->assertTrue(is_resource($new_res));
-        $this->assertNotEqual($new_res, $old_res);
-        $this->assertFalse(is_resource($old_res));
+        if (PHP_VERSION_ID < 80000) {
+          $new_res = $image->getToolkit()->getResource();
+          $this->assertIsResource($new_res);
+          $this->assertNotEquals($new_res, $old_res);
+          // @todo In https://www.drupal.org/node/3133236 convert this to
+          // $this->assertIsNotResource($old_res).
+          $this->assertFalse(is_resource($old_res));
+        }
+        // Save image and compare against original, should differ.
+        $this->assertTrue($image->save($original_uri . '.modified.png'));
+        $image_original = $this->imageFactory->get($original_uri);
+        $image_modified = $this->imageFactory->get($original_uri . '.modified.png');
+        $this->assertImagesAreNotEqual($image_original, $image_modified);
         break;
 
       case 'imagemagick':
@@ -121,8 +126,8 @@ class BackgroundTest extends ImageEffectsTestBase {
           'opacity' => 100,
           'background_image' => $this->imageFactory->get($background_uri),
         ]);
-        $this->assertEqual(360, $image->getToolkit()->getWidth());
-        $this->assertEqual(240, $image->getToolkit()->getHeight());
+        $this->assertEquals(360, $image->getToolkit()->getWidth());
+        $this->assertEquals(240, $image->getToolkit()->getHeight());
         break;
 
     }

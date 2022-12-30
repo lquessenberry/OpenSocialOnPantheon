@@ -1,0 +1,131 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Social Content Report.
+ */
+
+use Drupal\Core\Config\FileStorage;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\taxonomy\Entity\Term;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Implements hook_install().
+ */
+function social_content_report_install() {
+  // The terms to create with their weight.
+  $terms = [
+    'Abuse' => 0,
+    'Spam' => 0,
+    'Other' => 1,
+  ];
+
+  $default_values = [];
+
+  // Create the above terms on module install.
+  foreach ($terms as $name => $weight) {
+    try {
+      /** @var \Drupal\taxonomy\TermInterface $term */
+      $term = Term::create([
+        'name' => $name,
+        'weight' => $weight,
+        'vid' => 'report_reasons',
+      ]);
+      $term->save();
+
+      // Just the "Other" term should have a reason text field by default.
+      if ($weight) {
+        $default_values[] = $term->id();
+      }
+    }
+    catch (EntityStorageException $exception) {
+      \Drupal::logger('social_content_report')->error(t('The term "@term" could not be created.', ['@term' => $name]));
+    }
+  }
+
+  // Store the default selected term(s) in the config.
+  // The configuration is updated here because we can't know the IDs of the
+  // terms before they are created. This means that a static configuration file
+  // can't be used.
+  \Drupal::configFactory()->getEditable('social_content_report.settings')
+    ->set('reasons_with_text', $default_values)
+    ->save();
+
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    'verified',
+    [
+      'flag report_comment',
+      'flag report_node',
+      'flag report_post',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'flag report_comment',
+      'flag report_node',
+      'flag report_post',
+      'view inappropriate reports',
+      'close inappropriate reports',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'flag report_comment',
+      'flag report_node',
+      'flag report_post',
+      'view inappropriate reports',
+      'close inappropriate reports',
+      'administer social_content_report settings',
+    ]
+  );
+}
+
+/**
+ * Update message template "message.template.activity_on_events_im_organizing".
+ *
+ * Added new 'preview' and 'cta_button' tokens.
+ */
+function social_content_report_update_10301() {
+  $config_file = \Drupal::service('extension.list.module')->getPath('social_content_report') . '/config/static/message.template.content_reported_10301.yml';
+  if (is_file($config_file)) {
+    $settings = Yaml::parse(file_get_contents($config_file));
+    if (is_array($settings)) {
+      $config = \Drupal::configFactory()
+        ->getEditable('message.template.content_reported');
+      $config->setData($settings)->save(TRUE);
+    }
+  }
+}
+
+/**
+ * Make "Report Reasons" vocabulary translatable.
+ */
+function social_content_report_update_11201(): void {
+  if (!\Drupal::moduleHandler()->moduleExists('social_content_translation')) {
+    return;
+  }
+
+  $config_storage = \Drupal::service('config.storage');
+  $config_path = \Drupal::service('extension.list.module')->getPath('social_content_report') . '/config/static';
+  $source = new FileStorage($config_path);
+
+  $config_storage->write('language.content_settings.taxonomy_term.report_reasons', (array) $source->read('language.content_settings.taxonomy_term.report_reasons_11201'));
+}
+
+/**
+ * Update exposed filter button name.
+ */
+function social_content_report_update_11401(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_content_report', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}

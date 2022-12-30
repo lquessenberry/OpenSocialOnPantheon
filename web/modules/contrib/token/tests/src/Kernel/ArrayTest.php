@@ -11,8 +11,8 @@ class ArrayTest extends KernelTestBase {
 
   function testArrayTokens() {
     // Test a simple array.
-    $array = array(0 => 'a', 1 => 'b', 2 => 'c', 4 => 'd');
-    $tokens = array(
+    $array = [0 => 'a', 1 => 'b', 2 => 'c', 4 => 'd'];
+    $tokens = [
       'first' => 'a',
       'last' => 'd',
       'value:0' => 'a',
@@ -27,19 +27,19 @@ class ArrayTest extends KernelTestBase {
       'join' => 'abcd',
       'join:, ' => 'a, b, c, d',
       'join: ' => 'a b c d',
-    );
-    $this->assertTokens('array', array('array' => $array), $tokens);
+    ];
+    $this->assertTokens('array', ['array' => $array], $tokens);
 
     // Test a mixed simple and render array.
     // 2 => c, 0 => a, 4 => d, 1 => b
-    $array = array(
+    $array = [
       '#property' => 'value',
       0 => 'a',
-      1 => array('#markup' => 'b', '#weight' => 0.01),
-      2 => array('#markup' => 'c', '#weight' => -10),
-      4 => array('#markup' => 'd', '#weight' => 0),
-    );
-    $tokens = array(
+      1 => ['#markup' => 'b', '#weight' => 0.01],
+      2 => ['#markup' => 'c', '#weight' => -10],
+      4 => ['#markup' => 'd', '#weight' => 0],
+    ];
+    $tokens = [
       'first' => 'c',
       'last' => 'b',
       'value:0' => 'a',
@@ -54,7 +54,8 @@ class ArrayTest extends KernelTestBase {
       'join' => 'cadb',
       'join:, ' => 'c, a, d, b',
       'join: ' => 'c a d b',
-    );
-    $this->assertTokens('array', array('array' => $array), $tokens);
+    ];
+    $this->assertTokens('array', ['array' => $array], $tokens);
   }
+
 }

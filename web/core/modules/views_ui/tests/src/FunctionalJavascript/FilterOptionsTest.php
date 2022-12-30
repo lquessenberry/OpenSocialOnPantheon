@@ -2,24 +2,34 @@
 
 namespace Drupal\Tests\views_ui\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Tests the JavaScript filtering of options in add handler form.
  *
  * @group views_ui
  */
-class FilterOptionsTest extends JavascriptTestBase {
+class FilterOptionsTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_ui', 'views_ui_test_field'];
+  protected static $modules = [
+    'node',
+    'views',
+    'views_ui',
+    'views_ui_test_field',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
     parent::setUp();
 
     $admin_user = $this->drupalCreateUser([

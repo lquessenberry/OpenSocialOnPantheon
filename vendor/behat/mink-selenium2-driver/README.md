@@ -3,10 +3,9 @@ Mink Selenium2 (webdriver) Driver
 [![Latest Stable Version](https://poser.pugx.org/behat/mink-selenium2-driver/v/stable.svg)](https://packagist.org/packages/behat/mink-selenium2-driver)
 [![Latest Unstable Version](https://poser.pugx.org/behat/mink-selenium2-driver/v/unstable.svg)](https://packagist.org/packages/behat/mink-selenium2-driver)
 [![Total Downloads](https://poser.pugx.org/behat/mink-selenium2-driver/downloads.svg)](https://packagist.org/packages/behat/mink-selenium2-driver)
-[![Build Status](https://travis-ci.org/minkphp/MinkSelenium2Driver.svg?branch=master)](https://travis-ci.org/minkphp/MinkSelenium2Driver)
-[![Scrutinizer Quality Score](https://scrutinizer-ci.com/g/minkphp/MinkSelenium2Driver/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/minkphp/MinkSelenium2Driver/)
-[![Code Coverage](https://scrutinizer-ci.com/g/minkphp/MinkSelenium2Driver/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/minkphp/MinkSelenium2Driver/)
+[![CI](https://github.com/minkphp/MinkSelenium2Driver/actions/workflows/tests.yml/badge.svg)](https://github.com/minkphp/MinkSelenium2Driver/actions/workflows/tests.yml)
 [![License](https://poser.pugx.org/behat/mink-selenium2-driver/license.svg)](https://packagist.org/packages/behat/mink-selenium2-driver)
+[![codecov](https://codecov.io/gh/minkphp/MinkSelenium2Driver/branch/master/graph/badge.svg?token=x2Q2iM3XYz)](https://codecov.io/gh/minkphp/MinkSelenium2Driver)
 
 Usage Example
 -------------
@@ -45,9 +44,32 @@ Installation
 ```
 
 ``` bash
-$> curl -sS http://getcomposer.org/installer | php
+$> curl -sS https://getcomposer.org/installer | php
 $> php composer.phar install
 ```
+
+Testing
+------------
+
+1. Start WebDriver
+    1. If you have Docker installed, run
+    ```bash
+    docker run -p 4444:4444 selenium/standalone-firefox:2.53.1
+    ```
+    2. If you do not have Docker, but you have Java
+    ```bash
+    curl -L https://selenium-release.storage.googleapis.com/2.53/selenium-server-standalone-2.53.1.jar > selenium-server-standalone-2.53.1.jar
+    java -jar selenium-server-standalone-2.53.1.jar
+    ```
+2. Start WebServer by running
+    ``` bash
+    ./vendor/bin/mink-test-server
+    ```
+3. Start PhpUnit
+    ```bash
+    composer require --dev phpunit/phpunit
+    ./vendor/bin/phpunit -v --coverage-clover=coverage.clover
+    ```
 
 Copyright
 ---------
@@ -58,4 +80,5 @@ Maintainers
 -----------
 
 * Christophe Coevoet [stof](https://github.com/stof)
-* Pete Otaqui [pete-otaqui](http://github.com/pete-otaqui)
+* Pete Otaqui [pete-otaqui](https://github.com/pete-otaqui)
+* Alexander Obuhovich [aik099](https://github.com/aik099)

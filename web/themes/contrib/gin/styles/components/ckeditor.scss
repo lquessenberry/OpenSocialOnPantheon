@@ -1,0 +1,170 @@
+.cke.cke {
+  .cke_inner,
+  .cke_wysiwyg_frame,
+  .cke_wysiwyg_div {
+    .gin--dark-mode & {
+      background: var(--colorGinLayer2Background);
+    }
+  }
+
+  &.cke_chrome {
+    width: 100% !important; // Fix issue with field_group
+    border-color: var(--colorGinFormElementBorder);
+    border-radius: var(--ginBorderDefault);
+  }
+
+  .cke_inner {
+    border-radius: var(--ginBorderDefault);
+  }
+
+  .cke_top {
+    background: var(--colorGinLayerBackground);
+    border-bottom: 1px solid var(--colorGinBorder);
+    border-radius: calc(var(--ginBorderDefault) - 1px) calc(var(--ginBorderDefault) - 1px) 0 0;
+
+    .gin--dark-mode & {
+      background: var(--colorGinLayer2Background);
+    }
+  }
+
+  .cke_bottom {
+    background: var(--colorGinLayer3Background);
+    border-radius: 0 0 calc(var(--ginBorderDefault) - 1px) calc(var(--ginBorderDefault) - 1px);
+  }
+
+  .cke_contents {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .cke_path_empty:only-child::after {
+    background: transparent;
+  }
+
+  .cke_combo {
+    &::after {
+      border-right: 1px solid var(--colorGinBorder);
+    }
+  }
+
+  .cke_combo_text {
+    color: var(--colorGinText);
+  }
+
+  .cke_combo_on a.cke_combo_button,
+  .cke_combo_off a.cke_combo_button:hover,
+  .cke_combo_off a.cke_combo_button:focus,
+  .cke_combo_off a.cke_combo_button:active {
+    background: var(--colorGinAppBackground);
+    border: 1px solid var(--colorGinLayer2Background);
+  }
+
+  a.cke_path_item,
+  span.cke_path_empty {
+    color: var(--colorGinTextLight);
+  }
+
+  a.cke_button {
+    border-radius: 3px;
+  }
+
+  a.cke_button_on {
+    background: none;
+  }
+
+  a.cke_button_off {
+    &:hover,
+    &:focus,
+    &:active {
+      background: var(--colorGinItemHover);
+      border: 1px solid var(--colorGinLayer2Border);
+    }
+  }
+
+  .cke_button {
+    span {
+      .gin--dark-mode & {
+        filter: invert(1);
+      }
+    }
+  }
+
+  &.cke_panel {
+    background-color: var(--colorGinAppBackground);
+    border: 0 none;
+  }
+}
+
+.cke.cke_chrome.cke_focus {
+  border-color: transparent;
+}
+
+.cke.cke_chrome:hover,
+.cke:hover .cke_contents,
+.cke:hover .cke_top,
+.cke:hover .cke_bottom {
+  border-color: var(--colorGinText);
+
+  .gin--dark-mode & {
+    border-color: var(--colorGinLayer2Border);
+  }
+}
+
+.cke:hover .cke_top {
+  &,
+  .gin--dark-mode & {
+    border-bottom-color: var(--colorGinBorder);
+  }
+}
+
+.cke.cke_chrome.cke_focus:hover,
+.cke.cke_focus .cke_contents,
+.cke.cke_focus .cke_top,
+.cke.cke_focus .cke_bottom,
+.error + .cke.cke_chrome.cke_focus:hover,
+.error + .cke.cke_focus .cke_contents,
+.error + .cke.cke_focus .cke_top,
+.error + .cke.cke_focus .cke_bottom {
+  border-color: var(--colorGinText);
+}
+
+.cke_top,
+.cke.cke_chrome.cke_focus:hover .cke_top,
+.cke.cke_focus .cke_top,
+.error + .cke.cke_focus .cke_top,
+.error + .cke.cke_chrome.cke_focus:hover .cke_top {
+  border-bottom: 1px solid var(--colorGinBorder);
+}
+
+.cke textarea.cke_source {
+  padding: .75rem .5rem;
+  color: var(--colorGinText);
+  background-color: transparent;
+}
+
+body .cke_notification_info {
+  opacity: 1;
+  padding: .5rem;
+  background: var(--colorGinLayer4Background);
+  border: 0 none;
+  border-radius: var(--ginBorderDefault);
+  box-shadow: var(--ginShadowLevel1);
+
+  .cke_notification_message {
+    color: var(--colorGinText);
+  }
+
+  .cke_notification_close {
+    top: 4px;
+    right: 4px;
+    background: var(--colorGinText);
+    mask-image: icon('close');
+    mask-position: center center;
+    mask-repeat: no-repeat;
+    mask-size: 12px 12px;
+  }
+}
+
+.filter-tips {
+  color: var(--colorGinTextLight);
+}

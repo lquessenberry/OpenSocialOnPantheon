@@ -79,7 +79,7 @@ class LoggerChannel implements LoggerChannelInterface {
   protected $currentUser;
 
   /**
-   * Constructs a LoggerChannel object
+   * Constructs a LoggerChannel object.
    *
    * @param string $channel
    *   The channel name for this instance.
@@ -101,7 +101,6 @@ class LoggerChannel implements LoggerChannelInterface {
     $context += [
       'channel' => $this->channel,
       'link' => '',
-      'user' => NULL,
       'uid' => 0,
       'request_uri' => '',
       'referer' => '',
@@ -112,18 +111,10 @@ class LoggerChannel implements LoggerChannelInterface {
     if ($this->requestStack && $request = $this->requestStack->getCurrentRequest()) {
       $context['request_uri'] = $request->getUri();
       $context['referer'] = $request->headers->get('Referer', '');
-      $context['ip'] = $request->getClientIP();
-      try {
-        if ($this->currentUser) {
-          $context['user'] = $this->currentUser;
-          $context['uid'] = $this->currentUser->id();
-        }
-      }
-      catch (\Exception $e) {
-        // An exception might be thrown if the database connection is not
-        // available or due to another unexpected reason. It is more important
-        // to log the error that we already have so any additional exceptions
-        // are ignored.
+      $context['ip'] = $request->getClientIP() ?: '';
+
+      if ($this->currentUser) {
+        $context['uid'] = $this->currentUser->id();
       }
     }
 
@@ -174,13 +165,8 @@ class LoggerChannel implements LoggerChannelInterface {
    *   An array of sorted loggers by priority.
    */
   protected function sortLoggers() {
-    $sorted = [];
     krsort($this->loggers);
-
-    foreach ($this->loggers as $loggers) {
-      $sorted = array_merge($sorted, $loggers);
-    }
-    return $sorted;
+    return array_merge([], ...$this->loggers);
   }
 
 }

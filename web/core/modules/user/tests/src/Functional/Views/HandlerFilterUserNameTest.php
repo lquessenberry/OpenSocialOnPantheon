@@ -4,7 +4,6 @@ namespace Drupal\Tests\user\Functional\Views;
 
 use Drupal\views\Views;
 use Drupal\Tests\views\Functional\ViewTestBase;
-use Drupal\views\Tests\ViewTestData;
 
 /**
  * Tests the handler of the user: name filter.
@@ -19,7 +18,12 @@ class HandlerFilterUserNameTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['views_ui', 'user_test_views'];
+  protected static $modules = ['views_ui', 'user_test_views'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -51,10 +55,8 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     'uid' => 'uid',
   ];
 
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
-
-    ViewTestData::createTestViews(get_class($this), ['user_test_views']);
+  protected function setUp($import_test_views = TRUE, $modules = ['user_test_views']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->enableViewsTestModule();
 
@@ -65,7 +67,6 @@ class HandlerFilterUserNameTest extends ViewTestBase {
       $this->names[] = $account->label();
     }
   }
-
 
   /**
    * Tests just using the filter.
@@ -79,14 +80,17 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     $this->executeView($view);
     $this->assertIdenticalResultset($view, [['uid' => $this->accounts[0]->id()]], $this->columnMap);
 
-    $this->assertEqual($view->filter['uid']->getValueOptions(), NULL);
+    $this->assertNull($view->filter['uid']->getValueOptions());
   }
 
   /**
    * Tests using the user interface.
    */
   public function testAdminUserInterface() {
-    $admin_user = $this->drupalCreateUser(['administer views', 'administer site configuration']);
+    $admin_user = $this->drupalCreateUser([
+      'administer views',
+      'administer site configuration',
+    ]);
     $this->drupalLogin($admin_user);
 
     $path = 'admin/structure/views/nojs/handler/test_user_name/default/filter/uid';
@@ -96,30 +100,33 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     $users = [$this->randomMachineName()];
     $users = array_map('strtolower', $users);
     $edit = [
-      'options[value]' => implode(', ', $users)
+      'options[value]' => implode(', ', $users),
     ];
-    $this->drupalPostForm($path, $edit, t('Apply'));
-    $this->assertRaw(t('There are no entities matching "%value".', ['%value' => implode(', ', $users)]));
+    $this->drupalGet($path);
+    $this->submitForm($edit, 'Apply');
+    $this->assertSession()->pageTextContains('There are no users matching "' . implode(', ', $users) . '".');
 
     // Pass in an invalid username and a valid username.
     $random_name = $this->randomMachineName();
     $users = [$random_name, $this->names[0]];
     $users = array_map('strtolower', $users);
     $edit = [
-      'options[value]' => implode(', ', $users)
+      'options[value]' => implode(', ', $users),
     ];
     $users = [$users[0]];
-    $this->drupalPostForm($path, $edit, t('Apply'));
-    $this->assertRaw(t('There are no entities matching "%value".', ['%value' => implode(', ', $users)]));
+    $this->drupalGet($path);
+    $this->submitForm($edit, 'Apply');
+    $this->assertSession()->pageTextContains('There are no users matching "' . implode(', ', $users) . '".');
 
     // Pass in just valid usernames.
     $users = $this->names;
     $users = array_map('strtolower', $users);
     $edit = [
-      'options[value]' => implode(', ', $users)
+      'options[value]' => implode(', ', $users),
     ];
-    $this->drupalPostForm($path, $edit, t('Apply'));
-    $this->assertNoRaw(t('There are no entities matching "%value".', ['%value' => implode(', ', $users)]));
+    $this->drupalGet($path);
+    $this->submitForm($edit, 'Apply');
+    $this->assertSession()->pageTextNotContains('There are no users matching "' . implode(', ', $users) . '".');
   }
 
   /**
@@ -135,7 +142,7 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     $users = array_map('strtolower', $users);
     $options['query']['uid'] = implode(', ', $users);
     $this->drupalGet($path, $options);
-    $this->assertRaw(t('There are no entities matching "%value".', ['%value' => implode(', ', $users)]));
+    $this->assertSession()->pageTextContains('There are no users matching "' . implode(', ', $users) . '".');
 
     // Pass in an invalid target_id in for the entity_autocomplete value format.
     // There should be no errors, but all results should be returned as the
@@ -145,7 +152,7 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     $this->drupalGet($path, $options);
     // The actual result should contain all of the user ids.
     foreach ($this->accounts as $account) {
-      $this->assertRaw($account->id());
+      $this->assertSession()->pageTextContains($account->id());
     }
 
     // Pass in an invalid username and a valid username.
@@ -155,17 +162,17 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     $users = [$users[0]];
 
     $this->drupalGet($path, $options);
-    $this->assertRaw(t('There are no entities matching "%value".', ['%value' => implode(', ', $users)]));
+    $this->assertSession()->pageTextContains('There are no users matching "' . implode(', ', $users) . '".');
 
     // Pass in just valid usernames.
     $users = $this->names;
     $options['query']['uid'] = implode(', ', $users);
 
     $this->drupalGet($path, $options);
-    $this->assertNoRaw('Unable to find user');
+    $this->assertSession()->pageTextNotContains('Unable to find user');
     // The actual result should contain all of the user ids.
     foreach ($this->accounts as $account) {
-      $this->assertRaw($account->id());
+      $this->assertSession()->pageTextContains($account->id());
     }
 
     // Pass in just valid user IDs in the entity_autocomplete target_id format.
@@ -174,10 +181,10 @@ class HandlerFilterUserNameTest extends ViewTestBase {
     }, $this->accounts);
 
     $this->drupalGet($path, $options);
-    $this->assertNoRaw('Unable to find user');
+    $this->assertSession()->pageTextNotContains('Unable to find user');
     // The actual result should contain all of the user ids.
     foreach ($this->accounts as $account) {
-      $this->assertRaw($account->id());
+      $this->assertSession()->pageTextContains($account->id());
     }
   }
 

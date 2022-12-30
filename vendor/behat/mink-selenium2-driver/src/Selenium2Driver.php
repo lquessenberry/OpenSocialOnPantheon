@@ -14,9 +14,9 @@ use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Selector\Xpath\Escaper;
 use WebDriver\Element;
 use WebDriver\Exception\NoSuchElement;
+use WebDriver\Exception\StaleElementReference;
 use WebDriver\Exception\UnknownCommand;
 use WebDriver\Exception\UnknownError;
-use WebDriver\Exception;
 use WebDriver\Key;
 use WebDriver\WebDriver;
 
@@ -29,7 +29,7 @@ class Selenium2Driver extends CoreDriver
 {
     /**
      * Whether the browser has been started
-     * @var Boolean
+     * @var boolean
      */
     private $started = false;
 
@@ -131,7 +131,7 @@ class Selenium2Driver extends CoreDriver
         // See https://sites.google.com/a/chromium.org/chromedriver/capabilities
         if (isset($desiredCapabilities['chrome'])) {
 
-            $chromeOptions = array();
+            $chromeOptions = (isset($desiredCapabilities['goog:chromeOptions']) && is_array($desiredCapabilities['goog:chromeOptions']))? $desiredCapabilities['goog:chromeOptions']:array();
 
             foreach ($desiredCapabilities['chrome'] as $capability => $value) {
                 if ($capability == 'switches') {
@@ -142,7 +142,7 @@ class Selenium2Driver extends CoreDriver
                 $desiredCapabilities['chrome.'.$capability] = $value;
             }
 
-            $desiredCapabilities['chromeOptions'] = $chromeOptions;
+            $desiredCapabilities['goog:chromeOptions'] = $chromeOptions;
 
             unset($desiredCapabilities['chrome']);
         }
@@ -189,14 +189,7 @@ class Selenium2Driver extends CoreDriver
     {
         return array(
             'browserName'       => 'firefox',
-            'version'           => '9',
-            'platform'          => 'ANY',
-            'browserVersion'    => '9',
-            'browser'           => 'firefox',
             'name'              => 'Behat Test',
-            'deviceOrientation' => 'portrait',
-            'deviceType'        => 'tablet',
-            'selenium-version'  => '2.31.0'
         );
     }
 
@@ -261,7 +254,7 @@ class Selenium2Driver extends CoreDriver
      *
      * @param string  $xpath  the xpath to search with
      * @param string  $script the script to execute
-     * @param Boolean $sync   whether to run the script synchronously (default is TRUE)
+     * @param boolean $sync   whether to run the script synchronously (default is TRUE)
      *
      * @return mixed
      */
@@ -278,7 +271,7 @@ class Selenium2Driver extends CoreDriver
      *
      * @param Element $element the webdriver element
      * @param string  $script  the script to execute
-     * @param Boolean $sync    whether to run the script synchronously (default is TRUE)
+     * @param boolean $sync    whether to run the script synchronously (default is TRUE)
      *
      * @return mixed
      */
@@ -305,15 +298,13 @@ class Selenium2Driver extends CoreDriver
     {
         try {
             $this->wdSession = $this->webDriver->session($this->browserName, $this->desiredCapabilities);
-            $this->applyTimeouts();
         } catch (\Exception $e) {
             throw new DriverException('Could not open connection: '.$e->getMessage(), 0, $e);
         }
 
-        if (!$this->wdSession) {
-            throw new DriverException('Could not connect to a Selenium 2 / WebDriver server');
-        }
         $this->started = true;
+
+        $this->applyTimeouts();
     }
 
     /**
@@ -424,7 +415,7 @@ class Selenium2Driver extends CoreDriver
      */
     public function switchToWindow($name = null)
     {
-        $this->wdSession->focusWindow($name ? $name : '');
+        $this->wdSession->focusWindow($name ?: '');
     }
 
     /**
@@ -446,9 +437,19 @@ class Selenium2Driver extends CoreDriver
             return;
         }
 
+        // PHP 7.4 changed the way it encodes cookies to better respect the spec.
+        // This assumes that the server and the Mink client run on the same version (or
+        // at least the same side of the behavior change), so that the server and Mink
+        // consider the same value.
+        if (\PHP_VERSION_ID >= 70400) {
+            $encodedValue = rawurlencode($value);
+        } else {
+            $encodedValue = urlencode($value);
+        }
+
         $cookieArray = array(
             'name'   => $name,
-            'value'  => urlencode($value),
+            'value'  => $encodedValue,
             'secure' => false, // thanks, chibimagic!
         );
 
@@ -463,6 +464,14 @@ class Selenium2Driver extends CoreDriver
         $cookies = $this->wdSession->getAllCookies();
         foreach ($cookies as $cookie) {
             if ($cookie['name'] === $name) {
+                // PHP 7.4 changed the way it encodes cookies to better respect the spec.
+                // This assumes that the server and the Mink client run on the same version (or
+                // at least the same side of the behavior change), so that the server and Mink
+                // consider the same value.
+                if (\PHP_VERSION_ID >= 70400) {
+                    return rawurldecode($cookie['value']);
+                }
+
                 return urldecode($cookie['value']);
             }
         }
@@ -568,7 +577,7 @@ class Selenium2Driver extends CoreDriver
     {
         $element = $this->findElement($xpath);
         $elementName = strtolower($element->name());
-        $elementType = strtolower($element->attribute('type'));
+        $elementType = strtolower($element->attribute('type') ?: '');
 
         // Getting the value of a checkbox returns its value if selected.
         if ('input' === $elementName && 'checkbox' === $elementType) {
@@ -646,7 +655,7 @@ JS;
         }
 
         if ('input' === $elementName) {
-            $elementType = strtolower($element->attribute('type'));
+            $elementType = strtolower($element->attribute('type') ?: '');
 
             if (in_array($elementType, array('submit', 'image', 'button', 'reset'))) {
                 throw new DriverException(sprintf('Impossible to set value an element with XPath "%s" as it is not a select, textarea or textbox', $xpath));
@@ -677,8 +686,6 @@ JS;
 
         if (in_array($elementName, array('input', 'textarea'))) {
             $existingValueLength = strlen($element->attribute('value'));
-            // Add the TAB key to ensure we unfocus the field as browsers are triggering the change event only
-            // after leaving the field.
             $value = str_repeat(Key::BACKSPACE . Key::DELETE, $existingValueLength) . $value;
         }
 
@@ -696,7 +703,15 @@ if (document.activeElement === node) {
   document.activeElement.blur();
 }
 JS;
-        $this->executeJsOnElement($element, $script);
+
+        // Cover case, when an element was removed from DOM after its value was
+        // changed (e.g. by a JavaScript of a SPA) and therefore can't be focused.
+        try {
+            $this->executeJsOnElement($element, $script);
+        } catch (StaleElementReference $e) {
+            // Do nothing because an element was already removed and therefore
+            // blurring is not needed.
+        }
     }
 
     /**
@@ -745,7 +760,7 @@ JS;
         $element = $this->findElement($xpath);
         $tagName = strtolower($element->name());
 
-        if ('input' === $tagName && 'radio' === strtolower($element->attribute('type'))) {
+        if ('input' === $tagName && 'radio' === strtolower($element->attribute('type') ?: '')) {
             $this->selectRadioValue($element, $value);
 
             return;
@@ -783,6 +798,8 @@ JS;
             $this->wdSession->moveto(array('element' => $element->getID()));
         } catch (UnknownCommand $e) {
             // If the Webdriver implementation does not support moveto (which is not part of the W3C WebDriver spec), proceed to the click
+        } catch (UnknownError $e) {
+            // Chromium driver sends back UnknownError (WebDriver\Exception with code 13)
         }
 
         $element->click();
@@ -961,14 +978,17 @@ JS;
      */
     public function wait($timeout, $condition)
     {
-        $script = "return $condition;";
+        $script = 'return (' . rtrim($condition, " \t\n\r;") . ');';
         $start = microtime(true);
         $end = $start + $timeout / 1000.0;
 
         do {
             $result = $this->wdSession->execute(array('script' => $script, 'args' => array()));
-            usleep(100000);
-        } while (microtime(true) < $end && !$result);
+            if ($result) {
+              break;
+            }
+            usleep(10000);
+        } while (microtime(true) < $end);
 
         return (bool) $result;
     }
@@ -1133,7 +1153,7 @@ JS;
      */
     private function ensureInputType(Element $element, $xpath, $type, $action)
     {
-        if ('input' !== strtolower($element->name()) || $type !== strtolower($element->attribute('type'))) {
+        if ('input' !== strtolower($element->name()) || $type !== strtolower($element->attribute('type') ?: '')) {
             $message = 'Impossible to %s the element with XPath "%s" as it is not a %s input';
 
             throw new DriverException(sprintf($message, $action, $xpath, $type));
@@ -1181,7 +1201,7 @@ JS;
         $tempFilename = tempnam('', 'WebDriverZip');
 
         $archive = new \ZipArchive();
-        $result = $archive->open($tempFilename, \ZipArchive::CREATE);
+        $result = $archive->open($tempFilename, \ZipArchive::OVERWRITE);
         if (!$result) {
           throw new DriverException('Zip archive could not be created. Error ' . $result);
         }
@@ -1205,17 +1225,10 @@ JS;
           if (empty($remotePath)) {
             throw new UnknownError();
           }
-        } catch (\Exception $e) {
-          // Catch any error so we can still clean up the temporary archive.
-        }
-
-        unlink($tempFilename);
-
-        if (isset($e)) {
-          throw $e;
+        } finally {
+            unlink($tempFilename);
         }
 
         return $remotePath;
     }
-
 }

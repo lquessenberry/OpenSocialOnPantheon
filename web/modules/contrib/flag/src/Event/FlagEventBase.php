@@ -32,7 +32,7 @@ abstract class FlagEventBase extends Event {
    * Get the flag entity related to the event.
    *
    * @return \Drupal\flag\FlagInterface
-   *  The flag related to the event.
+   *   The flag related to the event.
    */
   public function getFlag() {
     return $this->flag;

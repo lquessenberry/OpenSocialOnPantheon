@@ -2,7 +2,7 @@
 
 namespace Drupal\search_api\ParseMode;
 
-use Drupal\Core\Plugin\PluginBase;
+use Drupal\search_api\Plugin\HideablePluginBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -31,7 +31,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @see \Drupal\search_api\ParseMode\ParseModeInterface
  * @see plugin_api
  */
-abstract class ParseModePluginBase extends PluginBase implements ParseModeInterface {
+abstract class ParseModePluginBase extends HideablePluginBase implements ParseModeInterface {
 
   /**
    * The default conjunction to use when parsing keywords.

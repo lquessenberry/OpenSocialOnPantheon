@@ -4,10 +4,12 @@ namespace Drupal\Core\Entity\Plugin\EntityReferenceSelection;
 
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Database\Query\AlterableInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityReferenceSelection\SelectionPluginBase;
-use Drupal\Core\Entity\EntityReferenceSelection\SelectionTrait;
 use Drupal\Core\Entity\EntityReferenceSelection\SelectionWithAutocreateInterface;
+use Drupal\Core\Entity\EntityRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem;
@@ -15,6 +17,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\user\EntityOwnerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Default plugin implementation of the Entity Reference Selection plugin.
@@ -38,19 +41,96 @@ use Drupal\user\EntityOwnerInterface;
  */
 class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPluginInterface, SelectionWithAutocreateInterface {
 
-  use SelectionTrait {
-    // PHP 5.5.9 gets confused between SelectionPluginBase::__construct() and
-    // SelectionTrait::__construct() that's why we are renaming the
-    // SelectionTrait::__construct() to avoid the confusion.
-    // @todo Remove this in https://www.drupal.org/node/2670966.
-    SelectionTrait::__construct as private initialize;
+  /**
+   * The entity type manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The entity field manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * Entity type bundle info service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  public $entityTypeBundleInfo;
+
+  /**
+   * The entity repository.
+   *
+   * @var \Drupal\Core\Entity\EntityRepositoryInterface
+   */
+  protected $entityRepository;
+
+  /**
+   * The module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountInterface
+   */
+  protected $currentUser;
+
+  /**
+   * Constructs a new DefaultSelection object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler service.
+   * @param \Drupal\Core\Session\AccountInterface $current_user
+   *   The current user.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
+   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
+   *   The entity type bundle info service.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, ModuleHandlerInterface $module_handler, AccountInterface $current_user, EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, EntityRepositoryInterface $entity_repository) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+
+    $this->entityTypeManager = $entity_type_manager;
+    $this->moduleHandler = $module_handler;
+    $this->currentUser = $current_user;
+    $this->entityFieldManager = $entity_field_manager;
+    $this->entityTypeBundleInfo = $entity_type_bundle_info;
+    $this->entityRepository = $entity_repository;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager, ModuleHandlerInterface $module_handler, AccountInterface $current_user) {
-    $this->initialize($configuration, $plugin_id, $plugin_definition, $entity_manager, $module_handler, $current_user);
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('entity_type.manager'),
+      $container->get('module_handler'),
+      $container->get('current_user'),
+      $container->get('entity_field.manager'),
+      $container->get('entity_type.bundle.info'),
+      $container->get('entity.repository')
+    );
   }
 
   /**
@@ -79,8 +159,8 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
 
     $configuration = $this->getConfiguration();
     $entity_type_id = $configuration['target_type'];
-    $entity_type = $this->entityManager->getDefinition($entity_type_id);
-    $bundles = $this->entityManager->getBundleInfo($entity_type_id);
+    $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
+    $bundles = $this->entityTypeBundleInfo->getBundleInfo($entity_type_id);
 
     if ($entity_type->hasKey('bundle')) {
       $bundle_options = [];
@@ -88,6 +168,10 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
         $bundle_options[$bundle_name] = $bundle_info['label'];
       }
       natsort($bundle_options);
+      $selected_bundles = array_intersect_key(
+        $bundle_options,
+        array_filter((array) $configuration['target_bundles'])
+      );
 
       $form['target_bundles'] = [
         '#type' => 'checkboxes',
@@ -97,7 +181,7 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
         '#required' => TRUE,
         '#size' => 6,
         '#multiple' => TRUE,
-        '#element_validate' => [[get_class($this), 'elementValidateFilter']],
+        '#element_validate' => [[static::class, 'elementValidateFilter']],
         '#ajax' => TRUE,
         '#limit_validation_errors' => [],
       ];
@@ -120,13 +204,14 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
     }
 
     if ($entity_type->entityClassImplements(FieldableEntityInterface::class)) {
+      $options = $entity_type->hasKey('bundle') ? $selected_bundles : $bundles;
       $fields = [];
-      foreach (array_keys($bundles) as $bundle) {
-        $bundle_fields = array_filter($this->entityManager->getFieldDefinitions($entity_type_id, $bundle), function ($field_definition) {
+      foreach (array_keys($options) as $bundle) {
+        $bundle_fields = array_filter($this->entityFieldManager->getFieldDefinitions($entity_type_id, $bundle), function ($field_definition) {
           return !$field_definition->isComputed();
         });
         foreach ($bundle_fields as $field_name => $field_definition) {
-          /* @var \Drupal\Core\Field\FieldDefinitionInterface $field_definition */
+          /** @var \Drupal\Core\Field\FieldDefinitionInterface $field_definition */
           $columns = $field_definition->getFieldStorageDefinition()->getColumns();
           // If there is more than one column, display them all, otherwise just
           // display the field label.
@@ -145,13 +230,20 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
       $form['sort']['field'] = [
         '#type' => 'select',
         '#title' => $this->t('Sort by'),
-        '#options' => [
-          '_none' => $this->t('- None -'),
-        ] + $fields,
+        '#options' => $fields,
         '#ajax' => TRUE,
+        '#empty_value' => '_none',
+        '#sort_options' => TRUE,
         '#limit_validation_errors' => [],
         '#default_value' => $configuration['sort']['field'],
       ];
+      if ($entity_type->hasKey('bundle')) {
+        $form['sort']['field']['#states'] = [
+          'visible' => [
+            ':input[name^="settings[handler_settings][target_bundles]["]' => ['checked' => TRUE],
+          ],
+        ];
+      }
 
       $form['sort']['settings'] = [
         '#type' => 'container',
@@ -159,18 +251,31 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
         '#process' => [[EntityReferenceItem::class, 'formProcessMergeParent']],
       ];
 
-      if ($configuration['sort']['field'] != '_none') {
-        $form['sort']['settings']['direction'] = [
-          '#type' => 'select',
-          '#title' => $this->t('Sort direction'),
-          '#required' => TRUE,
-          '#options' => [
-            'ASC' => $this->t('Ascending'),
-            'DESC' => $this->t('Descending'),
+      $form['sort']['settings']['direction'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Sort direction'),
+        '#required' => TRUE,
+        '#options' => [
+          'ASC' => $this->t('Ascending'),
+          'DESC' => $this->t('Descending'),
+        ],
+        '#default_value' => $configuration['sort']['direction'],
+        '#states' => [
+          'visible' => [
+            ':input[name="settings[handler_settings][sort][field]"]' => [
+              '!value' => '_none',
+            ],
           ],
-          '#default_value' => $configuration['sort']['direction'],
+        ],
+      ];
+      if ($entity_type->hasKey('bundle')) {
+        $form['sort']['settings']['direction']['#states']['visible'][] = [
+          ':input[name^="settings[handler_settings][target_bundles]["]' => [
+            'checked' => TRUE,
+          ],
         ];
       }
+
     }
 
     $form['auto_create'] = [
@@ -181,13 +286,12 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
     ];
 
     if ($entity_type->hasKey('bundle')) {
-      $bundles = array_intersect_key($bundle_options, array_filter((array) $configuration['target_bundles']));
       $form['auto_create_bundle'] = [
         '#type' => 'select',
         '#title' => $this->t('Store new items in'),
-        '#options' => $bundles,
+        '#options' => $selected_bundles,
         '#default_value' => $configuration['auto_create_bundle'],
-        '#access' => count($bundles) > 1,
+        '#access' => count($selected_bundles) > 1,
         '#states' => [
           'visible' => [
             ':input[name="settings[handler_settings][auto_create]"]' => ['checked' => TRUE],
@@ -245,10 +349,10 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
     }
 
     $options = [];
-    $entities = $this->entityManager->getStorage($target_type)->loadMultiple($result);
+    $entities = $this->entityTypeManager->getStorage($target_type)->loadMultiple($result);
     foreach ($entities as $entity_id => $entity) {
       $bundle = $entity->bundle();
-      $options[$bundle][$entity_id] = Html::escape($this->entityManager->getTranslationFromContext($entity)->label());
+      $options[$bundle][$entity_id] = Html::escape($this->entityRepository->getTranslationFromContext($entity)->label() ?? '');
     }
 
     return $options;
@@ -271,7 +375,7 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
     $result = [];
     if ($ids) {
       $target_type = $this->configuration['target_type'];
-      $entity_type = $this->entityManager->getDefinition($target_type);
+      $entity_type = $this->entityTypeManager->getDefinition($target_type);
       $query = $this->buildEntityQuery();
       $result = $query
         ->condition($entity_type->getKey('id'), $ids, 'IN')
@@ -285,14 +389,17 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
    * {@inheritdoc}
    */
   public function createNewEntity($entity_type_id, $bundle, $label, $uid) {
-    $entity_type = $this->entityManager->getDefinition($entity_type_id);
-    $bundle_key = $entity_type->getKey('bundle');
-    $label_key = $entity_type->getKey('label');
+    $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
 
-    $entity = $this->entityManager->getStorage($entity_type_id)->create([
-      $bundle_key => $bundle,
-      $label_key => $label,
-    ]);
+    $values = [
+      $entity_type->getKey('label') => $label,
+    ];
+
+    if ($bundle_key = $entity_type->getKey('bundle')) {
+      $values[$bundle_key] = $bundle;
+    }
+
+    $entity = $this->entityTypeManager->getStorage($entity_type_id)->create($values);
 
     if ($entity instanceof EntityOwnerInterface) {
       $entity->setOwnerId($uid);
@@ -330,9 +437,10 @@ class DefaultSelection extends SelectionPluginBase implements ContainerFactoryPl
   protected function buildEntityQuery($match = NULL, $match_operator = 'CONTAINS') {
     $configuration = $this->getConfiguration();
     $target_type = $configuration['target_type'];
-    $entity_type = $this->entityManager->getDefinition($target_type);
+    $entity_type = $this->entityTypeManager->getDefinition($target_type);
 
-    $query = $this->entityManager->getStorage($target_type)->getQuery();
+    $query = $this->entityTypeManager->getStorage($target_type)->getQuery();
+    $query->accessCheck(TRUE);
 
     // If 'target_bundles' is NULL, all bundles are referenceable, no further
     // conditions are needed.

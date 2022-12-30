@@ -8,31 +8,11 @@ use Drupal\data_policy\Entity\InformBlock;
 use Drupal\data_policy\InformBlockInterface;
 
 /**
- * Class DataPolicyInformController.
+ * Controller class for data_policy.
  *
  * @package Drupal\data_policy\Controller
  */
 class DataPolicyInformController extends ControllerBase {
-
-  /**
-   * The Data Policy consent manager.
-   *
-   * @var \Drupal\data_policy\DataPolicyConsentManagerInterface
-   */
-  protected $dataPolicyConsentManager;
-
-  /**
-   * Returns the Data Policy consent manager service.
-   *
-   * @return \Drupal\data_policy\DataPolicyConsentManagerInterface
-   *   The Data Policy consent manager.
-   */
-  protected function dataPolicyConsentManager() {
-    if (!$this->dataPolicyConsentManager) {
-      $this->dataPolicyConsentManager = \Drupal::service('data_policy.manager');
-    }
-    return $this->dataPolicyConsentManager;
-  }
 
   /**
    * Show description of information block for the current page.

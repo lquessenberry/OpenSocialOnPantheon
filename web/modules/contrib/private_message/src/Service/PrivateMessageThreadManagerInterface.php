@@ -21,13 +21,10 @@ interface PrivateMessageThreadManagerInterface {
    *   The new message object.
    * @param array $recipients
    *   (optional) An array of message recipients. Defaults to an empty array.
-   * @param array $excludeFromMail
-   *   (optional) An array of members to exclude from notification emails.
-   *   Defaults to an empty array.
    * @param \Drupal\private_message\Entity\PrivateMessageThreadInterface|null $thread
    *   (optional) The private message thread. If NULL, one will be loaded
    *   using the recipients array.
    */
-  public function saveThread(PrivateMessageInterface $message, array $recipients = [], array $excludeFromMail = [], PrivateMessageThreadInterface $thread = NULL);
+  public function saveThread(PrivateMessageInterface $message, array $recipients = [], PrivateMessageThreadInterface $thread = NULL);
 
 }

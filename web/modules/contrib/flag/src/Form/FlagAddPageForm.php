@@ -6,6 +6,8 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\flag\FlagType\FlagTypePluginManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Routing\RedirectDestinationTrait;
 
 /**
  * Provides the flag add page.
@@ -18,6 +20,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class FlagAddPageForm extends FormBase {
 
+  use RedirectDestinationTrait;
+
   /**
    * The flag type plugin manager.
    *
@@ -26,13 +30,23 @@ class FlagAddPageForm extends FormBase {
   protected $flagTypeManager;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * Constructs a new form.
    *
    * @param \Drupal\flag\FlagType\FlagTypePluginManager $flag_type_manager
    *   The link type plugin manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(FlagTypePluginManager $flag_type_manager) {
+  public function __construct(FlagTypePluginManager $flag_type_manager, EntityTypeManagerInterface $entity_type_manager) {
     $this->flagTypeManager = $flag_type_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -40,7 +54,8 @@ class FlagAddPageForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('plugin.manager.flag.flagtype')
+      $container->get('plugin.manager.flag.flagtype'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -58,9 +73,9 @@ class FlagAddPageForm extends FormBase {
 
     $form['flag_entity_type'] = [
       '#type' => 'radios',
-      '#title' => t('Flag Type'),
+      '#title' => $this->t('Flag Type'),
       '#required' => TRUE,
-      '#description' => t('Type of item to reference. This cannot be changed once the flag is created.'),
+      '#description' => $this->t('Type of item to reference. This cannot be changed once the flag is created.'),
       '#default_value' => 'entity:node',
       '#options' => $this->flagTypeManager->getAllFlagTypes(),
     ];
@@ -71,7 +86,7 @@ class FlagAddPageForm extends FormBase {
 
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => t('Continue'),
+      '#value' => $this->t('Continue'),
     ];
 
     return $form;
@@ -82,7 +97,7 @@ class FlagAddPageForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $form_state->setRedirect('entity.flag.add_form', [
-      'entity_type' => $form_state->getValue('flag_entity_type')
+      'entity_type' => $form_state->getValue('flag_entity_type'),
     ]);
   }
 
@@ -90,14 +105,14 @@ class FlagAddPageForm extends FormBase {
    * Determines if the flag already exists.
    *
    * @param string $id
-   *   The flag ID
+   *   The flag ID.
    *
    * @return bool
    *   TRUE if the flag exists, FALSE otherwise.
    */
   public function exists($id) {
     // @todo: Make this injected like ActionFormBase::exists().
-    return \Drupal::entityTypeManager()->getStorage('flag')->load($id);
+    return $this->entityTypeManager->getStorage('flag')->load($id);
   }
 
 }

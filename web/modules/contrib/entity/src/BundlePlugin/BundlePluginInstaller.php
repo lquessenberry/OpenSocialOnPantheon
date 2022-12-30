@@ -82,12 +82,27 @@ class BundlePluginInstaller implements BundlePluginInstallerInterface {
     $bundles = array_filter($bundle_handler->getBundleInfo(), function ($bundle_info) use ($modules) {
       return in_array($bundle_info['provider'], $modules, TRUE);
     });
+
+    /**
+     * We need to uninstall the field storage definitions in a separate loop.
+     *
+     * This way we can allow a module to re-use the same field within multiple
+     * bundles, allowing e.g to subclass a bundle plugin.
+     *
+     * @var \Drupal\entity\BundleFieldDefinition[] $field_storage_definitions
+     */
+    $field_storage_definitions = [];
+
     foreach (array_keys($bundles) as $bundle) {
       $this->entityBundleListener->onBundleDelete($bundle, $entity_type->id());
       foreach ($bundle_handler->getFieldDefinitions($bundle) as $definition) {
         $this->fieldDefinitionListener->onFieldDefinitionDelete($definition);
-        $this->fieldStorageDefinitionListener->onFieldStorageDefinitionDelete($definition);
+        $field_storage_definitions[$definition->getName()] = $definition;
       }
+    }
+
+    foreach ($field_storage_definitions as $definition) {
+      $this->fieldStorageDefinitionListener->onFieldStorageDefinitionDelete($definition);
     }
   }
 

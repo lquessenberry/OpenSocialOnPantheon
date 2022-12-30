@@ -19,7 +19,7 @@ class FilterHtmlTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $configuration['settings'] = [
       'allowed_html' => '<a href> <p> <em> <strong> <cite> <blockquote> <code class="pretty boring align-*"> <ul alpaca-*="wooly-* strong"> <ol llama-*> <li> <dl> <dt> <dd> <br> <h3 id>',
@@ -37,7 +37,7 @@ class FilterHtmlTest extends UnitTestCase {
    *
    * @param string $html
    *   Input HTML.
-   * @param array $expected
+   * @param string $expected
    *   The expected output string.
    */
   public function testfilterAttributes($html, $expected) {
@@ -66,11 +66,11 @@ class FilterHtmlTest extends UnitTestCase {
       ['<code class="invalid alpaca">foreach ($a as $b) {}</code>', '<code>foreach ($a as $b) {}</code>'],
       ['<h3 class="big">a heading</h3>', '<h3>a heading</h3>'],
       ['<h3 id="first">a heading</h3>', '<h3 id="first">a heading</h3>'],
-      // Wilcard value. Case matters, so upper case doesn't match.
+      // Wildcard value. Case matters, so upper case doesn't match.
       ['<code class="align-left bold">foreach ($a as $b) {}</code>', '<code class="align-left">foreach ($a as $b) {}</code>'],
       ['<code class="align-right ">foreach ($a as $b) {}</code>', '<code class="align-right">foreach ($a as $b) {}</code>'],
       ['<code class="Align-right ">foreach ($a as $b) {}</code>', '<code>foreach ($a as $b) {}</code>'],
-      // Wilcard name, case is ignored.
+      // Wildcard name, case is ignored.
       ['<ol style="display: none;" llama-wim="noble majestic"></ol>', '<ol llama-wim="noble majestic"></ol>'],
       ['<ol style="display: none;" LlamA-Wim="majestic"></ol>', '<ol llama-wim="majestic"></ol>'],
       ['<ol style="display: none;" llama-="noble majestic"></ol>', '<ol llama-="noble majestic"></ol>'],

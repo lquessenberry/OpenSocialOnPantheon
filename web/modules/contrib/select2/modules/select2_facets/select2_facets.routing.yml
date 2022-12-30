@@ -1,0 +1,7 @@
+select2_facets.facet_autocomplete:
+  path: '/select2_facets_autocomplete/{facetsource_id}/{facet_id}/{selection_settings_key}'
+  defaults:
+    _controller: '\Drupal\select2_facets\Controller\FacetApiAutocompleteController::handleAutocomplete'
+  requirements:
+    # We are calculating a hash for every request in the widget.
+    _access: 'TRUE'

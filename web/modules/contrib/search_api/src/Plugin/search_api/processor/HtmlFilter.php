@@ -272,7 +272,7 @@ class HtmlFilter extends FieldsProcessorPluginBase {
       }
       elseif (!$empty_tag) {
         // Opening tag => recursive call.
-        $inner_boost = $boost * (isset($this->configuration['tags'][$m[2]]) ? $this->configuration['tags'][$m[2]] : 1);
+        $inner_boost = $boost * ($this->configuration['tags'][$m[2]] ?? 1);
         $ret = array_merge($ret, $this->parseHtml($text, $m[2], $inner_boost));
       }
     }

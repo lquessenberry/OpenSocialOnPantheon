@@ -31,7 +31,7 @@ class FormController implements FormInterface {
    */
   public function __construct() {
     $manager = new ConditionManager(\Drupal::service('container.namespaces'), \Drupal::cache('discovery'), \Drupal::moduleHandler());
-    $this->condition = $manager->createInstance('node_type');
+    $this->condition = $manager->createInstance('entity_bundle:node');
   }
 
   /**
@@ -60,13 +60,13 @@ class FormController implements FormInterface {
     $this->condition->submitConfigurationForm($form, $form_state);
     $config = $this->condition->getConfig();
     foreach ($config['bundles'] as $bundle) {
-      drupal_set_message('Bundle: ' . $bundle);
+      \Drupal::messenger()->addStatus('Bundle: ' . $bundle);
     }
 
     $article = Node::load(1);
     $this->condition->setContextValue('node', $article);
     if ($this->condition->execute()) {
-      drupal_set_message(t('Executed successfully.'));
+      \Drupal::messenger()->addStatus(t('Executed successfully.'));
     }
   }
 

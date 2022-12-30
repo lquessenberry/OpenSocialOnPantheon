@@ -1,0 +1,10 @@
+{
+  "name": "drupal/graphql_oauth",
+  "description": "Enables OAuth directive support on GraphQL.",
+  "type": "drupal-module",
+  "require": {
+    "drupal/graphql": "^4.1",
+    "drupal/simple_oauth": "^6.0"
+  },
+  "license": "GPL-2.0-or-later"
+}

@@ -6,7 +6,7 @@ use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\PublicStream;
 
 /**
- * Creates a php storage object
+ * Creates a php storage object.
  */
 class PhpStorageFactory {
 
@@ -38,7 +38,7 @@ class PhpStorageFactory {
       $configuration = $overrides['default'];
     }
     // Make sure all the necessary configuration values are set.
-    $class = isset($configuration['class']) ? $configuration['class'] : 'Drupal\Component\PhpStorage\MTimeProtectedFileStorage';
+    $class = $configuration['class'] ?? 'Drupal\Component\PhpStorage\MTimeProtectedFileStorage';
     if (!isset($configuration['secret'])) {
       $configuration['secret'] = Settings::getHashSalt();
     }

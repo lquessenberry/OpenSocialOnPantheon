@@ -6,6 +6,7 @@ use Drupal\Tests\rest\Functional\AnonResourceTestTrait;
 
 /**
  * @group rest
+ * @group legacy
  */
 class FeedJsonAnonTest extends FeedResourceTestBase {
 
@@ -20,5 +21,10 @@ class FeedJsonAnonTest extends FeedResourceTestBase {
    * {@inheritdoc}
    */
   protected static $mimeType = 'application/json';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
 }

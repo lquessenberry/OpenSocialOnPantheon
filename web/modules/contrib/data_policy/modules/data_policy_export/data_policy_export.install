@@ -1,0 +1,104 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the data_policy_export module.
+ */
+
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Implements hook_install().
+ */
+function data_policy_export_install() {
+  $config_yaml = <<<YAML
+views_bulk_operations_bulk_form:
+          id: views_bulk_operations_bulk_form
+          table: views
+          field: views_bulk_operations_bulk_form
+          relationship: none
+          group_type: group
+          admin_label: ''
+          label: 'Views bulk operations'
+          exclude: false
+          alter:
+            alter_text: false
+            text: ''
+            make_link: false
+            path: ''
+            absolute: false
+            external: false
+            replace_spaces: false
+            path_case: none
+            trim_whitespace: false
+            alt: ''
+            rel: ''
+            link_class: ''
+            prefix: ''
+            suffix: ''
+            target: ''
+            nl2br: false
+            max_length: 0
+            word_boundary: true
+            ellipsis: true
+            more_link: false
+            more_link_text: ''
+            more_link_path: ''
+            strip_tags: false
+            trim: false
+            preserve_tags: ''
+            html: false
+          element_type: ''
+          element_class: ''
+          element_label_type: ''
+          element_label_class: ''
+          element_label_colon: true
+          element_wrapper_type: ''
+          element_wrapper_class: ''
+          element_default_classes: true
+          empty: ''
+          hide_empty: false
+          empty_zero: false
+          hide_alter_empty: true
+          batch: true
+          batch_size: 250
+          form_step: true
+          buttons: true
+          clear_on_exposed: false
+          action_title: Action
+          selected_actions:
+            comment_delete_action: 0
+            data_policy_export_data_policy_action: data_policy_export_data_policy_action
+            views_bulk_operations_delete_entity: 0
+            pathauto_update_alias: 0
+            'entity:save_action:user_consent': 0
+          preconfiguration:
+            data_policy_export_data_policy_action:
+              label_override: ''
+          plugin_id: views_bulk_operations_bulk_form
+
+YAML;
+
+  // Parse the above config for our new field.
+  $vbo_field_config = Yaml::parse($config_yaml);
+
+  $config = \Drupal::configFactory()
+    ->getEditable('views.view.data_policy_agreements');
+  // Get the config of the fields.
+  $fields = $config->get('display.default.display_options.fields');
+  // Add up the two field configs.
+  $fields = $vbo_field_config + $fields;
+  // Set the fields in the config.
+  $config->set('display.default.display_options.fields', $fields)->save();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function data_policy_export_uninstall() {
+  // When uninstalling this module, we would like to remove the field that
+  // was added when installing this module.
+  $config = \Drupal::configFactory()
+    ->getEditable('views.view.data_policy_agreements');
+  $config->clear('display.default.display_options.fields.views_bulk_operations_bulk_form')->save(TRUE);
+}

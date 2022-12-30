@@ -6,13 +6,11 @@ Feature: Edit my group as a group manager
 
   Scenario: Successfully create and edit my group as a group manager
     Given users:
-      | name              | mail             | field_profile_organization | status |
-      | Group Manager One | gm_1@example.com | GoalGorilla                | 1      |
-      | Group Member Two  | gm_2@example.com | Drupal                     | 1      |
+      | name              | mail             | field_profile_organization | status | roles    |
+      | Group Manager One | gm_1@example.com | GoalGorilla                | 1      | verified |
+      | Group Member Two  | gm_2@example.com | Drupal                     | 1      | verified |
     And I am logged in as "Group Manager One"
-    And I am on "user"
-    And I click "Groups"
-    And I click "Add a group"
+    And I am on "group/add"
     And I press "Continue"
     And I wait for AJAX to finish
     When I fill in "Title" with "Test open group"
@@ -21,12 +19,12 @@ Feature: Edit my group as a group manager
     And I should see "Test open group" in the "Main content"
     And I should see "1 member"
 
-    Given I am on "user"
-    And I click "Groups"
-    And I click "Test open group" in the "Main content"
+    Given I click the xth "0" element with the css ".navbar-nav .profile"
+    And I click "My groups"
+    When I click "Test open group" in the "Main content"
     Then I should see "Test open group"
 
-    # As a LU I want to see the information about a group
+    # As a Verified I want to see the information about a group
     When I click "About"
     Then I should see "Description text" in the "Main content"
 
@@ -34,24 +32,30 @@ Feature: Edit my group as a group manager
     And I wait for AJAX to finish
     And I fill in the "edit-field-group-description-0-value" WYSIWYG editor with "Description text - edited"
     And I press "Save"
-    And I should see "Test open group" in the "Main content"
-    Then I should see "Description text - edited" in the "Main content"
+    Then I should see "Test open group" in the "Main content"
+    And I should see "Description text - edited" in the "Main content"
     And I should see "1 member"
+    And I should see "Stream"
+    And I should see "About"
+    And I should see "Events"
+    And I should see "Topics"
+    And I should not see "Nodes"
+    And I should see "Manage members"
 
   # DS-706 As a Group Manager I want to manage group memberships
-    And I click "Manage members"
-    Then I should see the link "Add members"
+    When I click "Manage members"
+    Then I should see "Add members"
     And I should see "Member"
     And I should see "Group Manager One"
     And I should see "Organization"
     And I should see "GoalGorilla"
     And I should see "Role"
     And I should see "Group Manager"
-    And I should see "Operations"
-    And I should see the button "Edit"
-    When I press the "Toggle Dropdown" button
+    And I should see "Actions"
+    And I should see the button "Actions"
+    And I click the xth "0" element with the css ".views-field-operations .btn-group--operations .dropdown-toggle"
     Then I should see the link "Remove"
-    When I press "Edit"
+    When I click "Edit"
     Then I should see "Group Manager One"
     And I should see "Group Manager"
     And I should see the button "Save"
@@ -60,21 +64,15 @@ Feature: Edit my group as a group manager
     And I should see "Member"
 
   # DS-767 As a Group Manager I want to add a user to the group
-    When I click "Add members"
-    Then I should see "Add members"
-    And I fill in "Select members to add" with "Group Member Two"
-    And I should see "Group roles"
-    And I should see "Group Manager"
+    When I click the group member dropdown
+    And I click "Add directly"
+    And I fill in select2 input ".form-type-select" with "Group Member Two" and select "Group Member Two"
     And I should see the button "Cancel"
     And I press "Save"
     Then I should see "Group Member Two"
     And I should see "Drupal"
     And I should see "Member"
-    And I click the xth "2" element with the css ".form-submit"
-    And I show hidden checkboxes
-    And I check the box "Group Manager"
-    And I press "Save"
-    And I click the element with css selector ".region--content table tr.odd .dropdown-toggle"
+    And I click the xth "0" element with the css ".views-field-operations .btn-group--operations .dropdown-toggle"
     And I click "Remove"
     Then I should see "Remove a member"
     And I should see "Are you sure you want to remove Group Manager One from Test open group?"
@@ -82,37 +80,24 @@ Feature: Edit my group as a group manager
     And I should see the button "Cancel"
 
   # DS-607 As a Group Manager I shouldn't be able to manage group content from other users
-    And I logout
+    Given I logout
     And I am logged in as "Group Member Two"
-    And I am on "user"
-    And I click "Groups"
+    When I click the xth "0" element with the css ".navbar-nav .profile"
+    And I click "My groups"
     And I click "Test open group"
     And I click "Topics"
     And I click "Create Topic"
-    When I fill in the following:
+    And I fill in the following:
       | Title | Test group topic |
     And I fill in the "edit-body-0-value" WYSIWYG editor with "Body description text"
-    And I click radio button "Discussion"
-    And I press "Save"
-    And I should see "Test group topic"
-    And I logout
+    And I check the box "News"
+    And I press "Create topic"
+    Then I should see "Test group topic"
+    Given I logout
     And I am logged in as "Group Manager One"
-    And I am on "user"
-    And I click "Groups"
+    When I click the xth "0" element with the css ".navbar-nav .profile"
+    And I click "My groups"
     And I click "Test open group"
     And I click "Topics"
     And I click "Test group topic"
-    And I should not see the link "Edit group"
-
-  # DS-705 As a Group Manager I want to delete my own group
-    And I logout
-    And I am logged in as "Group Manager One"
-    And I am on "user"
-    And I click "Groups"
-    And I click "Test open group"
-    And I click "Edit group"
-    And I click "Delete"
-    And I should see "This action cannot be undone."
-    And I should see the link "Cancel"
-    And I should see the button "Delete"
-    And I press "Delete"
+    Then I should not see the link "Edit group"

@@ -2,10 +2,9 @@
 
 Manage alias records for local and remote sites.
 
-[![Travis CI](https://travis-ci.org/consolidation/site-alias.svg?branch=master)](https://travis-ci.org/consolidation/site-alias)
-[![Windows CI](https://ci.appveyor.com/api/projects/status/6mp1hxmql85aw7ah?svg=true)](https://ci.appveyor.com/project/greg-1-anderson/site-alias)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/consolidation/site-alias/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/consolidation/site-alias/?branch=master)
-[![Coverage Status](https://coveralls.io/repos/github/consolidation/site-alias/badge.svg?branch=master)](https://coveralls.io/github/consolidation/site-alias?branch=master) 
+[![ci](https://github.com/consolidation/site-alias/workflows/CI/badge.svg)](https://travis-ci.org/consolidation/site-alias)
+[![scrutinizer](https://scrutinizer-ci.com/g/consolidation/site-alias/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/consolidation/site-alias/?branch=master)
+[![codecov](https://codecov.io/gh/consolidation/site-alias/branch/main/graph/badge.svg?token=CAaB7ofhxx)](https://codecov.io/gh/consolidation/site-alias)
 [![License](https://img.shields.io/badge/license-MIT-408677.svg)](LICENSE)
 
 ## Overview
@@ -63,6 +62,15 @@ dev:
   user: www-data
 ```
 
+### Wildcard environments
+
+It is also possible to define "wildcard" environments that will match any provided environment name. This is only possible to do in instances where the contents of the wildcard aliases are all the same, except for places where the environment name appears. To substitute the name of the environment into a wildcard domain, use the variable replacement string `${env-name}`. For example, a wildcard alias that will match any multisite in a Drupal site might look something like the following example:
+```
+'*':
+  root: /wild/path/to/wild
+  uri: https://${env-name}.example.com
+```
+
 ### 'Self' environment aliases
 
 As previously mentioned, an alias in the form of `@<env>` is interpreted as `@self.<env>`. This allows sites to define a `self.site.yml` file that contains common aliases shared among a team--for example, `@stage` and `@live`.
@@ -106,6 +114,36 @@ This library comes with a commandline tool called `alias-tool`. The only purpose
 this tool serves is to provide a way to do ad-hoc experimentation and testing
 for this library.
 
+Example:
+```
+$ ./alias-tool site:list tests/fixtures/sitealiases/sites/
+
+ ! [NOTE] Add search location: tests/fixtures/sitealiases/sites/                                    
+
+'@single.alternate':
+  foo: bar
+  root: /alternate/path/to/single
+'@single.dev':
+  foo: bar
+  root: /path/to/single
+'@wild.*':
+  foo: bar
+  root: /wild/path/to/wild
+  uri: 'https://*.example.com'
+'@wild.dev':
+  foo: bar
+  root: /path/to/wild
+  uri: 'https://dev.example.com'
+
+$ ./alias-tool site:get tests/fixtures/sitealiases/sites/ @single.dev
+
+ ! [NOTE] Add search location: tests/fixtures/sitealiases/sites/                                    
+
+ ! [NOTE] Alias parameter: '@single.dev'                                                            
+
+foo: bar
+root: /path/to/single
+```
 See `./alias-tool help` and `./alias-tool list` for more information.
 
 ## Release Procedure

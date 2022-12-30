@@ -4,11 +4,13 @@ namespace Drupal\node;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityViewBuilder;
+use Drupal\Core\Render\Element\Link;
+use Drupal\Core\Security\TrustedCallbackInterface;
 
 /**
  * View builder handler for nodes.
  */
-class NodeViewBuilder extends EntityViewBuilder {
+class NodeViewBuilder extends EntityViewBuilder implements TrustedCallbackInterface {
 
   /**
    * {@inheritdoc}
@@ -28,7 +30,7 @@ class NodeViewBuilder extends EntityViewBuilder {
       if ($display->getComponent('links')) {
         $build[$id]['links'] = [
           '#lazy_builder' => [
-            get_called_class() . '::renderLinks', [
+            static::class . '::renderLinks', [
               $entity->id(),
               $view_mode,
               $entity->language()->getId(),
@@ -46,7 +48,7 @@ class NodeViewBuilder extends EntityViewBuilder {
           '#title' => t('Language'),
           '#markup' => $entity->language()->getName(),
           '#prefix' => '<div id="field-language-display">',
-          '#suffix' => '</div>'
+          '#suffix' => '</div>',
         ];
       }
     }
@@ -87,7 +89,7 @@ class NodeViewBuilder extends EntityViewBuilder {
   public static function renderLinks($node_entity_id, $view_mode, $langcode, $is_in_preview, $revision_id = NULL) {
     $links = [
       '#theme' => 'links__node',
-      '#pre_render' => ['drupal_pre_render_links'],
+      '#pre_render' => [[Link::class, 'preRenderLinks']],
       '#attributes' => ['class' => ['links', 'inline']],
     ];
 
@@ -130,7 +132,7 @@ class NodeViewBuilder extends EntityViewBuilder {
         'title' => t('Read more<span class="visually-hidden"> about @title</span>', [
           '@title' => $node_title_stripped,
         ]),
-        'url' => $entity->urlInfo(),
+        'url' => $entity->toUrl(),
         'language' => $entity->language(),
         'attributes' => [
           'rel' => 'tag',
@@ -144,6 +146,15 @@ class NodeViewBuilder extends EntityViewBuilder {
       '#links' => $links,
       '#attributes' => ['class' => ['links', 'inline']],
     ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function trustedCallbacks() {
+    $callbacks = parent::trustedCallbacks();
+    $callbacks[] = 'renderLinks';
+    return $callbacks;
   }
 
 }

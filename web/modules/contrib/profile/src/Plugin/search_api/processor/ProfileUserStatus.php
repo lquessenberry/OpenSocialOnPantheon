@@ -18,7 +18,6 @@ use Drupal\profile\Entity\ProfileInterface;
  *   },
  * )
  */
-
 class ProfileUserStatus extends ProcessorPluginBase {
 
   /**

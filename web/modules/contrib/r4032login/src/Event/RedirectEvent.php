@@ -2,7 +2,7 @@
 
 namespace Drupal\r4032login\Event;
 
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * Event that is fired just before the redirection is perform.

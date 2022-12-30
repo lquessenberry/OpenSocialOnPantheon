@@ -31,12 +31,17 @@ class ContentEntityFormCorrectUserInputMappingOnFieldDeltaElementsTest extends B
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_test'];
+  protected static $modules = ['entity_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
     $web_user = $this->drupalCreateUser(['administer entity_test content']);
     $this->drupalLogin($web_user);
@@ -62,7 +67,8 @@ class ContentEntityFormCorrectUserInputMappingOnFieldDeltaElementsTest extends B
     ])
       ->save();
 
-    entity_get_form_display($this->entityTypeId, $this->entityTypeId, 'default')
+    \Drupal::service('entity_display.repository')
+      ->getFormDisplay($this->entityTypeId, $this->entityTypeId)
       ->setComponent($this->fieldName, ['type' => 'shape_only_color_editable_widget'])
       ->save();
   }
@@ -100,18 +106,18 @@ class ContentEntityFormCorrectUserInputMappingOnFieldDeltaElementsTest extends B
     // This is how currently the form building process works and this test
     // ensures the correct behavior no matter what changes would be made to the
     // form builder or the content entity forms.
-    $this->drupalPostForm(NULL, $edit, t('Add another item'));
-    $this->drupalPostForm(NULL, [], t('Save'));
+    $this->submitForm($edit, 'Add another item');
+    $this->submitForm([], 'Save');
 
     // Reload the entity.
     $entity = $storage->load($entity->id());
 
     // Assert that after rearranging the field items the user input will be
     // mapped on the correct delta field items.
-    $this->assertEquals($entity->get($this->fieldName)->getValue(), [
+    $this->assertEquals([
       ['shape' => 'circle', 'color' => 'blue'],
       ['shape' => 'rectangle', 'color' => 'green'],
-    ]);
+    ], $entity->get($this->fieldName)->getValue());
   }
 
 }

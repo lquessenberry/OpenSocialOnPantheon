@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Class WatermarkImageEffect.
+ * Adds watermark image.
  *
  * @ImageEffect(
  *   id = "image_effects_watermark",
@@ -221,8 +221,8 @@ class WatermarkImageEffect extends ConfigurableImageEffectBase implements Contai
     // Calculate position of watermark on source image based on placement
     // option.
     list($x, $y) = explode('-', $this->configuration['placement']);
-    $x_pos = round(image_filter_keyword($x, $image->getWidth(), $watermark_width));
-    $y_pos = round(image_filter_keyword($y, $image->getHeight(), $watermark_height));
+    $x_pos = ImageUtility::getKeywordOffset($x, $image->getWidth(), $watermark_width);
+    $y_pos = ImageUtility::getKeywordOffset($y, $image->getHeight(), $watermark_height);
 
     // Calculate offset based on px/percentage.
     $x_offset = (int) ImageUtility::percentFilter($this->configuration['x_offset'], $image->getWidth());

@@ -2,7 +2,6 @@
 
 namespace Drupal\group\Context;
 
-use Drupal\group\Entity\Group;
 use Drupal\group\Entity\GroupInterface;
 
 /**
@@ -11,8 +10,8 @@ use Drupal\group\Entity\GroupInterface;
  * Using this trait will add the getGroupFromRoute() method to the class.
  *
  * If the class is capable of injecting services from the container, it should
- * inject the 'current_route_match' service and assign it to the
- * $this->currentRouteMatch property.
+ * inject the 'current_route_match' and 'entity_type.manager' services and
+ * assign them to the currentRouteMatch and entityTypeManager properties.
  */
 trait GroupRouteContextTrait {
 
@@ -22,6 +21,13 @@ trait GroupRouteContextTrait {
    * @var \Drupal\Core\Routing\RouteMatchInterface
    */
   protected $currentRouteMatch;
+
+  /**
+   * The entity type manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
 
   /**
    * Gets the current route match object.
@@ -37,6 +43,19 @@ trait GroupRouteContextTrait {
   }
 
   /**
+   * Gets the entity type manager service.
+   *
+   * @return \Drupal\Core\Entity\EntityTypeManagerInterface
+   *   The entity type manager service.
+   */
+  protected function getEntityTypeManager() {
+    if (!$this->entityTypeManager) {
+      $this->entityTypeManager = \Drupal::entityTypeManager();
+    }
+    return $this->entityTypeManager;
+  }
+
+  /**
    * Retrieves the group entity from the current route.
    *
    * This will try to load the group entity from the route if present. If we are
@@ -48,7 +67,7 @@ trait GroupRouteContextTrait {
    */
   public function getGroupFromRoute() {
     $route_match = $this->getCurrentRouteMatch();
-    
+
     // See if the route has a group parameter and try to retrieve it.
     if (($group = $route_match->getParameter('group')) && $group instanceof GroupInterface) {
       return $group;
@@ -56,7 +75,7 @@ trait GroupRouteContextTrait {
     // Create a new group to use as context if on the group add form.
     elseif ($route_match->getRouteName() == 'entity.group.add_form') {
       $group_type = $route_match->getParameter('group_type');
-      return Group::create(['type' => $group_type->id()]);
+      return $this->getEntityTypeManager()->getStorage('group')->create(['type' => $group_type->id()]);
     }
 
     return NULL;

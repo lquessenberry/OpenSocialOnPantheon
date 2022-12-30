@@ -37,7 +37,7 @@ class UnpublishByKeywordComment extends ConfigurableActionBase implements Contai
   protected $renderer;
 
   /**
-   * Constructs a UnpublishByKeywordComment object.
+   * Constructs an UnpublishByKeywordComment object.
    *
    * @param array $configuration
    *   A configuration array containing information about the plugin instance.
@@ -65,7 +65,7 @@ class UnpublishByKeywordComment extends ConfigurableActionBase implements Contai
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager')->getViewBuilder('comment'),
+      $container->get('entity_type.manager')->getViewBuilder('comment'),
       $container->get('renderer')
     );
   }
@@ -78,7 +78,7 @@ class UnpublishByKeywordComment extends ConfigurableActionBase implements Contai
     $text = $this->renderer->renderPlain($build);
     foreach ($this->configuration['keywords'] as $keyword) {
       if (strpos($text, $keyword) !== FALSE) {
-        $comment->setPublished(FALSE);
+        $comment->setUnpublished();
         $comment->save();
         break;
       }

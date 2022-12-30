@@ -39,6 +39,7 @@ class PrivateMessageMembersAutocompleteResponseCommand implements CommandInterfa
    *   - username: The username of the user.
    */
   public function __construct($string, array $userInfo) {
+    $this->string = $string;
     $this->userInfo = $userInfo;
   }
 

@@ -3,15 +3,14 @@
 namespace Drupal\flag\ActionLink;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Link;
 use Drupal\flag\FlagInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\ConfigurableInterface;
 
 /**
  * Provides an interface for link type plugins.
  */
-interface ActionLinkTypePluginInterface extends PluginFormInterface, ConfigurablePluginInterface {
+interface ActionLinkTypePluginInterface extends PluginFormInterface, ConfigurableInterface {
 
   /**
    * Get the action link formatted for use in entity links.

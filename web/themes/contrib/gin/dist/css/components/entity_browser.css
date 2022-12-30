@@ -1,0 +1,216 @@
+.entities-list:not(.entities-list--single-item) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.entities-list.entities-list--single-item .item-container {
+  max-width: 180px;
+}
+
+.entities-list .item-container {
+  word-break: break-all;
+  position: relative;
+  margin: 0;
+  min-height: 80px;
+  border: 1px solid var(--colorGinBorder);
+  border-radius: var(--ginBorderMedium);
+}
+
+.entities-list .item-container .field__item {
+  border: 3px solid transparent;
+  border-radius: var(--ginBorderBig);
+  overflow: hidden;
+}
+
+.entities-list .item-container .field__item:hover, .entities-list .item-container .field__item:focus {
+  border-color: var(--colorGinPrimary) !important;
+  cursor: pointer;
+}
+
+[dir="ltr"] .entities-list .item-container.label {
+  padding: .75rem 3rem .75rem .75rem;
+}
+
+[dir="rtl"] .entities-list .item-container.label {
+  padding: .75rem .75rem .75rem 3rem;
+}
+
+.entities-list .item-container img {
+  vertical-align: middle;
+}
+
+.entities-list .item-container > .entity-browser-remove-selected-entity,
+.entities-list .item-container > .remove-button {
+  all: unset;
+  background-color: white;
+  background-image: url("../../media/sprite.svg#trash-view");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 15px;
+  border-radius: 50%;
+  border-color: transparent !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .15);
+  color: transparent;
+  width: 29px;
+  height: 29px;
+  margin: .75rem;
+  position: absolute;
+  top: 0;
+}
+
+[dir="ltr"] .entities-list .item-container > .entity-browser-remove-selected-entity,
+[dir="ltr"] .entities-list .item-container > .remove-button {
+  right: 0;
+}
+
+[dir="rtl"] .entities-list .item-container > .entity-browser-remove-selected-entity,
+[dir="rtl"] .entities-list .item-container > .remove-button {
+  left: 0;
+}
+
+.entities-list .item-container > .entity-browser-remove-selected-entity:hover, .entities-list .item-container > .entity-browser-remove-selected-entity:focus,
+.entities-list .item-container > .remove-button:hover,
+.entities-list .item-container > .remove-button:focus {
+  border-color: var(--colorGinPrimary) !important;
+  cursor: pointer;
+}
+
+.entities-list .item-container > .replace-button,
+.entities-list .item-container > .edit-button {
+  all: unset;
+  background-color: white;
+  background-image: url("../../media/sprite.svg#edit-view");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 15px;
+  border-radius: 50%;
+  border-color: transparent !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .15);
+  color: transparent;
+  width: 29px;
+  height: 29px;
+  margin: .75rem;
+  position: absolute;
+  bottom: 0;
+}
+
+[dir="ltr"] .entities-list .item-container > .replace-button,
+[dir="ltr"] .entities-list .item-container > .edit-button {
+  right: 0;
+}
+
+[dir="rtl"] .entities-list .item-container > .replace-button,
+[dir="rtl"] .entities-list .item-container > .edit-button {
+  left: 0;
+}
+
+.entities-list .item-container > .replace-button:hover, .entities-list .item-container > .replace-button:focus,
+.entities-list .item-container > .edit-button:hover,
+.entities-list .item-container > .edit-button:focus {
+  border-color: var(--colorGinPrimary) !important;
+  cursor: pointer;
+}
+
+.gin-entity-browser .entity-browser-form {
+  padding: 0;
+  border: 0 none;
+  box-shadow: none;
+}
+
+.gin-entity-browser .entity-browser-form .page-wrapper > .layout-container {
+  margin: 0;
+}
+
+.gin-entity-browser .entity-browser-form .views-view-grid .views-col {
+  position: relative;
+}
+
+.gin-entity-browser .entity-browser-form .view-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.gin-entity-browser .entity-browser-form .views-row {
+  border: 1px solid var(--colorGinBorder);
+  border-radius: calc(var(--ginBorderBig) + 2px);
+  position: relative;
+}
+
+.gin-entity-browser .entity-browser-form .views-row .views-field-thumbnail__target-id:hover, .gin-entity-browser .entity-browser-form .views-row .views-field-thumbnail__target-id:focus {
+  cursor: pointer;
+  border-color: var(--colorGinPrimary);
+}
+
+.gin-entity-browser .entity-browser-form .views-row .views-field-name {
+  padding: .5rem;
+}
+
+.gin-entity-browser .entity-browser-form .views-row .views-field-entity-browser-select {
+  position: absolute;
+  top: 0;
+  margin: .75rem;
+}
+
+[dir="ltr"] .gin-entity-browser .entity-browser-form .views-row .views-field-entity-browser-select {
+  left: 0;
+}
+
+[dir="rtl"] .gin-entity-browser .entity-browser-form .views-row .views-field-entity-browser-select {
+  right: 0;
+}
+
+.gin-entity-browser .entity-browser-form .views-row .views-field-entity-browser-select .form-item {
+  margin: 0;
+}
+
+.gin-entity-browser .entity-browser-form .media-info {
+  word-wrap: break-word;
+  font-size: 14px;
+}
+
+.gin-entity-browser .entity-browser-form .views-field-thumbnail__target-id {
+  border: 3px solid transparent;
+  border-radius: var(--ginBorderBig);
+  overflow: hidden;
+}
+
+.gin-entity-browser .entity-browser-form .views-field-thumbnail__target-id:hover, .gin-entity-browser .entity-browser-form .views-field-thumbnail__target-id:focus {
+  border-color: var(--colorGinPrimary);
+}
+
+.gin-entity-browser .entity-browser-form .entities-list {
+  border-top: var(--ginBorderXSmall) solid var(--colorGinFormElementBorder);
+  padding-top: 1rem;
+}
+
+.gin-entity-browser .views-exposed-form {
+  box-shadow: none;
+}
+
+.field--widget-entity-browser-entity-reference .entities-list.sortable .item-container:hover, .field--widget-entity-browser-entity-reference .entities-list.sortable .item-container:focus,
+.field--widget-entity-browser-entity-reference .entities-list.sortable .field__item:hover,
+.field--widget-entity-browser-entity-reference .entities-list.sortable .field__item:focus {
+  cursor: move;
+  opacity: 1;
+}
+
+.eb-tabs {
+  margin-bottom: .75em;
+}
+
+[dir="ltr"] .eb-tabs {
+  margin-left: 4px;
+}
+
+[dir="rtl"] .eb-tabs {
+  margin-right: 4px;
+}
+
+.eb-tabs ul {
+  border-bottom: none;
+}
+

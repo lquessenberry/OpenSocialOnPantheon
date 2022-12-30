@@ -1,0 +1,14 @@
+parameters:
+  customRulesetUsed: true
+  reportUnmatchedIgnoredErrors: false
+  # Ignore phpstan-drupal extension's rules.
+  ignoreErrors:
+    - '#\Drupal calls should be avoided in classes, use dependency injection instead#'
+    - '#Plugin definitions cannot be altered.#'
+    - '#Missing cache backend declaration for performance.#'
+    - '#Plugin manager has cache backend specified but does not declare cache tags.#'
+    #TODO: Remove when https://www.drupal.org/project/drupal/issues/3055198 is fixed.
+    - '#Class [a-zA-Z0-9\\_]+ extends deprecated class Symfony\\Component\\EventDispatcher\\Event:\ssince Symfony 4\.3, use "Symfony\\Contracts\\EventDispatcher\\Event" instead#'
+includes:
+  - ./vendor/mglaman/phpstan-drupal/extension.neon
+  - ./vendor/phpstan/phpstan-deprecation-rules/rules.neon

@@ -16,7 +16,12 @@ class EntityViewDisplayXmlBasicAuthTest extends EntityViewDisplayResourceTestBas
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['basic_auth'];
+  protected static $modules = ['basic_auth'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * {@inheritdoc}

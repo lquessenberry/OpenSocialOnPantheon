@@ -1,9 +1,10 @@
 //
 // @file
-// Experimental paragraphs widget CSS.
+// Stable paragraphs widget CSS.
 //
 
 @import "variables";
+@import "summary";
 
 .paragraphs {
   // Paragraphs state information icons.
@@ -13,6 +14,7 @@
     width: $info-size;
     background: no-repeat center;
     background-size: $info-icon-size $info-icon-size;
+    vertical-align: middle;
 
     $icons: view edit-info edit-disabled delete delete-disabled lock changed collapse warning error;
     @each $icon in $icons {
@@ -54,13 +56,29 @@
   }
 }
 
-.paragraph-type-info {
-  display: flex;
-}
 
 .paragraphs-tabs-wrapper {
-  .paragraphs-tabs {
+  .paragraphs-tabs-hide {
     display: none;
+  }
+}
+
+.paragraph-bullet {
+  text-align: center;
+  &:after {
+    content: "\25cf";
+    padding: 0 10px;
+    color: #777;
+    font-size: 0.75em;
+    line-height: 3.5em;
+  }
+}
+
+@media (min-width: map-get($grid-breakpoints, 'md')) {
+  .paragraph-bullet {
+    &:after {
+      line-height: 2.5em;
+    }
   }
 }
 
@@ -68,6 +86,9 @@
 // only for JS version of a widget.
 .js {
   .field--widget-paragraphs {
+    .paragraphs-nested .tabledrag-toggle-weight-wrapper {
+      display: none;
+    }
     th .paragraphs-actions {
       float: right;
       // Table th padding is 12px but for some weird reason here we need to do
@@ -75,10 +96,32 @@
       margin-right: -11px;
     }
 
+    // Fix alignment of form-actions.
+    .form-actions {
+      align-items: center;
+
+      // Fix alignment to content.
+      .dropbutton-multiple {
+        margin-right: .5rem;
+      }
+
+      // Add spacing to "to" keyword
+      .placeholder {
+        margin-left: .25em;
+      }
+    }
+
     .paragraphs-dropbutton-wrapper {
       // We are using inline-flex here so 'Add type' dropdown button is inline
       // and aligned 'to type' text.
       display: inline-flex;
+      // Remove margins and paddings that come from Claro theme.
+      margin: 0;
+      padding: 0;
+
+      .dropbutton-multiple {
+        margin: 0;
+      }
     }
 
     .dropbutton-wrapper {
@@ -91,11 +134,6 @@
       padding-right: 0;
     }
 
-    // Reset some CSS that are coming from core.
-    .dropbutton-widget {
-      position: static;
-    }
-
     .field-multiple-table {
       margin-bottom: 10px;
     }
@@ -105,15 +143,44 @@
     }
 
     .field-multiple-drag {
-      vertical-align: top;
+      vertical-align: middle;
+      min-width: 40px;
     }
 
     .draggable .tabledrag-handle {
       margin-left: 0;
+      margin-top: 3px;
+      padding-right: .25em;
+      width: 23px;
+
+      // Fix active focus.
+      &:focus {
+        &::before {
+          margin-left: .1em;
+          margin-right: .1em;
+        }
+      }
+
+      // Claro theme fix for the handle icon position.
+      &::after {
+        margin-left: 0;
+        padding: .5rem;
+      }
+
+      // Scale the icon on hover.
+      &:hover .handle {
+        transform: scale(1.25);
+      }
+    }
+
+    .tabledrag-changed {
+      text-decoration: none;
     }
 
     .tabledrag-handle .handle {
       height: 22px;
+      margin-left: 0;
+      margin-right: 0;
     }
 
     .delta-order {
@@ -122,14 +189,18 @@
     }
   }
 
-  .paragraph-type-top {
+  .paragraph-top {
     display: grid;
     grid-template-columns: 100px auto 1fr auto;
-    grid-template-rows: auto;
-    grid-gap: $gutter-top $gutter-top;
-    align-items: center;
+    grid-template-rows: auto auto;
+    grid-gap: 0 $gutter-top;
+    align-items: baseline;
 
-    .paragraph-type-title {
+    @media (min-width: map-get($grid-breakpoints, 'lg')) {
+      grid-template-columns: 150px auto 1fr auto;
+    }
+
+    .paragraph-type {
       grid-column: 1 / 2;
       // PostCSS autoprefixer does not support -ms-grid-column and some other
       // attributes that we need. This support will not be improved so we need
@@ -138,23 +209,25 @@
       grid-row: 1 / span 1;
     }
 
-    .paragraph-type-info {
+    .paragraph-info {
       grid-column: 2 / 3;
       -ms-grid-column: 2;
       grid-row: 1 / span 1;
     }
 
-    .paragraph-type-summary {
+    .paragraph-summary {
       grid-column: 1 / 5;
       -ms-grid-column: 1;
       -ms-grid-column-span: 5;
       grid-row: 2 / span 1;
+      overflow: hidden;
+      white-space: nowrap;
 
       @media (min-width: map-get($grid-breakpoints, 'sm')) {
         grid-column: 3 / 4;
         -ms-grid-column: 3;
         -ms-grid-column-span: 1;
-        grid-row: 1 / span 1;
+        grid-row: 1 / span 2;
       }
     }
 
@@ -178,37 +251,20 @@
     margin-top: 5px;
   }
 
-  .paragraphs-collapsed-description {
-    position: relative;
-    height: 1.538em;
-    overflow: hidden;
-    color: #777;
-    word-break: break-all;
-
-    // Fade out text element.
-    &::after {
-      display: block;
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 3em;
-      background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, #fff 100%);
-      content: "\00a0";
-    }
-
-    @at-root .draggable:hover .paragraphs-collapsed-description {
+  .paragraphs-description {
+    @at-root .draggable:hover .paragraphs-description {
       &::after {
         background: linear-gradient(to right, rgba(247, 252, 255, 0) 0%, #f7fcff 100%);
       }
     }
 
-    @at-root .drag-previous .paragraphs-collapsed-description {
+    @at-root .drag-previous .paragraphs-description {
       &::after {
         background: linear-gradient(to right, rgba(255, 255, 221, 0) 0%, #ffd 100%);
       }
     }
 
-    @at-root tr:hover .paragraphs-collapsed-description {
+    @at-root tr:hover .paragraphs-description {
       &::after {
         background: linear-gradient(to right, rgba(255, 255, 221, 0) 0%, #f7fcff 100%);
       }
@@ -216,6 +272,9 @@
   }
 
   .paragraph-type {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
     &-title {
       display: flex;
       flex-basis: 100px;
@@ -226,6 +285,7 @@
       padding-right: $gutter-top;
       height: $info-icon-size;
       width: $info-icon-size;
+      vertical-align: middle;
     }
 
     &-label {
@@ -237,23 +297,28 @@
 
   @media (min-width: map-get($grid-breakpoints, 'sm')) {
     .paragraph-type-add-modal {
-      width: 100%;
-      padding: 10px 0;
-      height: 30px;
-      margin-top: -1.8em;
-      margin-bottom: -0.2em;
-      display: inline;
+      display: inline-block;
     }
   }
 
   .paragraph-type-add-modal-button {
     display: inline-block;
-    margin: 0 auto;
   }
 
   .paragraph-type-add-modal-button:hover {
     color: #ffffff;
     background: #057ec7 none;
+  }
+}
+
+.paragraphs-dragdrop__item {
+  .paragraphs-summary-wrapper {
+    .paragraphs-description {
+      .paragraphs-content-wrapper,
+      .paragraphs-plugin-wrapper {
+        font-size: 81.3%;
+      }
+    }
   }
 }
 
@@ -263,4 +328,39 @@
 
 .is-horizontal .paragraphs-tabs .tabs__tab {
   border-bottom: 0;
+}
+
+// Requires JavaScript to avoid flickering on pageload.
+.paragraphs-behavior {
+  display: none;
+}
+
+.first-paragraph {
+  transition: background-color .3s linear;
+}
+
+.paragraph-hover {
+  background-color: $paragraph-hover-bg;
+}
+
+@media (min-width: map-get($grid-breakpoints, 'md')) {
+  /* Basic node form sticky paragraph tabs implementation. */
+  .is-horizontal .paragraphs-tabs:first-of-type {
+    position: sticky;
+    top: 0;
+    margin-top: 0;
+    padding-top: 5px !important;
+    /* Toolbar bar minimum z-index is 501 so we need to be lower, other way
+       our sticky tabs will be on top of toolbar menu. */
+    z-index: 500;
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+
+  .toolbar-fixed .is-horizontal .paragraphs-tabs:first-of-type {
+    top: 39px;
+  }
+
+  .toolbar-fixed.toolbar-horizontal.toolbar-tray-open .is-horizontal .paragraphs-tabs:first-of-type {
+    top: 79px;
+  }
 }

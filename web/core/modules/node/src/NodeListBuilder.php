@@ -7,7 +7,6 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Routing\RedirectDestinationInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -50,7 +49,7 @@ class NodeListBuilder extends EntityListBuilder {
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('date.formatter'),
       $container->get('redirect.destination')
     );
@@ -95,16 +94,11 @@ class NodeListBuilder extends EntityListBuilder {
       '#theme' => 'mark',
       '#mark_type' => node_mark($entity->id(), $entity->getChangedTime()),
     ];
-    $langcode = $entity->language()->getId();
-    $uri = $entity->urlInfo();
-    $options = $uri->getOptions();
-    $options += ($langcode != LanguageInterface::LANGCODE_NOT_SPECIFIED && isset($languages[$langcode]) ? ['language' => $languages[$langcode]] : []);
-    $uri->setOptions($options);
     $row['title']['data'] = [
       '#type' => 'link',
       '#title' => $entity->label(),
       '#suffix' => ' ' . \Drupal::service('renderer')->render($mark),
-      '#url' => $uri,
+      '#url' => $entity->toUrl(),
     ];
     $row['type'] = node_get_type_label($entity);
     $row['author']['data'] = [
@@ -115,7 +109,7 @@ class NodeListBuilder extends EntityListBuilder {
     $row['changed'] = $this->dateFormatter->format($entity->getChangedTime(), 'short');
     $language_manager = \Drupal::languageManager();
     if ($language_manager->isMultilingual()) {
-      $row['language_name'] = $language_manager->getLanguageName($langcode);
+      $row['language_name'] = $language_manager->getLanguageName($entity->language()->getId());
     }
     $row['operations']['data'] = $this->buildOperations($entity);
     return $row + parent::buildRow($entity);

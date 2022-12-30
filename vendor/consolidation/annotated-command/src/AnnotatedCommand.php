@@ -1,11 +1,18 @@
 <?php
 namespace Consolidation\AnnotatedCommand;
 
-use Consolidation\AnnotatedCommand\Hooks\HookManager;
-use Consolidation\AnnotatedCommand\Parser\CommandInfo;
 use Consolidation\AnnotatedCommand\Help\HelpDocumentAlter;
+use Consolidation\AnnotatedCommand\Help\HelpDocumentBuilder;
+use Consolidation\AnnotatedCommand\Hooks\HookManager;
+use Consolidation\AnnotatedCommand\Output\OutputAwareInterface;
+use Consolidation\AnnotatedCommand\Parser\CommandInfo;
+use Consolidation\AnnotatedCommand\State\State;
+use Consolidation\AnnotatedCommand\State\StateHelper;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Completion\CompletionInput;
+use Symfony\Component\Console\Completion\CompletionSuggestions;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputAwareInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -28,13 +35,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 class AnnotatedCommand extends Command implements HelpDocumentAlter
 {
     protected $commandCallback;
+    protected $completionCallback;
     protected $commandProcessor;
     protected $annotationData;
     protected $examples = [];
     protected $topics = [];
-    protected $usesInputInterface;
-    protected $usesOutputInterface;
     protected $returnType;
+    protected $injectedClasses = [];
+    protected $parameterMap = [];
 
     public function __construct($name = null)
     {
@@ -62,6 +70,12 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
     public function setCommandCallback($commandCallback)
     {
         $this->commandCallback = $commandCallback;
+        return $this;
+    }
+
+    public function setCompletionCallback($completionCallback)
+    {
+        $this->completionCallback = $completionCallback;
         return $this;
     }
 
@@ -120,8 +134,8 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
 
     public function setCommandInfo($commandInfo)
     {
-        $this->setDescription($commandInfo->getDescription());
-        $this->setHelp($commandInfo->getHelp());
+        $this->setDescription($commandInfo->getDescription() ?: '');
+        $this->setHelp($commandInfo->getHelp() ?: '');
         $this->setAliases($commandInfo->getAliases());
         $this->setAnnotationData($commandInfo->getAnnotations());
         $this->setTopics($commandInfo->getTopics());
@@ -135,6 +149,7 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
         if (method_exists($this, 'setHidden')) {
             $this->setHidden($commandInfo->getHidden());
         }
+        $this->parameterMap = $commandInfo->getParameterMap();
         return $this;
     }
 
@@ -143,7 +158,7 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
         return $this->examples;
     }
 
-    protected function addUsageOrExample($usage, $description)
+    public function addUsageOrExample($usage, $description)
     {
         $this->addUsage($usage);
         if (!empty($description)) {
@@ -151,117 +166,20 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
         }
     }
 
-    public function helpAlter(\DomDocument $originalDom)
+    public function getCompletionCallback()
     {
-        $dom = new \DOMDocument('1.0', 'UTF-8');
-        $dom->appendChild($commandXML = $dom->createElement('command'));
-        $commandXML->setAttribute('id', $this->getName());
-        $commandXML->setAttribute('name', $this->getName());
-
-        // Get the original <command> element and its top-level elements.
-        $originalCommandXML = $this->getSingleElementByTagName($dom, $originalDom, 'command');
-        $originalUsagesXML = $this->getSingleElementByTagName($dom, $originalCommandXML, 'usages');
-        $originalDescriptionXML = $this->getSingleElementByTagName($dom, $originalCommandXML, 'description');
-        $originalHelpXML = $this->getSingleElementByTagName($dom, $originalCommandXML, 'help');
-        $originalArgumentsXML = $this->getSingleElementByTagName($dom, $originalCommandXML, 'arguments');
-        $originalOptionsXML = $this->getSingleElementByTagName($dom, $originalCommandXML, 'options');
-
-        // Keep only the first of the <usage> elements
-        $newUsagesXML = $dom->createElement('usages');
-        $firstUsageXML = $this->getSingleElementByTagName($dom, $originalUsagesXML, 'usage');
-        $newUsagesXML->appendChild($firstUsageXML);
-
-        // Create our own <example> elements
-        $newExamplesXML = $dom->createElement('examples');
-        foreach ($this->examples as $usage => $description) {
-            $newExamplesXML->appendChild($exampleXML = $dom->createElement('example'));
-            $exampleXML->appendChild($usageXML = $dom->createElement('usage', $usage));
-            $exampleXML->appendChild($descriptionXML = $dom->createElement('description', $description));
-        }
-
-        // Create our own <alias> elements
-        $newAliasesXML = $dom->createElement('aliases');
-        foreach ($this->getAliases() as $alias) {
-            $newAliasesXML->appendChild($dom->createElement('alias', $alias));
-        }
-
-        // Create our own <topic> elements
-        $newTopicsXML = $dom->createElement('topics');
-        foreach ($this->getTopics() as $topic) {
-            $newTopicsXML->appendChild($topicXML = $dom->createElement('topic', $topic));
-        }
-
-        // Place the different elements into the <command> element in the desired order
-        $commandXML->appendChild($newUsagesXML);
-        $commandXML->appendChild($newExamplesXML);
-        $commandXML->appendChild($originalDescriptionXML);
-        $commandXML->appendChild($originalArgumentsXML);
-        $commandXML->appendChild($originalOptionsXML);
-        $commandXML->appendChild($originalHelpXML);
-        $commandXML->appendChild($newAliasesXML);
-        $commandXML->appendChild($newTopicsXML);
-
-        return $dom;
+        return $this->completionCallback;
     }
 
-    protected function getSingleElementByTagName($dom, $parent, $tagName)
+    public function helpAlter(\DomDocument $originalDom)
     {
-        // There should always be exactly one '<command>' element.
-        $elements = $parent->getElementsByTagName($tagName);
-        $result = $elements->item(0);
-
-        $result = $dom->importNode($result, true);
-
-        return $result;
+        return HelpDocumentBuilder::alter($originalDom, $this);
     }
 
     protected function setCommandArguments($commandInfo)
     {
-        $this->setUsesInputInterface($commandInfo);
-        $this->setUsesOutputInterface($commandInfo);
+        $this->injectedClasses = $commandInfo->getInjectedClasses();
         $this->setCommandArgumentsFromParameters($commandInfo);
-        return $this;
-    }
-
-    /**
-     * Check whether the first parameter is an InputInterface.
-     */
-    protected function checkUsesInputInterface($params)
-    {
-        /** @var \ReflectionParameter $firstParam */
-        $firstParam = reset($params);
-        return $firstParam && $firstParam->getClass() && $firstParam->getClass()->implementsInterface(
-            '\\Symfony\\Component\\Console\\Input\\InputInterface'
-        );
-    }
-
-    /**
-     * Determine whether this command wants to get its inputs
-     * via an InputInterface or via its command parameters
-     */
-    protected function setUsesInputInterface($commandInfo)
-    {
-        $params = $commandInfo->getParameters();
-        $this->usesInputInterface = $this->checkUsesInputInterface($params);
-        return $this;
-    }
-
-    /**
-     * Determine whether this command wants to send its output directly
-     * to the provided OutputInterface, or whether it will returned
-     * structured output to be processed by the command processor.
-     */
-    protected function setUsesOutputInterface($commandInfo)
-    {
-        $params = $commandInfo->getParameters();
-        $index = $this->checkUsesInputInterface($params) ? 1 : 0;
-        $this->usesOutputInterface =
-            (count($params) > $index) &&
-            $params[$index]->getClass() &&
-            $params[$index]->getClass()->implementsInterface(
-                '\\Symfony\\Component\\Console\\Output\\OutputInterface'
-            )
-        ;
         return $this;
     }
 
@@ -272,7 +190,8 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
             $description = $commandInfo->arguments()->getDescription($name);
             $hasDefault = $commandInfo->arguments()->hasDefault($name);
             $parameterMode = $this->getCommandArgumentMode($hasDefault, $defaultValue);
-            $this->addArgument($name, $parameterMode, $description, $defaultValue);
+            $suggestedValues = $commandInfo->arguments()->getSuggestedValues($name);
+            $this->addArgument($name, $parameterMode, $description, $defaultValue, $suggestedValues);
         }
         return $this;
     }
@@ -302,15 +221,66 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
             $description = $inputOption->getDescription();
 
             if (empty($description) && isset($automaticOptions[$name])) {
+                // Unfortunately, Console forces us too construct a new InputOption to set a description.
                 $description = $automaticOptions[$name]->getDescription();
-                $inputOption = static::inputOptionSetDescription($inputOption, $description);
+                $this->addInputOption($inputOption, $description);
+            } else {
+                if ($native = $this->getNativeDefinition()) {
+                    $native->addOption($inputOption);
+                }
+                $this->getDefinition()->addOption($inputOption);
             }
-            $this->getDefinition()->addOption($inputOption);
         }
     }
 
+    private function addInputOption($inputOption, $description = null)
+    {
+        $default = $inputOption->getDefault();
+        // Recover the 'mode' value, because Symfony is stubborn
+        $mode = 0;
+        if ($inputOption->isValueRequired()) {
+            $mode |= InputOption::VALUE_REQUIRED;
+        }
+        if ($inputOption->isValueOptional()) {
+            $mode |= InputOption::VALUE_OPTIONAL;
+        }
+        if ($inputOption->isArray()) {
+            $mode |= InputOption::VALUE_IS_ARRAY;
+        }
+        if (!$mode) {
+            $mode = InputOption::VALUE_NONE;
+            $default = null;
+        }
+
+        $suggestedValues = [];
+        // Symfony 6.1+ feature https://symfony.com/blog/new-in-symfony-6-1-improved-console-autocompletion#completion-values-in-input-definitions
+        if (property_exists($inputOption, 'suggestedValues')) {
+            // Alas, Symfony provides no accessor.
+            $class = new \ReflectionClass($inputOption);
+            $property = $class->getProperty('suggestedValues');
+            $property->setAccessible(true);
+            $suggestedValues = $property->getValue($inputOption);
+        }
+        $this->addOption(
+            $inputOption->getName(),
+            $inputOption->getShortcut(),
+            $mode,
+            $description ?? $inputOption->getDescription(),
+            $default,
+            $suggestedValues
+        );
+    }
+
+    /**
+     * @deprecated since 4.5.0
+     */
     protected static function inputOptionSetDescription($inputOption, $description)
     {
+        @\trigger_error(
+            'Since consolidation/annotated-command 4.5: ' .
+            'AnnotatedCommand::inputOptionSetDescription method is deprecated and will be removed in 5.0',
+            \E_USER_DEPRECATED
+        );
         // Recover the 'mode' value, because Symfony is stubborn
         $mode = 0;
         if ($inputOption->isValueRequired()) {
@@ -358,6 +328,17 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
         );
     }
 
+    /**
+     * Route a completion request to the specified Callable if available.
+     */
+    public function complete(CompletionInput $input, CompletionSuggestions $suggestions): void
+    {
+        parent::complete($input, $suggestions);
+        if (is_callable($this->completionCallback)) {
+            call_user_func($this->completionCallback, $input, $suggestions);
+        }
+    }
+
     public function optionsHookForHookAnnotations($commandInfoList)
     {
         foreach ($commandInfoList as $commandInfo) {
@@ -376,19 +357,23 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
+        $state = $this->injectIntoCommandfileInstance($input, $output);
         $this->commandProcessor()->interact(
             $input,
             $output,
             $this->getNames(),
             $this->annotationData
         );
+        $state->restore();
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
     {
+        $state = $this->injectIntoCommandfileInstance($input, $output);
         // Allow the hook manager a chance to provide configuration values,
         // if there are any registered hooks to do that.
         $this->commandProcessor()->initializeHook($input, $this->getNames(), $this->annotationData);
+        $state->restore();
     }
 
     /**
@@ -396,13 +381,16 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $state = $this->injectIntoCommandfileInstance($input, $output);
         // Validate, run, process, alter, handle results.
-        return $this->commandProcessor()->process(
+        $result = $this->commandProcessor()->process(
             $output,
             $this->getNames(),
             $this->commandCallback,
             $this->createCommandData($input, $output)
         );
+        $state->restore();
+        return $result;
     }
 
     /**
@@ -413,6 +401,7 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
      */
     public function processResults(InputInterface $input, OutputInterface $output, $results)
     {
+        $state = $this->injectIntoCommandfileInstance($input, $output);
         $commandData = $this->createCommandData($input, $output);
         $commandProcessor = $this->commandProcessor();
         $names = $this->getNames();
@@ -421,12 +410,14 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
             $results,
             $commandData
         );
-        return $commandProcessor->handleResults(
+        $status = $commandProcessor->handleResults(
             $output,
             $names,
             $results,
             $commandData
         );
+        $state->restore();
+        return $status;
     }
 
     protected function createCommandData(InputInterface $input, OutputInterface $output)
@@ -434,13 +425,14 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
         $commandData = new CommandData(
             $this->annotationData,
             $input,
-            $output
+            $output,
+            $this->parameterMap
         );
 
-        $commandData->setUseIOInterfaces(
-            $this->usesInputInterface,
-            $this->usesOutputInterface
-        );
+        // Fetch any classes (e.g. InputInterface / OutputInterface) that
+        // this command's callback wants passed as a parameter and inject
+        // it into the command data.
+        $this->commandProcessor()->injectIntoCommandData($commandData, $this->injectedClasses);
 
         // Allow the commandData to cache the list of options with
         // special default values ('null' and 'true'), as these will
@@ -448,5 +440,17 @@ class AnnotatedCommand extends Command implements HelpDocumentAlter
         $commandData->cacheSpecialDefaults($this->getDefinition());
 
         return $commandData;
+    }
+
+    /**
+     * Inject $input and $output into the command instance if it is set up to receive them.
+     *
+     * @param callable $commandCallback
+     * @param CommandData $commandData
+     * @return State
+     */
+    public function injectIntoCommandfileInstance(InputInterface $input, OutputInterface $output)
+    {
+        return StateHelper::injectIntoCallbackObject($this->commandCallback, $input, $output);
     }
 }

@@ -18,12 +18,17 @@ class MenuLinkContentDeleteFormTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['menu_link_content'];
+  protected static $modules = ['menu_link_content'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
     $web_user = $this->drupalCreateUser(['administer menu']);
     $this->drupalLogin($web_user);
@@ -34,32 +39,28 @@ class MenuLinkContentDeleteFormTest extends BrowserTestBase {
    */
   public function testMenuLinkContentDeleteForm() {
     // Add new menu item.
-    $this->drupalPostForm(
-      'admin/structure/menu/manage/admin/add',
-      [
-        'title[0][value]' => t('Front page'),
-        'link[0][uri]' => '<front>',
-      ],
-      t('Save')
-    );
-    $this->assertText(t('The menu link has been saved.'));
+    $this->drupalGet('admin/structure/menu/manage/admin/add');
+    $this->submitForm([
+      'title[0][value]' => 'Front page',
+      'link[0][uri]' => '<front>',
+    ], 'Save');
+    $this->assertSession()->pageTextContains('The menu link has been saved.');
 
     $menu_link = MenuLinkContent::load(1);
-    $this->drupalGet($menu_link->urlInfo('delete-form'));
-    $this->assertRaw(t('Are you sure you want to delete the custom menu link %name?', ['%name' => $menu_link->label()]));
-    $this->assertLink(t('Cancel'));
+    $this->drupalGet($menu_link->toUrl('delete-form'));
+    $this->assertSession()->pageTextContains("Are you sure you want to delete the custom menu link {$menu_link->label()}?");
+    $this->assertSession()->linkExists('Cancel');
     // Make sure cancel link points to link edit
-    $this->assertLinkByHref($menu_link->url('edit-form'));
+    $this->assertSession()->linkByHrefExists($menu_link->toUrl('edit-form')->toString());
 
     \Drupal::service('module_installer')->install(['menu_ui']);
-    \Drupal::service('router.builder')->rebuild();
 
     // Make sure cancel URL points to menu_ui route now.
-    $this->drupalGet($menu_link->urlInfo('delete-form'));
+    $this->drupalGet($menu_link->toUrl('delete-form'));
     $menu = Menu::load($menu_link->getMenuName());
-    $this->assertLinkByHref($menu->url('edit-form'));
-    $this->drupalPostForm(NULL, [], t('Delete'));
-    $this->assertRaw(t('The menu link %title has been deleted.', ['%title' => $menu_link->label()]));
+    $this->assertSession()->linkByHrefExists($menu->toUrl('edit-form')->toString());
+    $this->submitForm([], 'Delete');
+    $this->assertSession()->pageTextContains("The menu link {$menu_link->label()} has been deleted.");
   }
 
 }

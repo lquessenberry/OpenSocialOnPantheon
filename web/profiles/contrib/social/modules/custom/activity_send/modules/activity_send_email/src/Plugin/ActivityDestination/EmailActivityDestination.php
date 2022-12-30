@@ -34,6 +34,20 @@ class EmailActivityDestination extends SendActivityDestinationBase {
   /**
    * {@inheritdoc}
    */
+  public static function getSendEmailAllUsersSetting($account_ids, $message_template_id) {
+    return parent::getSendAllUsersSetting('email', $account_ids, $message_template_id);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function getSendEmailUsersIdsByFrequency($account_ids, $message_template_id, $frequency = 'immediately') {
+    return parent::getSendUserIdsByFrequency('email', $account_ids, $frequency, $message_template_id);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public static function setSendEmailUserSettings($account, $values) {
     parent::setSendUserSettings('email', $account, $values);
   }
@@ -50,22 +64,19 @@ class EmailActivityDestination extends SendActivityDestinationBase {
    *   If we have message text we return the text, otherwise null.
    */
   public static function getSendEmailOutputText(Message $message, $langcode = '') {
-    $text = NULL;
-    if (isset($message)) {
-      $activity_factory = \Drupal::service('activity_creator.activity_factory');
-      $value = $activity_factory->getMessageText($message, $langcode);
+    $activity_factory = \Drupal::service('activity_creator.activity_factory');
+    $value = $activity_factory->getMessageText($message, $langcode);
 
-      // Text for email.
-      if (!empty($value[2])) {
-        $text = $value[2];
-      }
-      // Default text.
-      else {
-        $text = $value[0];
-      }
+    // Text for email.
+    if (!empty($value[2]) && is_string($value[2])) {
+      $text = $value[2];
+    }
+    // Default text.
+    else {
+      $text = $value[0];
     }
 
-    return $text;
+    return is_string($text) ? $text : NULL;
   }
 
 }

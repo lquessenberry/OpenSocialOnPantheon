@@ -21,7 +21,7 @@ class MessageTextHandlerTest extends MessageTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['filter_test'];
+  public static $modules = ['filter_test', 'message_test'];
 
   /**
    * {@inheritdoc}
@@ -45,6 +45,24 @@ class MessageTextHandlerTest extends MessageTestBase {
     $this->drupalLogin($this->account);
     $this->drupalGet('admin/content/messages');
     $this->assertText('Dummy text message');
+
+    $this->drupalGet('message-test');
+    $this->assertText('Dummy text message');
+  }
+
+  /**
+   * Testing the message text is not empty if it contains html.
+   */
+  public function testHtmlTextHandler() {
+    $text = [
+      ['value' => htmlspecialchars('<p> Some HTML text</p>'), 'format' => 'full_html'],
+    ];
+    $this->createMessageTemplate('html_dummy_message', 'HTML Dummy message', '', $text);
+    Message::create(['template' => 'html_dummy_message'])->save();
+
+    $this->drupalLogin($this->account);
+    $this->drupalGet('admin/content/message');
+    $this->assertText(htmlspecialchars('<p> Some HTML text</p>'));
   }
 
 }

@@ -1,0 +1,8 @@
+select2.publish:
+  css:
+    component:
+      css/select2.publish.css: {}
+  js:
+    js/select2.publish.js: { weight: -1 }
+  dependencies:
+    - select2/select2

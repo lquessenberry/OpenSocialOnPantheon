@@ -5,6 +5,8 @@ namespace Drupal\search_api\Entity;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\search_api\Event\DeterminingServerFeaturesEvent;
+use Drupal\search_api\Event\SearchApiEvents;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\LoggerTrait;
 use Drupal\search_api\Query\QueryInterface;
@@ -51,17 +53,18 @@ use Drupal\search_api\Utility\Utility;
  *     "backend_config",
  *   },
  *   links = {
- *     "canonical" = "/admin/config/search/search-api/index/{search_api_server}",
+ *     "canonical" = "/admin/config/search/search-api/server/{search_api_server}",
  *     "add-form" = "/admin/config/search/search-api/add-server",
- *     "edit-form" = "/admin/config/search/search-api/index/{search_api_server}/edit",
- *     "delete-form" = "/admin/config/search/search-api/index/{search_api_server}/delete",
- *     "disable" = "/admin/config/search/search-api/index/{search_api_server}/disable",
- *     "enable" = "/admin/config/search/search-api/index/{search_api_server}/enable",
+ *     "edit-form" = "/admin/config/search/search-api/server/{search_api_server}/edit",
+ *     "delete-form" = "/admin/config/search/search-api/server/{search_api_server}/delete",
+ *     "disable" = "/admin/config/search/search-api/server/{search_api_server}/disable",
+ *     "enable" = "/admin/config/search/search-api/server/{search_api_server}/enable",
  *   }
  * )
  */
 class Server extends ConfigEntityBase implements ServerInterface {
 
+  use InstallingTrait;
   use LoggerTrait;
 
   /**
@@ -164,7 +167,12 @@ class Server extends ConfigEntityBase implements ServerInterface {
    */
   public function setBackendConfig(array $backend_config) {
     $this->backend_config = $backend_config;
-    $this->getBackend()->setConfiguration($backend_config);
+    // In case the backend plugin is already loaded, make sure the configuration
+    // stays in sync.
+    if ($this->backendPlugin
+        && $this->getBackend()->getConfiguration() !== $backend_config) {
+      $this->getBackend()->setConfiguration($backend_config);
+    }
     return $this;
   }
 
@@ -206,8 +214,12 @@ class Server extends ConfigEntityBase implements ServerInterface {
       if ($this->hasValidBackend()) {
         $this->features = $this->getBackend()->getSupportedFeatures();
       }
+      $description = 'This hook is deprecated in search_api:8.x-1.14 and is removed from search_api:2.0.0. Please use the "search_api.determining_server_features" event instead. See https://www.drupal.org/node/3059866';
       \Drupal::moduleHandler()
-        ->alter('search_api_server_features', $this->features, $this);
+        ->alterDeprecated($description, 'search_api_server_features', $this->features, $this);
+      /** @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher */
+      $eventDispatcher = \Drupal::getContainer()->get('event_dispatcher');
+      $eventDispatcher->dispatch(new DeterminingServerFeaturesEvent($this->features, $this), SearchApiEvents::DETERMINING_SERVER_FEATURES);
     }
 
     return $this->features;
@@ -293,7 +305,7 @@ class Server extends ConfigEntityBase implements ServerInterface {
 
     $task_manager = \Drupal::getContainer()
       ->get('search_api.task_manager');
-    $task_manager->addTask(__FUNCTION__, $this, $index, isset($index->original) ? $index->original : NULL);
+    $task_manager->addTask(__FUNCTION__, $this, $index, $index->original ?? NULL);
   }
 
   /**
@@ -500,6 +512,7 @@ class Server extends ConfigEntityBase implements ServerInterface {
 
     // If the server is being disabled, also disable all its indexes.
     if (!$this->isSyncing()
+        && !$this->isInstallingFromExtension()
         && !isset($overrides['status'])
         && !$this->status()
         && $this->original->status()) {
@@ -551,24 +564,6 @@ class Server extends ConfigEntityBase implements ServerInterface {
       }
       \Drupal::getContainer()->get('search_api.server_task_manager')->delete($server);
     }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function toArray() {
-    // @todo It's a bug that we have to do this. Backend configuration should
-    //   always be set via the server's setBackendConfiguration() method,
-    //   otherwise the two can diverge causing this and other problems. The
-    //   alternative would be to call $server->setBackendConfiguration() in the
-    //   backend's setConfiguration() method and use a second $propagate
-    //   parameter to avoid an infinite loop. Similar things go for the index's
-    //   various plugins. Maybe using plugin bags is the solution here?
-    $properties = parent::toArray();
-    if ($this->hasValidBackend()) {
-      $properties['backend_config'] = $this->getBackend()->getConfiguration();
-    }
-    return $properties;
   }
 
   /**

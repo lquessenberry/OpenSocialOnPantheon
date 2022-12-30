@@ -1,0 +1,80 @@
+.node-preview-container {
+  font-size: 0.79rem;
+  z-index: 501; /* on top of the Drupal world */
+  position: sticky;
+  top: 0;
+  width: 100%;
+  padding: 0;
+  background: rgba(#fff, .98);
+  border-bottom: 1px solid var(--colorGinLayerBorder);
+
+  @supports (backdrop-filter: blur()) {
+    opacity: .999; /* Fix Chrome issue with mask */
+    background: rgba(#fff, .8);
+    backdrop-filter: blur(12px);
+  }
+
+  .gin--dark-mode & {
+    background: rgba($colorDarkAppBackground, .98);
+
+    @supports (backdrop-filter: blur()) {
+      background: #{rgba(mix(black, $colorDarkAppBackground, 20%), .9)};
+    }
+  }
+
+  .gin--high-contrast-mode & {
+    background: var(--colorGinAppBackground);
+    backdrop-filter: none;
+  }
+
+  .node-preview-backlink,
+  .node-preview-form-select label {
+    color: var(--colorGinTextLight);
+  }
+
+  .node-preview-backlink {
+    position: relative;
+    padding-left: 2em;
+    text-decoration: none;
+
+    &::before {
+      content: "";
+      display: inline-block;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: var(--iconGinSecondaryToolbar);
+      height: var(--iconGinSecondaryToolbar);
+      transform: translateY(-50%);
+      background-color: var(--colorGinIcons);
+      mask-image: icon('backtosite');
+      mask-size: 100% 100%;
+      mask-position: center center;
+    }
+  }
+
+  .node-preview-form-select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: auto;
+    padding: 1rem 0;
+
+    @include mq($breakpointLarge) {
+      padding: 1.25rem 0;
+    }
+
+    label {
+      padding-right: .5em;
+    }
+  }
+
+  .js-hide {
+    display: none;
+  }
+
+  // Hide Secondary Toolbar while in Preview mode.
+  ~ .gin-secondary-toolbar--frontend {
+    display: none;
+  }
+}

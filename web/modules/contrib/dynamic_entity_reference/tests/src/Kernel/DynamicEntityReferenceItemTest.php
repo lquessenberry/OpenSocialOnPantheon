@@ -11,7 +11,6 @@ use Drupal\entity_test\Entity\EntityTest;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\taxonomy\Entity\Term;
-use Drupal\Component\Utility\Unicode;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\user\Entity\User;
@@ -28,7 +27,7 @@ class DynamicEntityReferenceItemTest extends FieldKernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'dynamic_entity_reference',
     'taxonomy',
   ];
@@ -50,14 +49,14 @@ class DynamicEntityReferenceItemTest extends FieldKernelTestBase {
   /**
    * Sets up the test.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('taxonomy_term');
 
     $this->vocabulary = Vocabulary::create([
       'name' => $this->randomMachineName(),
-      'vid' => Unicode::strtolower($this->randomMachineName()),
+      'vid' => mb_strtolower($this->randomMachineName()),
       'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
     ]);
     $this->vocabulary->save();
@@ -143,7 +142,10 @@ class DynamicEntityReferenceItemTest extends FieldKernelTestBase {
     $this->assertEquals($entity->field_der->entity->id(), $term->id());
     $this->assertEquals($entity->field_der->entity->getName(), $term->getName());
 
-    $entity->field_der = ['target_id' => $term2->id(), 'target_type' => $entity_type_id];
+    $entity->field_der = [
+      'target_id' => $term2->id(),
+      'target_type' => $entity_type_id,
+    ];
     $this->assertEquals($entity->field_der->entity->id(), $term2->id());
     $this->assertEquals($entity->field_der->entity->getName(), $term2->getName());
 
@@ -199,7 +201,7 @@ class DynamicEntityReferenceItemTest extends FieldKernelTestBase {
       $this->fail('Assigning an invalid item throws an exception.');
     }
     catch (\InvalidArgumentException $e) {
-      $this->pass('Assigning an invalid item throws an exception.');
+      $this->assertTrue(TRUE, 'Assigning an invalid item throws an exception.');
     }
 
     $entity->field_der->target_type = $entity_type_id;
@@ -279,6 +281,32 @@ class DynamicEntityReferenceItemTest extends FieldKernelTestBase {
   }
 
   /**
+   * Tests entity auto create with property.
+   */
+  public function testEntityReferenceWithProperty() {
+    // The term entity is unsaved here.
+    $term = Term::create([
+      'name' => $this->randomMachineName(),
+      'vid' => $this->term->bundle(),
+      'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
+    ]);
+    $term->save();
+    $entity = EntityTest::create();
+    // Now assign the unsaved term to the field.
+    $entity->field_der->target_id = $term->id();
+    $entity->field_der->target_type = $term->getEntityTypeId();
+    $entity->name->value = $this->randomMachineName();
+    // This is equal to storing an entity to tempstore or cache and retrieving
+    // it back. An example for this is node preview.
+    $entity = serialize($entity);
+    $entity = unserialize($entity);
+    // And then the entity.
+    $entity->save();
+    $term = $this->container->get('entity.repository')->loadEntityByUuid($term->getEntityTypeId(), $term->uuid());
+    $this->assertEquals($entity->field_der->entity->id(), $term->id());
+  }
+
+  /**
    * Tests the der field type for referencing multiple content entities.
    */
   public function testMultipleEntityReferenceItem() {
@@ -314,7 +342,7 @@ class DynamicEntityReferenceItemTest extends FieldKernelTestBase {
    * Tests that the 'handler' field setting stores the proper plugin ID.
    */
   public function testSelectionHandlerSettings() {
-    $field_name = Unicode::strtolower($this->randomMachineName());
+    $field_name = mb_strtolower($this->randomMachineName());
     $field_storage = FieldStorageConfig::create([
       'field_name' => $field_name,
       'entity_type' => 'entity_test',

@@ -23,7 +23,7 @@ class FrontPageTest extends ViewTestBase {
   /**
    * {@inheritdoc}
    */
-  protected $dumpHeaders = TRUE;
+  protected $defaultTheme = 'stark';
 
   /**
    * The entity storage for nodes.
@@ -37,15 +37,15 @@ class FrontPageTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'contextual'];
+  protected static $modules = ['node', 'contextual'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = []): void {
+    parent::setUp($import_test_views, $modules);
 
-    $this->nodeStorage = $this->container->get('entity.manager')
+    $this->nodeStorage = $this->container->get('entity_type.manager')
       ->getStorage('node');
   }
 
@@ -71,13 +71,13 @@ class FrontPageTest extends ViewTestBase {
         'user',
       ],
     ];
-    $this->assertIdentical($expected, $view->getDependencies());
+    $this->assertSame($expected, $view->getDependencies());
 
     $view->setDisplay('page_1');
     $this->executeView($view);
     $view->preview();
 
-    $this->assertEqual($view->getTitle(), format_string('Welcome to @site_name', ['@site_name' => $site_name]), 'The welcome title is used for the empty view.');
+    $this->assertEquals('Welcome!', $view->getTitle(), 'The welcome title is used for the empty view.');
     $view->destroy();
 
     // Create some nodes on the frontpage view. Add more than 10 nodes in order
@@ -160,28 +160,14 @@ class FrontPageTest extends ViewTestBase {
    *   An array of nids which should not be part of the resultset.
    * @param string $message
    *   (optional) A custom message to display with the assertion.
+   *
+   * @internal
    */
-  protected function assertNotInResultSet(ViewExecutable $view, array $not_expected_nids, $message = '') {
+  protected function assertNotInResultSet(ViewExecutable $view, array $not_expected_nids, string $message = ''): void {
     $found_nids = array_filter($view->result, function ($row) use ($not_expected_nids) {
       return in_array($row->nid, $not_expected_nids);
     });
-    $this->assertFalse($found_nids, $message);
-  }
-
-  /**
-   * Tests the frontpage when logged in as admin.
-   */
-  public function testAdminFrontPage() {
-    // When a user with sufficient permissions is logged in, views_ui adds
-    // contextual links to the homepage view. This verifies there are no errors.
-    \Drupal::service('module_installer')->install(['views_ui']);
-    // Log in root user with sufficient permissions.
-    $this->drupalLogin($this->rootUser);
-    // Test frontpage view.
-    $this->drupalGet('node');
-    $this->assertResponse(200);
-    // Check that the frontpage view was rendered.
-    $this->assertPattern('/class=".+view-frontpage/', 'Frontpage view was rendered');
+    $this->assertEmpty($found_nids, $message);
   }
 
   /**
@@ -260,7 +246,6 @@ class FrontPageTest extends ViewTestBase {
     ];
 
     $render_cache_tags = Cache::mergeTags($empty_node_listing_cache_tags, $cache_context_tags);
-    $render_cache_tags = Cache::mergeTags($render_cache_tags, ['config:system.site']);
     $this->assertViewsCacheTags(
       $view,
       $empty_node_listing_cache_tags,
@@ -268,7 +253,7 @@ class FrontPageTest extends ViewTestBase {
       $render_cache_tags
     );
     $expected_tags = Cache::mergeTags($empty_node_listing_cache_tags, $cache_context_tags);
-    $expected_tags = Cache::mergeTags($expected_tags, ['http_response', 'rendered', 'config:user.role.anonymous', 'config:system.site']);
+    $expected_tags = Cache::mergeTags($expected_tags, ['http_response', 'rendered', 'config:user.role.anonymous']);
     $this->assertPageCacheContextsAndTags(
       Url::fromRoute('view.frontpage.page_1'),
       $cache_contexts,
@@ -284,7 +269,7 @@ class FrontPageTest extends ViewTestBase {
           [
             'value' => $this->randomMachineName(32),
             'format' => filter_default_format(),
-          ]
+          ],
         ],
         'type' => 'article',
         'created' => $i,
@@ -298,7 +283,6 @@ class FrontPageTest extends ViewTestBase {
       'timezone',
     ]);
 
-    $this->pass('First page');
     // First page.
     $first_page_result_cache_tags = [
       'config:views.view.frontpage',
@@ -338,7 +322,6 @@ class FrontPageTest extends ViewTestBase {
     );
 
     // Second page.
-    $this->pass('Second page');
     $this->assertPageCacheContextsAndTags(Url::fromRoute('view.frontpage.page_1', [], ['query' => ['page' => 1]]), $cache_contexts, [
       // The cache tags for the listed nodes.
       'node:1',
@@ -368,7 +351,7 @@ class FrontPageTest extends ViewTestBase {
     $node->save();
 
     $this->drupalGet(Url::fromRoute('view.frontpage.page_1'));
-    $this->assertText($title);
+    $this->assertSession()->pageTextContains($title);
   }
 
 }

@@ -9,7 +9,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\editor\Entity\Editor;
 
 /**
- * Defines a "LlamaContextualAndbutton" plugin, with a contextually OR toolbar
+ * Defines a "LlamaContextualAndButton" plugin, with a contextually OR toolbar
  * builder-enabled "llama" feature.
  *
  * @CKEditorPlugin(
@@ -50,7 +50,7 @@ class LlamaContextualAndButton extends Llama implements CKEditorPluginContextual
    * {@inheritdoc}
    */
   public function getFile() {
-    return drupal_get_path('module', 'ckeditor_test') . '/js/llama_contextual_and_button.js';
+    return $this->moduleList->getPath('ckeditor_test') . '/js/llama_contextual_and_button.js';
   }
 
   /**

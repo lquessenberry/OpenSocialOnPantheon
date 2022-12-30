@@ -2,14 +2,12 @@ name: 'Group test'
 description: 'Support module for Group tests.'
 package: 'Testing'
 type: 'module'
-# version: VERSION
-# core: '8.x'
+core_version_requirement: ^8.8 || ^9
 dependencies:
-  - 'group'
-  - 'user'
+  - 'group:group'
+  - 'drupal:user'
 
-# Information added by Drupal.org packaging script on 2018-02-05
-version: '8.x-1.0-rc2'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-08-17
+version: '8.x-1.5'
 project: 'group'
-datestamp: 1517836781
+datestamp: 1660746012

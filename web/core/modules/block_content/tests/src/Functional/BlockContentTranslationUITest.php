@@ -2,9 +2,7 @@
 
 namespace Drupal\Tests\block_content\Functional;
 
-use Drupal\block_content\Entity\BlockContent;
 use Drupal\block_content\Entity\BlockContentType;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Tests\content_translation\Functional\ContentTranslationUITestBase;
 
 /**
@@ -19,13 +17,18 @@ class BlockContentTranslationUITest extends ContentTranslationUITestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'language',
     'content_translation',
     'block',
     'field_ui',
-    'block_content'
+    'block_content',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * {@inheritdoc}
@@ -43,7 +46,7 @@ class BlockContentTranslationUITest extends ContentTranslationUITestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->entityTypeId = 'block_content';
     $this->bundle = 'basic';
     $this->testLanguageSelector = FALSE;
@@ -60,7 +63,7 @@ class BlockContentTranslationUITest extends ContentTranslationUITestBase {
     $bundle = BlockContentType::create([
       'id' => $this->bundle,
       'label' => $this->bundle,
-      'revision' => FALSE
+      'revision' => FALSE,
     ]);
     $bundle->save();
   }
@@ -73,40 +76,15 @@ class BlockContentTranslationUITest extends ContentTranslationUITestBase {
       'translate any entity',
       'access administration pages',
       'administer blocks',
-      'administer block_content fields'
+      'administer block_content fields',
     ]);
-  }
-
-  /**
-   * Creates a custom block.
-   *
-   * @param bool|string $title
-   *   (optional) Title of block. When no value is given uses a random name.
-   *   Defaults to FALSE.
-   * @param bool|string $bundle
-   *   (optional) Bundle name. When no value is given, defaults to
-   *   $this->bundle. Defaults to FALSE.
-   *
-   * @return \Drupal\block_content\Entity\BlockContent
-   *   Created custom block.
-   */
-  protected function createBlockContent($title = FALSE, $bundle = FALSE) {
-    $title = $title ?: $this->randomMachineName();
-    $bundle = $bundle ?: $this->bundle;
-    $block_content = BlockContent::create([
-      'info' => $title,
-      'type' => $bundle,
-      'langcode' => 'en'
-    ]);
-    $block_content->save();
-    return $block_content;
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getNewEntityValues($langcode) {
-    return ['info' => Unicode::strtolower($this->randomMachineName())] + parent::getNewEntityValues($langcode);
+    return ['info' => mb_strtolower($this->randomMachineName())] + parent::getNewEntityValues($langcode);
   }
 
   /**
@@ -133,46 +111,22 @@ class BlockContentTranslationUITest extends ContentTranslationUITestBase {
     // as in the original language.
     $default_langcode = $this->langcodes[0];
     $values = $this->getNewEntityValues($default_langcode);
-    $storage = \Drupal::entityManager()->getStorage($this->entityTypeId);
+    $storage = \Drupal::entityTypeManager()->getStorage($this->entityTypeId);
     /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
     $entity = $storage->create(['type' => 'basic'] + $values);
     $entity->save();
     $entity->addTranslation('it', $values);
 
     try {
-      $message = 'Blocks can have translations with the same "info" value.';
       $entity->save();
-      $this->pass($message);
     }
     catch (\Exception $e) {
-      $this->fail($message);
+      $this->fail('Blocks can have translations with the same "info" value.');
     }
 
     // Check that the translate operation link is shown.
     $this->drupalGet('admin/structure/block/block-content');
-    $this->assertLinkByHref('block/' . $entity->id() . '/translations');
-  }
-
-  /**
-   * Test that no metadata is stored for a disabled bundle.
-   */
-  public function testDisabledBundle() {
-    // Create a bundle that does not have translation enabled.
-    $disabled_bundle = $this->randomMachineName();
-    $bundle = BlockContentType::create([
-      'id' => $disabled_bundle,
-      'label' => $disabled_bundle,
-      'revision' => FALSE
-    ]);
-    $bundle->save();
-
-    // Create a block content for each bundle.
-    $enabled_block_content = $this->createBlockContent();
-    $disabled_block_content = $this->createBlockContent(FALSE, $bundle->id());
-
-    // Make sure that only a single row was inserted into the block table.
-    $rows = db_query('SELECT * FROM {block_content_field_data} WHERE id = :id', [':id' => $enabled_block_content->id()])->fetchAll();
-    $this->assertEqual(1, count($rows));
+    $this->assertSession()->linkByHrefExists('block/' . $entity->id() . '/translations');
   }
 
   /**
@@ -189,15 +143,9 @@ class BlockContentTranslationUITest extends ContentTranslationUITestBase {
       // We only want to test the title for non-english translations.
       if ($langcode != 'en') {
         $options = ['language' => $languages[$langcode]];
-        $url = $entity->urlInfo('edit-form', $options);
+        $url = $entity->toUrl('edit-form', $options);
         $this->drupalGet($url);
-
-        $title = t('<em>Edit @type</em> @title [%language translation]', [
-          '@type' => $entity->bundle(),
-          '@title' => $entity->getTranslation($langcode)->label(),
-          '%language' => $languages[$langcode]->getName(),
-        ]);
-        $this->assertRaw($title);
+        $this->assertSession()->pageTextContains("Edit {$entity->bundle()} {$entity->getTranslation($langcode)->label()} [{$languages[$langcode]->getName()} translation]");
       }
     }
   }

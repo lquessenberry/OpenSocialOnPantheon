@@ -2,7 +2,7 @@
 
 namespace Drupal\Core\Config;
 
-use Symfony\Component\EventDispatcher\Event;
+use Drupal\Component\EventDispatcher\Event;
 
 /**
  * Gets information on all the possible configuration collections.
@@ -68,7 +68,7 @@ class ConfigCollectionInfo extends Event {
    *   if not.
    */
   public function getOverrideService($collection) {
-    return isset($this->collections[$collection]) ? $this->collections[$collection] : NULL;
+    return $this->collections[$collection] ?? NULL;
   }
 
 }

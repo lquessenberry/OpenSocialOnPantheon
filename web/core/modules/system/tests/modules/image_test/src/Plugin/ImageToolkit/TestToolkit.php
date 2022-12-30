@@ -2,7 +2,6 @@
 
 namespace Drupal\image_test\Plugin\ImageToolkit;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
@@ -165,7 +164,7 @@ class TestToolkit extends ImageToolkitBase {
    * @see \Drupal\Tests\system\Functional\Image\ToolkitTestBase::imageTestGetAllCalls()
    */
   protected function logCall($op, $args) {
-    $results = $this->state->get('image_test.results') ?: [];
+    $results = $this->state->get('image_test.results', []);
     $results[$op][] = $args;
     // A call to apply is also logged under its operation name whereby the
     // array of arguments are logged as separate arguments, this because at the
@@ -238,7 +237,7 @@ class TestToolkit extends ImageToolkitBase {
   public static function getSupportedExtensions() {
     $extensions = [];
     foreach (static::supportedTypes() as $image_type) {
-      $extensions[] = Unicode::strtolower(image_type_to_extension($image_type, FALSE));
+      $extensions[] = mb_strtolower(image_type_to_extension($image_type, FALSE));
     }
     return $extensions;
   }

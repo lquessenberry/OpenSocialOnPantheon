@@ -1,24 +1,25 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace DrupalCodeGenerator\Twig;
 
-use Twig_Node;
-use Twig_Compiler;
+use Twig\Compiler;
+use Twig\Node\Node;
 
 /**
  * A class that defines the compiler for 'sort' token.
  */
-class TwigSortSetNode extends Twig_Node {
+final class TwigSortSetNode extends Node {
 
   /**
    * {@inheritdoc}
    */
-  public function compile(Twig_Compiler $compiler) {
+  public function compile(Compiler $compiler): void {
     $compiler
       ->addDebugInfo($this)
       ->write("ob_start();\n")
       ->subcompile($this->getNode('body'))
       ->write('$data = explode("\n", ob_get_clean());' . "\n")
+      ->write('$data = array_unique($data);' . "\n")
       ->write('sort($data);' . "\n")
       ->write('echo ltrim(implode("\n", $data)) . "\n";' . "\n");
   }

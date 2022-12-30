@@ -12,9 +12,13 @@
         selected:
           type: sequence
           label: 'The selected bundles'
+          orderby: value
           sequence:
             type: string
             label: 'A bundle machine name'
+    disable_db_tracking:
+      type: boolean
+      label: 'Do not use a database query for tracking'
     languages:
       type: mapping
       label: 'Languages'
@@ -25,6 +29,7 @@
         selected:
           type: sequence
           label: 'The selected languages'
+          orderby: value
           sequence:
             type: string
             label: 'A language code'

@@ -3,12 +3,13 @@
 namespace Drupal\Core\File\MimeType;
 
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
+use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface as LegacyMimeTypeGuesserInterface;
+use Symfony\Component\Mime\MimeTypeGuesserInterface;
 
 /**
  * Makes possible to guess the MIME type of a file using its extension.
  */
-class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
+class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface, LegacyMimeTypeGuesserInterface {
 
   /**
    * Default MIME extension mapping.
@@ -26,6 +27,7 @@ class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
       5 => 'application/cu-seeme',
       6 => 'application/dsptype',
       350 => 'application/epub+zip',
+      359 => 'application/gzip',
       7 => 'application/hta',
       8 => 'application/java-archive',
       9 => 'application/java-serialized-object',
@@ -856,6 +858,7 @@ class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
       'weba' => 356,
       'webm' => 357,
       'vtt' => 358,
+      'gz' => 359,
     ],
   ];
 
@@ -887,6 +890,14 @@ class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
    * {@inheritdoc}
    */
   public function guess($path) {
+    @trigger_error(__METHOD__ . '() is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. Use ::guessMimeType() instead. See https://www.drupal.org/node/3133341', E_USER_DEPRECATED);
+    return $this->guessMimeType($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function guessMimeType($path): ?string {
     if ($this->mapping === NULL) {
       $mapping = $this->defaultMapping;
       // Allow modules to alter the default mapping.
@@ -895,16 +906,16 @@ class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
     }
 
     $extension = '';
-    $file_parts = explode('.', drupal_basename($path));
+    $file_parts = explode('.', \Drupal::service('file_system')->basename($path));
 
     // Remove the first part: a full filename should not match an extension.
     array_shift($file_parts);
 
     // Iterate over the file parts, trying to find a match.
     // For my.awesome.image.jpeg, we try:
-    //   - jpeg
-    //   - image.jpeg, and
-    //   - awesome.image.jpeg
+    // - jpeg
+    // - image.jpeg, and
+    // - awesome.image.jpeg
     while ($additional_part = array_pop($file_parts)) {
       $extension = strtolower($additional_part . ($extension ? '.' . $extension : ''));
       if (isset($this->mapping['extensions'][$extension])) {
@@ -923,6 +934,13 @@ class ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
    */
   public function setMapping(array $mapping = NULL) {
     $this->mapping = $mapping;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isGuesserSupported(): bool {
+    return TRUE;
   }
 
 }

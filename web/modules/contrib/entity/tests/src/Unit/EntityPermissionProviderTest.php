@@ -26,7 +26,7 @@ class EntityPermissionProviderTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $entity_type_bundle_info = $this->prophesize(EntityTypeBundleInfoInterface::class);
@@ -72,7 +72,9 @@ class EntityPermissionProviderTest extends UnitTestCase {
     $entity_type->id()->willReturn('green_entity');
     $entity_type->getSingularLabel()->willReturn('green entity');
     $entity_type->getPluralLabel()->willReturn('green entities');
+    $entity_type->getAdminPermission()->willReturn('administer green_entity');
     $entity_type->hasLinkTemplate('collection')->willReturn(FALSE);
+    $entity_type->hasLinkTemplate('duplicate-form')->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityOwnerInterface::class)->willReturn(FALSE);
     $entity_type->entityClassImplements(EntityPublishedInterface::class)->willReturn(FALSE);
     $entity_type->getPermissionGranularity()->willReturn('entity_type');
@@ -80,6 +82,7 @@ class EntityPermissionProviderTest extends UnitTestCase {
       'administer green_entity' => 'Administer green entities',
       'create green_entity' => 'Create green entities',
       'update green_entity' => 'Update green entities',
+      'duplicate green_entity' => 'Duplicate green entities',
       'delete green_entity' => 'Delete green entities',
       'view green_entity' => 'View green entities',
     ];
@@ -91,7 +94,9 @@ class EntityPermissionProviderTest extends UnitTestCase {
     $entity_type->id()->willReturn('blue_entity');
     $entity_type->getSingularLabel()->willReturn('blue entity');
     $entity_type->getPluralLabel()->willReturn('blue entities');
+    $entity_type->getAdminPermission()->willReturn('administer blue_entity');
     $entity_type->hasLinkTemplate('collection')->willReturn(TRUE);
+    $entity_type->hasLinkTemplate('duplicate-form')->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityOwnerInterface::class)->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityPublishedInterface::class)->willReturn(FALSE);
     $entity_type->getPermissionGranularity()->willReturn('entity_type');
@@ -101,6 +106,8 @@ class EntityPermissionProviderTest extends UnitTestCase {
       'create blue_entity' => 'Create blue entities',
       'update any blue_entity' => 'Update any blue entity',
       'update own blue_entity' => 'Update own blue entities',
+      'duplicate any blue_entity' => 'Duplicate any blue entity',
+      'duplicate own blue_entity' => 'Duplicate own blue entities',
       'delete any blue_entity' => 'Delete any blue entity',
       'delete own blue_entity' => 'Delete own blue entities',
       'view blue_entity' => 'View blue entities',
@@ -113,7 +120,9 @@ class EntityPermissionProviderTest extends UnitTestCase {
     $entity_type->id()->willReturn('white_entity');
     $entity_type->getSingularLabel()->willReturn('white entity');
     $entity_type->getPluralLabel()->willReturn('white entities');
+    $entity_type->getAdminPermission()->willReturn('administer white_entity');
     $entity_type->hasLinkTemplate('collection')->willReturn(TRUE);
+    $entity_type->hasLinkTemplate('duplicate-form')->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityOwnerInterface::class)->willReturn(FALSE);
     $entity_type->entityClassImplements(EntityPublishedInterface::class)->willReturn(FALSE);
     $entity_type->getPermissionGranularity()->willReturn('bundle');
@@ -122,9 +131,11 @@ class EntityPermissionProviderTest extends UnitTestCase {
       'access white_entity overview' => 'Access the white entities overview page',
       'create first white_entity' => 'First: Create white entities',
       'update first white_entity' => 'First: Update white entities',
+      'duplicate first white_entity' => 'First: Duplicate white entities',
       'delete first white_entity' => 'First: Delete white entities',
       'create second white_entity' => 'Second: Create white entities',
       'update second white_entity' => 'Second: Update white entities',
+      'duplicate second white_entity' => 'Second: Duplicate white entities',
       'delete second white_entity' => 'Second: Delete white entities',
       'view white_entity' => 'View white entities',
       'view first white_entity' => 'First: View white entities',
@@ -138,7 +149,9 @@ class EntityPermissionProviderTest extends UnitTestCase {
     $entity_type->id()->willReturn('black_entity');
     $entity_type->getSingularLabel()->willReturn('black entity');
     $entity_type->getPluralLabel()->willReturn('black entities');
+    $entity_type->getAdminPermission()->willReturn('administer black_entity');
     $entity_type->hasLinkTemplate('collection')->willReturn(TRUE);
+    $entity_type->hasLinkTemplate('duplicate-form')->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityOwnerInterface::class)->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityPublishedInterface::class)->willReturn(FALSE);
     $entity_type->getPermissionGranularity()->willReturn('bundle');
@@ -148,6 +161,8 @@ class EntityPermissionProviderTest extends UnitTestCase {
       'create third black_entity' => 'Third: Create black entities',
       'update any third black_entity' => 'Third: Update any black entity',
       'update own third black_entity' => 'Third: Update own black entities',
+      'duplicate any third black_entity' => 'Third: Duplicate any black entity',
+      'duplicate own third black_entity' => 'Third: Duplicate own black entities',
       'delete any third black_entity' => 'Third: Delete any black entity',
       'delete own third black_entity' => 'Third: Delete own black entities',
       'view black_entity' => 'View black entities',
@@ -161,7 +176,9 @@ class EntityPermissionProviderTest extends UnitTestCase {
     $entity_type->id()->willReturn('pink_entity');
     $entity_type->getSingularLabel()->willReturn('pink entity');
     $entity_type->getPluralLabel()->willReturn('pink entities');
+    $entity_type->getAdminPermission()->willReturn('administer pink_entity');
     $entity_type->hasLinkTemplate('collection')->willReturn(TRUE);
+    $entity_type->hasLinkTemplate('duplicate-form')->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityOwnerInterface::class)->willReturn(TRUE);
     $entity_type->entityClassImplements(EntityPublishedInterface::class)->willReturn(TRUE);
     $entity_type->getPermissionGranularity()->willReturn('bundle');
@@ -172,6 +189,8 @@ class EntityPermissionProviderTest extends UnitTestCase {
       'create third pink_entity' => 'Third: Create pink entities',
       'update any third pink_entity' => 'Third: Update any pink entity',
       'update own third pink_entity' => 'Third: Update own pink entities',
+      'duplicate any third pink_entity' => 'Third: Duplicate any pink entity',
+      'duplicate own third pink_entity' => 'Third: Duplicate own pink entities',
       'delete any third pink_entity' => 'Third: Delete any pink entity',
       'delete own third pink_entity' => 'Third: Delete own pink entities',
       'view pink_entity' => 'View pink entities',

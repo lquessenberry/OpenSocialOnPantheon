@@ -5,11 +5,13 @@
  * Allows you to group users, content and other entities.
  */
 
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Entity\EntityPublishedInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -17,8 +19,15 @@ use Drupal\Core\Render\Element;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\group\Entity\GroupContent;
+use Drupal\group\Fields\GroupGroupReferenceItemList;
+use Drupal\group\QueryAccess\EntityQueryAlter;
 use Drupal\user\RoleInterface;
-
+use Drupal\views\Plugin\views\query\QueryPluginBase;
+use Drupal\views\Plugin\views\query\Sql;
+use Drupal\views\ViewExecutable;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 /**
  * Implements hook_help().
  */
@@ -37,6 +46,13 @@ function group_element_info_alter(array &$types) {
   if (isset($types['toolbar'])) {
     $types['toolbar']['#attached']['library'][] = 'group/toolbar';
   }
+}
+
+/**
+ * Implements hook_config_translation_info_alter().
+ */
+function group_config_translation_info_alter(&$info) {
+  $info['group_role']['class'] = 'Drupal\group\ConfigTranslation\GroupRoleMapper';
 }
 
 /**
@@ -81,10 +97,11 @@ function group_theme_suggestions_group_content(array $variables) {
   /** @var \Drupal\group\Entity\GroupContentInterface $group_content */
   $group_content = $variables['elements']['#group_content'];
   $sanitized_view_mode = strtr($variables['elements']['#view_mode'], '.', '_');
+  $sanitized_bundle = strtr($group_content->bundle(), '-', '_');
 
   $suggestions[] = 'group_content__' . $sanitized_view_mode;
-  $suggestions[] = 'group_content__' . $group_content->bundle();
-  $suggestions[] = 'group_content__' . $group_content->bundle() . '__' . $sanitized_view_mode;
+  $suggestions[] = 'group_content__' . $sanitized_bundle;
+  $suggestions[] = 'group_content__' . $sanitized_bundle . '__' . $sanitized_view_mode;
   $suggestions[] = 'group_content__' . $group_content->id();
   $suggestions[] = 'group_content__' . $group_content->id() . '__' . $sanitized_view_mode;
 
@@ -108,7 +125,11 @@ function template_preprocess_group(&$variables) {
   $variables['group'] = $group;
   $variables['view_mode'] = $variables['elements']['#view_mode'];
   $variables['label'] = $group->label();
-  $variables['url'] = $group->toUrl('canonical', ['language' => $group->language()]);
+  $variables['url'] = $group->toUrl('canonical');
+
+  $variables['attributes']['class'][] = 'group';
+  $variables['attributes']['class'][] = Html::cleanCssIdentifier('group--' . $variables['view_mode']);
+  $variables['attributes']['class'][] = Html::cleanCssIdentifier('group--' . $variables['group']->bundle());
 
   // See if we are rendering the group at its canonical route.
   $route_match = \Drupal::routeMatch();
@@ -142,7 +163,10 @@ function template_preprocess_group_content(&$variables) {
   $variables['group_content'] = $group_content;
   $variables['view_mode'] = $variables['elements']['#view_mode'];
   $variables['label'] = $group_content->label();
-  $variables['url'] = $group_content->toUrl('canonical', ['language' => $group_content->language()]);
+  $variables['url'] = $group_content->toUrl('canonical');
+
+  $variables['attributes']['class'][] = 'group-content';
+  $variables['attributes']['class'][] = Html::cleanCssIdentifier('group-content--' . $variables['view_mode']);
 
   // See if we are rendering the group at its canonical route.
   $route_match = \Drupal::routeMatch();
@@ -164,7 +188,11 @@ function template_preprocess_group_content(&$variables) {
  */
 function group_rebuild() {
   _group_content_enabler_manager()->installEnforced();
-  _group_role_synchronizer()->createGroupRoles();
+
+  /** @var \Drupal\group\Entity\Storage\GroupRoleStorageInterface $storage */
+  $storage = \Drupal::entityTypeManager()->getStorage('group_role');
+  $storage->createInternal();
+  $storage->createSynchronized();
 }
 
 /**
@@ -174,7 +202,11 @@ function group_modules_installed($modules) {
   // Only create config objects while config import is not in progress.
   if (!\Drupal::isConfigSyncing()) {
     _group_content_enabler_manager()->installEnforced();
-    _group_role_synchronizer()->createGroupRoles();
+
+    /** @var \Drupal\group\Entity\Storage\GroupRoleStorageInterface $storage */
+    $storage = \Drupal::entityTypeManager()->getStorage('group_role');
+    $storage->createInternal();
+    $storage->createSynchronized();
   }
 }
 
@@ -196,57 +228,141 @@ function group_form_block_form_alter(&$form, FormStateInterface $form_state, $fo
 }
 
 /**
- * Implements hook_entity_base_field_info().
- *
- * Creates computed fields to get the groups related to a entity. There will be
- * a field containing all groups. Each group type will also get a separate
- * field.
- *
- * We currently only use this for nodes and users since they can be installed
- * as group content.
+ * Implements hook_module_implements_alter().
  */
-function group_entity_base_field_info(EntityTypeInterface $entity_type) {
-  $fields = [];
+function group_module_implements_alter(&$implementations, $hook) {
+  // Make sure our query alters happen at the very last moment.
+  if (in_array($hook, ['query_entity_query_alter', 'views_query_alter'], TRUE)) {
+    // Move hook to the end of the list.
+    $group = $implementations['group'];
+    unset($implementations['group']);
+    $implementations['group'] = $group;
+  }
+}
 
-  $entity_types = ['node', 'user'];
-  if (in_array($entity_type->id(), $entity_types)) {
-    $fields['groups'] = BaseFieldDefinition::create('entity_reference')
-      ->setName('groups')
-      ->setTargetEntityTypeId($entity_type->id())
-      ->setSetting('target_type', 'group')
-      ->setLabel(t('Get the related groups for this entity.'))
-      ->setDescription(t('A list of all the groups referencing this entity.'))
-      ->setTranslatable(FALSE)
-      ->setComputed(TRUE)
-      ->setClass('\Drupal\group\Fields\GroupGroupReferenceItemList')
-      ->setDisplayConfigurable('view', TRUE)
-      ->setDisplayOptions('view', [
-        'label' => 'above',
-        'weight' => -5,
-      ]);
+/**
+ * Implements hook_query_TAG_alter().
+ */
+function group_query_entity_query_alter(SelectInterface $query) {
+  $entity_type_id = $query->getMetaData('entity_type');
 
-    foreach (\Drupal::service('entity_type.manager')->getStorage('group_type')->loadMultiple() as $group_type) {
-      /** @var \Drupal\group\Entity\GroupType $group_type */
-      $field_name = 'groups_type_' . $group_type->id();
-      $fields[$field_name] = BaseFieldDefinition::create('entity_reference')
-        ->setName($field_name)
-        ->setTargetEntityTypeId($entity_type->id())
-        ->setSetting('target_type', 'group')
-        ->setSetting('handler_settings', ['target_bundles' => [$group_type->id() => $group_type->id()]])
-        ->setLabel(t('Get the related @type groups for this entity.', ['@type' => $group_type->label()]))
-        ->setDescription(t('A list of all the groups referencing this entity.'))
-        ->setTranslatable(FALSE)
-        ->setComputed(TRUE)
-        ->setClass('\Drupal\group\Fields\GroupGroupReferenceItemList')
-        ->setDisplayConfigurable('view', TRUE)
-        ->setDisplayOptions('view', [
-          'label' => 'above',
-          'weight' => -5,
-        ]);
-    }
+  // Only do query access checks for non-nodes. Nodes will use grants/access
+  // records as defined in gnode.
+  if (\Drupal::moduleHandler()->moduleExists('gnode') && $entity_type_id == 'node') {
+    return;
   }
 
-  return $fields;
+  if ($query->hasTag($entity_type_id . '_access')) {
+    $entity_type_manager = \Drupal::entityTypeManager();
+    $entity_type = $entity_type_manager->getDefinition($entity_type_id);
+
+    \Drupal::service('class_resolver')
+      ->getInstanceFromDefinition(EntityQueryAlter::class)
+      ->alter($query, $entity_type);
+  }
+}
+
+/**
+ * Implements hook_query_TAG_alter().
+ */
+function group_query_views_entity_query_alter(SelectInterface $query) {
+  $entity_type_id = $query->getMetaData('entity_type');
+  $query->addTag($entity_type_id . '_access');
+  group_query_entity_query_alter($query);
+}
+
+/**
+ * Implements hook_views_query_alter().
+ */
+function group_views_query_alter(ViewExecutable $view, QueryPluginBase $query) {
+  if ($query instanceof Sql && empty($query->options['disable_sql_rewrite'])) {
+    $table_info = $query->getEntityTableInfo();
+    $base_table = reset($table_info);
+    if (empty($base_table['entity_type']) || $base_table['relationship_id'] != 'none') {
+      return;
+    }
+
+    // Add a custom tag so we don't trigger all other 'entity_query' tag alters.
+    $entity_type_id = $base_table['entity_type'];
+    $query->addTag('views_entity_query');
+
+    // Build the Views query already so we can access the DB query.
+    $query->build($view);
+    $view->built = TRUE;
+
+    // Add metadata to the DB query.
+    $query = $view->build_info['query'];
+    $count_query = $view->build_info['count_query'];
+    $query->addMetaData('entity_type', $entity_type_id);
+    $count_query->addMetaData('entity_type', $entity_type_id);
+  }
+}
+
+/**
+ * Implements hook_entity_access().
+ */
+function group_entity_access(EntityInterface $entity, $operation, AccountInterface $account) {
+  // Some modules, including the code in \Drupal\node\NodeForm::access() may
+  // check for 'view', 'update' or 'delete' access on new entities, even though
+  // that makes little sense. We need to account for it to avoid crashes because
+  // we would otherwise query the DB with a non-existent node ID.
+  if ($entity->isNew()) {
+    return AccessResult::neutral();
+  }
+
+  /** @var \Drupal\group\Plugin\GroupContentEnablerManagerInterface $plugin_manager */
+  $plugin_manager = \Drupal::service('plugin.manager.group_content_enabler');
+
+  // Find all of the group content plugins that define access.
+  $plugin_ids = $plugin_manager->getPluginIdsByEntityTypeAccess($entity->getEntityTypeId());
+  if (empty($plugin_ids)) {
+    return AccessResult::neutral();
+  }
+
+  // If any new group content entity is added using any of the retrieved
+  // plugins, it might change access.
+  $plugin_cache_tags = [];
+  foreach ($plugin_ids as $plugin_id) {
+    $plugin_cache_tags[] = "group_content_list:plugin:$plugin_id";
+  }
+
+  // Load all of the group content for this entity.
+  $group_contents = \Drupal::entityTypeManager()
+    ->getStorage('group_content')
+    ->loadByEntity($entity);
+
+  // If the entity does not belong to any group, we have nothing to say.
+  //
+  // @todo There is a slight performance boost to be had here. If we have a
+  // plugin that adds content without access and one that adds the same content
+  // with access, then this check would fail for content that is only added
+  // using the non-access plugin. The loop over the plugin IDs below would then
+  // not return anything and we would still end up with a neutral result, albeit
+  // with the user.group_permissions context and slightly worse performance. We
+  // can fix this by only loading those group content entities that use the
+  // plugins retrieved above.
+  if (empty($group_contents)) {
+    return AccessResult::neutral()->addCacheTags($plugin_cache_tags);
+  }
+
+  $access = AccessResult::neutral();
+  foreach ($plugin_ids as $plugin_id) {
+    // For backwards compatibility reasons, if the group content enabler plugin
+    // used by the group content type does not specify an access handler, we do
+    // not check access for that group content type. In 8.2.x all group content
+    // enabler plugins will get a permission handler by default, so this check
+    // can be safely removed then.
+    if (!$plugin_manager->hasHandler($plugin_id, 'access')) {
+      continue;
+    }
+
+    $handler = $plugin_manager->getAccessControlHandler($plugin_id);
+    $access = $access->orIf($handler->entityAccess($entity, $operation, $account, TRUE));
+  }
+
+  return $access
+    ->addCacheTags($plugin_cache_tags)
+    ->addCacheContexts(['user.group_permissions']);
 }
 
 /**
@@ -328,6 +444,7 @@ function group_user_cancel($edit, $account, $method) {
   if ($method == 'user_cancel_reassign') {
     $storage = \Drupal::entityTypeManager()->getStorage('group');
     $gids = $storage->getQuery()
+      ->accessCheck(FALSE)
       ->condition('uid', $account->id())
       ->execute();
 
@@ -411,7 +528,9 @@ function group_user_delete(EntityInterface $account) {
 function group_user_role_insert(RoleInterface $role) {
   // Only create config objects while config import is not in progress.
   if (!\Drupal::isConfigSyncing()) {
-    _group_role_synchronizer()->createGroupRoles(NULL, [$role->id()]);
+    /** @var \Drupal\group\Entity\Storage\GroupRoleStorageInterface $storage */
+    $storage = \Drupal::entityTypeManager()->getStorage('group_role');
+    $storage->createSynchronized(NULL, [$role->id()]);
   }
 }
 
@@ -424,7 +543,9 @@ function group_user_role_update(RoleInterface $role) {
 
   // Update the group roles if the user role label changed.
   if ($role->label() != $original->label()) {
-    _group_role_synchronizer()->updateGroupRoleLabels($role);
+    /** @var \Drupal\group\Entity\Storage\GroupRoleStorageInterface $storage */
+    $storage = \Drupal::entityTypeManager()->getStorage('group_role');
+    $storage->updateSynchronizedLabels($role);
   }
 }
 
@@ -437,7 +558,7 @@ function group_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   // forms for the process to work properly.
   if ($form_state->has('group_wizard') && $form_state->get('group_wizard_id') == 'group_entity') {
     if ($wizard = $form_state->get('group_wizard')) {
-      $store = \Drupal::service('user.private_tempstore')->get($form_state->get('group_wizard_id'));
+      $store = \Drupal::service('tempstore.private')->get($form_state->get('group_wizard_id'));
       $store_id = $form_state->get('store_id');
 
       // Bail out if we are on step 2 of the wizard. We only want to alter the
@@ -447,7 +568,8 @@ function group_form_alter(&$form, FormStateInterface $form_state, $form_id) {
       }
     }
 
-    foreach (Element::children($form['actions']) as $name) {
+    $actions = $form['actions'] ?? [];
+    foreach (Element::children($actions) as $name) {
       // Remove preview button as it redirects back to the wrong form.
       if ($name == 'preview') {
         unset($form['actions'][$name]);
@@ -503,7 +625,7 @@ function group_content_wizard_store($form, FormStateInterface $form_state) {
   $entity = $form_state->getFormObject()->getEntity();
 
   // Store the unsaved entity in the temp store.
-  $store = \Drupal::service('user.private_tempstore')->get($form_state->get('group_wizard_id'));
+  $store = \Drupal::service('tempstore.private')->get($form_state->get('group_wizard_id'));
   $store_id = $form_state->get('store_id');
   $store->set("$store_id:entity", $entity);
   $store->set("$store_id:step", 2);
@@ -521,7 +643,7 @@ function group_content_wizard_store($form, FormStateInterface $form_state) {
  * @see \Drupal\group\Entity\Controller\GroupContentController::createForm()
  */
 function group_content_wizard_cancel($form, FormStateInterface $form_state) {
-  $store = \Drupal::service('user.private_tempstore')->get($form_state->get('group_wizard_id'));
+  $store = \Drupal::service('tempstore.private')->get($form_state->get('group_wizard_id'));
   $store_id = $form_state->get('store_id');
   $store->delete("$store_id:entity");
   $store->delete("$store_id:step");
@@ -616,4 +738,123 @@ function _group_content_enabler_manager() {
  */
 function _group_role_synchronizer() {
   return \Drupal::service('group_role.synchronizer');
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave().
+ *
+ * @todo Remove in 8.2.x if it still only fixes cache contexts by then.
+ */
+function group_view_presave(EntityInterface $view) {
+  $displays = $view->get('display');
+  $update = FALSE;
+
+  // Loop over all displays and replace the group_membership.roles.permissions
+  // cache context with its safe user.group_permissions counterpart.
+  foreach ($displays as $display_name => &$display) {
+    $cache_metadata = &$display['cache_metadata'];
+    if (isset($cache_metadata['contexts'])) {
+      // Remove the deleted cache context and add the updated metadata.
+      $key = array_search('group_membership.roles.permissions', $cache_metadata['contexts'], TRUE);
+      if ($key !== FALSE) {
+        $update = TRUE;
+        unset($cache_metadata['contexts'][$key]);
+
+        $cache_metadata['max-age'] = CacheBackendInterface::CACHE_PERMANENT;
+        $cache_metadata['contexts'][] = 'route.group';
+        $cache_metadata['contexts'][] = 'user.group_permissions';
+      }
+    }
+  }
+
+  if ($update) {
+    $view->set('display', $displays);
+  }
+}
+
+/**
+ * Implements hook_group_types().
+ *
+ * We currently only use this for nodes and users since they can be installed
+ * as group content.
+ */
+function group_group_types() {
+  return array_fill_keys(['node', 'user'], TRUE);
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ *
+ * Creates computed fields to get the groups related to an entity. There will be
+ * a field containing all groups. Each group type will also get a separate
+ * field.
+ */
+function group_entity_base_field_info(EntityTypeInterface $entity_type) {
+  $fields = [];
+
+  $entity_types = \Drupal::moduleHandler()->invokeAll('group_types');
+  \Drupal::moduleHandler()->alter('group_types', $entity_types);
+
+  if (!isset($entity_types[$entity_type->id()])) {
+    return $fields;
+  }
+
+  $fields['groups'] = BaseFieldDefinition::create('entity_reference')
+    ->setName('groups')
+    ->setTargetEntityTypeId($entity_type->id())
+    ->setSetting('target_type', 'group')
+    ->setLabel(t('Get the related groups for this entity.'))
+    ->setDescription(t('A list of all the groups referencing this entity.'))
+    ->setTranslatable(FALSE)
+    ->setComputed(TRUE)
+    ->setCustomStorage(TRUE)
+    ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED)
+    ->setClass(GroupGroupReferenceItemList::class)
+    ->setDisplayConfigurable('form', TRUE)
+    ->setDisplayOptions('form', [
+      'label' => 'hidden',
+      'region' => 'hidden',
+      'weight' => 50,
+    ])
+    ->setDisplayConfigurable('view', TRUE)
+    ->setDisplayOptions('view', [
+      'label' => 'hidden',
+      'region' => 'hidden',
+      'weight' => 50,
+    ]);
+
+  if (!$entity_types[$entity_type->id()]) {
+    return $fields;
+  }
+
+  /** @var \Drupal\group\Entity\GroupTypeInterface $group_type */
+  foreach (\Drupal::entityTypeManager()->getStorage('group_type')->loadMultiple() as $group_type) {
+    $field_name = 'groups_type_' . $group_type->id();
+    $fields[$field_name] = BaseFieldDefinition::create('entity_reference')
+      ->setName($field_name)
+      ->setTargetEntityTypeId($entity_type->id())
+      ->setSetting('target_type', 'group')
+      ->setSetting('handler_settings', ['target_bundles' => [$group_type->id() => $group_type->id()]])
+      ->setLabel(t('Get the related @type groups for this entity.', ['@type' => $group_type->label()]))
+      ->setDescription(t('A list of all the groups referencing this entity.'))
+      ->setTranslatable(FALSE)
+      ->setComputed(TRUE)
+      ->setCustomStorage(TRUE)
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED)
+      ->setClass(GroupGroupReferenceItemList::class)
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayOptions('form', [
+        'label' => 'hidden',
+        'region' => 'hidden',
+        'weight' => 50,
+      ])
+      ->setDisplayConfigurable('view', TRUE)
+      ->setDisplayOptions('view', [
+        'label' => 'hidden',
+        'region' => 'hidden',
+        'weight' => 50,
+      ]);
+  }
+
+  return $fields;
 }

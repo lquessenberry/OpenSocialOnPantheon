@@ -16,9 +16,9 @@ use Drupal\KernelTests\Core\Entity\EntityKernelTestBase;
 class ZoneItemTest extends EntityKernelTestBase {
 
   /**
-   * @var array
+   * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'address',
   ];
 
@@ -32,7 +32,7 @@ class ZoneItemTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $field_storage = FieldStorageConfig::create([

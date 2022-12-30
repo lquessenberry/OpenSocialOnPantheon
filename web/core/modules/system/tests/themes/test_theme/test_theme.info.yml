@@ -13,9 +13,7 @@ type: theme
 description: 'Theme for testing the theme system'
 version: VERSION
 base theme: classy
-core: 8.x
-stylesheets-remove:
-  - '@system/css/js.module.css'
+logo: images/logo2.svg
 libraries:
   - test_theme/global-styling
 libraries-override:
@@ -36,6 +34,10 @@ libraries-override:
     css:
       component:
         css/components/dialog.css: false
+  system/base:
+    css:
+      component:
+        /core/themes/stable/css/system/components/js.module.css: false
   # It works for JS as well.
   core/jquery:
     js:
@@ -51,10 +53,9 @@ libraries-override:
       component:
         /core/themes/stable/css/core/vertical-tabs.css: public://my_css/vertical-tabs.css
   # Use a protocol-relative URI.
-  core/jquery.ui:
-    css:
-      component:
-        assets/vendor/jquery.ui/themes/base/core.css: //my-server/my_theme/css/jquery_ui.css
+  core/drupal.displace:
+    js:
+      misc/displace.js: //my-server/my_theme/js/overridden.js
   # Use an absolute URI.
   core/jquery.farbtastic:
     css:

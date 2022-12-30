@@ -1,0 +1,414 @@
+.gin-secondary-toolbar__layout-container *:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+}
+
+.gin-secondary-toolbar {
+  z-index: 102;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-top: .5rem;
+  padding-bottom: .5rem;
+  margin-top: -1px;
+  height: var(--ginToolbarSecondaryHeight);
+  border-bottom: 1px solid var(--colorGinSecondaryBorder);
+  box-sizing: border-box;
+
+  @include mq($breakpointMedium) {
+    padding: 10px 0;
+  }
+
+  &--frontend {
+    z-index: 501; /* on top of the Drupal world */
+    position: sticky;
+    top: 0;
+    margin-top: 0;
+    height: var(--ginToolbarSecondaryHeight);
+    background: rgba(#fff, .98);
+    border-bottom: 1px solid var(--colorGinLayerBorder);
+    box-sizing: border-box;
+
+    @supports (backdrop-filter: blur()) {
+      opacity: .999; /* Fix Chrome issue with mask */
+      background: rgba(#fff, .8);
+      backdrop-filter: blur(12px);
+    }
+
+    .gin--dark-mode & {
+      background: rgba($colorDarkAppBackground, .98);
+
+      @supports (backdrop-filter: blur()) {
+        background: #{rgba(mix(black, $colorDarkAppBackground, 75%), .9)};
+      }
+    }
+
+    .gin--high-contrast-mode & {
+      background: var(--colorGinAppBackground);
+      backdrop-filter: none;
+    }
+  }
+
+  .gin--edit-form & {
+    @include mq($breakpointBig) {
+      position: relative;
+      left: calc(50% - 3rem);
+      transform: translateX(-50%);
+    }
+  }
+
+  &__layout-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 0 1rem;
+
+    @include mq($breakpointSmall) {
+      margin: 0 2rem;
+    }
+
+    @include mq($breakpointMedium) {
+      margin: 0 m#{i}n(5vw, 48px);
+    }
+  }
+
+  .region-breadcrumb {
+    min-height: 1.25rem;
+  }
+}
+
+.gin-breadcrumb-wrapper {
+  flex-grow: 1;
+  white-space: nowrap;
+  margin-right: 2rem;
+}
+
+.gin-back-to-admin {
+  font-family: var(--ginFont);
+  font-size: var(--ginFontSizeSmall);
+  font-weight: normal;
+  line-height: 2;
+  color: var(--colorGinTextLight);
+  text-decoration: none;
+  position: relative;
+  padding-left: 2em;
+  border-bottom: 0 none;
+  border-radius: var(--ginBorderTiny);
+
+  &::before {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: var(--iconGinSecondaryToolbar);
+    height: var(--iconGinSecondaryToolbar);
+    transform: translateY(-50%);
+    background-color: var(--colorGinIcons);
+    mask-image: icon('backtosite');
+    mask-size: 100% 100%;
+    mask-position: center center;
+  }
+
+  &:hover {
+    color: var(--colorGinPrimaryHover);
+
+    &::before {
+      background-color: var(--colorGinPrimaryHover);
+    }
+  }
+}
+
+@include mq($breakpointMedium) {
+  // Hide unused tabs
+  .toolbar .toolbar-bar {
+    background: transparent;
+
+    .toolbar-tab {
+      &, .toolbar-menu__logo {
+        display: none;
+      }
+
+      &.toolbar-tab--toolbar-item-administration {
+        display: block;
+      }
+    }
+  }
+
+  .toolbar-tab--toolbar-item-administration {
+    > .toolbar-icon-menu {
+      display: none;
+    }
+  }
+
+  #toolbar-item-administration-tray {
+    display: block;
+    position: absolute;
+    top: 0;
+  }
+}
+
+#toolbar-administration-secondary {
+  @include mq($breakpointMedium) {
+    .toolbar-bar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+  }
+}
+
+.gin-secondary-toolbar .toolbar-secondary {
+  display: none;
+
+  @include mq($breakpointMedium) {
+    display: block;
+
+    .toolbar-bar {
+      height: var(--ginToolbarHeight);
+      z-index: 102;
+
+      .toolbar-tab {
+        display: block;
+        position: relative;
+
+        &:hover, &:focus-within {
+          border-radius: var(--ginBorderSmall) var(--ginBorderSmall) 0 0;
+
+          > .toolbar-item {
+            color: var(--colorGinTitle);
+
+            &:before {
+              background: var(--colorGinTitle);
+            }
+          }
+
+          .toolbar-tray {
+            display: block;
+          }
+        }
+
+        .toolbar-item {
+          font-size: 0;
+          color: var(--colorGinTextLight);
+          width: 39px;
+          height: 39px;
+          margin: 0;
+          border-radius: var(--ginBorderSmall) var(--ginBorderSmall) 0 0;
+
+          &:before {
+            top: 0;
+            left: 10px;
+          }
+
+          &:focus {
+            border-radius: var(--ginBorderSmall);
+          }
+
+          &:focus ~ .toolbar-tray {
+            display: block;
+          }
+
+          &:hover,
+          &:focus {
+            color: var(--colorGinTitle);
+            background: none;
+
+            &::before {
+              background-color: var(--colorGinTitle);
+            }
+          }
+
+          &:focus,
+          &:hover:focus {
+            box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+          }
+        }
+
+        &:hover,
+        &:focus {
+          .trigger {
+            text-decoration: none;
+            background: var(--colorGinLayer3Background);
+          }
+        }
+
+        .toolbar-tray {
+          position: absolute;
+          left: 0;
+          width: 170px;
+          background-color: var(--colorGinLayer3Background);
+          border-bottom: 0 none;
+          border-radius: 0 var(--ginBorderMedium) var(--ginBorderMedium) var(--ginBorderMedium);
+          box-shadow: var(--ginShadowLevel2);
+
+          a {
+            color: var(--colorGinPrimary);
+            padding: .75rem 1rem;
+            border-radius: var(--ginBorderSmall);
+            font-size: var(--ginFontSizeSmall);
+
+            &:hover, &:active {
+              color: var(--colorGinButtonText);
+              background-color: var(--colorGinPrimary);
+            }
+
+            // Has icon
+            &.action-link {
+              &::before {
+                background-color: var(--colorGinPrimary);
+              }
+
+              &:hover::before {
+                background-color: var(--colorGinButtonText);
+              }
+            }
+          }
+
+          .toolbar-lining:not(:empty) {
+            padding: .5rem;
+          }
+
+          // Hide icons for custom modules
+          .toolbar-icon {
+            &:before {
+              display: none;
+            }
+          }
+        }
+
+        &.hidden {
+          display: none;
+        }
+      }
+
+      div:nth-last-child(2),
+      div:last-child {
+        .toolbar-tray {
+          left: auto;
+          right: 0;
+          border-radius: var(--ginBorderMedium) 0 var(--ginBorderMedium) var(--ginBorderMedium);
+        }
+      }
+
+      // Edit button
+      .toolbar-tab > .toolbar-icon-edit.toolbar-item {
+        &,
+        &:hover,
+        &:active,
+        &:focus,
+        &.is-active,
+        &.is-active:hover {
+          font-weight: normal;
+          color: var(--colorGinTextLight);
+          background-color: transparent;
+
+          &::before {
+            background-image: none;
+            background-color: var(--colorGinIcons);
+          }
+        }
+      }
+
+      .toolbar-id--toolbar-icon-user {
+        margin-right: -1.333em;
+
+        &:hover {
+          .icon-user {
+            box-shadow: 0 0 0 2px var(--colorGinAppBackground),
+                        0 0 0 5px var(--colorGinLayer3Background);
+          }
+        }
+
+        .icon-user {
+          border: 1px solid var(--colorGinBorder);
+          border-radius: 50%;
+          overflow: hidden;
+          margin-left: 16px;
+          padding: 0;
+          line-height: 0;
+
+          &__image {
+            width: 39px;
+            height: 39px;
+            object-fit: cover;
+          }
+
+          &,
+          ~ .toolbar-tray {
+            margin-right: 1.333em;
+          }
+        }
+      }
+
+      .toolbar-menu {
+        background-color: transparent;
+      }
+    }
+  }
+}
+
+// Show expanded
+.gin-secondary-toolbar .toolbar-secondary {
+  @include mq($breakpointWide) {
+    .toolbar-bar {
+      .toolbar-tab {
+        margin-left: -.25em;
+
+        .toolbar-item {
+          font-size: var(--ginFontSizeSmall);
+          width: auto;
+          height: auto;
+          padding-left: 2.875em;
+
+          &::before {
+            width: var(--iconGinSecondaryToolbar);
+            height: var(--iconGinSecondaryToolbar);
+            top: 50%;
+            left: 12px;
+            transform: translateY(-50%);
+          }
+
+          .icon-user {
+            &__image {
+              width: 34px;
+              height: 34px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#admin-toolbar-search-input {
+  line-height: 1; // FF fix
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-right: 12px;
+  font-size: var(--ginFontSizeSmall);
+
+  &::placeholder {
+    color: var(--colorGinDisabled);
+    opacity: 1;
+
+    .gin--dark-mode & {
+      color: var(--colorGinTextLight);
+      opacity: .75;
+    }
+  }
+}
+
+#admin-toolbar-search-tab .js-form-item.form-item {
+  margin-top: 0;
+}
+
+.ui-autocomplete.admin-toolbar-search-autocomplete-list {
+  max-width: 320px;
+  border-radius: var(--ginBorderDefault);
+
+  .ui-menu-item-wrapper {
+    font-size: var(--ginFontSizeSmall);
+  }
+}

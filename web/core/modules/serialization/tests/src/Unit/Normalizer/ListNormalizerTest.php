@@ -25,7 +25,7 @@ class ListNormalizerTest extends UnitTestCase {
   /**
    * The mock list instance.
    *
-   * @var \Drupal\Core\TypedData\ListInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\TypedData\ListInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $list;
 
@@ -39,14 +39,14 @@ class ListNormalizerTest extends UnitTestCase {
   /**
    * The mocked typed data.
    *
-   * @var \PHPUnit_Framework_MockObject_MockObject|\Drupal\Core\TypedData\TypedDataInterface
+   * @var \PHPUnit\Framework\MockObject\MockObject|\Drupal\Core\TypedData\TypedDataInterface
    */
   protected $typedData;
 
-  protected function setUp() {
+  protected function setUp(): void {
     // Mock the TypedDataManager to return a TypedDataInterface mock.
-    $this->typedData = $this->getMock('Drupal\Core\TypedData\TypedDataInterface');
-    $typed_data_manager = $this->getMock(TypedDataManagerInterface::class);
+    $this->typedData = $this->createMock('Drupal\Core\TypedData\TypedDataInterface');
+    $typed_data_manager = $this->createMock(TypedDataManagerInterface::class);
     $typed_data_manager->expects($this->any())
       ->method('getPropertyInstance')
       ->will($this->returnValue($this->typedData));
@@ -54,7 +54,7 @@ class ListNormalizerTest extends UnitTestCase {
     // Set up a mock container as ItemList() will call for the 'typed_data_manager'
     // service.
     $container = $this->getMockBuilder('Symfony\Component\DependencyInjection\ContainerBuilder')
-      ->setMethods(['get'])
+      ->onlyMethods(['get'])
       ->getMock();
     $container->expects($this->any())
       ->method('get')

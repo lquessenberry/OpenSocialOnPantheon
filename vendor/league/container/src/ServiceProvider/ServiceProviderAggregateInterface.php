@@ -1,32 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace League\Container\ServiceProvider;
 
+use IteratorAggregate;
 use League\Container\ContainerAwareInterface;
 
-interface ServiceProviderAggregateInterface extends ContainerAwareInterface
+interface ServiceProviderAggregateInterface extends ContainerAwareInterface, IteratorAggregate
 {
-    /**
-     * Add a service provider to the aggregate.
-     *
-     * @param  string|\League\Container\ServiceProvider\ServiceProviderInterface $provider
-     * @return $this
-     */
-    public function add($provider);
-
-    /**
-     * Determines whether a service is provided by the aggregate.
-     *
-     * @param  string $service
-     * @return boolean
-     */
-    public function provides($service);
-
-    /**
-     * Invokes the register method of a provider that provides a specific service.
-     *
-     * @param  string $service
-     * @return void
-     */
-    public function register($service);
+    public function add(ServiceProviderInterface $provider): ServiceProviderAggregateInterface;
+    public function provides(string $id): bool;
+    public function register(string $service): void;
 }

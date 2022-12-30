@@ -5,17 +5,19 @@
  * Allows users to change the color scheme of themes.
  */
 
-use Drupal\Component\Utility\Color;
-use Drupal\Component\Utility\Unicode;
-use Drupal\Core\Asset\CssOptimizer;
+use Drupal\Core\Url;
 use Drupal\Component\Utility\Bytes;
+use Drupal\Component\Utility\Color;
 use Drupal\Component\Utility\Environment;
+use Drupal\Core\Asset\CssOptimizer;
 use Drupal\Core\Block\BlockPluginInterface;
-use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\File\Exception\FileException;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Render\Element\Textfield;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\color\ColorSystemBrandingBlockAlter;
 
 /**
  * Implements hook_help().
@@ -28,7 +30,7 @@ function color_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Changing colors') . '</dt>';
-      $output .= '<dd><p>' . t('To change the color settings, select the <em>Settings</em> link for your theme on the <a href=":appearance">Appearance</a> page. If the color picker does not appear then the theme is not compatible with the Color module.', [':appearance' => \Drupal::url('system.themes_page')]) . '</p>';
+      $output .= '<dd><p>' . t('To change the color settings, select the <em>Settings</em> link for your theme on the <a href=":appearance">Appearance</a> page. If the color picker does not appear then the theme is not compatible with the Color module.', [':appearance' => Url::fromRoute('system.themes_page')->toString()]) . '</p>';
       $output .= '<p>' . t("The Color module saves a modified copy of the theme's specified stylesheets in the files directory. If you make any manual changes to your theme's stylesheet, <em>you must save your color settings again, even if you haven't changed the colors</em>. This step is required because the module stylesheets in the files directory need to be recreated to reflect your changes.") . '</p></dd>';
       $output .= '</dl>';
       return $output;
@@ -87,7 +89,9 @@ function color_library_info_alter(&$libraries, $extension) {
               foreach ($color_paths as $color_path) {
                 // Color module currently requires unique file names to be used,
                 // which allows us to compare different file paths.
-                if (drupal_basename($path) == drupal_basename($color_path)) {
+                /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+                $file_system = \Drupal::service('file_system');
+                if ($file_system->basename($path) == $file_system->basename($color_path)) {
                   // Replace the path to the new css file.
                   // This keeps the order of the stylesheets intact.
                   $index = array_search($path, array_keys($libraries[$name]['css'][$category]));
@@ -112,26 +116,7 @@ function color_library_info_alter(&$libraries, $extension) {
  * Implements hook_block_view_BASE_BLOCK_ID_alter().
  */
 function color_block_view_system_branding_block_alter(array &$build, BlockPluginInterface $block) {
-  $build['#pre_render'][] = 'color_block_view_pre_render';
-}
-
-/**
- * #pre_render callback: Sets color preset logo.
- */
-function color_block_view_pre_render(array $build) {
-  $theme_key = \Drupal::theme()->getActiveTheme()->getName();
-  $config = \Drupal::config('color.theme.' . $theme_key);
-  CacheableMetadata::createFromRenderArray($build)
-    ->addCacheableDependency($config)
-    ->applyTo($build);
-
-  // Override logo.
-  $logo = $config->get('logo');
-  if ($logo && $build['content']['site_logo'] && preg_match('!' . $theme_key . '/logo.svg$!', $build['content']['site_logo']['#uri'])) {
-    $build['content']['site_logo']['#uri'] = file_url_transform_relative(file_create_url($logo));
-  }
-
-  return $build;
+  $build['#pre_render'][] = [ColorSystemBrandingBlockAlter::class, 'preRender'];
 }
 
 /**
@@ -144,7 +129,7 @@ function color_get_info($theme) {
     return $theme_info[$theme];
   }
 
-  $path = drupal_get_path('theme', $theme);
+  $path = \Drupal::service('extension.list.theme')->getPath($theme);
   $file = \Drupal::root() . '/' . $path . '/color/color.inc';
   if ($path && file_exists($file)) {
     include $file;
@@ -300,15 +285,15 @@ function template_preprocess_color_scheme_form(&$variables) {
     $form['scheme']['#attached']['library'][] = $info['preview_library'];
   }
 
-  // A theme can declare the 'preview_html' as empty string in color.inc,
-  // so we check before setting the html_preview markup and attaching libraries
-  // if there is actually a preview set.
-  if (!empty($info['preview_html'])) {
   // Attempt to load preview HTML if the theme provides it.
-  $preview_html_path = \Drupal::root() . '/' . (isset($info['preview_html']) ? drupal_get_path('theme', $theme) . '/' . $info['preview_html'] : drupal_get_path('module', 'color') . '/preview.html');
-
-    $variables['html_preview']['#markup'] = file_get_contents($preview_html_path);
+  $preview_html_path = \Drupal::root() . '/';
+  if (isset($info['preview_html'])) {
+    $preview_html_path .= \Drupal::service('extension.list.theme')->getPath($theme) . '/' . $info['preview_html'];
   }
+  else {
+    $preview_html_path .= \Drupal::service('extension.list.module')->getPath('color') . '/preview.html';
+  }
+  $variables['html_preview']['#markup'] = file_get_contents($preview_html_path);
 }
 
 /**
@@ -355,7 +340,7 @@ function color_palette_color_value($element, $input, FormStateInterface $form_st
  *   isn't.
  */
 function color_valid_hexadecimal_string($color) {
-  return preg_match('/^#([a-f0-9]{3}){1,2}$/iD', $color);
+  return (bool) preg_match('/^#([a-f0-9]{3}){1,2}$/iD', $color);
 }
 
 /**
@@ -407,8 +392,8 @@ function color_scheme_form_submit($form, FormStateInterface $form_state) {
   // Make sure enough memory is available.
   if (isset($info['base_image'])) {
     // Fetch source image dimensions.
-    $source = drupal_get_path('theme', $theme) . '/' . $info['base_image'];
-    list($width, $height) = getimagesize($source);
+    $source = \Drupal::service('extension.list.theme')->getPath($theme) . '/' . $info['base_image'];
+    [$width, $height] = getimagesize($source);
 
     // We need at least a copy of the source and a target buffer of the same
     // size (both at 32bpp).
@@ -419,22 +404,23 @@ function color_scheme_form_submit($form, FormStateInterface $form_state) {
     // scheme change based on a faulty memory calculation.
     $usage = memory_get_usage(TRUE);
     $memory_limit = ini_get('memory_limit');
-    $size = Bytes::toInt($memory_limit);
+    $size = Bytes::toNumber($memory_limit);
     if (!Environment::checkMemoryLimit($usage + $required, $memory_limit)) {
-      drupal_set_message(t('There is not enough memory available to PHP to change this theme\'s color scheme. You need at least %size more. Check the <a href="http://php.net/manual/ini.core.php#ini.sect.resource-limits">PHP documentation</a> for more information.', ['%size' => format_size($usage + $required - $size)]), 'error');
+      \Drupal::messenger()->addError(t('There is not enough memory available to PHP to change this theme\'s color scheme. You need at least %size more. Check the <a href="http://php.net/manual/ini.core.php#ini.sect.resource-limits">PHP documentation</a> for more information.', ['%size' => format_size($usage + $required - $size)]));
       return;
     }
   }
 
+  $file_system = \Drupal::service('file_system');
   // Delete old files.
   $files = $config->get('files');
   if (isset($files)) {
     foreach ($files as $file) {
-      @drupal_unlink($file);
+      @$file_system->unlink($file);
     }
   }
   if (isset($file) && $file = dirname($file)) {
-    @drupal_rmdir($file);
+    @\Drupal::service('file_system')->rmdir($file);
   }
 
   // No change in color config, use the standard theme from color.inc.
@@ -447,12 +433,14 @@ function color_scheme_form_submit($form, FormStateInterface $form_state) {
   $id = $theme . '-' . substr(hash('sha256', serialize($palette) . microtime()), 0, 8);
   $paths['color'] = 'public://color';
   $paths['target'] = $paths['color'] . '/' . $id;
+  /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+  $file_system = \Drupal::service('file_system');
   foreach ($paths as $path) {
-    file_prepare_directory($path, FILE_CREATE_DIRECTORY);
+    $file_system->prepareDirectory($path, FileSystemInterface::CREATE_DIRECTORY);
   }
   $paths['target'] = $paths['target'] . '/';
   $paths['id'] = $id;
-  $paths['source'] = drupal_get_path('theme', $theme) . '/';
+  $paths['source'] = \Drupal::service('extension.list.theme')->getPath($theme) . '/';
   $paths['files'] = $paths['map'] = [];
 
   // Save palette and logo location.
@@ -462,10 +450,17 @@ function color_scheme_form_submit($form, FormStateInterface $form_state) {
     ->save();
 
   // Copy over neutral images.
+  /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+  $file_system = \Drupal::service('file_system');
   foreach ($info['copy'] as $file) {
-    $base = drupal_basename($file);
+    $base = $file_system->basename($file);
     $source = $paths['source'] . $file;
-    $filepath = file_unmanaged_copy($source, $paths['target'] . $base);
+    try {
+      $filepath = $file_system->copy($source, $paths['target'] . $base);
+    }
+    catch (FileException $e) {
+      $filepath = FALSE;
+    }
     $paths['map'][$file] = $base;
     $paths['files'][] = $filepath;
   }
@@ -485,7 +480,7 @@ function color_scheme_form_submit($form, FormStateInterface $form_state) {
     }
 
     foreach ($files as $file) {
-      $css_optimizer = new CssOptimizer();
+      $css_optimizer = new CssOptimizer(\Drupal::service('file_url_generator'));
       // Aggregate @imports recursively for each configured top level CSS file
       // without optimization. Aggregation and optimization will be
       // handled by drupal_build_css_cache() only.
@@ -500,7 +495,7 @@ function color_scheme_form_submit($form, FormStateInterface $form_state) {
 
       // Rewrite stylesheet with new colors.
       $style = _color_rewrite_stylesheet($theme, $info, $paths, $palette, $style);
-      $base_file = drupal_basename($file);
+      $base_file = $file_system->basename($file);
       $css[] = $paths['target'] . $base_file;
       _color_save_stylesheet($paths['target'] . $base_file, $style, $paths);
     }
@@ -520,7 +515,7 @@ function _color_rewrite_stylesheet($theme, &$info, &$paths, $palette, $style) {
   // Prepare color conversion table.
   $conversion = $palette;
   foreach ($conversion as $k => $v) {
-    $v = Unicode::strtolower($v);
+    $v = mb_strtolower($v);
     $conversion[$k] = Color::normalizeHexLength($v);
   }
   $default = color_get_palette($theme, TRUE);
@@ -528,7 +523,7 @@ function _color_rewrite_stylesheet($theme, &$info, &$paths, $palette, $style) {
   // Split off the "Don't touch" section of the stylesheet.
   $split = "Color Module: Don't touch";
   if (strpos($style, $split) !== FALSE) {
-    list($style, $fixed) = explode($split, $style);
+    [$style, $fixed] = explode($split, $style);
   }
 
   // Find all colors in the stylesheet and the chunks in between.
@@ -540,7 +535,7 @@ function _color_rewrite_stylesheet($theme, &$info, &$paths, $palette, $style) {
   // Iterate over all the parts.
   foreach ($style as $chunk) {
     if ($is_color) {
-      $chunk = Unicode::strtolower($chunk);
+      $chunk = mb_strtolower($chunk);
       $chunk = Color::normalizeHexLength($chunk);
       // Check if this is one of the colors in the default palette.
       if ($key = array_search($chunk, $default)) {
@@ -589,11 +584,11 @@ function _color_rewrite_stylesheet($theme, &$info, &$paths, $palette, $style) {
  * Saves the rewritten stylesheet to disk.
  */
 function _color_save_stylesheet($file, $style, &$paths) {
-  $filepath = file_unmanaged_save_data($style, $file, FILE_EXISTS_REPLACE);
+  $filepath = \Drupal::service('file_system')->saveData($style, $file, FileSystemInterface::EXISTS_REPLACE);
   $paths['files'][] = $filepath;
 
   // Set standard file permissions for webserver-generated files.
-  drupal_chmod($file);
+  \Drupal::service('file_system')->chmod($file);
 }
 
 /**
@@ -642,9 +637,11 @@ function _color_render_images($theme, &$info, &$paths, $palette) {
 
   // Cut out slices.
   foreach ($info['slices'] as $file => $coord) {
-    list($x, $y, $width, $height) = $coord;
-    $base = drupal_basename($file);
-    $image = \Drupal::service('file_system')->realpath($paths['target'] . $base);
+    [$x, $y, $width, $height] = $coord;
+    /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+    $file_system = \Drupal::service('file_system');
+    $base = $file_system->basename($file);
+    $image = $file_system->realpath($paths['target'] . $base);
 
     // Cut out slice.
     if ($file == 'screenshot.png') {
@@ -664,8 +661,8 @@ function _color_render_images($theme, &$info, &$paths, $palette) {
     imagedestroy($slice);
     $paths['files'][] = $image;
 
-    // Set standard file permissions for webserver-generated files
-    drupal_chmod($image);
+    // Set standard file permissions for webserver-generated files.
+    $file_system->chmod($image);
 
     // Build before/after map of image paths.
     $paths['map'][$file] = $base;
@@ -760,8 +757,9 @@ function _color_blend($img, $hex1, $hex2, $alpha) {
  * Converts a hex color into an RGB triplet.
  */
 function _color_unpack($hex, $normalize = FALSE) {
-  if (strlen($hex) == 4) {
-    $hex = $hex[1] . $hex[1] . $hex[2] . $hex[2] . $hex[3] . $hex[3];
+  $hex = substr($hex, 1);
+  if (strlen($hex) == 3) {
+    $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
   }
   $c = hexdec($hex);
   for ($i = 16; $i >= 0; $i -= 8) {
@@ -777,7 +775,7 @@ function _color_unpack($hex, $normalize = FALSE) {
 function _color_pack($rgb, $normalize = FALSE) {
   $out = 0;
   foreach ($rgb as $k => $v) {
-    $out |= (($v * ($normalize ? 255 : 1)) << (16 - $k * 8));
+    $out |= ((int) ($v * ($normalize ? 255 : 1)) << (16 - $k * 8));
   }
 
   return '#' . str_pad(dechex($out), 6, 0, STR_PAD_LEFT);

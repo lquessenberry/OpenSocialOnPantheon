@@ -19,8 +19,7 @@ interface ConditionInterface {
    * Implements \Countable::count().
    *
    * Returns the size of this conditional. The size of the conditional is the
-   * size of its conditional array minus one, because one element is the
-   * conjunction.
+   * size of its conditional array.
    */
   public function count();
 
@@ -28,10 +27,17 @@ interface ConditionInterface {
    * Adds a condition.
    *
    * @param string|\Drupal\Core\Entity\Query\ConditionInterface $field
+   *   The field.
    * @param mixed $value
+   *   (optional) The value.
    * @param string $operator
+   *   (optional) The operator.
    * @param string $langcode
-   * @return ConditionInterface
+   *   (optional) For which language the entity should be prepared, defaults to
+   *   the current content language.
+   *
+   * @return $this
+   *
    * @see \Drupal\Core\Entity\Query\QueryInterface::condition()
    */
   public function condition($field, $value = NULL, $operator = NULL, $langcode = NULL);
@@ -39,18 +45,29 @@ interface ConditionInterface {
   /**
    * Queries for the existence of a field.
    *
-   * @param $field
+   * @param string $field
+   *   The field to query for existence.
    * @param string $langcode
-   * @return ConditionInterface
+   *   (optional) For which language the entity should be prepared, defaults to
+   *   the current content language.
+   *
+   * @return $this
+   *
    * @see \Drupal\Core\Entity\Query\QueryInterface::exists()
    */
   public function exists($field, $langcode = NULL);
 
   /**
-   * Queries for the existence of a field.
+   * Queries for the nonexistence of a field.
    *
    * @param string $field
-   * @return ConditionInterface
+   *   The field to query for nonexistence.
+   * @param string $langcode
+   *   (optional) For which language the entity should be prepared, defaults to
+   *   the current content language.
+   *
+   * @return $this
+   *
    * @see \Drupal\Core\Entity\Query\QueryInterface::notExists()
    */
   public function notExists($field, $langcode = NULL);

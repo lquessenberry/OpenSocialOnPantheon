@@ -21,10 +21,10 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   - {{ 'Image'|t }}: <strong>{{ data.background_image|e }}</strong> ({{ data.background_image_width|e }}x{{ data.background_image_height|e }}),
     {{ 'Placement'|t }}: {{ data.placement|e }},
     {% if data.x_offset %}{{ 'X offset'|t }}: {{ data.x_offset|e }}px,{% endif %}
     {% if data.y_offset %}{{ 'Y offset'|t }}: {{ data.y_offset|e }}px,{% endif %}
     {{ 'Opacity'|t }}: {{ data.opacity|e }}%
-{% endspaceless %}
+{% endapply %}

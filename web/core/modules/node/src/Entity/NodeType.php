@@ -12,12 +12,22 @@ use Drupal\node\NodeTypeInterface;
  * @ConfigEntityType(
  *   id = "node_type",
  *   label = @Translation("Content type"),
+ *   label_collection = @Translation("Content types"),
+ *   label_singular = @Translation("content type"),
+ *   label_plural = @Translation("content types"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count content type",
+ *     plural = "@count content types",
+ *   ),
  *   handlers = {
  *     "access" = "Drupal\node\NodeTypeAccessControlHandler",
  *     "form" = {
  *       "add" = "Drupal\node\NodeTypeForm",
  *       "edit" = "Drupal\node\NodeTypeForm",
  *       "delete" = "Drupal\node\Form\NodeTypeDeleteConfirm"
+ *     },
+ *     "route_provider" = {
+ *       "permissions" = "Drupal\user\Entity\EntityPermissionsRouteProvider",
  *     },
  *     "list_builder" = "Drupal\node\NodeTypeListBuilder",
  *   },
@@ -31,6 +41,7 @@ use Drupal\node\NodeTypeInterface;
  *   links = {
  *     "edit-form" = "/admin/structure/types/manage/{node_type}",
  *     "delete-form" = "/admin/structure/types/manage/{node_type}/delete",
+ *     "entity-permissions-form" = "/admin/structure/types/manage/{node_type}/permissions",
  *     "collection" = "/admin/structure/types",
  *   },
  *   config_export = {
@@ -117,13 +128,6 @@ class NodeType extends ConfigEntityBundleBase implements NodeTypeInterface {
   /**
    * {@inheritdoc}
    */
-  public function isNewRevision() {
-    return $this->new_revision;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function setNewRevision($new_revision) {
     $this->new_revision = $new_revision;
   }
@@ -179,7 +183,7 @@ class NodeType extends ConfigEntityBundleBase implements NodeTypeInterface {
     if ($update && $this->getOriginalId() != $this->id()) {
       $update_count = node_type_update_nodes($this->getOriginalId(), $this->id());
       if ($update_count) {
-        drupal_set_message(\Drupal::translation()->formatPlural($update_count,
+        \Drupal::messenger()->addStatus(\Drupal::translation()->formatPlural($update_count,
           'Changed the content type of 1 post from %old-type to %type.',
           'Changed the content type of @count posts from %old-type to %type.',
           [
@@ -191,7 +195,7 @@ class NodeType extends ConfigEntityBundleBase implements NodeTypeInterface {
     if ($update) {
       // Clear the cached field definitions as some settings affect the field
       // definitions.
-      $this->entityManager()->clearCachedFieldDefinitions();
+      \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
     }
   }
 
@@ -209,7 +213,7 @@ class NodeType extends ConfigEntityBundleBase implements NodeTypeInterface {
    * {@inheritdoc}
    */
   public function shouldCreateNewRevision() {
-    return $this->isNewRevision();
+    return $this->new_revision;
   }
 
 }

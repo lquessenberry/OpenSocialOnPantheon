@@ -2,12 +2,24 @@
 
 namespace Drupal\Tests\system\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
+use Drupal\Tests\system\Traits\OffCanvasTestTrait;
 
 /**
  * Base class contains common test functionality for the Off-canvas dialog.
  */
-abstract class OffCanvasTestBase extends JavascriptTestBase {
+abstract class OffCanvasTestBase extends WebDriverTestBase {
+
+  use OffCanvasTestTrait;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
+    // @todo Remove this in https://www.drupal.org/node/3219959
+    'block',
+    'off_canvas_test',
+  ];
 
   /**
    * {@inheritdoc}
@@ -41,7 +53,7 @@ abstract class OffCanvasTestBase extends JavascriptTestBase {
    * @todo Move this function to https://www.drupal.org/node/2821724.
    */
   protected function assertAllContextualLinksLoaded() {
-    $this->waitForNoElement('[data-contextual-id]:empty');
+    $this->assertSession()->assertNoElementAfterWait('css', '[data-contextual-id]:empty');
   }
 
   /**
@@ -60,21 +72,23 @@ abstract class OffCanvasTestBase extends JavascriptTestBase {
 
   /**
    * Waits for off-canvas dialog to open.
+   *
+   * @param string $position
+   *   The position of the dialog.
+   *
+   * @throws \Behat\Mink\Exception\ElementNotFoundException
    */
-  protected function waitForOffCanvasToOpen() {
-    $web_assert = $this->assertSession();
-    // Wait just slightly longer than the off-canvas dialog CSS animation.
-    // @see core/misc/dialog/off-canvas.motion.css
-    $this->getSession()->wait(800);
-    $web_assert->assertWaitOnAjaxRequest();
-    $this->assertElementVisibleAfterWait('css', '#drupal-off-canvas');
+  protected function waitForOffCanvasToOpen($position = 'side') {
+    $this->waitForOffCanvasArea();
+    // Check that the canvas is positioned on the side.
+    $this->assertSession()->elementExists('css', '.ui-dialog-position-' . $position);
   }
 
   /**
    * Waits for off-canvas dialog to close.
    */
   protected function waitForOffCanvasToClose() {
-    $this->waitForNoElement('#drupal-off-canvas');
+    $this->assertSession()->assertNoElementAfterWait('css', '#drupal-off-canvas');
   }
 
   /**
@@ -89,28 +103,13 @@ abstract class OffCanvasTestBase extends JavascriptTestBase {
   }
 
   /**
-   * Waits for an element to be removed from the page.
-   *
-   * @param string $selector
-   *   CSS selector.
-   * @param int $timeout
-   *   (optional) Timeout in milliseconds, defaults to 10000.
-   *
-   * @todo Remove in https://www.drupal.org/node/2892440.
-   */
-  protected function waitForNoElement($selector, $timeout = 10000) {
-    $condition = "(typeof jQuery !== 'undefined' && jQuery('$selector').length === 0)";
-    $this->assertJsCondition($condition, $timeout);
-  }
-
-  /**
    * Get themes to test.
    *
    * @return string[]
    *   Theme names to test.
    */
   protected function getTestThemes() {
-    return ['bartik', 'stark', 'classy', 'stable', 'seven'];
+    return ['bartik', 'classy', 'olivero', 'seven', 'stable', 'stark'];
   }
 
   /**
@@ -125,7 +124,22 @@ abstract class OffCanvasTestBase extends JavascriptTestBase {
    *   (Optional) Timeout in milliseconds, defaults to 10000.
    */
   protected function assertElementVisibleAfterWait($selector, $locator, $timeout = 10000) {
+    $this->assertSession()->assertWaitOnAjaxRequest();
     $this->assertNotEmpty($this->assertSession()->waitForElementVisible($selector, $locator, $timeout));
+  }
+
+  /**
+   * Data provider that returns theme name as the sole argument.
+   */
+  public function themeDataProvider() {
+    $themes = $this->getTestThemes();
+    $data = [];
+    foreach ($themes as $theme) {
+      $data[$theme] = [
+        $theme,
+      ];
+    }
+    return $data;
   }
 
 }

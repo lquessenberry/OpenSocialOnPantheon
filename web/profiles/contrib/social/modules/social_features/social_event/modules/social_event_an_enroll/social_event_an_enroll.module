@@ -5,7 +5,10 @@
  * The Social event AN enroll module.
  */
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Drupal\social_event\Entity\Node\Event;
 use Drupal\views\ViewExecutable;
 use Drupal\views\Plugin\views\cache\CachePluginBase;
 use Drupal\Component\Render\PlainTextOutput;
@@ -56,19 +59,50 @@ function social_event_an_enroll_theme() {
         'links' => NULL,
       ],
     ],
+    'event_an_enroll_guest' => [
+      'variables' => [
+        'name' => NULL,
+        'url' => NULL,
+      ],
+    ],
   ];
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function social_event_an_enroll_preprocess_views_view_field(&$variables) {
+  /** @var \Drupal\views\ViewExecutable $view */
+  $view = &$variables['view'];
+
+  if ($view->id() === 'event_manage_enrollments' && $variables['field']->field === 'profile_entity_sortable') {
+    $entity = &$variables['row']->_entity;
+
+    /** @var \Drupal\social_event_an_enroll\EventAnEnrollManager $service */
+    $service = \Drupal::service('social_event_an_enroll.manager');
+
+    if ($service->isGuest($entity)) {
+      $url = Url::fromUserInput('/' . \Drupal::service('extension.list.module')->getPath('social_event_an_enroll') . '/images/icon.svg');
+
+      $variables['output'] = [
+        '#theme' => 'event_an_enroll_guest',
+        '#name' => $service->getGuestName($entity),
+        '#url' => $url,
+      ];
+    }
+  }
 }
 
 /**
  * Override variables for the social page hero data.
  */
-function social_event_an_enroll_preprocess_page_hero_data(array &$variables) {
+function social_event_an_enroll_preprocess_node(array &$variables) {
   $account = \Drupal::currentUser();
   if ($account->isAnonymous() && !empty($variables['event_enrollment'])) {
 
     $node = $variables['node'];
 
-    if ($node instanceof Node && social_event_an_enroll_is_enabled($node)) {
+    if ($variables['view_mode'] === 'hero' && social_event_an_enroll_is_enabled($node)) {
       $form = \Drupal::formBuilder()->getForm('Drupal\social_event_an_enroll\Form\EventAnEnrollActionForm', $node);
 
       $variables['event_enrollment'] = [
@@ -83,6 +117,11 @@ function social_event_an_enroll_preprocess_page_hero_data(array &$variables) {
       if (in_array(\Drupal::routeMatch()->getRouteName(), $an_enroll_routes)) {
         unset($variables['event_enrollment']);
       }
+
+      // Add caching context to anonymous users.
+      // This is custom context. We added it in order to vary page cache
+      // of routes given in $an_enroll_routes.
+      $variables['#cache']['contexts'][] = 'event_an_enroll_route';
     }
   }
 }
@@ -94,73 +133,36 @@ function social_event_an_enroll_preprocess_page_hero_data(array &$variables) {
  */
 function social_event_an_enroll_views_post_render(ViewExecutable $view, &$output, CachePluginBase $cache) {
   if ($view->id() == 'event_enrollments' && $view->current_display == 'event_enrollments') {
-    if (isset($output['#rows'])) {
-      if (!empty($view->args[0])) {
-        $nid = $view->args[0];
-        $node = Node::load($nid);
-        $an_count = social_event_an_enroll_count($nid);
-        if (social_event_an_enroll_is_enabled($node) && $an_count && $an_count > 0) {
-          // Fix counter in block title.
-          $view->total_rows += $an_count;
-          // Add default avatar image with counter.
-          if (empty($output['#rows'])) {
-            $output['#rows'][0]['#theme'] = $output['#theme'];
-            $output['#rows'][0]['#view'] = $output['#view'];
-            $output['#rows'][0]['#grouping_level'] = 0;
-            $output['#rows'][0]['#title'] = '';
-          }
-          // Get default profile image uri.
-          $default_image = social_profile_get_default_image();
-          if (!empty($default_image['id'])) {
-            $file = File::load($default_image['id']);
-            $uri = $file->getFileUri();
-            $output['#rows'][0]['#rows'][] = [
-              '#prefix' => '<div class="avatar">',
-              '#theme' => 'image_style',
-              '#style_name' => 'social_medium',
-              '#uri' => $uri,
-              '#suffix' => '<span class="badge badge--pill">' . $an_count . '</span></div>',
-            ];
-          }
-          $output['#attached']['library'][] = 'social_event_an_enroll/event_an_enroll';
+    if (isset($output['#rows']) && !empty($view->args[0])) {
+      $nid = $view->args[0];
+      $an_count = \Drupal::service('social_event_an_enroll.service')->enrollmentCount($nid);
+      if ($an_count && $an_count > 0) {
+        // Fix counter in block title.
+        $view->total_rows += $an_count;
+        // Add default avatar image with counter.
+        if (empty($output['#rows'])) {
+          $output['#rows'][0]['#theme'] = $output['#theme'];
+          $output['#rows'][0]['#view'] = $output['#view'];
+          $output['#rows'][0]['#grouping_level'] = 0;
+          $output['#rows'][0]['#title'] = '';
         }
+        // Get default profile image uri.
+        $default_image = social_profile_get_default_image();
+        if (!empty($default_image['id'])) {
+          $file = File::load($default_image['id']);
+          $uri = $file->getFileUri();
+          $output['#rows'][0]['#rows'][] = [
+            '#prefix' => '<div class="avatar">',
+            '#theme' => 'image_style',
+            '#style_name' => 'social_medium',
+            '#uri' => $uri,
+            '#suffix' => '<span class="badge badge--pill">' . $an_count . '</span></div>',
+          ];
+        }
+        $output['#attached']['library'][] = 'social_event_an_enroll/event_an_enroll';
       }
     }
   }
-}
-
-/**
- * Returns number of anonymous enrollments.
- */
-function social_event_an_enroll_count($nid) {
-  $query = \Drupal::database()
-    ->select('event_enrollment__field_account', 'eefa');
-  $query->join('event_enrollment__field_event', 'eefe', 'eefa.entity_id = eefe.entity_id');
-  $query->condition('eefa.field_account_target_id', 0);
-  $query->condition('eefe.field_event_target_id', $nid);
-
-  return (int) $query
-    ->countQuery()
-    ->execute()
-    ->fetchField();
-}
-
-/**
- * Returns number of anonymous enrollments.
- */
-function social_event_an_enroll_token_exists($token, $nid) {
-  $query = \Drupal::database()
-    ->select('event_enrollment__field_token', 'eeft');
-  $query->join('event_enrollment__field_event', 'eefe', 'eeft.entity_id = eefe.entity_id');
-  $query->condition('eeft.field_token_value', $token);
-  $query->condition('eefe.field_event_target_id', $nid);
-
-  $results = $query
-    ->countQuery()
-    ->execute()
-    ->fetchField();
-
-  return !empty($results);
 }
 
 /**
@@ -175,6 +177,7 @@ function social_event_an_enroll_menu_local_tasks_alter(&$data, $route_name) {
     'entity.node.canonical',
     'view.managers.view_managers',
     'view.manage_enrollments.page',
+    'view.event_manage_enrollments.page_manage_enrollments',
   ];
   if (in_array($route_name, $routes_to_check)) {
     $node = \Drupal::service('current_route_match')->getParameter('node');
@@ -199,10 +202,11 @@ function social_event_an_enroll_menu_local_tasks_alter(&$data, $route_name) {
 function social_event_an_enroll_is_enabled(Node $node) {
   $config = \Drupal::config('social_event_an_enroll.settings');
   $is_global_enabled = $config->get('event_an_enroll');
-  $is_event = $node->getType() === 'event';
+  $is_event = $node instanceof Event;
   $is_public = $node->get('field_content_visibility')->getString() === 'public';
   $is_event_an_enroll = !empty($node->get('field_event_an_enroll')->value);
-  return $is_global_enabled && $is_event && $is_public && $is_event_an_enroll;
+  $is_event_enroll = $is_event && $node->isEnrollmentEnabled();
+  return $is_global_enabled && $is_event && $is_public && $is_event_an_enroll && $is_event_enroll;
 }
 
 /**
@@ -217,19 +221,28 @@ function social_event_an_enroll_form_alter(&$form, FormStateInterface $form_stat
   ];
 
   if (in_array($form_id, $event_forms)) {
+    $config = \Drupal::config('social_event_an_enroll.settings');
+    // Show the checkbox only when AN enroll is enabled.
     $form['field_event_an_enroll']['#states'] = [
       'visible' => [
         ':input[name="field_content_visibility"]' => ['value' => 'public'],
+        ':input[name="field_event_enroll[value]"]' => ['checked' => TRUE],
+        ':input[name="field_enroll_method"]' => ['value' => '1'],
       ],
     ];
+    // Set default value on event creation form.
+    if ($form_id === 'node_event_form') {
+      $form['field_event_an_enroll']['widget']['value']['#default_value'] = $config->get('event_an_enroll_default_value');
+    }
+    // Set ability to change default value.
+    $form['field_event_an_enroll']['widget']['value']['#disabled'] = $config->get('event_an_enroll_default_value') && !$config->get('event_an_enroll_allow_edit');
     // Hide checkbox if feature is disabled globally.
-    $config = \Drupal::config('social_event_an_enroll.settings');
     $form['field_event_an_enroll']['#access'] = $config->get('event_an_enroll');
   }
 }
 
 /**
- * Implements hook_ENTIT_YTYPE_update().
+ * Implements hook_ENTITY_TYPE_update().
  *
  * Display warning if visibility was changed for already enabled AN enroll.
  */
@@ -239,8 +252,27 @@ function social_event_an_enroll_node_update(Node $node) {
     $new_visibility = $node->get('field_content_visibility')->getString();
     $old_visibility = $node->original->get('field_content_visibility')->getString();
 
-    if ($is_event_an_enroll && $old_visibility == 'public' && $new_visibility != 'public') {
-      drupal_set_message(t('Anonymous enrollment could only be enabled when the visibility of the event is Public.'), 'warning');
+    if ($is_event_an_enroll && $old_visibility === 'public' && $new_visibility !== 'public') {
+      \Drupal::messenger()->addWarning(t('Enrollment without account can only be enabled when the visibility of the event is Public.'));
     }
   }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave().
+ *
+ * Set the correct value for AN enroll when enroll method is set to request.
+ */
+function social_event_an_enroll_node_presave(EntityInterface $entity) {
+  // If the enroll method is request then anonymous must be off.
+  if ($entity->getType() === 'event' && $entity->get('field_enroll_method')->value === '2') {
+    $entity->set('field_event_an_enroll', '0');
+  }
+}
+
+/**
+ * Implements hook_social_event_action_ACTION_ID_finish().
+ */
+function social_event_an_enroll_social_event_managers_action_social_event_an_enroll_send_email_action_finish($success) {
+  return social_event_managers_social_event_managers_action_social_event_managers_send_email_action_finish($success);
 }

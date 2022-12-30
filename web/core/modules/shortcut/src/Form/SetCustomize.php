@@ -5,6 +5,7 @@ namespace Drupal\shortcut\Form;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Url;
 
 /**
  * Builds the shortcut set customize form.
@@ -32,8 +33,8 @@ class SetCustomize extends EntityForm {
 
     $form['shortcuts']['links'] = [
       '#type' => 'table',
-      '#header' => [t('Name'), t('Weight'), t('Operations')],
-      '#empty' => $this->t('No shortcuts available. <a href=":link">Add a shortcut</a>', [':link' => $this->url('shortcut.link_add', ['shortcut_set' => $this->entity->id()])]),
+      '#header' => [$this->t('Name'), $this->t('Weight'), $this->t('Operations')],
+      '#empty' => $this->t('No shortcuts available. <a href=":link">Add a shortcut</a>', [':link' => Url::fromRoute('shortcut.link_add', ['shortcut_set' => $this->entity->id()])->toString()]),
       '#attributes' => ['id' => 'shortcuts'],
       '#tabledrag' => [
         [
@@ -59,19 +60,19 @@ class SetCustomize extends EntityForm {
       $form['shortcuts']['links'][$id]['#weight'] = $shortcut->getWeight();
       $form['shortcuts']['links'][$id]['weight'] = [
         '#type' => 'weight',
-        '#title' => t('Weight for @title', ['@title' => $shortcut->getTitle()]),
+        '#title' => $this->t('Weight for @title', ['@title' => $shortcut->getTitle()]),
         '#title_display' => 'invisible',
         '#default_value' => $shortcut->getWeight(),
         '#attributes' => ['class' => ['shortcut-weight']],
       ];
 
       $links['edit'] = [
-        'title' => t('Edit'),
-        'url' => $shortcut->urlInfo(),
+        'title' => $this->t('Edit'),
+        'url' => $shortcut->toUrl(),
       ];
       $links['delete'] = [
-        'title' => t('Delete'),
-        'url' => $shortcut->urlInfo('delete-form'),
+        'title' => $this->t('Delete'),
+        'url' => $shortcut->toUrl('delete-form'),
       ];
       $form['shortcuts']['links'][$id]['operations'] = [
         '#type' => 'operations',
@@ -90,7 +91,7 @@ class SetCustomize extends EntityForm {
     return [
       'submit' => [
         '#type' => 'submit',
-        '#value' => t('Save'),
+        '#value' => $this->t('Save'),
         '#access' => (bool) Element::getVisibleChildren($form['shortcuts']['links']),
         '#submit' => ['::submitForm', '::save'],
       ],
@@ -106,7 +107,7 @@ class SetCustomize extends EntityForm {
       $shortcut->setWeight($weight);
       $shortcut->save();
     }
-    drupal_set_message(t('The shortcut set has been updated.'));
+    $this->messenger()->addStatus($this->t('The shortcut set has been updated.'));
   }
 
 }

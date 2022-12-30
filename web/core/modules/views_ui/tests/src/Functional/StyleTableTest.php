@@ -13,6 +13,11 @@ use Drupal\views\Views;
 class StyleTableTest extends UITestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests created a table style view.
    */
   public function testWizard() {
@@ -25,11 +30,12 @@ class StyleTableTest extends UITestBase {
     $view['page[style][style_plugin]'] = 'table';
     $view['page[title]'] = $this->randomMachineName(16);
     $view['page[path]'] = $view['id'];
-    $this->drupalPostForm('admin/structure/views/add', $view, t('Save and edit'));
+    $this->drupalGet('admin/structure/views/add');
+    $this->submitForm($view, 'Save and edit');
 
     $view = Views::getView($view['id']);
     $view->initHandlers();
-    $this->assertEqual($view->field['title']->options['label'], 'Title', 'The field label for table styles is not empty.');
+    $this->assertEquals('Title', $view->field['title']->options['label'], 'The field label for table styles is not empty.');
   }
 
 }

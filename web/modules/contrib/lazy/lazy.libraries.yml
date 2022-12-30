@@ -1,0 +1,49 @@
+#  Lazy-load `lazy/lazy`
+#
+# This library loads Lazy javascript and its plugins conditionally and
+#  asynchronously based on the module configuration.
+lazy:
+  version: VERSION
+  js:
+    js/lazy.js: { }
+  dependencies:
+    - core/drupal
+
+#  The lazysizes library and its plugins.
+#
+#  `lazy/lazysizes`
+#
+#  This library is not used within the Lazy-load module, it's only provided here
+#  to support your custom solutions.
+lazysizes:
+  header: true
+  remote: https://github.com/aFarkas/lazysizes
+  version: 5.3.1
+  license:
+    name: MIT
+    url: https://github.com/aFarkas/lazysizes/blob/gh-pages/LICENSE
+  js:
+    /libraries/lazysizes/plugins/artdirect/ls.artdirect.min.js: { minified: true }
+    /libraries/lazysizes/plugins/aspectratio/ls.aspectratio.min.js: { minified: true }
+    /libraries/lazysizes/plugins/attrchange/ls.attrchange.min.js: { minified: true }
+    /libraries/lazysizes/plugins/bgset/ls.bgset.min.js: { minified: true }
+    /libraries/lazysizes/plugins/blur-up/ls.blur-up.min.js: { minified: true }
+    /libraries/lazysizes/plugins/custommedia/ls.custommedia.min.js: { minified: true }
+    /libraries/lazysizes/plugins/fix-edge-h-descriptor/ls.fix-edge-h-descriptor.min.js: { minified: true }
+    /libraries/lazysizes/plugins/fix-ios-sizes/fix-ios-sizes.min.js: { minified: true }
+    /libraries/lazysizes/plugins/include/ls.include.min.js: { minified: true }
+    /libraries/lazysizes/plugins/native-loading/ls.native-loading.min.js: { minified: true }
+    /libraries/lazysizes/plugins/noscript/ls.noscript.min.js: { minified: true }
+    /libraries/lazysizes/plugins/object-fit/ls.object-fit.min.js: { minified: true }
+    /libraries/lazysizes/plugins/optimumx/ls.optimumx.min.js: { minified: true }
+    /libraries/lazysizes/plugins/parent-fit/ls.parent-fit.min.js: { minified: true }
+    /libraries/lazysizes/plugins/print/ls.print.min.js: { minified: true }
+    /libraries/lazysizes/plugins/progressive/ls.progressive.min.js: { minified: true }
+    /libraries/lazysizes/plugins/respimg/ls.respimg.min.js: { minified: true }
+    /libraries/lazysizes/plugins/rias/ls.rias.min.js: { minified: true }
+    /libraries/lazysizes/plugins/static-gecko-picture/ls.static-gecko-picture.min.js: { minified: true }
+    /libraries/lazysizes/plugins/twitter/ls.twitter.min.js: { minified: true }
+    /libraries/lazysizes/plugins/unload/ls.unload.min.js: { minified: true }
+    /libraries/lazysizes/plugins/unveilhooks/ls.unveilhooks.min.js: { minified: true }
+    /libraries/lazysizes/plugins/video-embed/ls.video-embed.min.js: { minified: true }
+    /libraries/lazysizes/lazysizes.min.js: { minified: true }

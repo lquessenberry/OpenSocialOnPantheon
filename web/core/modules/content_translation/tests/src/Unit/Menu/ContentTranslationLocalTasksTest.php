@@ -11,21 +11,24 @@ use Drupal\Tests\Core\Menu\LocalTaskIntegrationTestBase;
  */
 class ContentTranslationLocalTasksTest extends LocalTaskIntegrationTestBase {
 
-  protected function setUp() {
+  protected function setUp(): void {
     $this->directoryList = [
       'content_translation' => 'core/modules/content_translation',
       'node' => 'core/modules/node',
     ];
     parent::setUp();
 
-    $entity_type = $this->getMock('Drupal\Core\Entity\EntityTypeInterface');
+    $entity_type = $this->createMock('Drupal\Core\Entity\EntityTypeInterface');
     $entity_type->expects($this->any())
       ->method('getLinkTemplate')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         ['canonical', 'entity.node.canonical'],
-        ['drupal:content-translation-overview', 'entity.node.content_translation_overview'],
-      ]));
-    $content_translation_manager = $this->getMock('Drupal\content_translation\ContentTranslationManagerInterface');
+        [
+          'drupal:content-translation-overview',
+          'entity.node.content_translation_overview',
+        ],
+      ]);
+    $content_translation_manager = $this->createMock('Drupal\content_translation\ContentTranslationManagerInterface');
     $content_translation_manager->expects($this->any())
       ->method('getSupportedEntityTypes')
       ->will($this->returnValue([

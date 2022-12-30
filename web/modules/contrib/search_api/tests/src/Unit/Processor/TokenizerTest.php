@@ -2,10 +2,13 @@
 
 namespace Drupal\Tests\search_api\Unit\Processor;
 
-use Drupal\Component\Utility\Unicode;
+use Drupal\search_api\Entity\Index;
+use Drupal\search_api\Plugin\search_api\parse_mode\Direct;
 use Drupal\search_api\Plugin\search_api\processor\Tokenizer;
+use Drupal\search_api\Query\Query;
 use Drupal\search_api\Utility\Utility;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  * Tests the "Tokenizer" processor.
@@ -21,7 +24,7 @@ class TokenizerTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->processor = new Tokenizer([], 'tokenizer', []);
@@ -119,6 +122,35 @@ class TokenizerTest extends UnitTestCase {
         [],
         ['minimum_word_size' => 10],
       ],
+      [
+        'foo-bar',
+        [Utility::createTextToken('foobar')],
+      ],
+      // Test changing ignored characters.
+      [
+        'word-word',
+        [$word_token, $word_token],
+        ['ignored' => '._'],
+      ],
+      [
+        'foobar',
+        [Utility::createTextToken('foobr')],
+        ['ignored' => 'a'],
+      ],
+      [
+        'foo-bar',
+        [Utility::createTextToken('foo-bar')],
+        [
+          'ignored' => '',
+          'spaces' => ' ',
+        ],
+      ],
+      // Test multiple ignored characters are still treated as word boundary.
+      [
+        'foobar',
+        [Utility::createTextToken('bar')],
+        ['ignored' => 'o'],
+      ],
     ];
   }
 
@@ -184,10 +216,10 @@ class TokenizerTest extends UnitTestCase {
     // Generate characters consisting of starts, midpoints, and ends.
     $chars = [];
     foreach ($starts as $key => $value) {
-      $chars[] = self::codepointToUtf8($starts[$key]);
+      $chars[] = static::codepointToUtf8($starts[$key]);
       $mid = round(0.5 * ($starts[$key] + $ends[$key]));
-      $chars[] = self::codepointToUtf8($mid);
-      $chars[] = self::codepointToUtf8($ends[$key]);
+      $chars[] = static::codepointToUtf8($mid);
+      $chars[] = static::codepointToUtf8($ends[$key]);
     }
 
     // Merge into a single string and tokenize.
@@ -298,8 +330,8 @@ class TokenizerTest extends UnitTestCase {
         // never removed). Split this into 30-character chunks, so we don't run
         // into limits of truncation.
         $start = 0;
-        while ($start < Unicode::strlen($string)) {
-          $newstr = Unicode::substr($string, $start, 30);
+        while ($start < mb_strlen($string)) {
+          $newstr = mb_substr($string, $start, 30);
           // Special case: leading zeros are removed from numeric strings,
           // and there's one string in this file that is numbers starting with
           // zero, so prepend a 1 on that string.
@@ -313,7 +345,7 @@ class TokenizerTest extends UnitTestCase {
     }
     foreach ($strings as $key => $string) {
       $simplified = $this->invokeMethod('simplifyText', [$string]);
-      $this->assertGreaterThanOrEqual(Unicode::strlen($string), Unicode::strlen($simplified), "Nothing is removed from string $key.");
+      $this->assertGreaterThanOrEqual(mb_strlen($string), mb_strlen($simplified), "Nothing is removed from string $key.");
     }
 
     // Test the low-numbered ASCII control characters separately. They are not
@@ -382,6 +414,66 @@ class TokenizerTest extends UnitTestCase {
         'Äußerung français repülőtér',
         'Äußerung français repülőtér',
         'Umlauts and accented characters are not treated as word boundaries',
+      ],
+    ];
+    return $cases;
+  }
+
+  /**
+   * Tests search keywords preprocessing.
+   *
+   * @param string|array $keys
+   *   The original keys.
+   * @param string|array $expected
+   *   The expected keys after preprocessing.
+   *
+   * @dataProvider preprocessSearchQueryProvider
+   */
+  public function testPreprocessSearchQuery($keys, $expected) {
+    $index = $this->createMock(Index::class);
+    assert($index instanceof Index);
+    assert($index instanceof MockObject);
+    $index->method('status')->willReturn(TRUE);
+    $this->processor->setIndex($index);
+
+    $query = new Query($index);
+    $query->setParseMode(new Direct([], 'direct', []));
+    $query->keys($keys);
+
+    $this->processor->preprocessSearchQuery($query);
+    $this->assertEquals($expected, $query->getKeys());
+  }
+
+  /**
+   * Provides test data for testPreprocessSearchQuery().
+   *
+   * @return array
+   *   Arrays of parameters for testPreprocessSearchQuery(), each containing (in
+   *   this order):
+   *   - The original keys.
+   *   - The expected keys after preprocessing.
+   */
+  public function preprocessSearchQueryProvider() {
+    $cases = [
+      'convert whitespace' => [
+        "foo\tbar\n\nbaz ",
+        'foo bar baz',
+      ],
+      'single dash' => [
+        'foo-bar',
+        'foobar',
+      ],
+      'multiple dashes' => [
+        'foo--bar',
+        'foo bar',
+      ],
+      'remove short word' => [
+        'foo in bar',
+        'foo bar',
+      ],
+      'single short word' => [
+        'in',
+        '',
       ],
     ];
     return $cases;

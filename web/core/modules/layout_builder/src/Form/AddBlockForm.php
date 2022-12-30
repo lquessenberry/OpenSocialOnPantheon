@@ -3,6 +3,7 @@
 namespace Drupal\layout_builder\Form;
 
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\layout_builder\LayoutBuilderHighlightTrait;
 use Drupal\layout_builder\SectionComponent;
 use Drupal\layout_builder\SectionStorageInterface;
 
@@ -10,8 +11,11 @@ use Drupal\layout_builder\SectionStorageInterface;
  * Provides a form to add a block.
  *
  * @internal
+ *   Form classes are internal.
  */
 class AddBlockForm extends ConfigureBlockFormBase {
+
+  use LayoutBuilderHighlightTrait;
 
   /**
    * {@inheritdoc}
@@ -24,7 +28,7 @@ class AddBlockForm extends ConfigureBlockFormBase {
    * {@inheritdoc}
    */
   protected function submitLabel() {
-    return $this->t('Add Block');
+    return $this->t('Add block');
   }
 
   /**
@@ -48,11 +52,12 @@ class AddBlockForm extends ConfigureBlockFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state, SectionStorageInterface $section_storage = NULL, $delta = NULL, $region = NULL, $plugin_id = NULL) {
     // Only generate a new component once per form submission.
-    if (!$component = $form_state->getTemporaryValue('layout_builder__component')) {
+    if (!$component = $form_state->get('layout_builder__component')) {
       $component = new SectionComponent($this->uuidGenerator->generate(), $region, ['id' => $plugin_id]);
       $section_storage->getSection($delta)->appendComponent($component);
-      $form_state->setTemporaryValue('layout_builder__component', $component);
+      $form_state->set('layout_builder__component', $component);
     }
+    $form['#attributes']['data-layout-builder-target-highlight-id'] = $this->blockAddHighlightId($delta, $region);
     return $this->doBuildForm($form, $form_state, $section_storage, $delta, $component);
   }
 

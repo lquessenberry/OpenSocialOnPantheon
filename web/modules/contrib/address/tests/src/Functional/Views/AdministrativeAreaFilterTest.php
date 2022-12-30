@@ -15,13 +15,18 @@ class AdministrativeAreaFilterTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'user',
     'views',
     'address',
     'address_test',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A simple user with 'access content' permission.
@@ -33,7 +38,7 @@ class AdministrativeAreaFilterTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->user = $this->drupalCreateUser(['access content']);
@@ -166,10 +171,10 @@ class AdministrativeAreaFilterTest extends BrowserTestBase {
         'Cairo Governorate' => 'Cairo Governorate',
       ],
       'MX' => [
-        'CHIS' => 'Chiapas',
-        'JAL' => 'Jalisco',
-        'OAX' => 'Oaxaca',
-        'VER' => 'Veracruz',
+        'Chis.' => 'Chiapas',
+        'Jal.' => 'Jalisco',
+        'Oax.' => 'Oaxaca',
+        'Ver.' => 'Veracruz',
       ],
       'US' => [
         'LA' => 'Louisiana',

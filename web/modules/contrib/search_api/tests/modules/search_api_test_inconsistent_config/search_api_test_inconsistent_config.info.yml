@@ -1,0 +1,13 @@
+name: 'Search API Inconsistent Configs Test'
+type: module
+description: 'Support module for Search API tests'
+package: Testing
+dependencies:
+  - search_api:search_api
+  - search_api:search_api_test
+hidden: true
+
+# Information added by Drupal.org packaging script on 2022-10-19
+version: '8.x-1.27'
+project: 'search_api'
+datestamp: 1666181444

@@ -1,6 +1,23 @@
 {
   "name": "drupal/group",
-  "description": "This module allows you to group users, content and other entities",
   "type": "drupal-module",
-  "license": "GPL-2.0+"
+  "description": "This module allows you to group users, content and other entities",
+  "homepage": "http://drupal.org/project/group",
+  "authors": [
+    {
+      "name": "Kristiaan Van den Eynde",
+      "homepage": "https://www.drupal.org/u/kristiaanvandeneynde",
+      "role": "Maintainer"
+    }
+  ],
+  "support": {
+    "issues": "https://drupal.org/project/issues/group",
+    "source": "https://git.drupalcode.org/project/group"
+  },
+  "license": "GPL-2.0-or-later",
+  "minimum-stability": "dev",
+  "require": {
+    "drupal/entity": "^1.2",
+    "drupal/variationcache": "^1.1"
+  }
 }

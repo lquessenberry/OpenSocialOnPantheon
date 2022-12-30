@@ -64,10 +64,10 @@ interface ExecutionContextInterface
     /**
      * Adds a violation at the current node of the validation graph.
      *
-     * @param string $message The error message
-     * @param array  $params  The parameters substituted in the error message
+     * @param string|\Stringable $message The error message as a string or a stringable object
+     * @param array              $params  The parameters substituted in the error message
      */
-    public function addViolation($message, array $params = array());
+    public function addViolation($message, array $params = []);
 
     /**
      * Returns a builder for adding a violation with extended information.
@@ -76,17 +76,17 @@ interface ExecutionContextInterface
      * add the violation when you're done with the configuration:
      *
      *     $context->buildViolation('Please enter a number between %min% and %max%.')
-     *         ->setParameter('%min%', 3)
-     *         ->setParameter('%max%', 10)
+     *         ->setParameter('%min%', '3')
+     *         ->setParameter('%max%', '10')
      *         ->setTranslationDomain('number_validation')
      *         ->addViolation();
      *
-     * @param string $message    The error message
-     * @param array  $parameters The parameters substituted in the error message
+     * @param string|\Stringable $message    The error message as a string or a stringable object
+     * @param array              $parameters The parameters substituted in the error message
      *
      * @return ConstraintViolationBuilderInterface The violation builder
      */
-    public function buildViolation($message, array $parameters = array());
+    public function buildViolation($message, array $parameters = []);
 
     /**
      * Returns the validator.
@@ -97,7 +97,7 @@ interface ExecutionContextInterface
      *     {
      *         $validator = $this->context->getValidator();
      *
-     *         $violations = $validator->validateValue($value, new Length(array('min' => 3)));
+     *         $violations = $validator->validate($value, new Length(['min' => 3]));
      *
      *         if (count($violations) > 0) {
      *             // ...
@@ -112,7 +112,7 @@ interface ExecutionContextInterface
      * Returns the currently validated object.
      *
      * If the validator is currently validating a class constraint, the
-     * object of that class is returned. If it is a validating a property or
+     * object of that class is returned. If it is validating a property or
      * getter constraint, the object that the property/getter belongs to is
      * returned.
      *
@@ -125,10 +125,9 @@ interface ExecutionContextInterface
     /**
      * Sets the currently validated value.
      *
-     * @param mixed                  $value        The validated value
-     * @param object|null            $object       The currently validated object
-     * @param MetadataInterface|null $metadata     The validation metadata
-     * @param string                 $propertyPath The property path to the current value
+     * @param mixed       $value        The validated value
+     * @param object|null $object       The currently validated object
+     * @param string      $propertyPath The property path to the current value
      *
      * @internal Used by the validator engine. Should not be called by user
      *           code.
@@ -147,8 +146,6 @@ interface ExecutionContextInterface
 
     /**
      * Sets the currently validated constraint.
-     *
-     * @param Constraint $constraint The validated constraint
      *
      * @internal Used by the validator engine. Should not be called by user
      *           code.
@@ -283,7 +280,7 @@ interface ExecutionContextInterface
     /**
      * Returns the validation group that is currently being validated.
      *
-     * @return string The current validation group
+     * @return string|null The current validation group
      */
     public function getGroup();
 

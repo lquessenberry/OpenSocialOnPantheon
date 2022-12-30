@@ -10,13 +10,14 @@ use Drupal\Tests\migrate\Kernel\MigrateSqlSourceTestBase;
  * @covers \Drupal\color\Plugin\migrate\source\d7\Color
  *
  * @group color
+ * @group legacy
  */
 class ColorTest extends MigrateSqlSourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['color', 'migrate_drupal'];
+  protected static $modules = ['color', 'migrate_drupal'];
 
   /**
    * {@inheritdoc}
@@ -61,6 +62,7 @@ class ColorTest extends MigrateSqlSourceTestBase {
       ],
       [
         'name' => 'color_custom_stylesheets',
+        // cspell:ignore beadedff
         'value' => ['public:://color/custom-beadedff/colors.css'],
       ],
     ];

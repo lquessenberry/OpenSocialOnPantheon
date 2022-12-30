@@ -30,8 +30,8 @@ use Drupal\user\UserInterface;
  *     "uuid" = "uuid"
  *   },
  *   links = {
- *     "canonical" = "/private_message/{private_message}",
- *     "delete-form" = "/private_message/{private_message}/delete",
+ *     "canonical" = "/private-message/{private_message}",
+ *     "delete-form" = "/private-message/{private_message}/delete",
  *   },
  *   field_ui_base_route = "private_message.private_message_settings",
  * )

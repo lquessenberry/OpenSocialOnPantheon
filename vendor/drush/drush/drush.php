@@ -4,7 +4,8 @@ use Drush\Drush;
 use Drush\Config\Environment;
 use Drush\Preflight\Preflight;
 use Drush\Runtime\Runtime;
-use Webmozart\PathUtil\Path;
+use Drush\Runtime\DependencyInjection;
+use Symfony\Component\Filesystem\Path;
 
 /**
  * This script runs Drush.
@@ -39,9 +40,12 @@ use Webmozart\PathUtil\Path;
  *   - Return status code
  */
 
-// We use PWD if available because getcwd() resolves symlinks, which
-// could take us outside of the Drupal root, making it impossible to find.
-$cwd = empty($_SERVER['PWD']) ? getcwd() : $_SERVER['PWD'];
+// We use PWD if available because getcwd() resolves symlinks, which  could take
+// us outside of the Drupal root, making it impossible to find. In addition,
+// is_dir() is used as the provided path may not be recognizable by PHP. For
+// instance, Cygwin adds a '/cygdrive' prefix to the path which is a virtual
+// directory.
+$cwd = isset($_SERVER['PWD']) && is_dir($_SERVER['PWD']) ? $_SERVER['PWD'] : getcwd();
 
 // Set up autoloader
 $loader = false;
@@ -54,6 +58,11 @@ if (file_exists($autoloadFile = __DIR__ . '/vendor/autoload.php')
     throw new \Exception("Could not locate autoload.php. cwd is $cwd; __DIR__ is " . __DIR__);
 }
 
+// For Symfony 4 only, include our "Path" class (introduced in Symfony 5.4)
+if (!class_exists('\Symfony\Component\Filesystem\Path')) {
+    include __DIR__ . "/src-symfony-compatibility/Filesystem/Path.php";
+}
+
 // Set up environment
 $environment = new Environment(Path::getHomeDirectory(), $cwd, $autoloadFile);
 $environment->setConfigFileVariant(Drush::getMajorVersion());
@@ -62,7 +71,9 @@ $environment->applyEnvironment();
 
 // Preflight and run
 $preflight = new Preflight($environment);
-$runtime = new Runtime($preflight);
+$di = new DependencyInjection();
+$di->desiredHandlers(['errorHandler', 'shutdownHandler']);
+$runtime = new Runtime($preflight, $di);
 $status_code = $runtime->run($_SERVER['argv']);
 
 exit($status_code);

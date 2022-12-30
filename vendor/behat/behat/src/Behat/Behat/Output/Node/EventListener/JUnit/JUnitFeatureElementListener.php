@@ -22,10 +22,10 @@ use Behat\Behat\Output\Node\Printer\JUnit\JUnitScenarioPrinter;
 use Behat\Behat\Output\Node\Printer\SetupPrinter;
 use Behat\Behat\Output\Node\Printer\StepPrinter;
 use Behat\Gherkin\Node\FeatureNode;
+use Behat\Testwork\Event\Event;
 use Behat\Testwork\EventDispatcher\Event\AfterSetup;
 use Behat\Testwork\Output\Formatter;
 use Behat\Testwork\Output\Node\EventListener\EventListener;
-use Symfony\Component\EventDispatcher\Event;
 
 /**
  * Listens to feature, scenario and step events and calls appropriate printers.
@@ -169,7 +169,13 @@ final class JUnitFeatureElementListener implements EventListener
 
         foreach ($this->afterScenarioTestedEvents as $afterScenario) {
             $afterScenarioTested = $afterScenario['event'];
-            $this->scenarioPrinter->printOpenTag($formatter, $afterScenarioTested->getFeature(), $afterScenarioTested->getScenario(), $afterScenarioTested->getTestResult());
+            $this->scenarioPrinter->printOpenTag(
+                $formatter,
+                $afterScenarioTested->getFeature(),
+                $afterScenarioTested->getScenario(),
+                $afterScenarioTested->getTestResult(),
+                $event->getFeature()->getFile()
+            );
 
             /** @var AfterStepSetup $afterStepSetup */
             foreach ($afterScenario['step_setup_events'] as $afterStepSetup) {

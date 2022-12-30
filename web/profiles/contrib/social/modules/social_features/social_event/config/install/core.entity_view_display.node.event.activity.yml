@@ -9,6 +9,7 @@ dependencies:
     - field.field.node.event.field_event_comments
     - field.field.node.event.field_event_date
     - field.field.node.event.field_event_date_end
+    - field.field.node.event.field_event_enroll
     - field.field.node.event.field_event_image
     - field.field.node.event.field_event_location
     - field.field.node.event.field_files
@@ -37,7 +38,7 @@ content:
     label: hidden
     settings:
       num_comments: 2
-      always_show_all_comments: '1'
+      always_show_all_comments: true
     third_party_settings: {  }
     type: comment_node
     region: content
@@ -79,6 +80,14 @@ content:
   flag_follow_content:
     weight: 10
     region: content
+  groups_type_public_group:
+    label: above
+    weight: -5
+    region: content
+    settings:
+      link: true
+    third_party_settings: {  }
+    type: entity_reference_label
   links:
     weight: 5
     settings: {  }
@@ -87,8 +96,13 @@ content:
 hidden:
   body: true
   field_content_visibility: true
+  field_event_enroll: true
   field_files: true
-  like_and_dislike: true
+  field_hide_enrollments: true
   groups: true
   groups_type_closed_group: true
   groups_type_open_group: true
+  like_and_dislike: true
+  search_api_excerpt: true
+  field_event_all_day: true
+  field_event_send_confirmation: true

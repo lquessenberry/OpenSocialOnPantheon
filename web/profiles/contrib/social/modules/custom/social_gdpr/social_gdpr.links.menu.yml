@@ -1,0 +1,20 @@
+social_gdpr.social_core.dashboard.people.data_policy:
+  title: 'Data policy'
+  parent: social_core.dashboard.people
+  description: 'Manage data policy entities and settings.'
+  route_name: entity.data_policy.collection
+  weight: -77
+
+social_gdpr.social_core.dashboard.data_collection_usage.data_policy_settings:
+  title: 'Data policy settings'
+  parent: social_core.dashboard.data_collection_usage
+  description: 'Administer data policy settings'
+  route_name: data_policy.data_policy.settings
+  weight: -99
+
+social_gdpr.social_core.dashboard.data_collection_usage.data_policy_informblock_collection:
+  title: 'Data usage explanation'
+  parent: social_core.dashboard.data_collection_usage
+  description: 'List of pages where information block can be shown.'
+  route_name: entity.informblock.collection
+  weight: -99

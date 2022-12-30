@@ -2,7 +2,7 @@
 
 namespace Drupal\file\Plugin\views\argument;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\views\Plugin\views\argument\NumericArgument;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -17,11 +17,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class Fid extends NumericArgument implements ContainerFactoryPluginInterface {
 
   /**
-   * The entity manager service
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a Drupal\file\Plugin\views\argument\Fid object.
@@ -32,12 +32,12 @@ class Fid extends NumericArgument implements ContainerFactoryPluginInterface {
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -48,7 +48,7 @@ class Fid extends NumericArgument implements ContainerFactoryPluginInterface {
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager')
+      $container->get('entity_type.manager')
     );
   }
 
@@ -56,8 +56,9 @@ class Fid extends NumericArgument implements ContainerFactoryPluginInterface {
    * Override the behavior of titleQuery(). Get the filenames.
    */
   public function titleQuery() {
-    $storage = $this->entityManager->getStorage('file');
+    $storage = $this->entityTypeManager->getStorage('file');
     $fids = $storage->getQuery()
+      ->accessCheck(FALSE)
       ->condition('fid', $this->value, 'IN')
       ->execute();
     $files = $storage->loadMultiple($fids);

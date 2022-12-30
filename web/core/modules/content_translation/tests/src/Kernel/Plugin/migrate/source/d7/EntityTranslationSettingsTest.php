@@ -16,7 +16,7 @@ class EntityTranslationSettingsTest extends MigrateSqlSourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'content_translation',
     'language',
     'migrate_drupal',
@@ -109,6 +109,15 @@ class EntityTranslationSettingsTest extends MigrateSqlSourceTestBase {
       [
         'name' => 'language_content_type_page',
         'value' => 's:1:"4";',
+      ],
+    ];
+
+    // Source data when taxonomy terms are translatable but the
+    // 'entity_translation_taxonomy' variable is not set.
+    $tests[3]['source_data']['variable'] = [
+      [
+        'name' => 'entity_translation_entity_types',
+        'value' => 'a:4:{s:7:"comment";i:0;s:4:"node";i:0;s:13:"taxonomy_term";i:1;s:4:"user";i:0;}',
       ],
     ];
 
@@ -234,6 +243,10 @@ class EntityTranslationSettingsTest extends MigrateSqlSourceTestBase {
         'untranslatable_fields_hide' => TRUE,
       ],
     ];
+
+    // Expected data when taxonomy terms are translatable but the
+    // 'entity_translation_taxonomy' variable is not set.
+    $tests[3]['expected_data'] = [];
 
     return $tests;
   }

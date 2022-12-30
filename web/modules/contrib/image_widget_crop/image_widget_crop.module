@@ -5,8 +5,8 @@
  * Contains image_widget_crop.module.
  */
 
-define('IMAGE_WIDGET_CROP_JS_CDN', 'https://cdnjs.cloudflare.com/ajax/libs/cropper/2.3.4/cropper.min.js');
-define('IMAGE_WIDGET_CROP_CSS_CDN', 'https://cdnjs.cloudflare.com/ajax/libs/cropper/2.3.4/cropper.min.css');
+define('IMAGE_WIDGET_CROP_JS_CDN', 'https://cdnjs.cloudflare.com/ajax/libs/cropper/4.0.0/cropper.min.js');
+define('IMAGE_WIDGET_CROP_CSS_CDN', 'https://cdnjs.cloudflare.com/ajax/libs/cropper/4.0.0/cropper.min.css');
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -144,7 +144,8 @@ function image_widget_crop_library_info_alter(&$libraries, $extension) {
 function image_widget_crop_form_file_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   /** @var \Drupal\file_entity\Entity\FileEntity $file */
   $file = $form_state->getFormObject()->getEntity();
-  $mime_type = $file->getMimeTypeType();
+  list($mime_type, ) = explode('/', $file->getMimeType(), 2);
+
   $operation = $form_state->getFormObject()->getOperation();
   $crop_config = \Drupal::config('image_widget_crop.settings');
   if ($mime_type == 'image' && ($operation == 'edit' || $operation == 'inline_edit')) {

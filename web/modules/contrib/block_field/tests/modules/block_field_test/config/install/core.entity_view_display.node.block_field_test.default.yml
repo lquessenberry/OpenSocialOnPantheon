@@ -18,8 +18,10 @@ content:
     settings: {  }
     third_party_settings: {  }
     type: block_field
+    region: content
   links:
     weight: 100
     settings: {  }
     third_party_settings: {  }
+    region: content
 hidden: {  }

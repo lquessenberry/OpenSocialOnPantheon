@@ -108,7 +108,22 @@ interface CropInterface extends ContentEntityInterface {
    *
    * @return \Drupal\crop\CropInterface|null
    *   Crop entity used by effect 'crop_crop' or NULL if crop doesn't exist.
+   *
+   * @deprecated use getCropFromImageStyleId instead.
    */
   public static function getCropFromImageStyle($uri, ImageStyleInterface $image_style);
+
+  /**
+   * Retrieve crop from given image style.
+   *
+   * @param string $uri
+   *   URI of the image.
+   * @param string $image_style_id
+   *   The image style id.
+   *
+   * @return \Drupal\crop\CropInterface|null
+   *   Crop entity used by effect 'crop_crop' or NULL if crop doesn't exist.
+   */
+  public static function getCropFromImageStyleId($uri, $image_style_id);
 
 }

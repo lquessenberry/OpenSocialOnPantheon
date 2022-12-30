@@ -1,0 +1,10 @@
+services:
+  plugin.manager.oauth2_scope:
+    class: Drupal\simple_oauth_static_scope\Plugin\Oauth2ScopeManager
+    arguments:
+      - '@module_handler'
+      - '@cache.discovery'
+      - '@language_manager'
+      - '@plugin.manager.oauth2_grant.processor'
+      - '@user.permissions'
+      - '@entity_type.manager'

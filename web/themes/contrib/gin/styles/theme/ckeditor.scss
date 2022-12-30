@@ -1,0 +1,67 @@
+body.cke_editable_themed {
+  color: var(--colorGinText);
+
+  &.gin--dark-mode {
+    background-color: var(--colorGinLayer2Background);
+  }
+}
+
+a {
+  color: var(--colorGinPrimary);
+}
+
+.cke_panel_grouptitle {
+  color: var(--colorGinTitle);
+  background: var(--colorGinLayer2Background);
+}
+
+.cke_panel_listItem.cke_selected a,
+.cke_panel_listItem a:hover,
+.cke_panel_listItem a:focus,
+.cke_panel_listItem a:active {
+  background-color: var(--colorGinPrimaryLight);
+}
+
+.cke_editable {
+  line-height: 1.5;
+}
+
+/* CKE Context Menu */
+.cke_panel_block {
+  border-color: var(--colorGinFormElementBorder);
+  border-radius: var(--ginBorderDefault);
+
+  .cke_menu {
+    .cke_menubutton_icon {
+      background-color: var(--colorGinAppBackground);
+      .cke_button_icon {
+        .gin--dark-mode & {
+          filter: invert(1);
+        }
+      }
+    }
+    .cke_menubutton_label {
+      color: var(--colorGinText);
+    }
+    .cke_menubutton_shortcut {
+      color: var(--colorGinTextLight);
+    }
+
+    a {
+      &:hover,
+      &:focus,
+      &:active {
+        background-color: var(--colorGinPrimaryLight);
+
+        .cke_menubutton_icon {
+          background-color: var(--colorGinPrimaryLight);
+        }
+      }
+    }
+  }
+}
+
+// Include quote style
+body.cke_editable_themed {
+  @import "../base/quotation";
+}

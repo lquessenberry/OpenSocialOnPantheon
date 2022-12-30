@@ -11,18 +11,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class ThemeTestController extends ControllerBase {
 
   /**
-   * A theme template that overrides a theme function.
-   *
-   * @return array
-   *   Render array containing a theme.
-   */
-  public function functionTemplateOverridden() {
-    return [
-      '#theme' => 'theme_test_function_template_override',
-    ];
-  }
-
-  /**
    * Adds stylesheets to test theme .info.yml property processing.
    *
    * @return array
@@ -113,21 +101,6 @@ class ThemeTestController extends ControllerBase {
   }
 
   /**
-   * Menu callback for testing suggestion alter hooks with theme functions.
-   */
-  public function functionSuggestionAlter() {
-    return ['#theme' => 'theme_test_function_suggestions'];
-  }
-
-
-  /**
-   * Menu callback for testing includes with suggestion alter hooks.
-   */
-  public function suggestionAlterInclude() {
-    return ['#theme' => 'theme_test_suggestions_include'];
-  }
-
-  /**
    * Controller to ensure that no theme is initialized.
    *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
@@ -156,6 +129,25 @@ class ThemeTestController extends ControllerBase {
         '#foo' => 'monkey',
       ],
       ['#theme' => 'theme_test_preprocess_suggestions__kitten__flamingo'],
+    ];
+  }
+
+  /**
+   * Controller for testing callable preprocess functions.
+   */
+  public function preprocessCallback() {
+    return [
+      '#theme' => 'theme_test_preprocess_callback',
+    ];
+  }
+
+  /**
+   * Controller for testing a namespaced class in a theme.
+   */
+  public function testThemeClass() {
+    return [
+      '#theme' => 'theme_test_theme_class',
+      '#title' => 'Testing loading a class from a .theme file',
     ];
   }
 

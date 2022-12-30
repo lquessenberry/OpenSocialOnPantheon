@@ -22,7 +22,7 @@ class ConfigOverrideKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'search_api',
     'search_api_test',
     'system',
@@ -46,12 +46,11 @@ class ConfigOverrideKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     // Set up necessary schemas.
     $this->installSchema('search_api', ['search_api_item']);
-    $this->installSchema('system', ['router']);
     $this->installSchema('user', ['users_data']);
     $this->installEntitySchema('user');
     $this->installEntitySchema('search_api_task');
@@ -102,7 +101,7 @@ class ConfigOverrideKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function tearDown() {
+  protected function tearDown(): void {
     parent::tearDown();
 
     unset($GLOBALS['config']['search_api.server.test_server']);
@@ -197,7 +196,12 @@ class ConfigOverrideKernelTest extends KernelTestBase {
     // Verify that overriding "status" prevents the server's indexes from being
     // disabled when attempting to disable the server.
     $GLOBALS['config']['search_api.server.test_server']['status'] = TRUE;
-    $this->server->disable()->save();
+    \Drupal::configFactory()->clearStaticCache();
+    /** @var \Drupal\search_api\Entity\SearchApiConfigEntityStorage $server_storage */
+    $server_storage = \Drupal::entityTypeManager()
+      ->getStorage('search_api_server');
+    $server = $server_storage->loadOverrideFree($server->id());
+    $server->disable()->save();
     \Drupal::configFactory()->clearStaticCache();
     $index = Index::load($this->index->id());
     $this->assertTrue($index->status());
@@ -206,9 +210,6 @@ class ConfigOverrideKernelTest extends KernelTestBase {
 
     // Verify that overrides are not present when loading the server
     // override-free.
-    /** @var \Drupal\search_api\Entity\SearchApiConfigEntityStorage $server_storage */
-    $server_storage = \Drupal::entityTypeManager()
-      ->getStorage('search_api_server');
     $server = $server_storage->loadOverrideFree($server->id());
     $this->assertEquals('Test server', $server->label());
   }

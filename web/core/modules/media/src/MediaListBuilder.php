@@ -62,12 +62,13 @@ class MediaListBuilder extends EntityListBuilder {
    * {@inheritdoc}
    */
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
+    $entity_type_manager = $container->get('entity_type.manager');
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $entity_type_manager->getStorage($entity_type->id()),
       $container->get('date.formatter'),
       $container->get('language_manager'),
-      $container->get('entity_type.manager')->getStorage('image_style')
+      $entity_type_manager->getStorage('image_style')
     );
   }
 
@@ -115,11 +116,11 @@ class MediaListBuilder extends EntityListBuilder {
     /** @var \Drupal\media\MediaInterface $entity */
     if ($this->thumbnailStyleExists) {
       $row['thumbnail'] = [];
-      if ($thumbnail_url = $entity->getSource()->getMetadata($entity, 'thumbnail_uri')) {
+      if ($thumbnail_uri = $entity->getSource()->getMetadata($entity, 'thumbnail_uri')) {
         $row['thumbnail']['data'] = [
           '#theme' => 'image_style',
           '#style_name' => 'thumbnail',
-          '#uri' => $thumbnail_url,
+          '#uri' => $thumbnail_uri,
           '#height' => 50,
         ];
       }
@@ -148,6 +149,7 @@ class MediaListBuilder extends EntityListBuilder {
    */
   protected function getEntityIds() {
     $query = $this->getStorage()->getQuery()
+      ->accessCheck(TRUE)
       ->sort('changed', 'DESC');
 
     // Only add the pager if a limit is specified.

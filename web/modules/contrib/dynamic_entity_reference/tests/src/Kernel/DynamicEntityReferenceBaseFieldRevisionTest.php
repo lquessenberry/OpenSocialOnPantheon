@@ -2,9 +2,9 @@
 
 namespace Drupal\Tests\dynamic_entity_reference\Kernel;
 
-use Drupal\config\Tests\SchemaCheckTestTrait;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\KernelTests\Core\Entity\EntityKernelTestBase;
+use Drupal\Tests\SchemaCheckTestTrait;
 
 /**
  * Tests for the dynamic entity reference base field for revisionable entities.
@@ -48,17 +48,19 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['dynamic_entity_reference'];
+  protected static $modules = ['dynamic_entity_reference'];
 
   /**
    * Tests non-revisionable reference field validation.
    */
   public function testEntityReferenceNonRevisionableFieldValidation() {
-    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [$this->entityType, $this->referencedEntityType]);
+    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [
+      $this->entityType,
+      $this->referencedEntityType,
+    ]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_cardinality', 1);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_exclude', [$this->entityType]);
     $this->enableModules(['dynamic_entity_reference_entity_test']);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
     $this->installEntitySchema($this->entityType);
     $this->installEntitySchema($this->referencedEntityType);
     $entity_type_manager = \Drupal::entityTypeManager();
@@ -91,7 +93,10 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
     $entity->{$this->fieldName}->target_id = 9999;
     $violations = $entity->{$this->fieldName}->validate();
     $this->assertEquals($violations->count(), 1, 'Validation throws a violation.');
-    $this->assertEquals($violations[0]->getMessage(), t('The referenced entity (%type: %id) does not exist.', ['%type' => $this->referencedEntityType, '%id' => 9999]));
+    $this->assertEquals($violations[0]->getMessage(), t('The referenced entity (%type: %id) does not exist.', [
+      '%type' => $this->referencedEntityType,
+      '%id' => 9999,
+    ]));
 
     // Test an invalid target_type.
     $entity = $entity_type_manager
@@ -120,11 +125,13 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
    * Tests the multiple target entities loader.
    */
   public function testNonRevisionableReferencedEntitiesMultipleLoad() {
-    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [$this->entityType, $this->referencedEntityType]);
+    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [
+      $this->entityType,
+      $this->referencedEntityType,
+    ]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_cardinality', FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_exclude', [$this->entityType]);
     $this->enableModules(['dynamic_entity_reference_entity_test']);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
     $this->installEntitySchema($this->entityType);
     $this->installEntitySchema($this->referencedEntityType);
     $entity_type_manager = \Drupal::entityTypeManager();
@@ -142,7 +149,10 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
         ->create(['type' => $this->bundle]);
       $target_entity->save();
       $target_entities[] = $target_entity;
-      $reference_field[] = ['target_id' => $target_entity->id(), 'target_type' => $this->referencedEntityType];
+      $reference_field[] = [
+        'target_id' => $target_entity->id(),
+        'target_type' => $this->referencedEntityType,
+      ];
     }
 
     // Also attach a non-existent entity and a NULL target id.
@@ -210,10 +220,12 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
    * Tests the multiple non-revisionable basefields.
    */
   public function testNonRevisionableMultipleEntityReference() {
-    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [$this->entityType, $this->referencedEntityType]);
+    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [
+      $this->entityType,
+      $this->referencedEntityType,
+    ]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_with_two_base_fields', TRUE);
     $this->enableModules(['dynamic_entity_reference_entity_test']);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
     $this->installEntitySchema($this->entityType);
     $this->installEntitySchema($this->referencedEntityType);
 
@@ -221,7 +233,7 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
     $referenced_entity = $this->container
       ->get('entity_type.manager')
       ->getStorage($this->entityType)
-      ->create();;
+      ->create();
     $referenced_entity->save();
     $referenced_entity_mul = $this->container
       ->get('entity_type.manager')
@@ -288,12 +300,14 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
    * Tests revisionable reference field validation.
    */
   public function testEntityReferenceRevisionableFieldValidation() {
-    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [$this->entityType, $this->referencedEntityType]);
+    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [
+      $this->entityType,
+      $this->referencedEntityType,
+    ]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_cardinality', 1);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_exclude', [$this->entityType]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_revisionable', TRUE);
     $this->enableModules(['dynamic_entity_reference_entity_test']);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
     $this->installEntitySchema($this->entityType);
     $this->installEntitySchema($this->referencedEntityType);
     $entity_type_manager = \Drupal::entityTypeManager();
@@ -326,7 +340,10 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
     $entity->{$this->fieldName}->target_id = 9999;
     $violations = $entity->{$this->fieldName}->validate();
     $this->assertEquals($violations->count(), 1, 'Validation throws a violation.');
-    $this->assertEquals($violations[0]->getMessage(), t('The referenced entity (%type: %id) does not exist.', ['%type' => $this->referencedEntityType, '%id' => 9999]));
+    $this->assertEquals($violations[0]->getMessage(), t('The referenced entity (%type: %id) does not exist.', [
+      '%type' => $this->referencedEntityType,
+      '%id' => 9999,
+    ]));
 
     // Test an invalid target_type.
     $entity = $entity_type_manager
@@ -355,12 +372,14 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
    * Tests the multiple target entities loader.
    */
   public function testRevisionableReferencedEntitiesMultipleLoad() {
-    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [$this->entityType, $this->referencedEntityType]);
+    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [
+      $this->entityType,
+      $this->referencedEntityType,
+    ]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_cardinality', FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_exclude', [$this->entityType]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_revisionable', TRUE);
     $this->enableModules(['dynamic_entity_reference_entity_test']);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
     $this->installEntitySchema($this->entityType);
     $this->installEntitySchema($this->referencedEntityType);
     $entity_type_manager = \Drupal::entityTypeManager();
@@ -378,7 +397,10 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
         ->create(['type' => $this->bundle]);
       $target_entity->save();
       $target_entities[] = $target_entity;
-      $reference_field[] = ['target_id' => $target_entity->id(), 'target_type' => $this->referencedEntityType];
+      $reference_field[] = [
+        'target_id' => $target_entity->id(),
+        'target_type' => $this->referencedEntityType,
+      ];
     }
 
     // Also attach a non-existent entity and a NULL target id.
@@ -446,11 +468,13 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
    * Tests the multiple non-revisionable basefields.
    */
   public function testRevisionableMultipleEntityReference() {
-    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [$this->entityType, $this->referencedEntityType]);
+    \Drupal::state()->set('dynamic_entity_reference_entity_test_entities', [
+      $this->entityType,
+      $this->referencedEntityType,
+    ]);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_with_two_base_fields', TRUE);
     \Drupal::state()->set('dynamic_entity_reference_entity_test_revisionable', TRUE);
     $this->enableModules(['dynamic_entity_reference_entity_test']);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
     $this->installEntitySchema($this->entityType);
     $this->installEntitySchema($this->referencedEntityType);
 
@@ -458,7 +482,7 @@ class DynamicEntityReferenceBaseFieldRevisionTest extends EntityKernelTestBase {
     $referenced_entity = $this->container
       ->get('entity_type.manager')
       ->getStorage($this->entityType)
-      ->create();;
+      ->create();
     $referenced_entity->save();
     $referenced_entity_mul = $this->container
       ->get('entity_type.manager')

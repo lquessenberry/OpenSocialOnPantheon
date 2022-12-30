@@ -19,18 +19,6 @@ interface NodeTypeInterface extends ConfigEntityInterface, RevisionableEntityBun
   public function isLocked();
 
   /**
-   * Gets whether a new revision should be created by default.
-   *
-   * @return bool
-   *   TRUE if a new revision should be created by default.
-   *
-   * @deprecated in Drupal 8.3.0 and will be removed before Drupal 9.0.0. Use
-   *   Drupal\Core\Entity\RevisionableEntityBundleInterface::shouldCreateNewRevision()
-   *   instead.
-   */
-  public function isNewRevision();
-
-  /**
    * Sets whether a new revision should be created by default.
    *
    * @param bool $new_revision

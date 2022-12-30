@@ -49,7 +49,7 @@ abstract class EntityReferenceFormatterBase extends FormatterBase {
 
         // Set the entity in the correct language for display.
         if ($entity instanceof TranslatableInterface) {
-          $entity = \Drupal::entityManager()->getTranslationFromContext($entity, $langcode);
+          $entity = \Drupal::service('entity.repository')->getTranslationFromContext($entity, $langcode);
         }
 
         $access = $this->checkAccess($entity);
@@ -70,7 +70,7 @@ abstract class EntityReferenceFormatterBase extends FormatterBase {
    * {@inheritdoc}
    *
    * @see ::prepareView()
-   * @see ::getEntitiestoView()
+   * @see ::getEntitiesToView()
    */
   public function view(FieldItemListInterface $items, $langcode = NULL) {
     $elements = parent::view($items, $langcode);
@@ -136,7 +136,7 @@ abstract class EntityReferenceFormatterBase extends FormatterBase {
     }
     if ($ids) {
       $target_type = $this->getFieldSetting('target_type');
-      $target_entities = \Drupal::entityManager()->getStorage($target_type)->loadMultiple($ids);
+      $target_entities = \Drupal::entityTypeManager()->getStorage($target_type)->loadMultiple($ids);
     }
 
     // For each item, pre-populate the loaded entity in $item->entity, and set

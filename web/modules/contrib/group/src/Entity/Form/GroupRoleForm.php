@@ -21,11 +21,11 @@ class GroupRoleForm extends EntityForm {
     $group_role = $this->entity;
     if ($group_role->isInternal()) {
       return [
-        '#title' => t('Error'),
+        '#title' => $this->t('Error'),
         'description' => [
           '#prefix' => '<p>',
           '#suffix' => '</p>',
-          '#markup' => t('Cannot edit an internal group role directly.'),
+          '#markup' => $this->t('Cannot edit an internal group role directly.'),
         ],
       ];
     }
@@ -44,10 +44,10 @@ class GroupRoleForm extends EntityForm {
     $group_role_id = '';
 
     $form['label'] = [
-      '#title' => t('Name'),
+      '#title' => $this->t('Name'),
       '#type' => 'textfield',
       '#default_value' => $group_role->label(),
-      '#description' => t('The human-readable name of this group role. This text will be displayed on the group permissions page.'),
+      '#description' => $this->t('The human-readable name of this group role. This text will be displayed on the group permissions page.'),
       '#required' => TRUE,
       '#size' => 30,
     ];
@@ -70,7 +70,7 @@ class GroupRoleForm extends EntityForm {
         'exists' => [$this, 'exists'],
         'source' => ['label'],
       ],
-      '#description' => t('A unique machine-readable name for this group role. It must only contain lowercase letters, numbers, and underscores.'),
+      '#description' => $this->t('A unique machine-readable name for this group role. It must only contain lowercase letters, numbers, and underscores.'),
       '#disabled' => !$group_role->isNew(),
       '#field_prefix' => $group_role->getGroupTypeId() . '-',
     ];
@@ -88,8 +88,8 @@ class GroupRoleForm extends EntityForm {
    */
   protected function actions(array $form, FormStateInterface $form_state) {
     $actions = parent::actions($form, $form_state);
-    $actions['submit']['#value'] = t('Save group role');
-    $actions['delete']['#value'] = t('Delete group role');
+    $actions['submit']['#value'] = $this->t('Save group role');
+    $actions['delete']['#value'] = $this->t('Delete group role');
     return $actions;
   }
 
@@ -119,10 +119,10 @@ class GroupRoleForm extends EntityForm {
     $t_args = ['%label' => $group_role->label()];
 
     if ($status == SAVED_UPDATED) {
-      drupal_set_message(t('The group role %label has been updated.', $t_args));
+      $this->messenger()->addStatus($this->t('The group role %label has been updated.', $t_args));
     }
     elseif ($status == SAVED_NEW) {
-      drupal_set_message(t('The group role %label has been added.', $t_args));
+      $this->messenger()->addStatus($this->t('The group role %label has been added.', $t_args));
 
       $context = array_merge($t_args, ['link' => $group_role->toLink($this->t('View'), 'collection')->toString()]);
       $this->logger('group')->notice('Added group role %label.', $context);

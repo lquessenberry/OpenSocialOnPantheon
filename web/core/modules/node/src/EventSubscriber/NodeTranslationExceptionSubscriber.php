@@ -9,7 +9,7 @@ use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\Core\State\StateInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 
@@ -80,11 +80,11 @@ class NodeTranslationExceptionSubscriber implements EventSubscriberInterface {
   /**
    * Redirects not found node translations using the key value collection.
    *
-   * @param \Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ExceptionEvent $event
    *   The exception event.
    */
-  public function onException(GetResponseForExceptionEvent $event) {
-    $exception = $event->getException();
+  public function onException(ExceptionEvent $event) {
+    $exception = $event->getThrowable();
 
     // If this is not a 404, we don't need to check for a redirection.
     if (!($exception instanceof NotFoundHttpException)) {
@@ -104,7 +104,7 @@ class NodeTranslationExceptionSubscriber implements EventSubscriberInterface {
         $old_nid = $parameters['node'];
         $collection = $this->keyValue->get('node_translation_redirect');
         if ($old_nid && $value = $collection->get($old_nid)) {
-          list($nid, $langcode) = $value;
+          [$nid, $langcode] = $value;
           $language = $this->languageManager->getLanguage($langcode);
           $url = $this->urlGenerator->generateFromRoute('entity.node.canonical', ['node' => $nid], ['language' => $language]);
           $response = new RedirectResponse($url, 301);

@@ -15,6 +15,11 @@ class InstallerExistingDatabaseSettingsTest extends InstallerTestBase {
   /**
    * {@inheritdoc}
    */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
   protected function prepareEnvironment() {
     parent::prepareEnvironment();
     // Pre-configure database credentials in settings.php.
@@ -47,15 +52,15 @@ class InstallerExistingDatabaseSettingsTest extends InstallerTestBase {
         ],
       ]);
     }
-    $this->drupalPostForm(NULL, $edit, $this->translations['Save and continue']);
+    $this->submitForm($edit, $this->translations['Save and continue']);
   }
 
   /**
    * Verifies that installation succeeded.
    */
   public function testInstaller() {
-    $this->assertUrl('user/1');
-    $this->assertResponse(200);
+    $this->assertSession()->addressEquals('user/1');
+    $this->assertSession()->statusCodeEquals(200);
   }
 
 }

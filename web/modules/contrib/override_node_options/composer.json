@@ -10,5 +10,8 @@
     }
   ],
   "minimum-stability": "dev",
+  "require": {
+    "drupal/core": "^8 || ^9"
+  },
   "prefer-stable": true
 }

@@ -17,30 +17,30 @@ use Drupal\Core\StringTranslation\TranslatableMarkup;
 class DateTest extends UnitTestCase {
 
   /**
-   * The mocked entity manager.
+   * The mocked entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The mocked language manager.
    *
-   * @var \Drupal\Core\Language\LanguageManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Language\LanguageManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $languageManager;
 
   /**
    * The mocked string translation.
    *
-   * @var \Drupal\Core\StringTranslation\TranslationInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\StringTranslation\TranslationInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $stringTranslation;
 
   /**
    * The mocked string translation.
    *
-   * @var \Symfony\Component\HttpFoundation\RequestStack|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Symfony\Component\HttpFoundation\RequestStack|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $requestStack;
 
@@ -54,21 +54,21 @@ class DateTest extends UnitTestCase {
   /**
    * The date formatter class where methods can be stubbed.
    *
-   * @var \Drupal\Core\Datetime\DateFormatter|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Datetime\DateFormatter|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $dateFormatterStub;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $entity_storage = $this->getMock('Drupal\Core\Entity\EntityStorageInterface');
+    $entity_storage = $this->createMock('Drupal\Core\Entity\EntityStorageInterface');
 
-    $this->entityManager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
-    $this->entityManager->expects($this->any())->method('getStorage')->with('date_format')->willReturn($entity_storage);
+    $this->entityTypeManager = $this->createMock('Drupal\Core\Entity\EntityTypeManagerInterface');
+    $this->entityTypeManager->expects($this->any())->method('getStorage')->with('date_format')->willReturn($entity_storage);
 
-    $this->languageManager = $this->getMock('Drupal\Core\Language\LanguageManagerInterface');
-    $this->stringTranslation = $this->getMock('Drupal\Core\StringTranslation\TranslationInterface');
-    $this->requestStack = $this->getMock('Symfony\Component\HttpFoundation\RequestStack');
+    $this->languageManager = $this->createMock('Drupal\Core\Language\LanguageManagerInterface');
+    $this->stringTranslation = $this->createMock('Drupal\Core\StringTranslation\TranslationInterface');
+    $this->requestStack = $this->createMock('Symfony\Component\HttpFoundation\RequestStack');
 
     $config_factory = $this->getConfigFactoryStub(['system.date' => ['country' => ['default' => 'GB']]]);
     $container = new ContainerBuilder();
@@ -76,11 +76,11 @@ class DateTest extends UnitTestCase {
     $container->set('string_translation', $this->getStringTranslationStub());
     \Drupal::setContainer($container);
 
-    $this->dateFormatter = new DateFormatter($this->entityManager, $this->languageManager, $this->stringTranslation, $this->getConfigFactoryStub(), $this->requestStack);
+    $this->dateFormatter = new DateFormatter($this->entityTypeManager, $this->languageManager, $this->stringTranslation, $this->getConfigFactoryStub(), $this->requestStack);
 
     $this->dateFormatterStub = $this->getMockBuilder('\Drupal\Core\Datetime\DateFormatter')
-      ->setConstructorArgs([$this->entityManager, $this->languageManager, $this->stringTranslation, $this->getConfigFactoryStub(), $this->requestStack])
-      ->setMethods(['formatDiff'])
+      ->setConstructorArgs([$this->entityTypeManager, $this->languageManager, $this->stringTranslation, $this->getConfigFactoryStub(), $this->requestStack])
+      ->onlyMethods(['formatDiff'])
       ->getMock();
   }
 
@@ -185,16 +185,12 @@ class DateTest extends UnitTestCase {
 
     // Mocks the formatDiff function of the dateformatter object.
     $this->dateFormatterStub
-      ->expects($this->at(0))
+      ->expects($this->exactly(2))
       ->method('formatDiff')
-      ->with($timestamp, $request_time, $options)
-      ->will($this->returnValue($expected));
-
-    $this->dateFormatterStub
-      ->expects($this->at(1))
-      ->method('formatDiff')
-      ->with($timestamp, $request_time, $options + ['return_as_object' => TRUE])
-      ->will($this->returnValue(new FormattedDateDiff('1 second', 1)));
+      ->willReturnMap([
+        [$timestamp, $request_time, $options, $expected],
+        [$timestamp, $request_time, $options + ['return_as_object' => TRUE], new FormattedDateDiff('1 second', 1)],
+      ]);
 
     $request = Request::createFromGlobals();
     $request->server->set('REQUEST_TIME', $request_time);
@@ -222,16 +218,12 @@ class DateTest extends UnitTestCase {
 
     // Mocks the formatDiff function of the dateformatter object.
     $this->dateFormatterStub
-      ->expects($this->at(0))
+      ->expects($this->exactly(2))
       ->method('formatDiff')
-      ->with($request_time, $timestamp, $options)
-      ->will($this->returnValue($expected));
-
-    $this->dateFormatterStub
-      ->expects($this->at(1))
-      ->method('formatDiff')
-      ->with($request_time, $timestamp, $options + ['return_as_object' => TRUE])
-      ->will($this->returnValue(new FormattedDateDiff('1 second', 1)));
+      ->willReturnMap([
+        [$request_time, $timestamp, $options, $expected],
+        [$request_time, $timestamp, $options + ['return_as_object' => TRUE], new FormattedDateDiff('1 second', 1)],
+      ]);
 
     $request = Request::createFromGlobals();
     $request->server->set('REQUEST_TIME', $request_time);
@@ -253,7 +245,7 @@ class DateTest extends UnitTestCase {
    *
    * @covers ::formatDiff
    */
-  public function testformatDiff($expected, $max_age, $timestamp1, $timestamp2, $options = []) {
+  public function testFormatDiff($expected, $max_age, $timestamp1, $timestamp2, $options = []) {
     // Mocks a simple translateString implementation.
     $this->stringTranslation->expects($this->any())
       ->method('translateString')
@@ -275,7 +267,7 @@ class DateTest extends UnitTestCase {
   }
 
   /**
-   * Data provider for testformatDiff().
+   * Data provider for testFormatDiff().
    */
   public function providerTestFormatDiff() {
     // This is the fixed request time in the test.
@@ -412,7 +404,7 @@ class DateTest extends UnitTestCase {
         'max-age' => $max_age,
       ],
     ];
-    $this->assertArrayEquals($expected, $object->toRenderable());
+    $this->assertEquals($expected, $object->toRenderable());
 
     // Test retrieving the formatted time difference string.
     $this->assertEquals($string, $object->getString());
@@ -421,8 +413,6 @@ class DateTest extends UnitTestCase {
     $build = [];
     CacheableMetadata::createFromObject($object)->applyTo($build);
     $this->assertEquals($max_age, $build['#cache']['max-age']);
-    // Test the BC layer.
-    $this->assertSame($object->getCacheMaxAge(), $object->getMaxAge());
   }
 
   /**

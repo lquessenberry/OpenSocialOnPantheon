@@ -1,0 +1,12 @@
+name: 'Social Tour'
+description: 'The tour specific feature settings for Open Social.'
+type: module
+core_version_requirement: ^9
+package: Social
+dependencies:
+  - drupal:tour
+
+# Information added by Drupal.org packaging script on 2022-04-01
+version: '1.0.0-alpha2'
+project: 'social_tour'
+datestamp: 1648832310

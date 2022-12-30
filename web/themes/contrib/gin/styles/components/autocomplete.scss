@@ -1,0 +1,83 @@
+.ui-autocomplete,
+.ui-dialog .ui-autocomplete {
+  color: var(--colorGinText);
+  background: var(--colorGinInputBackground);
+  border-radius: 0 0 var(--ginBorderDefault) var(--ginBorderDefault);
+
+  .ui-menu-item-wrapper.ui-state-active {
+    color: var(--colorGinPrimaryHover);
+    background-color: var(--colorGinItemHover);
+  }
+}
+
+.ui-state-active,
+.ui-widget-content .ui-state-active,
+.ui-widget-header .ui-state-active,
+a.ui-button:active,
+.ui-button:active,
+.ui-button.ui-state-active:hover {
+  &,
+  .ui-dialog & {
+    border: none;
+  }
+}
+
+.ui-autocomplete .ui-menu-item a {
+  color: var(--colorGinText);
+
+  &:hover {
+    color: var(--colorGinPrimaryHover);
+    background-color: var(--colorGinItemHover);
+  }
+}
+
+.ui-widget.ui-widget-content {
+  padding: 0;
+  border: 1px solid var(--colorGinBorder);
+}
+
+div.autocomplete-deluxe-multiple {
+  color: var(--colorGinText);
+  background: var(--colorGinInputBackground);
+  border: 1px solid var(--colorGinFormElementBorder);
+  border-radius: var(--ginBorderDefault);
+  box-sizing: border-box;
+  transition: var(--ginTransition);
+}
+
+.autocomplete-deluxe-container {
+  input.autocomplete-deluxe-form {
+    min-height: 0;
+    background: none;
+  }
+}
+
+.autocomplete-deluxe-item {
+  color: var(--colorGinPrimaryHover);
+  padding: 6px 24px 6px 12px;
+  background-color: var(--colorGinPrimaryLightHover);
+  border-radius: var(--ginBorderMedium);
+  border: 0 none;
+  box-shadow: none;
+
+  &:hover,
+  &:active {
+    color: var(--colorGinButtonText);
+    background-color: var(--colorGinPrimary);
+  }
+
+  .autocomplete-deluxe-item-delete {
+    top: 6px;
+    right: 6px;
+    mask-image: icon('close');
+    mask-size: 10px 10px;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    background: var(--colorGinPrimary);
+  }
+
+  &:hover .autocomplete-deluxe-item-delete,
+  .autocomplete-deluxe-item-delete:hover {
+    background: var(--colorGinButtonText);
+  }
+}

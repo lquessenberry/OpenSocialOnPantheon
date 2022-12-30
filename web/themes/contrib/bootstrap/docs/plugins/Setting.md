@@ -18,7 +18,7 @@ Replace all of the following instances of `THEMENAME` with the actual machine
 name of your sub-theme.
 
 Create a file at
-`./THEMENAME/src/Plugin/Setting/THEMENAME/Accessibility/SkipLink.php`
+`./themes/THEMENAME/src/Plugin/Setting/THEMENAME/Accessibility/SkipLink.php`
 with the following contents:
 
 ```php

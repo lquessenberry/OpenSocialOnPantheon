@@ -1,9 +1,60 @@
 /**
  * @file
  * Bootstrap Modals.
+ *
+ * @param {jQuery} $
+ * @param {Drupal} Drupal
+ * @param {Drupal.bootstrap} Bootstrap
+ * @param {Attributes} Attributes
  */
 (function ($, Drupal, Bootstrap, Attributes) {
   'use strict';
+
+  /**
+   * Document jQuery object.
+   *
+   * @type {jQuery}
+   */
+  var $document = $(document);
+
+  /**
+   * Finds the first available and visible focusable input element.
+   *
+   * This is abstracted from the main code below so sub-themes can override
+   * this method to return their own element if desired.
+   *
+   * @param {Modal} modal
+   *   The Bootstrap modal instance.
+   *
+   * @return {jQuery}
+   *   A jQuery object containing the element that should be focused. Note: if
+   *   this object contains multiple elements, only the first visible one will
+   *   be used.
+   */
+  Bootstrap.modalFindFocusableElement = function (modal) {
+    return modal.$dialogBody.find(':input,:button,.btn').not('.visually-hidden,.sr-only');
+  };
+
+  $document.on('shown.bs.modal', function (e) {
+    var $modal = $(e.target);
+    var modal = $modal.data('bs.modal');
+
+    // Focus the first input element found.
+    if (modal && modal.options.focusInput) {
+      var $focusable = Bootstrap.modalFindFocusableElement(modal);
+      if ($focusable && $focusable[0]) {
+        var $input = $focusable.filter(':visible:first').focus();
+
+        // Select text if input is text.
+        if (modal.options.selectText && $input.is(':text')) {
+          $input[0].setSelectionRange(0, $input[0].value.length)
+        }
+      }
+      else if (modal.$close.is(':visible')) {
+        modal.$close.focus();
+      }
+    }
+  });
 
   /**
    * Only process this once.
@@ -19,39 +70,43 @@
       var BootstrapModal = this;
 
       // Override the Modal constructor.
-      var Modal = function (element, options) {
-        this.options             = options;
+      Bootstrap.Modal = function (element, options) {
         this.$body               = $(document.body);
         this.$element            = $(element);
         this.$dialog             = this.$element.find('.modal-dialog');
         this.$header             = this.$dialog.find('.modal-header');
+        this.$title              = this.$dialog.find('.modal-title');
         this.$close              = this.$header.find('.close');
         this.$footer             = this.$dialog.find('.modal-footer');
         this.$content            = this.$dialog.find('.modal-content');
-        this.$dialogBody         = this.$content.find('.modal-body');
+        this.$dialogBody         = this.$dialog.find('.modal-body');
         this.$backdrop           = null;
         this.isShown             = null;
         this.originalBodyPad     = null;
         this.scrollbarWidth      = 0;
         this.ignoreBackdropClick = false;
+        this.options             = this.mapDialogOptions(options);
       };
 
       // Extend defaults to take into account for theme settings.
-      Modal.DEFAULTS = $.extend({}, BootstrapModal.DEFAULTS, {
+      Bootstrap.Modal.DEFAULTS = $.extend({}, BootstrapModal.DEFAULTS, {
         animation: !!settings.modal_animation,
         backdrop: settings.modal_backdrop === 'static' ? 'static' : !!settings.modal_backdrop,
+        focusInput: !!settings.modal_focus_input,
+        selectText: !!settings.modal_select_text,
         keyboard: !!settings.modal_keyboard,
+        remote: null,
         show: !!settings.modal_show,
         size: settings.modal_size
       });
 
       // Copy over the original prototype methods.
-      Modal.prototype = BootstrapModal.prototype;
+      Bootstrap.Modal.prototype = BootstrapModal.prototype;
 
       /**
        * Handler for $.fn.modal('destroy').
        */
-      Modal.prototype.destroy = function () {
+      Bootstrap.Modal.prototype.destroy = function () {
         this.hide();
         Drupal.detachBehaviors(this.$element[0]);
         this.$element.removeData('bs.modal').remove();
@@ -60,7 +115,7 @@
       /**
        * Initialize the modal.
        */
-      Modal.prototype.init = function () {
+      Bootstrap.Modal.prototype.init = function () {
         if (this.options.remote) {
           this.$content.load(this.options.remote, $.proxy(function () {
             this.$element.trigger('loaded.bs.modal');
@@ -68,13 +123,28 @@
         }
       };
 
+      /**
+       * Map dialog options.
+       *
+       * Note: this is primarily for use in modal.jquery.ui.bridge.js.
+       *
+       * @param {Object} options
+       *   The passed options.
+       */
+      Bootstrap.Modal.prototype.mapDialogOptions = function (options) {
+        return options || {};
+      }
+
       // Modal jQuery Plugin Definition.
       var Plugin = function () {
         // Extract the arguments.
         var args = Array.prototype.slice.call(arguments);
-        var method = args.shift();
-        var options = {};
+        var method = args[0];
+        var options = args[1] || {};
+        var relatedTarget = args[2] || null;
+        // Move arguments down if no method was passed.
         if ($.isPlainObject(method)) {
+          relatedTarget = options || null;
           options = method;
           method = null;
         }
@@ -84,31 +154,30 @@
           var data    = $this.data('bs.modal');
           var initialize = false;
 
-          options = $.extend({}, Modal.DEFAULTS, data && data.options, $this.data(), options);
-          if (!data) {
-            // When initializing the Bootstrap Modal, only pass the "supported"
-            // options by intersecting the default options. This allows plugins
-            // like the jQuery UI bridge to properly detect when options have
-            // changed when they're set below as a global "option" method.
-            $this.data('bs.modal', (data = new Modal(this, Bootstrap.intersectObjects(options, Modal.DEFAULTS))));
-            initialize = true;
+          // Immediately return if there's no instance to invoke a valid method.
+          var showMethods = ['open', 'show', 'toggle'];
+          if (!data && method && showMethods.indexOf(method) === -1) {
+            return;
           }
 
-          // If no method or arguments, treat it like it's initializing the modal.
-          if (!method && !args.length) {
-            data.option(options);
+          options = Bootstrap.normalizeObject($.extend({}, Bootstrap.Modal.DEFAULTS, data && data.options, $this.data(), options));
+          delete options['bs.modal'];
+
+          if (!data) {
+            $this.data('bs.modal', (data = new Bootstrap.Modal(this, options)));
             initialize = true;
           }
 
           // Initialize the modal.
-          if (initialize) {
+          if (initialize || (!method && !args.length)) {
             data.init();
           }
 
+          // Explicit method passed.
           if (method) {
             if (typeof data[method] === 'function') {
               try {
-                ret = data[method].apply(data, args);
+                ret = data[method].apply(data, args.slice(1));
               }
               catch (e) {
                 Drupal.throwError(e);
@@ -116,6 +185,13 @@
             }
             else {
               Bootstrap.unsupported('method', method);
+            }
+          }
+          // No method, set options and open if necessary.
+          else {
+            data.option(options);
+            if (options.show && !data.isShown) {
+              data.show(relatedTarget);
             }
           }
         });
@@ -126,18 +202,19 @@
       };
 
       // Replace the plugin constructor with the new Modal constructor.
-      Plugin.Constructor = Modal;
+      Plugin.Constructor = Bootstrap.Modal;
 
       // Replace the data API so that it calls $.fn.modal rather than Plugin.
       // This allows sub-themes to replace the jQuery Plugin if they like with
       // out having to redo all this boilerplate.
-      $(document)
+      $document
         .off('click.bs.modal.data-api')
         .on('click.bs.modal.data-api', '[data-toggle="modal"]', function (e) {
           var $this   = $(this);
           var href    = $this.attr('href');
-          var $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))); // strip for ie7
-          var option  = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data());
+          var target  = $this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, '')); // strip for ie7
+          var $target = $document.find(target);
+          var options  = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data());
 
           if ($this.is('a')) e.preventDefault();
 
@@ -148,7 +225,7 @@
               $this.is(':visible') && $this.trigger('focus');
             });
           });
-          $target.modal(option, this);
+          $target.modal(options, this);
         });
 
       return Plugin;
@@ -443,14 +520,14 @@
         };
         variables = $.extend(true, {}, defaults, variables);
 
-        var title = variables.title;
+        if (typeof variables.title === 'string') {
+          variables.title = $.extend({}, defaults.title, { content: variables.title });
+        }
+
+        var title = Drupal.theme('bootstrapModalTitle', variables.title);
         if (title) {
           var attributes = Attributes.create(defaults.attributes).merge(variables.attributes);
           attributes.set('id', attributes.get('id', variables.id + '--header'));
-
-          if (typeof title === 'string') {
-            title = $.extend({}, defaults.title, { content: title });
-          }
 
           output += '<div' + attributes + '>';
 
@@ -458,13 +535,59 @@
             output += Drupal.theme('bootstrapModalClose', _.omit(variables, 'attributes'));
           }
 
-          output += '<' + Drupal.checkPlain(title.tag) + Attributes.create(defaults.title.attributes).merge(title.attributes) + '>' + (title.html ? title.content : Drupal.checkPlain(title.content)) + '</' + Drupal.checkPlain(title.tag) + '>';
+          output += title;
 
           output += '</div>';
         }
 
         return output;
+      },
+
+      /**
+       * Theme function for a Bootstrap Modal title.
+       *
+       * @param {Object} [variables]
+       *   An object containing key/value pairs of variables.
+       *
+       * @return {string}
+       *   The HTML for the modal title.
+       */
+      bootstrapModalTitle: function (variables) {
+        var output = '';
+
+        var defaults = {
+          attributes: {
+            class: ['modal-title']
+          },
+          closeButton: true,
+          id: 'drupal-modal',
+          content: Drupal.t('Loading...'),
+          html: false,
+          tag: 'h4'
+        };
+
+        if (typeof variables === 'string') {
+          variables = $.extend({}, defaults, { content: title });
+        }
+
+        variables = $.extend(true, {}, defaults, variables);
+
+        var attributes = Attributes.create(defaults.attributes).merge(variables.attributes);
+        attributes.set('id', attributes.get('id', variables.id + '--title'));
+
+        output += '<' + Drupal.checkPlain(variables.tag) + Attributes.create(defaults.attributes).merge(variables.attributes) + '>';
+
+        if (variables.closeButton) {
+          output += Drupal.theme('bootstrapModalClose', _.omit(variables, 'attributes'));
+        }
+
+        output += (variables.html ? variables.content : Drupal.checkPlain(variables.content));
+
+        output += '</' + Drupal.checkPlain(variables.tag) + '>';
+
+        return output;
       }
+
     })
 
   });

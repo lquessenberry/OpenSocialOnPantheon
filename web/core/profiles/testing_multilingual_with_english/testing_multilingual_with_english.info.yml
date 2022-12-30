@@ -2,8 +2,7 @@ name: 'Testing multilingual with English'
 type: profile
 description: 'Minimal profile for running tests with a multilingual installer.'
 version: VERSION
-core: 8.x
 hidden: true
-dependencies:
+install:
   - locale
 keep_english: true

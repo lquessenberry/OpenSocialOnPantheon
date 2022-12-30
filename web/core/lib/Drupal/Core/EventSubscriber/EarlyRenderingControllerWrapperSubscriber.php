@@ -5,23 +5,23 @@ namespace Drupal\Core\EventSubscriber;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Cache\CacheableResponseInterface;
-use Drupal\Core\Controller\ControllerResolverInterface;
 use Drupal\Core\Render\AttachmentsInterface;
 use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\Render\RenderContext;
 use Drupal\Core\Render\RendererInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
+use Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * Subscriber that wraps controllers, to handle early rendering.
  *
- * When controllers call drupal_render() (RendererInterface::render()) outside
- * of a render context, we call that "early rendering". Controllers should
- * return only render arrays, but we cannot prevent controllers from doing early
- * rendering. The problem with early rendering is that the bubbleable metadata
- * (cacheability & attachments) are lost.
+ * When controllers call RendererInterface::render() outside of a render
+ * context, we call that "early rendering". Controllers should return
+ * only render arrays, but we cannot prevent controllers from doing
+ * early rendering. The problem with early rendering is that the
+ * bubbleable metadata (cacheability & attachments) are lost.
  *
  * This can lead to broken pages (missing assets), stale pages (missing cache
  * tags causing a page not to be invalidated) or even security problems (missing
@@ -36,8 +36,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * ::renderPlain() methods. In that case, no bubbleable metadata is lost.
  *
  * If the render context is not empty, then the controller did use
- * drupal_render(), and bubbleable metadata was collected. This bubbleable
- * metadata is then merged onto the render array.
+ * RendererInterface::render(), and bubbleable metadata was collected.
+ * This bubbleable metadata is then merged onto the render array.
  *
  * In other words: this just exists to ease the transition to Drupal 8: it
  * allows controllers that return render arrays (the majority) and
@@ -55,11 +55,11 @@ use Symfony\Component\HttpKernel\KernelEvents;
 class EarlyRenderingControllerWrapperSubscriber implements EventSubscriberInterface {
 
   /**
-   * The controller resolver.
+   * The argument resolver.
    *
-   * @var \Drupal\Core\Controller\ControllerResolverInterface
+   * @var \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface
    */
-  protected $controllerResolver;
+  protected $argumentResolver;
 
   /**
    * The renderer.
@@ -71,27 +71,27 @@ class EarlyRenderingControllerWrapperSubscriber implements EventSubscriberInterf
   /**
    * Constructs a new EarlyRenderingControllerWrapperSubscriber instance.
    *
-   * @param \Drupal\Core\Controller\ControllerResolverInterface $controller_resolver
-   *   The controller resolver.
+   * @param \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface $argument_resolver
+   *   The argument resolver.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
    */
-  public function __construct(ControllerResolverInterface $controller_resolver, RendererInterface $renderer) {
-    $this->controllerResolver = $controller_resolver;
+  public function __construct(ArgumentResolverInterface $argument_resolver, RendererInterface $renderer) {
+    $this->argumentResolver = $argument_resolver;
     $this->renderer = $renderer;
   }
 
   /**
    * Ensures bubbleable metadata from early rendering is not lost.
    *
-   * @param \Symfony\Component\HttpKernel\Event\FilterControllerEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ControllerEvent $event
    *   The controller event.
    */
-  public function onController(FilterControllerEvent $event) {
+  public function onController(ControllerEvent $event) {
     $controller = $event->getController();
 
     // See \Symfony\Component\HttpKernel\HttpKernel::handleRaw().
-    $arguments = $this->controllerResolver->getArguments($event->getRequest(), $controller);
+    $arguments = $this->argumentResolver->getArguments($event->getRequest(), $controller);
 
     $event->setController(function () use ($controller, $arguments) {
       return $this->wrapControllerExecutionInRenderContext($controller, $arguments);
@@ -124,8 +124,8 @@ class EarlyRenderingControllerWrapperSubscriber implements EventSubscriberInterf
     });
 
     // If early rendering happened, i.e. if code in the controller called
-    // drupal_render() outside of a render context, then the bubbleable metadata
-    // for that is stored in the current render context.
+    // RendererInterface::render() outside of a render context, then the
+    // bubbleable metadata for that is stored in the current render context.
     if (!$context->isEmpty()) {
       /** @var \Drupal\Core\Render\BubbleableMetadata $early_rendering_bubbleable_metadata */
       $early_rendering_bubbleable_metadata = $context->pop();

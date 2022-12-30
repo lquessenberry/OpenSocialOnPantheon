@@ -16,25 +16,30 @@ use Drupal\user\RoleInterface;
 class MediaRevisionTest extends MediaFunctionalTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Checks media revision operations.
    */
   public function testRevisions() {
     $assert = $this->assertSession();
 
     /** @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage $media_storage */
-    $media_storage = $this->container->get('entity.manager')->getStorage('media');
+    $media_storage = $this->container->get('entity_type.manager')->getStorage('media');
 
     // Create a media type and media item.
-    $media_type = $this->createMediaType();
+    $media_type = $this->createMediaType('test');
     $media = $media_storage->create([
       'bundle' => $media_type->id(),
       'name' => 'Unnamed',
     ]);
     $media->save();
 
-    // You can't access the revision page when there is only 1 revision.
+    // You can access the revision page when there is only 1 revision.
     $this->drupalGet('media/' . $media->id() . '/revisions/' . $media->getRevisionId() . '/view');
-    $assert->statusCodeEquals(403);
+    $assert->statusCodeEquals(200);
 
     // Create some revisions.
     $media_revisions = [];
@@ -80,15 +85,15 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
     $uri = 'temporary://foo.txt';
     file_put_contents($uri, $this->randomString(128));
 
-    $this->createMediaType(['bundle' => 'file', 'new_revision' => TRUE], 'file');
+    $this->createMediaType('file', ['id' => 'document', 'new_revision' => TRUE]);
 
     // Create a media item.
-    $this->drupalGet('/media/add/file');
+    $this->drupalGet('/media/add/document');
     $page = $this->getSession()->getPage();
     $page->fillField('Name', 'Foobar');
     $page->attachFileToField('File', $this->container->get('file_system')->realpath($uri));
     $page->pressButton('Save');
-    $assert->addressMatches('/^\/media\/[0-9]+$/');
+    $assert->addressEquals('admin/content/media');
 
     // The media item was just created, so it should only have one revision.
     $media = $this->container
@@ -101,7 +106,7 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
     $this->drupalGet('/media/1/edit');
     $assert->checkboxChecked('Create new revision');
     $page = $this->getSession()->getPage();
-    $page->fillField('Name', 'Foobaz');
+    $page->fillField('Name', 'Foo');
     $page->pressButton('Save');
     $this->assertRevisionCount($media, 2);
 
@@ -110,16 +115,16 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
       ->getStorage('media')
       ->loadUnchanged(1);
     $this->drupalGet("media/" . $media->id() . "/revisions/" . $media->getRevisionId() . "/view");
-    $assert->pageTextContains('Foobaz');
+    $assert->pageTextContains('Foo');
   }
 
   /**
-   * Tests creating revisions of a Image media item.
+   * Tests creating revisions of an Image media item.
    */
   public function testImageMediaRevision() {
     $assert = $this->assertSession();
 
-    $this->createMediaType(['bundle' => 'image', 'new_revision' => TRUE], 'image');
+    $this->createMediaType('image', ['id' => 'image', 'new_revision' => TRUE]);
 
     /** @var \Drupal\field\FieldConfigInterface $field */
     // Disable the alt text field, because this is not a JavaScript test and
@@ -135,9 +140,9 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
     $this->drupalGet('/media/add/image');
     $page = $this->getSession()->getPage();
     $page->fillField('Name', 'Foobar');
-    $page->attachFileToField('Image', \Drupal::root() . '/core/modules/media/tests/fixtures/example_1.jpeg');
+    $page->attachFileToField('Image', $this->root . '/core/modules/media/tests/fixtures/example_1.jpeg');
     $page->pressButton('Save');
-    $assert->addressMatches('/^\/media\/[0-9]+$/');
+    $assert->addressEquals('admin/content/media');
 
     // The media item was just created, so it should only have one revision.
     $media = $this->container
@@ -150,7 +155,7 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
     $this->drupalGet('/media/1/edit');
     $assert->checkboxChecked('Create new revision');
     $page = $this->getSession()->getPage();
-    $page->fillField('Name', 'Foobaz');
+    $page->fillField('Name', 'Foo');
     $page->pressButton('Save');
     $this->assertRevisionCount($media, 2);
 
@@ -159,7 +164,7 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
       ->getStorage('media')
       ->loadUnchanged(1);
     $this->drupalGet("media/" . $media->id() . "/revisions/" . $media->getRevisionId() . "/view");
-    $assert->pageTextContains('Foobaz');
+    $assert->pageTextContains('Foo');
   }
 
   /**
@@ -185,13 +190,17 @@ class MediaRevisionTest extends MediaFunctionalTestBase {
    *   The entity in question.
    * @param int $expected_revisions
    *   The expected number of revisions.
+   *
+   * @internal
    */
-  protected function assertRevisionCount(EntityInterface $entity, $expected_revisions) {
+  protected function assertRevisionCount(EntityInterface $entity, int $expected_revisions): void {
     $entity_type = $entity->getEntityType();
 
     $count = $this->container
-      ->get('entity.query')
-      ->get($entity_type->id())
+      ->get('entity_type.manager')
+      ->getStorage($entity_type->id())
+      ->getQuery()
+      ->accessCheck(FALSE)
       ->count()
       ->allRevisions()
       ->condition($entity_type->getKey('id'), $entity->id())

@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\system\Kernel\Block;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\system\Entity\Menu;
 use Drupal\block\Entity\Block;
@@ -9,7 +10,7 @@ use Drupal\Core\Render\Element;
 use Drupal\system\Tests\Routing\MockRouteProvider;
 use Drupal\Tests\Core\Menu\MenuLinkMock;
 use Drupal\user\Entity\User;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
@@ -31,7 +32,7 @@ class SystemMenuBlockTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'system',
     'block',
     'menu_test',
@@ -79,7 +80,7 @@ class SystemMenuBlockTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installSchema('system', 'sequences');
     $this->installEntitySchema('user');
@@ -162,16 +163,16 @@ class SystemMenuBlockTest extends KernelTestBase {
     $dependencies = $block->calculateDependencies()->getDependencies();
     $expected = [
       'config' => [
-        'system.menu.' . $this->menu->id()
+        'system.menu.' . $this->menu->id(),
       ],
       'module' => [
-        'system'
+        'system',
       ],
       'theme' => [
-        'stark'
+        'stark',
       ],
     ];
-    $this->assertIdentical($expected, $dependencies);
+    $this->assertSame($expected, $dependencies);
   }
 
   /**
@@ -225,8 +226,8 @@ class SystemMenuBlockTest extends KernelTestBase {
     $no_active_trail_expectations['level_3_and_beyond'] = [];
     foreach ($blocks as $id => $block) {
       $block_build = $block->build();
-      $items = isset($block_build['#items']) ? $block_build['#items'] : [];
-      $this->assertIdentical($no_active_trail_expectations[$id], $this->convertBuiltMenuToIdTree($items), format_string('Menu block %id with no active trail renders the expected tree.', ['%id' => $id]));
+      $items = $block_build['#items'] ?? [];
+      $this->assertSame($no_active_trail_expectations[$id], $this->convertBuiltMenuToIdTree($items), new FormattableMarkup('Menu block %id with no active trail renders the expected tree.', ['%id' => $id]));
     }
 
     // Scenario 2: test all block instances when there's an active trail.
@@ -247,7 +248,7 @@ class SystemMenuBlockTest extends KernelTestBase {
       'test.example2' => [
         'test.example3' => [
           'test.example4' => [],
-        ]
+        ],
       ],
       'test.example5' => [
         'test.example7' => [],
@@ -277,9 +278,79 @@ class SystemMenuBlockTest extends KernelTestBase {
     $active_trail_expectations['level_3_and_beyond'] = $active_trail_expectations['level_3_only'];
     foreach ($blocks as $id => $block) {
       $block_build = $block->build();
-      $items = isset($block_build['#items']) ? $block_build['#items'] : [];
-      $this->assertIdentical($active_trail_expectations[$id], $this->convertBuiltMenuToIdTree($items), format_string('Menu block %id with an active trail renders the expected tree.', ['%id' => $id]));
+      $items = $block_build['#items'] ?? [];
+      $this->assertSame($active_trail_expectations[$id], $this->convertBuiltMenuToIdTree($items), new FormattableMarkup('Menu block %id with an active trail renders the expected tree.', ['%id' => $id]));
     }
+  }
+
+  /**
+   * Tests the config expanded option.
+   *
+   * @dataProvider configExpandedTestCases
+   */
+  public function testConfigExpanded($active_route, $menu_block_level, $expected_items) {
+    $block = $this->blockManager->createInstance('system_menu_block:' . $this->menu->id(), [
+      'region' => 'footer',
+      'id' => 'machinename',
+      'theme' => 'stark',
+      'level' => $menu_block_level,
+      'depth' => 0,
+      'expand_all_items' => TRUE,
+    ]);
+
+    $route = $this->container->get('router.route_provider')->getRouteByName($active_route);
+    $request = new Request();
+    $request->attributes->set(RouteObjectInterface::ROUTE_NAME, $active_route);
+    $request->attributes->set(RouteObjectInterface::ROUTE_OBJECT, $route);
+    $this->container->get('request_stack')->push($request);
+
+    $block_build = $block->build();
+    $items = $block_build['#items'] ?? [];
+    $this->assertEquals($expected_items, $this->convertBuiltMenuToIdTree($items));
+  }
+
+  /**
+   * @return array
+   */
+  public function configExpandedTestCases() {
+    return [
+      'All levels' => [
+        'example5',
+        1,
+        [
+          'test.example1' => [],
+          'test.example2' => [
+            'test.example3' => [
+              'test.example4' => [],
+            ],
+          ],
+          'test.example5' => [
+            'test.example7' => [],
+          ],
+          'test.example6' => [],
+          'test.example8' => [],
+        ],
+      ],
+      'Level two in "example 5" branch' => [
+        'example5',
+        2,
+        [
+          'test.example7' => [],
+        ],
+      ],
+      'Level three in "example 5" branch' => [
+        'example5',
+        3,
+        [],
+      ],
+      'Level three in "example 4" branch' => [
+        'example4',
+        3,
+        [
+          'test.example4' => [],
+        ],
+      ],
+    ];
   }
 
   /**

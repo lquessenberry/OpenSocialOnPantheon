@@ -13,63 +13,59 @@ use Drupal\user\Entity\Role;
  * Perform actions related to the installation of social_comment.
  */
 function social_comment_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions('anonymous', ['access comments']);
+  user_role_grant_permissions('authenticated', ['access comments']);
+  user_role_grant_permissions(
+    'verified',
+    [
+      'access comments',
+      'post comments',
+      'skip comment approval',
+      'edit own comments',
+      'delete own comments',
+      'administer own comments',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'access comments',
+      'post comments',
+      'skip comment approval',
+      'edit own comments',
+      'delete own comments',
+      'administer own comments',
+      'administer comments',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'access comments',
+      'post comments',
+      'skip comment approval',
+      'edit own comments',
+      'delete own comments',
+      'administer own comments',
+      'administer comments',
+    ]
+  );
 
-  // Set some default permissions.
-  _social_comment_set_permissions();
+  // Set the view mode to use when shown in activities.
+  activity_creator_set_entity_view_mode('comment', 'activity');
 }
 
 /**
- * Function to set permissions.
+ * Implements hook_update_dependencies().
  */
-function _social_comment_set_permissions() {
-  $roles = Role::loadMultiple();
+function social_comment_update_dependencies() {
+  // Run the activities view mode update after the final features removal ran.
+  $dependencies['social_comment'][8801] = [
+    'social_core' => 8802,
+  ];
 
-  /** @var \Drupal\user\Entity\Role $role */
-  foreach ($roles as $role) {
-    if ($role->id() === 'administrator') {
-      continue;
-    }
-
-    $permissions = _social_comment_get_permissions($role->id());
-    user_role_grant_permissions($role->id(), $permissions);
-  }
-}
-
-/**
- * Build the permissions.
- *
- * @param string $role
- *   The role.
- *
- * @return array
- *   Returns an array containing the permissions.
- */
-function _social_comment_get_permissions($role) {
-  // Anonymous.
-  $permissions['anonymous'] = [];
-
-  // Authenticated.
-  $permissions['authenticated'] = array_merge($permissions['anonymous'], [
-    'access comments',
-    'post comments',
-    'skip comment approval',
-    'edit own comments',
-    'delete own comments',
-    'administer own comments',
-  ]);
-
-  // Content manager.
-  $permissions['contentmanager'] = array_merge($permissions['authenticated'], [
-    'administer comments',
-  ]);
-
-  // Site manager.
-  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], []);
-
-  if (isset($permissions[$role])) {
-    return $permissions[$role];
-  }
-  return [];
+  return $dependencies;
 }
 
 /**
@@ -87,5 +83,110 @@ function social_comment_update_8001(&$sandbox) {
     if ($role->id() === 'authenticated') {
       user_role_grant_permissions($role->id(), $permissions);
     }
+  }
+}
+
+/**
+ * Enable 'administer comments' permission for sitemanagers and contentmanagers.
+ */
+function social_comment_update_8002() {
+  // These permissions were added to default installs in PR 959 but an update
+  // hook was not added at that point so this must be rectified now.
+  user_role_grant_permissions('contentmanager', ['administer comments']);
+  user_role_grant_permissions('sitemanager', ['administer comments']);
+}
+
+/**
+ * Set the view mode to use when shown in activities.
+ */
+function social_comment_update_8801() {
+  activity_creator_set_entity_view_mode('comment', 'activity');
+}
+
+/**
+ * Set trimmed format for comment body in activity comment view mode.
+ */
+function social_comment_update_8802() {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_comment', 'social_comment_update_8803');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Ensure like_and_dislike widget is rendered correctly.
+ */
+function social_comment_update_8901() {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_comment', 'social_comment_update_8901');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update comment views.
+ */
+function social_comment_update_11201(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_comment', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Reorder fields in the comment views.
+ */
+function social_comment_update_11202(): void {
+  $config_factory = \Drupal::configFactory();
+  if (!empty($config_factory->get('views.view.comment')->getRawData())) {
+    $comment_view = $config_factory->getEditable('views.view.comment');
+
+    // View displays where we need reorder fields.
+    $displays = [
+      'display.default',
+      'display.page_unapproved',
+    ];
+
+    // Field for reordering which should be placed before the 'update' column.
+    $fields_to_replace = [
+      'type',
+      'label',
+    ];
+
+    // Reorder fields.
+    foreach ($displays as $display) {
+      $fields_config = "$display.display_options.fields";
+      $fields = $comment_view->get($fields_config);
+
+      // Reorder field in array.
+      foreach ($fields_to_replace as $field) {
+        $update_index = array_search('changed', array_keys($fields));
+        if ($update_index !== FALSE) {
+          $field_data = $fields[$field];
+          unset($fields[$field]);
+          $fields = array_slice($fields, 0, $update_index, TRUE) +
+            [$field => $field_data] +
+            array_slice($fields, $update_index, count($fields) - $update_index, TRUE);
+        }
+      }
+
+      // Set reordered fields.
+      $comment_view->set($fields_config, $fields);
+    }
+
+    // Save updated view configuration.
+    $comment_view->save();
   }
 }

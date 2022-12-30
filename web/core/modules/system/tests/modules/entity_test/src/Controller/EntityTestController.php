@@ -34,7 +34,7 @@ class EntityTestController extends ControllerBase {
    */
   public function listReferencingEntities($entity_reference_field_name, $referenced_entity_type, $referenced_entity_id) {
     // Early return if the referenced entity does not exist (or is deleted).
-    $referenced_entity = $this->entityManager()
+    $referenced_entity = $this->entityTypeManager()
       ->getStorage($referenced_entity_type)
       ->load($referenced_entity_id);
     if ($referenced_entity === NULL) {
@@ -42,11 +42,12 @@ class EntityTestController extends ControllerBase {
     }
 
     $query = $this->entityTypeManager()->getStorage('entity_test')->getQuery()
+      ->accessCheck(TRUE)
       ->condition($entity_reference_field_name . '.target_id', $referenced_entity_id);
-    $entities = $this->entityManager()
+    $entities = $this->entityTypeManager()
       ->getStorage('entity_test')
       ->loadMultiple($query->execute());
-    return $this->entityManager()
+    return $this->entityTypeManager()
       ->getViewBuilder('entity_test')
       ->viewMultiple($entities, 'full');
   }
@@ -61,15 +62,15 @@ class EntityTestController extends ControllerBase {
    *   A renderable array.
    */
   public function listEntitiesAlphabetically($entity_type_id) {
-    $entity_type_definition = $this->entityManager()->getDefinition($entity_type_id);
-    $query = $this->entityTypeManager()->getStorage($entity_type_id)->getQuery();
+    $entity_type_definition = $this->entityTypeManager()->getDefinition($entity_type_id);
+    $query = $this->entityTypeManager()->getStorage($entity_type_id)->getQuery()->accessCheck(TRUE);
 
     // Sort by label field, if any.
     if ($label_field = $entity_type_definition->getKey('label')) {
       $query->sort($label_field);
     }
 
-    $entities = $this->entityManager()
+    $entities = $this->entityTypeManager()
       ->getStorage($entity_type_id)
       ->loadMultiple($query->execute());
 
@@ -95,7 +96,6 @@ class EntityTestController extends ControllerBase {
     ];
   }
 
-
   /**
    * Empty list of entities of the given entity type.
    *
@@ -110,7 +110,7 @@ class EntityTestController extends ControllerBase {
    *   A renderable array.
    */
   public function listEntitiesEmpty($entity_type_id) {
-    $entity_type_definition = $this->entityManager()->getDefinition($entity_type_id);
+    $entity_type_definition = $this->entityTypeManager()->getDefinition($entity_type_id);
     return [
       '#theme' => 'item_list',
       '#items' => [],

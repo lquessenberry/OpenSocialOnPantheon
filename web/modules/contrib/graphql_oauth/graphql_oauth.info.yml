@@ -1,0 +1,13 @@
+name: 'GraphQL OAuth'
+description: 'Enables OAuth directive support on GraphQL.'
+type: module
+core_version_requirement: ^9
+dependencies:
+  - graphql:graphql
+  - simple_oauth:simple_oauth
+package: GraphQL
+
+# Information added by Drupal.org packaging script on 2022-06-30
+version: '1.0.0-alpha2'
+project: 'graphql_oauth'
+datestamp: 1656578210

@@ -6,7 +6,12 @@ use Drupal\migrate\Row;
 use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 
 /**
- * Drupal multilingual node settings from database.
+ * Drupal 7 i18n node settings from database.
+ *
+ * For available configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBas
  *
  * @MigrateSource(
  *   id = "d7_language_content_settings",
@@ -50,6 +55,10 @@ class LanguageContentSettings extends DrupalSqlBase {
     else {
       $row->setSourceProperty('i18n_lock_node', 0);
     }
+
+    // Get the entity translation entity settings.
+    $entity_translation_entity_types = $this->variableGet('entity_translation_entity_types', NULL);
+    $row->setSourceProperty('entity_translation_entity_types', $entity_translation_entity_types);
     return parent::prepareRow($row);
   }
 

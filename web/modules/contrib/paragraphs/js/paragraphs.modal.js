@@ -3,28 +3,25 @@
  *
  */
 
-(function ($, Drupal, drupalSettings) {
+(function ($, Drupal, once) {
 
   'use strict';
 
   /**
    * Click handler for click "Add" button between paragraphs.
    *
-   * @type {Object}
+   * @type {Drupal~behavior}
    */
   Drupal.behaviors.paragraphsModalAdd = {
     attach: function (context) {
-      $('.paragraph-type-add-modal-button', context)
-        .once('add-click-handler')
-        .on('click', function (event) {
-          var $button = $(this);
-          var $add_more_wrapper = $button.parent().siblings('.paragraphs-add-dialog');
-          Drupal.paragraphsAddModal.openDialog($add_more_wrapper, $button.val());
+      $(once('add-click-handler', '.paragraph-type-add-modal-button', context)).on('click', function (event) {
+        var $button = $(this);
+        Drupal.paragraphsAddModal.openDialog($button.parent().siblings('.paragraphs-add-dialog'), $button.val());
 
-          // Stop default execution of click event.
-          event.preventDefault();
-          event.stopPropagation();
-        });
+        // Stop default execution of click event.
+        event.preventDefault();
+        event.stopPropagation();
+      });
     }
   };
 
@@ -38,37 +35,55 @@
   /**
    * Open modal dialog for adding new paragraph in list.
    *
-   * @param {Object} $context
-   *   jQuery element of form wrapper used to submit request for adding new
-   *   paragraph to list. Wrapper also contains dialog template.
+   * @param {Object} element
+   *   The element that holds the dialog.
    * @param {string} title
-   *   The title of the modal form window.
+   *   The title of the dialog.
+   *
+   * @return {Object}
+   *   Dialog object.
    */
-  Drupal.paragraphsAddModal.openDialog = function ($context, title) {
+  Drupal.paragraphsAddModal.openDialog = function (element, title) {
+    var $element = $(element);
 
-    $context.dialog({
-      modal: true,
+    // Get the delta element before moving $element to dialog element.
+    var $modalDelta = $element.parent().find('.paragraph-type-add-delta');
+
+    // Deep clone with all attached events. We need to work on cloned element
+    // and not directly on origin because Drupal dialog.ajax.js
+    // Drupal.behaviors.dialog will do remove of origin element on dialog close.
+    $element = $element.clone(true);
+
+    var dialog = Drupal.dialog($element, {
+      // Turn off autoResize from dialog.position so draggable is not disabled.
+      autoResize: false,
       resizable: false,
       title: title,
       width: 'auto',
-      close: function () {
-        var $dialog = $(this);
-
-        // Destroy dialog object.
-        $dialog.dialog('destroy');
-      }
+      paragraphsModalDelta: $modalDelta,
     });
+    dialog.showModal();
 
     // Close the dialog after a button was clicked.
-    $('.field-add-more-submit', $context)
-      .each(function () {
-      // Use mousedown event, because we are using ajax in the modal add mode
-      // which explicitly suppresses the click event.
-      $(this).on('mousedown', function () {
-        var $this = $(this);
-        $this.closest('div.ui-dialog-content').dialog('close');
-      });
+    // Use mousedown event, because we are using ajax in the modal add mode
+    // which explicitly suppresses the click event.
+    $(once('paragraphs-add-more-submit-modal', $element.find('.field-add-more-submit'))).on('mousedown', function () {
+      dialog.close();
     });
+
+    return dialog;
   };
 
-}(jQuery, Drupal, drupalSettings));
+  $(window).on({
+    'dialog:afterclose': function (event, dialog, $element) {
+      // Check first if dialog instance exist because dialog:afterclose will
+      // be triggered two times, first from once from dialog.ajax.js
+      // Drupal.behaviors.dialog and second time from dialog.js.
+      if ($element.dialog('instance') && $element.dialog('option', 'paragraphsModalDelta')) {
+        // Reset modal delta value.
+        $element.dialog('option', 'paragraphsModalDelta').val('');
+      }
+    }
+  });
+
+})(jQuery, Drupal, once);

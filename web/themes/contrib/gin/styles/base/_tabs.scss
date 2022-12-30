@@ -1,0 +1,458 @@
+.tabs {
+  box-shadow: none;
+}
+
+// Tabs
+.tabs-wrapper,
+.horizontal-tabs ul.horizontal-tabs-list {
+  padding: 0 .5rem;
+  margin-left: -.5rem;
+  margin-right: -.5rem;
+
+  @include mq($breakpointSmall) {
+    padding: 0;
+  }
+}
+
+// Vertical tabs
+.tabs-wrapper:not(.is-horizontal) {
+  .tabs {
+    .gin--dark-mode & {
+      border-color: #8E929C;
+    }
+
+    &__tab {
+      .gin--dark-mode & {
+        background-color: var(--colorGinItemHover);
+        border-color: #8E929C;
+      }
+    }
+  }
+}
+
+.gin--dark-mode {
+  .tabs {
+    border-color: var(--colorGinLayer2Border);
+
+    .tabs__tab,
+    .tabs__tab.is-active {
+      border-color: var(--colorGinLayer2Border);
+      background-color: transparent;
+    }
+  }
+}
+
+.tabs__link,
+.claro-details__summary,
+.horizontal-tabs ul.horizontal-tabs-list li.horizontal-tab-button a
+{
+  color: var(--colorGinText);
+  font-size: .9375rem;
+  font-weight: 600;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+
+  strong {
+    font-weight: inherit;
+  }
+}
+
+.tabs__link.is-active,
+.claro-details__summary[aria-expanded=true],
+.horizontal-tabs ul.horizontal-tabs-list li.horizontal-tab-button.selected a {
+  font-weight: 700;
+}
+
+.is-horizontal .tabs__link,
+.horizontal-tabs ul.horizontal-tabs-list li.horizontal-tab-button a {
+  &:hover,
+  &:focus {
+    color: var(--colorGinPrimary);
+    background: var(--colorGinItemHover);
+  }
+}
+
+.claro-details {
+  color: var(--colorGinText);
+  border: 1px solid var(--colorGinBorder);
+  border-radius: var(--ginBorderDefault);
+  box-shadow: none;
+}
+
+.claro-details__summary {
+  &::after {
+    border-radius: var(--ginBorderDefault);
+  }
+
+  &:hover {
+    color: var(--colorGinPrimary);
+    background-color: var(--colorGinItemHover);
+  }
+}
+
+.is-horizontal .tabs--primary,
+.is-horizontal .tabs--secondary,
+.horizontal-tabs ul.horizontal-tabs-list {
+  position: relative;
+
+  @include mq($breakpointSmall) {
+    width: 100%;
+    padding: .3125rem .5rem 1.5rem;
+    margin-bottom: -1.5rem;
+    overflow-x: auto;
+
+    .gin--edit-form & {
+      padding-top: .4rem;
+    }
+  }
+
+  &::after {
+    pointer-events: none;
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    max-width: calc(100% + .5rem);
+    border-bottom: 1px solid var(--colorGinBorder);
+    transition: var(--ginTransition);
+
+    @include mq($breakpointSmall) {
+      left: .5rem;
+      bottom: 1.5rem;
+      max-width: calc(100% - 1rem);
+    }
+  }
+
+  .tabs__tab,
+  .horizontal-tab-button {
+    position: relative;
+
+    &:focus-within {
+      &::after {
+        content: "";
+        width: calc(100% + 8px);
+        height: 4px;
+        background: var(--colorGinAppBackground);
+        display: block;
+        position: absolute;
+        bottom: -4px;
+        left: -4px;
+        z-index: 3;
+      }
+    }
+  }
+
+  .horizontal-tab-button {
+    &:focus-within {
+      &::after {
+        background: var(--colorGinLayerBackground);
+      }
+    }
+  }
+}
+
+.horizontal-tabs ul.horizontal-tabs-list {
+  &::before {
+    z-index: 1;
+    background: var(--colorGinLayerBackground);
+  }
+
+  &::after {
+    left: .5rem;
+    max-width: calc(100% - 1rem);
+  }
+}
+
+.is-horizontal .tabs--primary,
+.is-horizontal .tabs--secondary {
+  @include mq($breakpointSmall) {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+// .is-horizontal .tabs--primary {
+//   @include mq($breakpointSmall) {
+//     margin-bottom: -2.5rem;
+//   }
+// }
+
+.tabs--primary {
+  @include mq($breakpointSmall) {
+    margin-bottom: 0;
+  }
+}
+
+.is-horizontal .tabs--primary {
+  @include mq($breakpointSmall) {
+    &::after {
+      border-bottom: 0 none;
+
+      .gin--high-contrast-mode & {
+        border-bottom: 1px solid;
+      }
+    }
+  }
+
+  .tabs__tab {
+    @include mq($breakpointSmall) {
+      &:focus-within::after {
+        display: none;
+      }
+    }
+  }
+
+  .tabs__link {
+    min-height: 3rem;
+    height: 100%;
+
+    @include mq($breakpointSmall) {
+      padding: .75rem 1rem;
+      margin-right: 0.25em;
+      min-height: 0;
+      border-radius: 48px;
+    }
+
+    &.is-active {
+      color: var(--colorGinPrimaryActive);
+      background: var(--colorGinPrimaryLight);
+
+      &::before {
+        display: none;
+      }
+    }
+  }
+}
+
+.tabs__trigger {
+  svg {
+    stroke: var(--colorGinPrimary);
+  }
+}
+
+.is-horizontal .tabs--secondary {
+  @include mq($breakpointSmall) {
+    margin-top: 1rem;
+
+    &::before {
+      width: 100%;
+    }
+  }
+
+  .tabs__link {
+    min-height: 2.5rem;
+    padding: .5rem 1rem 1rem;
+    font-size: .875rem;
+    border-radius: var(--ginBorderDefault) var(--ginBorderDefault) 0 0;
+  }
+}
+
+// Horizontal Tabs in Claro style
+.horizontal-tabs {
+  position: static !important;
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  border: 0 none;
+  margin-top: -1rem;
+
+  ul.horizontal-tabs-list {
+    background: none;
+    border-right: 0 none;
+    border-bottom: 0 none;
+    overflow: hidden;
+
+    &:after {
+      @include mq($breakpointSmall) {
+        left: .5rem;
+        max-width: calc(100% - 1rem);
+      }
+    }
+
+    li.horizontal-tab-button {
+      background: none;
+      border-right: 0 none;
+      border-bottom: 0 none;
+
+      a {
+        padding: .5rem 1rem 1rem;
+        font-size: .875rem;
+        border-radius: var(--ginBorderDefault) var(--ginBorderDefault) 0 0;
+
+        &::before {
+          content: '';
+          display: block;
+          position: absolute;
+        }
+      }
+
+      &.selected a {
+        color: var(--colorGinPrimary);
+
+        &::before {
+          z-index: 1;
+          border-left: none;
+          border-right: none;
+          border-bottom: 3px solid var(--colorGinPrimary);
+          top: auto;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .horizontal-tabs-panes,
+  [data-horizontal-tabs-panes] {
+    width: 100%;
+  }
+
+  .horizontal-tabs-pane {
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+
+    > .details-wrapper {
+      margin: 0;
+
+      > .claro-details__description {
+        margin-top: 1rem;
+      }
+    }
+  }
+}
+
+// Icon
+.claro-details__summary::before,
+.claro-details[open] > .claro-details__summary::before {
+  left: 1.125rem;
+  background: var(--colorGinText);
+  mask-image: icon('handle');
+  mask-repeat: no-repeat;
+  mask-position: center center;
+  mask-size: 100% 100%;
+}
+
+.claro-details__summary:hover::before,
+.claro-details__summary:hover:focus::before,
+.claro-details[open] > .claro-details__summary:hover::before,
+.claro-details[open] > .claro-details__summary:focus::before,
+.claro-details[open] > .claro-details__summary--accordion::before,
+.claro-details[open] > .claro-details__summary--accordion-item::before,
+.claro-details[open] > .claro-details__summary--vertical-tabs-item::before {
+  background: var(--colorGinPrimary);
+}
+
+.claro-details {
+  &__description {
+    color: var(--colorGinTextLight);
+  }
+}
+
+.claro-details__wrapper--accordion,
+.claro-details__wrapper--accordion-item,
+.claro-details__wrapper--vertical-tabs-item {
+  border-top: 1px solid var(--colorGinBorder);
+  background: var(--colorGinAppBackground);
+}
+
+.gin--dark-mode {
+  .claro-details,
+  .claro-details__summary--accordion,
+  .claro-details__summary--accordion-item,
+  .claro-details__summary--vertical-tabs-item {
+    background-color: transparent;
+  }
+
+  .claro-details {
+    border-color: var(--colorGinBorder);
+  }
+
+  .vertical-tabs {
+    &__items {
+      background: none;
+      border: 0 none;
+    }
+
+    &__menu-item.is-selected .vertical-tabs__menu-link {
+      background: var(--colorGinAppBackground);
+      border-color: var(--colorGinBorder);
+    }
+
+    &__menu-link {
+      color: var(--colorGinText);
+    }
+
+    &__menu-link-summary {
+      color: var(--colorGinTextLight);
+    }
+  }
+}
+
+.vertical-tabs {
+  &__items {
+    border-radius: var(--ginBorderDefault);
+
+    .vertical-tabs__item {
+      border-radius: 0;
+
+      .claro-details__summary {
+        @include mq($breakpointLarge) {
+          padding-left: 3rem;
+
+          &::before {
+            left: 1rem;
+          }
+        }
+      }
+
+      &:first-of-type {
+        &, .claro-details__summary::after {
+          border-top-left-radius: var(--ginBorderDefault);
+          border-top-right-radius: var(--ginBorderDefault);
+        }
+      }
+
+      &:last-of-type, &:not([open='open']):last-of-type .claro-details__summary::after {
+        border-bottom-left-radius: var(--ginBorderDefault);
+        border-bottom-right-radius: var(--ginBorderDefault);
+      }
+    }
+  }
+
+  &__menu-item {
+    &::before,
+    &::after {
+      border-color: var(--colorGinBorder);
+    }
+  }
+
+  &__menu-link,
+  &__menu-item.is-selected &__menu-link {
+    &:hover {
+      color: var(--colorGinPrimary);
+
+      &::before {
+        background: var(--colorGinItemHover);
+      }
+    }
+  }
+}
+
+[open] > .claro-details__summary--vertical-tabs-item:not(:focus):not(:active)::after,
+[open] > .claro-details__summary--accordion-item:not(:focus):not(:active)::after {
+  border-left-width: 5px;
+}
+
+@media screen and (min-width: 85em) {
+  .js .vertical-tabs__item {
+    overflow: visible;
+    float: left;
+    width: 100%;
+  }
+}

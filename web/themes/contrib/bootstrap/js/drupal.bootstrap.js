@@ -6,11 +6,17 @@
 /**
  * All Drupal Bootstrap JavaScript APIs are contained in this namespace.
  *
- * @namespace
+ * @param {underscore} _
+ * @param {jQuery} $
+ * @param {Drupal} Drupal
+ * @param {drupalSettings} drupalSettings
  */
 (function (_, $, Drupal, drupalSettings) {
   'use strict';
 
+  /**
+   * @typedef Drupal.bootstrap
+   */
   var Bootstrap = {
     processedOnce: {},
     settings: drupalSettings.bootstrap || {}
@@ -115,47 +121,12 @@
 
     // Determine existing plugin constructor.
     var constructor = $.fn[id] && $.fn[id].Constructor || $.fn[id];
-    var proto = constructor.prototype;
-
-    var obj = callback.apply(constructor, [this.settings]);
-    if (!$.isPlainObject(obj)) {
-      return this.fatal('Returned value from callback is not a plain object that can be used to extend the jQuery plugin "@id": @obj', {'@obj':  obj});
+    var plugin = callback.apply(constructor, [this.settings]);
+    if (!$.isPlainObject(plugin)) {
+      return this.fatal('Returned value from callback is not a plain object that can be used to extend the jQuery plugin "@id": @obj', {'@obj':  plugin});
     }
 
-    // Add a jQuery UI like option getter/setter method.
-    var option = this.option;
-    if (proto.option === void(0)) {
-      proto.option = function () {
-        return option.apply(this, arguments);
-      };
-    }
-
-    // Handle prototype properties separately.
-    if (obj.prototype !== void 0) {
-      for (var key in obj.prototype) {
-        if (!obj.prototype.hasOwnProperty(key)) continue;
-        var value = obj.prototype[key];
-        if (typeof value === 'function') {
-          proto[key] = this.superWrapper(proto[key] || function () {}, value);
-        }
-        else {
-          proto[key] = $.isPlainObject(value) ? $.extend(true, {}, proto[key], value) : value;
-        }
-      }
-    }
-    delete obj.prototype;
-
-    // Handle static properties.
-    for (key in obj) {
-      if (!obj.hasOwnProperty(key)) continue;
-      value = obj[key];
-      if (typeof value === 'function') {
-        constructor[key] = this.superWrapper(constructor[key] || function () {}, value);
-      }
-      else {
-        constructor[key] = $.isPlainObject(value) ? $.extend(true, {}, constructor[key], value) : value;
-      }
-    }
+    this.wrapPluginConstructor(constructor, plugin, true);
 
     return $.fn[id];
   };
@@ -214,6 +185,40 @@
     return _.pick(args[0], _.intersection.apply(_, _.map(args, function (obj) {
       return Object.keys(obj);
     })));
+  };
+
+  /**
+   * Normalizes an object's values.
+   *
+   * @param {Object} obj
+   *   The object to normalize.
+   *
+   * @return {Object}
+   *   The normalized object.
+   */
+  Bootstrap.normalizeObject = function (obj) {
+    if (!$.isPlainObject(obj)) {
+      return obj;
+    }
+
+    for (var k in obj) {
+      if (typeof obj[k] === 'string') {
+        if (obj[k] === 'true') {
+          obj[k] = true;
+        }
+        else if (obj[k] === 'false') {
+          obj[k] = false;
+        }
+        else if (obj[k].match(/^[\d-.]$/)) {
+          obj[k] = parseFloat(obj[k]);
+        }
+      }
+      else if ($.isPlainObject(obj[k])) {
+        obj[k] = Bootstrap.normalizeObject(obj[k]);
+      }
+    }
+
+    return obj;
   };
 
   /**
@@ -313,6 +318,36 @@
   };
 
   /**
+   * Creates a handler that relays to another event name.
+   *
+   * @param {HTMLElement|jQuery} target
+   *   A target element.
+   * @param {String} name
+   *   The name of the event to trigger.
+   * @param {Boolean} [stopPropagation=true]
+   *   Flag indicating whether to stop the propagation of the event, defaults
+   *   to true.
+   *
+   * @return {Function}
+   *   An even handler callback function.
+   */
+  Bootstrap.relayEvent = function (target, name, stopPropagation) {
+    return function (e) {
+      if (stopPropagation === void 0 || stopPropagation) {
+        e.stopPropagation();
+      }
+      var $target = $(target);
+      var parts = name.split('.').filter(Boolean);
+      var type = parts.shift();
+      e.target = $target[0];
+      e.currentTarget = $target[0];
+      e.namespace = parts.join('.');
+      e.type = type;
+      $target.trigger(e);
+    };
+  };
+
+  /**
    * Replaces a Bootstrap jQuery plugin definition.
    *
    * @param {String} id
@@ -344,6 +379,8 @@
       return this.fatal('Returned value from callback is not a usable function to replace a jQuery plugin "@id": @plugin', {'@id': id, '@plugin': plugin});
     }
 
+    this.wrapPluginConstructor(constructor, plugin);
+
     // Add a ".noConflict()" helper method.
     this.pluginNoConflict(id, plugin, noConflict);
 
@@ -353,65 +390,125 @@
   /**
    * Simulates a native event on an element in the browser.
    *
-   * Note: This is a pretty complete modern implementation. If things are quite
-   * working the way you intend (in older browsers), you may wish to use the
-   * jQuery.simulate plugin. If it's available, this method will defer to it.
+   * Note: This is a fairly complete modern implementation. If things aren't
+   * working quite the way you intend (in older browsers), you may wish to use
+   * the jQuery.simulate plugin. If it's available, this method will defer to
+   * that plugin.
    *
    * @see https://github.com/jquery/jquery-simulate
    *
-   * @param {HTMLElement} element
-   *   A DOM element to dispatch event on.
-   * @param {String} type
-   *   The type of event to simulate.
+   * @param {HTMLElement|jQuery} element
+   *   A DOM element to dispatch event on. Note: this may be a jQuery object,
+   *   however be aware that this will trigger the same event for each element
+   *   inside the jQuery collection; use with caution.
+   * @param {String|String[]} type
+   *   The type(s) of event to simulate.
    * @param {Object} [options]
    *   An object of options to pass to the event constructor. Typically, if
    *   an event is being proxied, you should just pass the original event
    *   object here. This allows, if the browser supports it, to be a truly
    *   simulated event.
+   *
+   * @return {Boolean}
+   *   The return value is false if event is cancelable and at least one of the
+   *   event handlers which handled this event called Event.preventDefault().
+   *   Otherwise it returns true.
    */
   Bootstrap.simulate = function (element, type, options) {
+    // Handle jQuery object wrappers so it triggers on each element.
+    var ret = true;
+    if (element instanceof $) {
+      element.each(function () {
+        if (!Bootstrap.simulate(this, type, options)) {
+          ret = false;
+        }
+      });
+      return ret;
+    }
+
+    if (!(element instanceof HTMLElement)) {
+      this.fatal('Passed element must be an instance of HTMLElement, got "@type" instead.', {
+        '@type': typeof element,
+      });
+    }
+
     // Defer to the jQuery.simulate plugin, if it's available.
     if (typeof $.simulate === 'function') {
       new $.simulate(element, type, options);
-      return;
+      return true;
     }
+
     var event;
     var ctor;
-    for (var name in this.eventMap) {
-      if (this.eventMap[name].test(type)) {
-        ctor = name;
-        break;
+    var types = [].concat(type);
+    for (var i = 0, l = types.length; i < l; i++) {
+      type = types[i];
+      for (var name in this.eventMap) {
+        if (this.eventMap[name].test(type)) {
+          ctor = name;
+          break;
+        }
+      }
+      if (!ctor) {
+        throw new SyntaxError('Only rudimentary HTMLEvents, KeyboardEvents and MouseEvents are supported: ' + type);
+      }
+      var opts = {bubbles: true, cancelable: true};
+      if (ctor === 'KeyboardEvent' || ctor === 'MouseEvent') {
+        $.extend(opts, {ctrlKey: !1, altKey: !1, shiftKey: !1, metaKey: !1});
+      }
+      if (ctor === 'MouseEvent') {
+        $.extend(opts, {button: 0, pointerX: 0, pointerY: 0, view: window});
+      }
+      if (options) {
+        $.extend(opts, options);
+      }
+      if (typeof window[ctor] === 'function') {
+        event = new window[ctor](type, opts);
+        if (!element.dispatchEvent(event)) {
+          ret = false;
+        }
+      }
+      else if (document.createEvent) {
+        event = document.createEvent(ctor);
+        event.initEvent(type, opts.bubbles, opts.cancelable);
+        if (!element.dispatchEvent(event)) {
+          ret = false;
+        }
+      }
+      else if (typeof element.fireEvent === 'function') {
+        event = $.extend(document.createEventObject(), opts);
+        if (!element.fireEvent('on' + type, event)) {
+          ret = false;
+        }
+      }
+      else if (typeof element[type]) {
+        element[type]();
       }
     }
-    if (!ctor) {
-      throw new SyntaxError('Only rudimentary HTMLEvents, KeyboardEvents and MouseEvents are supported: ' + type);
+    return ret;
+  };
+
+  /**
+   * Strips HTML and returns just text.
+   *
+   * @param {String|Element|jQuery} html
+   *   A string of HTML content, an Element DOM object or a jQuery object.
+   *
+   * @return {String}
+   *   The text without HTML tags.
+   *
+   * @todo Replace with http://locutus.io/php/strings/strip_tags/
+   */
+  Bootstrap.stripHtml = function (html) {
+    if (html instanceof $) {
+      html = html.html();
     }
-    var opts = {bubbles: true, cancelable: true};
-    if (ctor === 'KeyboardEvent' || ctor === 'MouseEvent') {
-      $.extend(opts, {ctrlKey: !1, altKey: !1, shiftKey: !1, metaKey: !1});
+    else if (html instanceof Element) {
+      html = html.innerHTML;
     }
-    if (ctor === 'MouseEvent') {
-      $.extend(opts, {button: 0, pointerX: 0, pointerY: 0, view: window});
-    }
-    if (options) {
-      $.extend(opts, options);
-    }
-    if (typeof window[ctor] === 'function') {
-      event = new window[ctor](type, opts);
-      element.dispatchEvent(event);
-    }
-    else if (document.createEvent) {
-      event = document.createEvent(ctor);
-      event.initEvent(type, opts.bubbles, opts.cancelable);
-      element.dispatchEvent(event);
-    }
-    else if (typeof element.fireEvent === 'function') {
-      event = $.extend(document.createEventObject(), opts);
-      element.fireEvent('on' + type, event);
-    }
-    else if (typeof element[type]) {
-      element[type]();
-    }
+    var tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    return (tmp.textContent || tmp.innerText || '').replace(/^[\s\n\t]*|[\s\n\t]*$/, '');
   };
 
   /**
@@ -425,20 +522,79 @@
    *   The value of the unsupported object.
    */
   Bootstrap.unsupported = function (type, name, value) {
+    Bootstrap.warn('Unsupported by Drupal Bootstrap: (@type) @name -> @value', {
+      '@type': type,
+      '@name': name,
+      '@value': typeof value === 'object' ? JSON.stringify(value) : value
+    });
+  };
+
+  /**
+   * Provide a helper method to display a warning.
+   *
+   * @param {String} message
+   *   The message to display.
+   * @param {Object} [args]
+   *   Arguments to use as replacements in Drupal.formatString.
+   */
+  Bootstrap.warn = function (message, args) {
     if (this.settings.dev && console.warn) {
-      console.warn(Drupal.formatString('Unsupported Drupal Bootstrap Modal @type: @name -> @value', {
-        '@type': type,
-        '@name': name,
-        '@value': typeof value === 'object' ? JSON.stringify(value) : value
-      }));
+      console.warn(Drupal.formatString(message, args));
     }
   };
 
   /**
-   * Add Bootstrap to the global Drupal object.
+   * Wraps a plugin with common functionality.
    *
-   * @type {Bootstrap}
+   * @param {Function} constructor
+   *   A plugin constructor being wrapped.
+   * @param {Object|Function} plugin
+   *   The plugin being wrapped.
+   * @param {Boolean} [extend = false]
+   *   Whether to add super extensibility.
    */
+  Bootstrap.wrapPluginConstructor = function (constructor, plugin, extend) {
+    var proto = constructor.prototype;
+
+    // Add a jQuery UI like option getter/setter method.
+    var option = this.option;
+    if (proto.option === void(0)) {
+      proto.option = function () {
+        return option.apply(this, arguments);
+      };
+    }
+
+    if (extend) {
+      // Handle prototype properties separately.
+      if (plugin.prototype !== void 0) {
+        for (var key in plugin.prototype) {
+          if (!plugin.prototype.hasOwnProperty(key)) continue;
+          var value = plugin.prototype[key];
+          if (typeof value === 'function') {
+            proto[key] = this.superWrapper(proto[key] || function () {}, value);
+          }
+          else {
+            proto[key] = $.isPlainObject(value) ? $.extend(true, {}, proto[key], value) : value;
+          }
+        }
+      }
+      delete plugin.prototype;
+
+      // Handle static properties.
+      for (key in plugin) {
+        if (!plugin.hasOwnProperty(key)) continue;
+        value = plugin[key];
+        if (typeof value === 'function') {
+          constructor[key] = this.superWrapper(constructor[key] || function () {}, value);
+        }
+        else {
+          constructor[key] = $.isPlainObject(value) ? $.extend(true, {}, constructor[key], value) : value;
+        }
+      }
+    }
+  };
+
+  // Add Bootstrap to the global Drupal object.
   Drupal.bootstrap = Drupal.bootstrap || Bootstrap;
 
 })(window._, window.jQuery, window.Drupal, window.drupalSettings);

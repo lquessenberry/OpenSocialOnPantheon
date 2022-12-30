@@ -1,8 +1,19 @@
 <?php
+
 namespace Drush\Runtime;
 
+use Drush\Log\Logger;
+use League\Container\Container;
+use Symfony\Component\Console\Input\StringInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Robo\Robo;
+use Drush\Formatters\DrushFormatterManager;
+use Drush\Boot\AutoloaderAwareInterface;
+use Consolidation\SiteAlias\SiteAliasManagerAwareInterface;
+use Consolidation\SiteProcess\ProcessManagerAwareInterface;
 use Drush\Command\GlobalOptionsEventListener;
 use Drush\Drush;
+use Drush\Symfony\DrushStyleInjector;
 use Drush\Cache\CommandCache;
 use DrupalFinder\DrupalFinder;
 use Symfony\Component\Console\Input\InputInterface;
@@ -12,16 +23,27 @@ use Consolidation\Config\ConfigInterface;
 use Composer\Autoload\ClassLoader;
 use League\Container\ContainerInterface;
 use Consolidation\SiteAlias\SiteAliasManager;
+use Drush\Command\DrushCommandInfoAlterer;
+use Consolidation\Config\Util\ConfigOverlay;
+use Drush\Config\DrushConfig;
+use Drush\SiteAlias\ProcessManager;
 
 /**
  * Prepare our Dependency Injection Container
  */
 class DependencyInjection
 {
+    protected $handlers = [];
+
+    public function desiredHandlers($handlerList): void
+    {
+        $this->handlers = $handlerList;
+    }
+
     /**
      * Set up our dependency injection container.
      */
-    public static function initContainer(
+    public function initContainer(
         Application $application,
         ConfigInterface $config,
         InputInterface $input,
@@ -29,109 +51,130 @@ class DependencyInjection
         ClassLoader $loader,
         DrupalFinder $drupalFinder,
         SiteAliasManager $aliasManager
-    ) {
+    ): Container {
 
         // Create default input and output objects if they were not provided
         if (!$input) {
-            $input = new \Symfony\Component\Console\Input\StringInput('');
+            $input = new StringInput('');
         }
         if (!$output) {
-            $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+            $output = new ConsoleOutput();
         }
         // Set up our dependency injection container.
-        $container = new \League\Container\Container();
+        $container = new Container();
 
-        \Robo\Robo::configureContainer($container, $application, $config, $input, $output);
+        // With league/container 3.x, first call wins, so add Drush services first.
+        $this->addDrushServices($container, $loader, $drupalFinder, $aliasManager, $config, $output);
+
+        // Robo has the same signature for configureContainer in 1.x, 2.x and 3.x.
+        Robo::configureContainer($container, $application, $config, $input, $output);
         $container->add('container', $container);
-
-        static::addDrushServices($container, $loader, $drupalFinder, $aliasManager);
 
         // Store the container in the \Drush object
         Drush::setContainer($container);
-        \Robo\Robo::setContainer($container);
 
         // Change service definitions as needed for our application.
-        static::alterServicesForDrush($container, $application);
+        $this->alterServicesForDrush($container, $application);
 
         // Inject needed services into our application object.
-        static::injectApplicationServices($container, $application);
+        $this->injectApplicationServices($container, $application);
 
         return $container;
     }
 
-    protected static function addDrushServices(ContainerInterface $container, ClassLoader $loader, DrupalFinder $drupalFinder, SiteAliasManager $aliasManager)
+    /**
+     * Make sure we are notified on exit, and when bad things happen.
+     */
+    public function installHandlers($container): void
     {
-        // Override Robo's logger with our own
-        $container->share('logger', 'Drush\Log\Logger')
-          ->withArgument('output')
-          ->withMethodCall('setLogOutputStyler', ['logStyler']);
+        foreach ($this->handlers as $handlerId) {
+            $handler = $container->get($handlerId);
+            $handler->installHandler();
+        }
+    }
 
-        $container->share('loader', $loader);
-        $container->share('site.alias.manager', $aliasManager);
+    // Add Drush Services to league/container 3.x
+    protected function addDrushServices($container, ClassLoader $loader, DrupalFinder $drupalFinder, SiteAliasManager $aliasManager, DrushConfig $config, OutputInterface $output): void
+    {
+        // Override Robo's logger with a LoggerManager that delegates to the Drush logger.
+        Robo::addShared($container, 'logger', '\Drush\Log\DrushLoggerManager')
+          ->addMethodCall('setLogOutputStyler', ['logStyler'])
+          ->addMethodCall('add', ['drush', new Logger($output)]);
+
+        Robo::addShared($container, 'loader', $loader);
+        Robo::addShared($container, 'site.alias.manager', $aliasManager);
+
+        // Fetch the runtime config, where -D et. al. are stored, and
+        // add a reference to it to the container.
+        Robo::addShared($container, 'config.runtime', $config->getContext(ConfigOverlay::PROCESS_CONTEXT));
 
         // Override Robo's formatter manager with our own
         // @todo not sure that we'll use this. Maybe remove it.
-        $container->share('formatterManager', \Drush\Formatters\DrushFormatterManager::class)
-            ->withMethodCall('addDefaultFormatters', [])
-            ->withMethodCall('addDefaultSimplifiers', []);
+        Robo::addShared($container, 'formatterManager', DrushFormatterManager::class)
+            ->addMethodCall('addDefaultFormatters', [])
+            ->addMethodCall('addDefaultSimplifiers', []);
 
         // Add some of our own objects to the container
-        $container->share('bootstrap.default', 'Drush\Boot\EmptyBoot');
-        $container->share('bootstrap.drupal6', 'Drush\Boot\DrupalBoot6');
-        $container->share('bootstrap.drupal7', 'Drush\Boot\DrupalBoot7');
-        $container->share('bootstrap.drupal8', 'Drush\Boot\DrupalBoot8');
-        $container->share('bootstrap.manager', 'Drush\Boot\BootstrapManager')
-            ->withArgument('bootstrap.default')
-            ->withMethodCall('setDrupalFinder', [$drupalFinder]);
+        Robo::addShared($container, 'bootstrap.drupal8', 'Drush\Boot\DrupalBoot8');
+        Robo::addShared($container, 'bootstrap.manager', 'Drush\Boot\BootstrapManager')
+            ->addMethodCall('setDrupalFinder', [$drupalFinder]);
         // TODO: Can we somehow add these via discovery (e.g. backdrop extension?)
         $container->extend('bootstrap.manager')
-            ->withMethodCall('add', ['bootstrap.drupal6'])
-            ->withMethodCall('add', ['bootstrap.drupal7'])
-            ->withMethodCall('add', ['bootstrap.drupal8']);
-        $container->share('bootstrap.hook', 'Drush\Boot\BootstrapHook')
-          ->withArgument('bootstrap.manager');
-        $container->share('redispatch.hook', 'Drush\Runtime\RedispatchHook');
-        $container->share('tildeExpansion.hook', 'Drush\Runtime\TildeExpansionHook');
+            ->addMethodCall('add', ['bootstrap.drupal8']);
+        Robo::addShared($container, 'bootstrap.hook', 'Drush\Boot\BootstrapHook')
+          ->addArgument('bootstrap.manager');
+        Robo::addShared($container, 'tildeExpansion.hook', 'Drush\Runtime\TildeExpansionHook');
+        Robo::addShared($container, 'process.manager', ProcessManager::class)
+            ->addMethodCall('setConfig', ['config'])
+            ->addMethodCall('setConfigRuntime', ['config.runtime']);
+        Robo::addShared($container, 'redispatch.hook', 'Drush\Runtime\RedispatchHook')
+            ->addArgument('process.manager');
 
         // Robo does not manage the command discovery object in the container,
         // but we will register and configure one for our use.
         // TODO: Some old adapter code uses this, but the Symfony dispatcher does not.
         // See Application::commandDiscovery().
-        $container->share('commandDiscovery', 'Consolidation\AnnotatedCommand\CommandFileDiscovery')
-            ->withMethodCall('addSearchLocation', ['CommandFiles'])
-            ->withMethodCall('setSearchPattern', ['#.*(Commands|CommandFile).php$#']);
+        Robo::addShared($container, 'commandDiscovery', 'Consolidation\AnnotatedCommand\CommandFileDiscovery')
+            ->addMethodCall('addSearchLocation', ['CommandFiles'])
+            ->addMethodCall('setSearchPattern', ['#.*(Commands|CommandFile).php$#']);
+
+        // Error and Shutdown handlers
+        Robo::addShared($container, 'errorHandler', 'Drush\Runtime\ErrorHandler');
+        Robo::addShared($container, 'shutdownHandler', 'Drush\Runtime\ShutdownHandler');
 
         // Add inflectors. @see \Drush\Boot\BaseBoot::inflect
-        $container->inflector(\Drush\Boot\AutoloaderAwareInterface::class)
+        $container->inflector(AutoloaderAwareInterface::class)
             ->invokeMethod('setAutoloader', ['loader']);
-        $container->inflector(\Consolidation\SiteAlias\SiteAliasManagerAwareInterface::class)
+        $container->inflector(SiteAliasManagerAwareInterface::class)
             ->invokeMethod('setSiteAliasManager', ['site.alias.manager']);
+        $container->inflector(ProcessManagerAwareInterface::class)
+            ->invokeMethod('setProcessManager', ['process.manager']);
     }
 
-    protected static function alterServicesForDrush(ContainerInterface $container, Application $application)
+    protected function alterServicesForDrush($container, Application $application): void
     {
+        $paramInjection = $container->get('parameterInjection');
+        $paramInjection->register('Symfony\Component\Console\Style\SymfonyStyle', new DrushStyleInjector());
+
         // Add our own callback to the hook manager
         $hookManager = $container->get('hookManager');
         $hookManager->addCommandEvent(new GlobalOptionsEventListener());
         $hookManager->addInitializeHook($container->get('redispatch.hook'));
         $hookManager->addInitializeHook($container->get('bootstrap.hook'));
         $hookManager->addPreValidator($container->get('tildeExpansion.hook'));
-        $hookManager->addOutputExtractor(new \Drush\Backend\BackendResultSetter());
-
-        // Install our command cache into the command factory
-        // TODO: Create class-based implementation of our cache management functions.
-        $cacheBackend = _drush_cache_get_object('factory');
-        $commandCacheDataStore = new CommandCache($cacheBackend);
 
         $factory = $container->get('commandFactory');
         $factory->setIncludeAllPublicMethods(false);
-        $factory->setDataStore($commandCacheDataStore);
+        $factory->setIgnoreCommandsInTraits(true);
+        $factory->addCommandInfoAlterer(new DrushCommandInfoAlterer());
 
         $commandProcessor = $container->get('commandProcessor');
         $commandProcessor->setPassExceptions(true);
+
+        ProcessManager::addTransports($container->get('process.manager'));
     }
 
-    protected static function injectApplicationServices(ContainerInterface $container, Application $application)
+    protected function injectApplicationServices($container, Application $application): void
     {
         $application->setLogger($container->get('logger'));
         $application->setBootstrapManager($container->get('bootstrap.manager'));

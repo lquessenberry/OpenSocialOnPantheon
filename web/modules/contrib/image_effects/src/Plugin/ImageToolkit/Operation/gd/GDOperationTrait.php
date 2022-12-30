@@ -3,9 +3,10 @@
 namespace Drupal\image_effects\Plugin\ImageToolkit\Operation\gd;
 
 use Drupal\Component\Utility\Color;
-use Drupal\Component\Utility\Unicode;
 use Drupal\image_effects\Component\ColorUtility;
 use Drupal\image_effects\Component\GdGaussianBlur;
+use Drupal\image_effects\Component\GdImageAnalysis;
+use Drupal\image_effects\Component\MatrixUtility;
 use Drupal\image_effects\Component\PositionedRectangle;
 
 /**
@@ -42,7 +43,7 @@ trait GDOperationTrait {
    *   An array with four elements for red, green, blue, and alpha.
    */
   protected function hexToRgba($rgba_hex) {
-    $rgbHex = Unicode::substr($rgba_hex, 0, 7);
+    $rgbHex = mb_substr($rgba_hex, 0, 7);
     try {
       $rgb = Color::hexToRgb($rgbHex);
       $opacity = ColorUtility::rgbaToOpacity($rgba_hex);
@@ -123,7 +124,8 @@ trait GDOperationTrait {
       // @todo when #2583041 is committed, add a check for memory
       // availability before creating the resource.
       $cut = imagecreatetruecolor($src_w, $src_h);
-      if (!is_resource($cut)) {
+      // @todo remove the is_resource check when PHP 8.0 is minimum version.
+      if (!is_object($cut) && !is_resource($cut)) {
         return FALSE;
       }
 
@@ -277,7 +279,7 @@ trait GDOperationTrait {
           $alpha += 127 * $pct;
         }
         // Get the color index with new alpha.
-        $alpha_color_xy = imagecolorallocatealpha($img, ($color_xy >> 16) & 0xFF, ($color_xy >> 8) & 0xFF, $color_xy & 0xFF, $alpha);
+        $alpha_color_xy = imagecolorallocatealpha($img, ($color_xy >> 16) & 0xFF, ($color_xy >> 8) & 0xFF, $color_xy & 0xFF, (int) $alpha);
         // Set pixel with the new color + opacity.
         if (!imagesetpixel($img, $x, $y, $alpha_color_xy)) {
           return FALSE;
@@ -355,7 +357,7 @@ trait GDOperationTrait {
     // @todo when #2583041 is committed, add a check for memory
     // availability before creating the resource.
     $result = imagecreatetruecolor($w, $h);
-    imagealphablending($result, FALSE);;
+    imagealphablending($result, FALSE);
     if ($result) {
       GdGaussianBlur::applyCoeffs($tmp, $result, $coeffs, $radius, 'VERTICAL');
     }
@@ -363,6 +365,284 @@ trait GDOperationTrait {
     // Destroy temp resource and return result.
     imagedestroy($tmp);
     return $result;
+  }
+
+  /**
+   * Computes the entropy of the area of an image.
+   *
+   * @param resource $src
+   *   The source image resource.
+   * @param string $x
+   *   Starting X coordinate.
+   * @param string $y
+   *   Starting Y coordinate.
+   * @param string $width
+   *   The width of the area.
+   * @param string $height
+   *   The height of the area.
+   *
+   * @return float
+   *   The entropy of the selected area image.
+   */
+  protected function getAreaEntropy($src, $x, $y, $width, $height) {
+    // @todo when #2583041 is committed, add a check for memory
+    // availability before creating the resource.
+    $window = imagecreatetruecolor($width, $height);
+    imagecopy($window, $src, 0, 0, $x, $y, $width, $height);
+    $entropy = GdImageAnalysis::entropy($window);
+    imagedestroy($window);
+    return $entropy;
+  }
+
+  /**
+   * Computes the entropy crop of an image, using slices.
+   *
+   * @param resource $src
+   *   The source image resource.
+   * @param string $width
+   *   The width of the crop.
+   * @param string $height
+   *   The height of the crop.
+   *
+   * @return \Drupal\image_effects\Component\PositionedRectangle
+   *   The PositionedRectangle object marking the crop area.
+   */
+  protected function getEntropyCropBySlicing($src, $width, $height) {
+    $dx = imagesx($src) - min(imagesx($src), $width);
+    $dy = imagesy($src) - min(imagesy($src), $height);
+    $left = $top = 0;
+    $left_entropy = $right_entropy = $top_entropy = $bottom_entropy = 0;
+    $right = imagesx($src);
+    $bottom = imagesy($src);
+
+    // Slice from left and right edges until the correct width is reached.
+    while ($dx) {
+      $slice = min($dx, 10);
+
+      // Calculate the entropy of the new slice.
+      if (!$left_entropy) {
+        $left_entropy = $this->getAreaEntropy($src, $left, $top, $slice, imagesy($src));
+      }
+      if (!$right_entropy) {
+        $right_entropy = $this->getAreaEntropy($src, $right - $slice, $top, $slice, imagesy($src));
+      }
+
+      // Remove the lowest entropy slice.
+      if ($left_entropy >= $right_entropy) {
+        $right -= $slice;
+        $right_entropy = 0;
+      }
+      else {
+        $left += $slice;
+        $left_entropy = 0;
+      }
+      $dx -= $slice;
+    }
+
+    // Slice from the top and bottom edges until the correct width is reached.
+    while ($dy) {
+      $slice = min($dy, 10);
+
+      // Calculate the entropy of the new slice.
+      if (!$top_entropy) {
+        $top_entropy = $this->getAreaEntropy($src, $left, $top, $width, $slice);
+      }
+      if (!$bottom_entropy) {
+        $bottom_entropy = $this->getAreaEntropy($src, $left, $bottom - $slice, $width, $slice);
+      }
+
+      // Remove the lowest entropy slice.
+      if ($top_entropy >= $bottom_entropy) {
+        $bottom -= $slice;
+        $bottom_entropy = 0;
+      }
+      else {
+        $top += $slice;
+        $top_entropy = 0;
+      }
+      $dy -= $slice;
+    }
+
+    $rect = new PositionedRectangle($right - $left, $bottom - $top);
+    $rect->translate([$left, $top]);
+    return $rect;
+  }
+
+  /**
+   * Computes the entropy crop of an image, using recursive gridding.
+   *
+   * @param resource $src
+   *   The source image resource.
+   * @param string $crop_width
+   *   The width of the crop.
+   * @param string $crop_height
+   *   The height of the crop.
+   * @param bool $simulate
+   *   If TRUE, the crop will be simulated, and image markers will be overlaid
+   *   on the source image.
+   * @param int $grid_width
+   *   The maximum width of the sub-grid window.
+   * @param int $grid_height
+   *   The maximum height of the sub-grid window.
+   * @param int $grid_rows
+   *   The number of rows of the sub-grid.
+   * @param int $grid_columns
+   *   The number of columns of the sub-grid.
+   * @param int $grid_sub_rows
+   *   The number of rows of the sub-grid for the sum calculation.
+   * @param int $grid_sub_columns
+   *   The number of columns of the sub-grid for the sum calculation.
+   *
+   * @return \Drupal\image_effects\Component\PositionedRectangle
+   *   The PositionedRectangle object marking the crop area.
+   */
+  protected function getEntropyCropByGridding($src, $crop_width, $crop_height, $simulate, $grid_width, $grid_height, $grid_rows, $grid_columns, $grid_sub_rows, $grid_sub_columns) {
+    // Source image data.
+    $source_rect = new PositionedRectangle(imagesx($src), imagesy($src));
+    $source_image_aspect = imagesy($src) / imagesx($src);
+
+    // If simulating, create an image serving as the layer for the visual
+    // markers.
+    if ($simulate) {
+      // @todo when #2583041 is committed, add a check for memory
+      // availability before creating the resource.
+      $marker_layer_resource = imagecreatetruecolor(imagesx($src), imagesy($src));
+      imagefill($marker_layer_resource, 0, 0, imagecolorallocatealpha($marker_layer_resource, 0, 0, 0, 127));
+    }
+
+    // Determine dimensions of the grid window. The window dimensions are
+    // limited to reduce entropy compared to the source. It needs to respect the
+    // aspect ratio of the source image.
+    if ($source_image_aspect < $grid_height / $grid_width) {
+      $grid_height = (int) round($grid_width * $source_image_aspect);
+    }
+    else {
+      $grid_width = (int) round($grid_height / $source_image_aspect);
+    }
+
+    // Analyse the grid window to find the highest entropy sub-grid. Loop until
+    // the window size is smaller than the crop area, nesting sub-windows.
+    $window_nesting = 0;
+    $window_x_offset = 0;
+    $window_y_offset = 0;
+    $window_width = imagesx($src);
+    $window_height = imagesy($src);
+    while ($window_width > $crop_width || $window_height > $crop_height) {
+      // Determine the working size of the grid window. Resample the source
+      // image grid area into the grid window, if it is bigger than the bounds
+      // given.
+      if ($window_width >= $grid_width && $window_height >= $grid_height) {
+        $work_window_width = $grid_width;
+        $work_window_height = $grid_height;
+      }
+      else {
+        $work_window_width = $window_width;
+        $work_window_height = $window_height;
+      }
+
+      // If the grid window is smaller than the matrix, it does not make sense
+      // to dig deeper.
+      if ($work_window_width < $grid_columns || $work_window_height < $grid_rows) {
+        break;
+      }
+
+      // Add a grid to the source image rectangle.
+      $source_rect->addGrid('grid_' . $window_nesting, $window_x_offset, $window_y_offset, $window_width, $window_height, $grid_rows, $grid_columns);
+
+      // Create the grid window.
+      $grid_rect = new PositionedRectangle($work_window_width, $work_window_height);
+      $grid_rect->addGrid('grid_0', 0, 0, $work_window_width, $work_window_height, $grid_rows, $grid_columns);
+      // @todo when #2583041 is committed, add a check for memory
+      // availability before creating the resource.
+      $grid_resource = imagecreatetruecolor($work_window_width, $work_window_height);
+      imagefill($grid_resource, 0, 0, imagecolorallocatealpha($grid_resource, 0, 0, 0, 127));
+      imagecopyresampled($grid_resource, $src, 0, 0, $window_x_offset, $window_y_offset, $work_window_width, $work_window_height, $window_width, $window_height);
+
+      // Build the entropy matrix of the window.
+      $entropy_matrix = [];
+      for ($row = 0; $row < $grid_rows; $row++) {
+        for ($column = 0; $column < $grid_columns; $column++) {
+          $cell_top_left = $grid_rect->getPoint('grid_0_' . $row . '_' . $column);
+          $cell_dimensions = $grid_rect->getSubGridDimensions('grid_0', $row, $column, 1, 1);
+          $entropy_matrix[$row][$column] = $this->getAreaEntropy($grid_resource, $cell_top_left[0], $cell_top_left[1], $cell_dimensions[0], $cell_dimensions[1]);
+        }
+      }
+
+      // Find the sub-matrix that has the highest entropy sum.
+      $entropy_sum_matrix = MatrixUtility::cumulativeSum($entropy_matrix);
+      $max_sum_position = MatrixUtility::findMaxSumSubmatrix($entropy_sum_matrix, $grid_sub_rows, $grid_sub_columns);
+
+      // Position the highest entropy sub-matrix on the source image.
+      list($window_x_offset, $window_y_offset) = $source_rect->getPoint('grid_' . $window_nesting . '_' . $max_sum_position[0] . '_' . $max_sum_position[1]);
+      list($window_width, $window_height) = $source_rect->getSubGridDimensions('grid_' . $window_nesting, $max_sum_position[0], $max_sum_position[1], $grid_sub_rows, $grid_sub_columns);
+
+      if ($simulate) {
+        switch ($window_nesting % 3) {
+          case 0:
+            $color = imagecolorallocatealpha($marker_layer_resource, 255, 0, 0, 0);
+            break;
+
+          case 1:
+            $color = imagecolorallocatealpha($marker_layer_resource, 0, 255, 255, 0);
+            break;
+
+          case 2:
+            $color = imagecolorallocatealpha($marker_layer_resource, 255, 255, 0, 0);
+            break;
+
+        }
+
+        // Add grid points on marker layer.
+        for ($row = 0; $row <= $grid_rows; $row++) {
+          for ($column = 0; $column <= $grid_columns; $column++) {
+            $coord = $source_rect->getPoint('grid_' . $window_nesting . '_' . $row . '_' . $column);
+            imagefilledellipse($marker_layer_resource, $coord[0], $coord[1], 6, 6, $color);
+          }
+        }
+
+        // Polygon on marker layer.
+        $rect = new PositionedRectangle($window_width, $window_height);
+        $rect->translate([$window_x_offset, $window_y_offset]);
+        $rect->translate([-2, -2]);
+        for ($i = -2; $i <= 2; $i++) {
+          imagepolygon($marker_layer_resource, $this->getRectangleCorners($rect), 4, $color);
+          $rect->translate([1, 1]);
+        }
+      }
+
+      // Destroy the window.
+      imagedestroy($grid_resource);
+
+      $window_nesting++;
+    }
+
+    // Overlay marker layer onto source at 70% transparency.
+    if ($simulate) {
+      $this->imageCopyMergeAlpha($src, $marker_layer_resource, 0, 0, 0, 0, imagesx($src), imagesy($src), 70);
+      imagedestroy($marker_layer_resource);
+    }
+
+    // Determine the Rectangle containing the crop.
+    $window_x_center = $window_x_offset + (int) ($window_width / 2);
+    $window_y_center = $window_y_offset + (int) ($window_height / 2);
+    $crop_x_offset = $window_x_center - (int) ($crop_width / 2);
+    $crop_y_offset = $window_y_center - (int) ($crop_height / 2);
+    $rect = new PositionedRectangle($crop_width, $crop_height);
+    $rect->translate([$crop_x_offset, $crop_y_offset]);
+    if ($crop_x_offset < 0) {
+      $rect->translate([-$crop_x_offset, 0]);
+    }
+    if ($crop_y_offset < 0) {
+      $rect->translate([0, -$crop_y_offset]);
+    }
+    if ($crop_x_offset + $crop_width > imagesx($src)) {
+      $rect->translate([-($crop_x_offset + $crop_width - imagesx($src)), 0]);
+    }
+    if ($crop_y_offset + $crop_height > imagesy($src)) {
+      $rect->translate([0, -($crop_y_offset + $crop_height - imagesy($src))]);
+    }
+
+    return $rect;
   }
 
 }

@@ -1,9 +1,10 @@
 name: 'Social Editor'
 description: 'Provides site editor components.'
 type: module
-core: 8.x
+core_version_requirement: ^9
 dependencies:
   - drupal:ckeditor
   - drupal:editor
   - drupal:filter
+  - editor_advanced_link:editor_advanced_link
 package: Social

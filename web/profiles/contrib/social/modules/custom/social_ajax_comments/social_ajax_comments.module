@@ -1,0 +1,257 @@
+<?php
+
+/**
+ * @file
+ * The Social AJAX comments module.
+ */
+
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Template\Attribute;
+use Drupal\Core\Url;
+use Drupal\ajax_comments\Utility;
+use Drupal\comment\CommentInterface;
+use Drupal\node\Entity\Node;
+use Drupal\node\NodeInterface;
+use Drupal\social_comment\SocialCommentViewBuilder;
+use Drupal\social_post\Entity\Post;
+use Drupal\social_post\Entity\PostInterface;
+
+/**
+ * Implements hook_entity_display_build_alter().
+ */
+function social_ajax_comments_entity_display_build_alter(&$build, $context) {
+  // Only for comments on nodes on the default display.
+  // This is to override the defaults in ajax_comments who
+  // don't take into account correct wrapper and html id's
+  // for our post and nodes.
+  if (!$context['entity'] instanceof Node && !$context['entity'] instanceof Post) {
+    return;
+  }
+  foreach ($build as $field_name => $field) {
+    if (!empty($field['#field_type']) && $field['#field_type'] === 'comment') {
+      // Check that this comment field uses Ajax Comments.
+      /** @var \Drupal\ajax_comments\FieldSettingsHelper $field_settings_helper */
+      $field_settings_helper = \Drupal::service('ajax_comments.field_settings_helper');
+      $field_config = $build[$field_name]['#items']->getFieldDefinition();
+      $field_formatter = $field_settings_helper->getFieldFormatter($context['display'], $field['#field_name'], $field_config, $context['display']->getMode());
+      if ($field_settings_helper->isEnabled($field_formatter)) {
+        // Check if this ID is being generated in response to an Ajax request.
+        if (Utility::isAjaxRequest(\Drupal::request())) {
+          // Note that setting ajax as TRUE on Html here also fixes issue
+          // with non-unique IDs on textarea elements return through ajax,
+          // which otherwise could result in WYYSIWYG editors being
+          // incorrectly attached by Drupal.attachBehaviors().
+          Html::setIsAjax(TRUE);
+        }
+
+        $html_id = $field['#entity_type'] . '_' . $field['#bundle'] . '_' . $field['#field_name'];
+        if ($context['entity'] instanceof Post) {
+          // It will also run on AJAX commands so cant do a .=
+          // otherwise it will keep on adding the id.
+          $html_id = $field['#entity_type'] . '_' . $field['#bundle'] . '_' . $field['#field_name'] . '_' . $context['entity']->id();
+        }
+        if (isset($build[$field_name])) {
+          $build['#cache']['contexts'][] = 'url';
+          $build[$field_name]['#attributes']['id'] = Html::getId($html_id);
+          Utility::setEntityRenderArray($build, $context['entity'], $context['display']->getMode());
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Triggers on form for deleting a comment on a post.
+ */
+function social_ajax_comments_form_comment_post_comment_delete_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // We set a new class, so we can remove wrapper div.
+  // Due to the form.inc and confirm-form twig setup.
+  if (\Drupal::request()->isXmlHttpRequest()) {
+    $form['#attributes']['class'][] = 'is_modal';
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Triggers on form for deleting a comment on a node.
+ */
+function social_ajax_comments_form_comment_comment_delete_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // We set a new class, so we can remove wrapper div.
+  // Due to the form.inc and confirm-form twig setup.
+  if (\Drupal::request()->isXmlHttpRequest()) {
+    $form['#attributes']['class'][] = 'is_modal';
+  }
+}
+
+/**
+ * Implements hook_comment_links_alter().
+ *
+ * Alter the links of a comment.
+ */
+function social_ajax_comments_comment_links_alter(array &$links, CommentInterface $entity, array &$context) {
+  $bundle = $entity->bundle();
+  $commented_entity = $entity->getCommentedEntity();
+  $account = \Drupal::currentUser();
+
+  // Url::fromRoute()->toRenderable doesn't fully take care of access checks.
+  // We need the custom checks to override what Ajax comments does for us.
+  // Mainly because of UX flaws in the edit form that opens up.
+  // For now we don't support edit ajax actions nor unpublishing.
+  if (!empty($links['comment']['#links']['comment-edit'])) {
+    $links['comment']['#links']['comment-edit']['attributes']['class'] = [];
+    $links['comment']['#links']['comment-edit']['url'] = Url::fromRoute('entity.comment.edit_form', ['comment' => $entity->id()]);
+  }
+  // For post comments we need to render better data wrapper's so
+  // Ajax replace works on the right ID.
+  if ($entity->isPublished() && $account->hasPermission('administer comments') && $bundle === 'post_comment') {
+    $wrapper_id = Html::getId(
+      $commented_entity->getEntityTypeId() . '-' . $commented_entity->bundle() . '-' . 'field_post_comments' . '-' . $commented_entity->id()
+    );
+    $links['comment']['#links']['comment-edit']['attributes']['data-wrapper-html-id'] = $wrapper_id;
+    $links['comment']['#links']['comment-unpublish']['attributes']['data-wrapper-html-id'] = $wrapper_id;
+    $links['comment']['#links']['comment-delete']['attributes']['data-wrapper-html-id'] = $wrapper_id;
+  }
+}
+
+/**
+ * Implements hook_ajax_comments_wrapper_id_alter().
+ */
+function social_ajax_comments_ajax_comments_wrapper_id_alter(&$wrapper_html_id, ContentEntityInterface $commented_entity, $field_name) {
+  if (
+    $commented_entity instanceof NodeInterface &&
+    $field_name === 'field_topic_comments'
+  ) {
+    $wrapper_html_id = Html::getId(sprintf(
+      '%s-%s-%s',
+      $commented_entity->getEntityTypeId(),
+      $commented_entity->bundle(),
+      $field_name
+    ));
+  }
+  elseif (
+    $commented_entity instanceof PostInterface &&
+    $field_name === 'field_post_comments'
+  ) {
+    $wrapper_html_id = Html::getId(sprintf(
+      '%s-%s-%s-%s',
+      $commented_entity->getEntityTypeId(),
+      $commented_entity->bundle(),
+      $field_name,
+      $commented_entity->id()
+    ));
+  }
+}
+
+/**
+ * Implements hook_ajax_render_alter().
+ */
+function social_ajax_comments_ajax_render_alter(array &$data) {
+  if (
+    (
+      // In case when the current page is (re)loaded and the response contains a
+      // command with settings and a command with new content.
+      count($data) === 2 ||
+      // In case when a user tries to switch to another page of pagination after
+      // adding a new comment and the response contains two commands from the
+      // previous case and command with messages.
+      count($data) === 3
+    ) &&
+    $data[0]['command'] === 'settings' &&
+    $data[1]['command'] === 'insert' &&
+    $data[1]['selector'] === NULL &&
+    \Drupal::request()->query->has('page')
+  ) {
+    if ($data[1]['method'] === NULL) {
+      $theme = \Drupal::service('theme.manager')->getActiveTheme()->getName();
+      $data[1]['method'] = 'html';
+      $data[1]['selector'] = '#block-' . $theme . '-content';
+    }
+    elseif (
+      $data[1]['method'] === 'replaceWith' &&
+      preg_match('/<section[^>]+id="([^"]+)/', $data[1]['data'], $matches)
+    ) {
+      $data[1]['selector'] = '#' . $matches[1];
+    }
+  }
+
+  // Delete content before wrapper of the comments section of AJAX response
+  // during adding a new comment to resolve the issue with creating nesting of
+  // comments section wrapper in itself after adding each comment.
+  if (
+    \Drupal::routeMatch()->getRouteName() === 'ajax_comments.add' &&
+    \Drupal::request()->request->has('social_ajax_comments')
+  ) {
+    foreach ($data as &$item) {
+      if (
+        $item['command'] === 'insert' &&
+        $item['method'] === 'html' &&
+        preg_match('/^#([a-z\-]+)$/', $item['selector'], $matches)
+      ) {
+        $content = &$item['data'];
+
+        $strpos_matches = strpos($content, $matches[1]);
+        $strpos_substrng = strrpos(substr($content, 0, (int) $strpos_matches), '<');
+
+        if ($strpos_matches !== FALSE && $strpos_substrng !== FALSE) {
+          $content = substr($content, $strpos_substrng);
+        }
+        return;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function social_ajax_comments_preprocess_pager(&$variables) {
+  if (
+    isset($variables['pager']['#tags']) &&
+    in_array(SocialCommentViewBuilder::PAGER_TAG, $variables['pager']['#tags']) &&
+    ($items = &$variables['items'])
+  ) {
+    _social_ajax_comments_pager($items);
+    _social_ajax_comments_pager($items['pages']);
+  }
+}
+
+/**
+ * Add the CSS class to each element of a pager.
+ *
+ * @param array $items
+ *   The pager sub-elements.
+ */
+function _social_ajax_comments_pager(array &$items) {
+  foreach ($items as &$item) {
+    if (isset($item['href'])) {
+      $attributes = $item['attributes'] ?? new Attribute([]);
+      $attributes->addClass('use-ajax');
+      $item['attributes'] = $attributes;
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function social_ajax_comments_form_comment_form_alter(array &$form, FormStateInterface $form_state, string $form_id) :void {
+  // The comment below is copied from "ajax_comments" module version
+  // "8.x-1.0-beta4". Comment is located at
+  // "ajax_comments/src/Form/AjaxCommentsForm.php" in "buildForm()" method.
+  // In case the logic of contrib module will be changed in the future,
+  // the logic below should follow accordingly.
+  //
+  // Ajax replies to other comments should happen on the canonical entity page
+  // (note this functionality has not been ported to D8, yet).
+  // If the user is on the standalone comment reply page or comment edit page,
+  // it means JavaScript is disabled or the ajax functionality is not working.
+  // Do not proceed with the form alter.
+  if (in_array(\Drupal::routeMatch()->getRouteName(), ['comment.reply', 'entity.comment.edit_form'])) {
+    unset($form['actions']['submit']['#ajax']);
+  }
+}

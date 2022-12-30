@@ -6,6 +6,7 @@ use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\DestructableInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
@@ -135,6 +136,13 @@ class Registry implements DestructableInterface {
   protected $themeHandler;
 
   /**
+   * The theme initialization.
+   *
+   * @var \Drupal\Core\Theme\ThemeInitializationInterface
+   */
+  protected $themeInitialization;
+
+  /**
    * The theme manager.
    *
    * @var \Drupal\Core\Theme\ThemeManagerInterface
@@ -147,6 +155,13 @@ class Registry implements DestructableInterface {
    * @var \Drupal\Core\Cache\CacheBackendInterface
    */
   protected $runtimeCache;
+
+  /**
+   * The module list.
+   *
+   * @var \Drupal\Core\Extension\ModuleExtensionList
+   */
+  protected $moduleList;
 
   /**
    * Constructs a \Drupal\Core\Theme\Registry object.
@@ -167,8 +182,10 @@ class Registry implements DestructableInterface {
    *   (optional) The name of the theme for which to construct the registry.
    * @param \Drupal\Core\Cache\CacheBackendInterface $runtime_cache
    *   The cache backend interface to use for the runtime theme registry data.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $module_list
+   *   The module list.
    */
-  public function __construct($root, CacheBackendInterface $cache, LockBackendInterface $lock, ModuleHandlerInterface $module_handler, ThemeHandlerInterface $theme_handler, ThemeInitializationInterface $theme_initialization, $theme_name = NULL, CacheBackendInterface $runtime_cache = NULL) {
+  public function __construct($root, CacheBackendInterface $cache, LockBackendInterface $lock, ModuleHandlerInterface $module_handler, ThemeHandlerInterface $theme_handler, ThemeInitializationInterface $theme_initialization, $theme_name = NULL, CacheBackendInterface $runtime_cache = NULL, ModuleExtensionList $module_list = NULL) {
     $this->root = $root;
     $this->cache = $cache;
     $this->lock = $lock;
@@ -177,6 +194,11 @@ class Registry implements DestructableInterface {
     $this->themeHandler = $theme_handler;
     $this->themeInitialization = $theme_initialization;
     $this->runtimeCache = $runtime_cache;
+    if (!$module_list) {
+      @trigger_error('Calling Registry::__construct() without the $module_list argument is deprecated in drupal:9.3.0 and is required in drupal:10.0.0. See https://www.drupal.org/node/2940438', E_USER_DEPRECATED);
+      $module_list = \Drupal::service('extension.list.module');
+    }
+    $this->moduleList = $module_list;
   }
 
   /**
@@ -330,9 +352,9 @@ class Registry implements DestructableInterface {
       $cache = $cached->data;
     }
     else {
-      foreach ($this->moduleHandler->getImplementations('theme') as $module) {
-        $this->processExtension($cache, $module, 'module', $module, $this->getPath($module));
-      }
+      $this->moduleHandler->invokeAllWith('theme', function (callable $callback, string $module) use (&$cache) {
+        $this->processExtension($cache, $module, 'module', $module, $this->moduleList->getPath($module));
+      });
       // Only cache this registry if all modules are loaded.
       if ($this->moduleHandler->isLoaded()) {
         $this->cache->set("theme_registry:build:modules", $cache, Cache::PERMANENT, ['theme_registry']);
@@ -342,7 +364,7 @@ class Registry implements DestructableInterface {
     // Process each base theme.
     // Ensure that we start with the root of the parents, so that both CSS files
     // and preprocess functions comes first.
-    foreach (array_reverse($this->theme->getBaseThemes()) as $base) {
+    foreach (array_reverse($this->theme->getBaseThemeExtensions()) as $base) {
       // If the base theme uses a theme engine, process its hooks.
       $base_path = $base->getPath();
       if ($this->theme->getEngine()) {
@@ -478,7 +500,7 @@ class Registry implements DestructableInterface {
         // system.module to declare theme functions on behalf of core .include
         // files.
         if (isset($info['file'])) {
-          $include_file = isset($info['path']) ? $info['path'] : $path;
+          $include_file = $info['path'] ?? $path;
           $include_file .= '/' . $info['file'];
           include_once $this->root . '/' . $include_file;
           $result[$hook]['includes'][] = $include_file;
@@ -488,6 +510,7 @@ class Registry implements DestructableInterface {
         // if the theme hook specifies a function callback instead, check to
         // ensure the function actually exists.
         if (isset($info['function'])) {
+          trigger_error(sprintf('Theme functions are deprecated in drupal:8.0.0 and are removed from drupal:10.0.0. Use Twig templates instead of %s(). See https://www.drupal.org/node/1831138', $info['function']), E_USER_DEPRECATED);
           if (!function_exists($info['function'])) {
             throw new \BadFunctionCallException(sprintf(
               'Theme hook "%s" refers to a theme function callback that does not exist: "%s"',
@@ -684,7 +707,7 @@ class Registry implements DestructableInterface {
     // Gather prefixes. This will be used to limit the found functions to the
     // expected naming conventions.
     $prefixes = array_keys((array) $this->moduleHandler->getModuleList());
-    foreach (array_reverse($theme->getBaseThemes()) as $base) {
+    foreach (array_reverse($theme->getBaseThemeExtensions()) as $base) {
       $prefixes[] = $base->getName();
     }
     if ($theme->getEngine()) {
@@ -701,7 +724,7 @@ class Registry implements DestructableInterface {
     // have matching hooks in the registry.
     foreach ($prefixes as $prefix) {
       // Grep only the functions which are within the prefix group.
-      list($first_prefix,) = explode('_', $prefix, 2);
+      [$first_prefix] = explode('_', $prefix, 2);
       if (!isset($grouped_functions[$first_prefix])) {
         continue;
       }
@@ -794,6 +817,7 @@ class Registry implements DestructableInterface {
    *
    * @param $prefixes
    *   An array of function prefixes by which the list can be limited.
+   *
    * @return array
    *   Functions grouped by the first prefix.
    */
@@ -812,7 +836,7 @@ class Registry implements DestructableInterface {
     $grouped_functions = [];
     // Splitting user defined functions into groups by the first prefix.
     foreach ($theme_functions as $function) {
-      list($first_prefix,) = explode('_', $function, 2);
+      [$first_prefix] = explode('_', $function, 2);
       $grouped_functions[$first_prefix][] = $function;
     }
 
@@ -826,9 +850,15 @@ class Registry implements DestructableInterface {
    *   The name of the item for which the path is requested.
    *
    * @return string
+   *
+   * @deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use
+   *   \Drupal\Core\Extension\ExtensionList::getPath() instead.
+   *
+   * @see https://www.drupal.org/node/2940438
    */
   protected function getPath($module) {
-    return drupal_get_path('module', $module);
+    @trigger_error(__METHOD__ . ' is deprecated in drupal:9.3.0 and is removed from drupal:10.0.0. Use \Drupal\Core\Extension\ExtensionList::getPath() instead. See https://www.drupal.org/node/2940438', E_USER_DEPRECATED);
+    return $this->moduleList->getPath($module);
   }
 
 }

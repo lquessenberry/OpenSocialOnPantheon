@@ -12,6 +12,7 @@ use Drupal\Core\Image\ImageInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Utility\Token;
 use Drupal\image\ConfigurableImageEffectBase;
+use Drupal\image_effects\Component\ImageUtility;
 use Drupal\image_effects\Component\PositionedRectangle;
 use Drupal\image_effects\Plugin\ImageEffectsFontSelectorPluginInterface;
 use Psr\Log\LoggerInterface;
@@ -864,8 +865,8 @@ class TextOverlayImageEffect extends ConfigurableImageEffectBase implements Cont
     }
     else {
       // Nothing to do, just place the wrapper at offset required.
-      $x_offset = ceil(image_filter_keyword($this->configuration['layout']['x_pos'], $image_width, $wrapper->getWidth()));
-      $y_offset = ceil(image_filter_keyword($this->configuration['layout']['y_pos'], $image_height, $wrapper->getHeight()));
+      $x_offset = ImageUtility::getKeywordOffset($this->configuration['layout']['x_pos'], $image_width, $wrapper->getWidth());
+      $y_offset = ImageUtility::getKeywordOffset($this->configuration['layout']['y_pos'], $image_height, $wrapper->getHeight());
       $this->info['wrapper_xpos'] = $x_offset + $this->configuration['layout']['x_offset'];
       $this->info['wrapper_ypos'] = $y_offset + $this->configuration['layout']['y_offset'];
     }
@@ -1001,8 +1002,8 @@ class TextOverlayImageEffect extends ConfigurableImageEffectBase implements Cont
     // Determine wrapper offset, based on placement option.
     // This is just taking into account the image and wrapper dimensions;
     // additional offset explicitly specified is considered later.
-    $x_offset = ceil(image_filter_keyword($this->configuration['layout']['x_pos'], $image_width, $wrapper_width));
-    $y_offset = ceil(image_filter_keyword($this->configuration['layout']['y_pos'], $image_height, $wrapper_height));
+    $x_offset = ImageUtility::getKeywordOffset($this->configuration['layout']['x_pos'], $image_width, $wrapper_width);
+    $y_offset = ImageUtility::getKeywordOffset($this->configuration['layout']['y_pos'], $image_height, $wrapper_height);
 
     // The position of the wrapper, once offset as per explicit
     // input. Width and height are not relevant for the algorithm,
@@ -1126,8 +1127,8 @@ class TextOverlayImageEffect extends ConfigurableImageEffectBase implements Cont
         '#uri' => $textimage->getUri(),
         '#width' => $textimage->getWidth(),
         '#height' => $textimage->getHeight(),
-        '#title' => t('Text overlay preview'),
-        '#alt' => t('Text overlay preview.'),
+        '#title' => $this->t('Text overlay preview'),
+        '#alt' => $this->t('Text overlay preview.'),
       ];
       $textimage->getBubbleableMetadata()->applyTo($render);
       return [

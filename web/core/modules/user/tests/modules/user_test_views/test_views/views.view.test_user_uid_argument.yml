@@ -9,8 +9,7 @@ module: views
 description: ''
 tag: ''
 base_table: users_field_data
-base_field: nid
-core: '8'
+base_field: uid
 display:
   default:
     display_options:
@@ -33,6 +32,6 @@ display:
           entity_type: user
           entity_field: uid
     display_plugin: default
-    display_title: Master
+    display_title: Default
     id: default
     position: 0

@@ -2,13 +2,11 @@
 
 namespace Drupal\flag\Access;
 
-use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Routing\Access\AccessInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\flag\FlagInterface;
 use Drupal\flag\FlagServiceInterface;
-
 
 /**
  * Provides routes with the ability to check access to the 'flag' action.

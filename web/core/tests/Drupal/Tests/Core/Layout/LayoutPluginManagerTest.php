@@ -11,7 +11,9 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Core\Layout\LayoutDefault;
 use Drupal\Core\Layout\LayoutDefinition;
+use Drupal\Core\Layout\LayoutInterface;
 use Drupal\Core\Layout\LayoutPluginManager;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Tests\UnitTestCase;
 use org\bovigo\vfs\vfsStream;
 use Prophecy\Argument;
@@ -53,7 +55,7 @@ class LayoutPluginManagerTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->setUpFilesystem();
@@ -69,7 +71,7 @@ class LayoutPluginManagerTest extends UnitTestCase {
     $this->moduleHandler->moduleExists('core')->willReturn(FALSE);
     $this->moduleHandler->moduleExists('invalid_provider')->willReturn(FALSE);
 
-    $module_a = new Extension('/', 'module', vfsStream::url('root/modules/module_a/module_a.layouts.yml'));
+    $module_a = new Extension('vfs://root', 'module', 'modules/module_a/module_a.layouts.yml');
     $this->moduleHandler->getModule('module_a')->willReturn($module_a);
     $this->moduleHandler->getModuleDirectories()->willReturn(['module_a' => vfsStream::url('root/modules/module_a')]);
     $this->moduleHandler->alter('layout', Argument::type('array'))->shouldBeCalled();
@@ -80,7 +82,7 @@ class LayoutPluginManagerTest extends UnitTestCase {
     $this->themeHandler->themeExists('core')->willReturn(FALSE);
     $this->themeHandler->themeExists('invalid_provider')->willReturn(FALSE);
 
-    $theme_a = new Extension('/', 'theme', vfsStream::url('root/themes/theme_a/theme_a.layouts.yml'));
+    $theme_a = new Extension('vfs://root', 'theme', 'themes/theme_a/theme_a.layouts.yml');
     $this->themeHandler->getTheme('theme_a')->willReturn($theme_a);
     $this->themeHandler->getThemeDirectories()->willReturn(['theme_a' => vfsStream::url('root/themes/theme_a')]);
 
@@ -111,36 +113,45 @@ class LayoutPluginManagerTest extends UnitTestCase {
    * @covers ::processDefinition
    */
   public function testGetDefinition() {
-    $theme_a_path = vfsStream::url('root/themes/theme_a');
     $layout_definition = $this->layoutPluginManager->getDefinition('theme_a_provided_layout');
     $this->assertSame('theme_a_provided_layout', $layout_definition->id());
-    $this->assertSame('2 column layout', $layout_definition->getLabel());
-    $this->assertSame('Columns: 2', $layout_definition->getCategory());
+    $this->assertSame('2 column layout', (string) $layout_definition->getLabel());
+    $this->assertSame('Columns: 2', (string) $layout_definition->getCategory());
+    $this->assertSame('A theme provided layout', (string) $layout_definition->getDescription());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getLabel());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getCategory());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getDescription());
     $this->assertSame('twocol', $layout_definition->getTemplate());
-    $this->assertSame("$theme_a_path/templates", $layout_definition->getPath());
+    $this->assertSame('themes/theme_a/templates', $layout_definition->getPath());
     $this->assertSame('theme_a/twocol', $layout_definition->getLibrary());
     $this->assertSame('twocol', $layout_definition->getThemeHook());
-    $this->assertSame("$theme_a_path/templates", $layout_definition->getTemplatePath());
+    $this->assertSame('themes/theme_a/templates', $layout_definition->getTemplatePath());
     $this->assertSame('theme_a', $layout_definition->getProvider());
     $this->assertSame('right', $layout_definition->getDefaultRegion());
     $this->assertSame(LayoutDefault::class, $layout_definition->getClass());
     $expected_regions = [
       'left' => [
-        'label' => 'Left region',
+        'label' => new TranslatableMarkup('Left region', [], ['context' => 'layout_region']),
       ],
       'right' => [
-        'label' => 'Right region',
+        'label' => new TranslatableMarkup('Right region', [], ['context' => 'layout_region']),
       ],
     ];
-    $this->assertSame($expected_regions, $layout_definition->getRegions());
+    $regions = $layout_definition->getRegions();
+    $this->assertEquals($expected_regions, $regions);
+    $this->assertInstanceOf(TranslatableMarkup::class, $regions['left']['label']);
+    $this->assertInstanceOf(TranslatableMarkup::class, $regions['right']['label']);
 
-    $module_a_path = vfsStream::url('root/modules/module_a');
     $layout_definition = $this->layoutPluginManager->getDefinition('module_a_provided_layout');
     $this->assertSame('module_a_provided_layout', $layout_definition->id());
-    $this->assertSame('1 column layout', $layout_definition->getLabel());
-    $this->assertSame('Columns: 1', $layout_definition->getCategory());
+    $this->assertSame('1 column layout', (string) $layout_definition->getLabel());
+    $this->assertSame('Columns: 1', (string) $layout_definition->getCategory());
+    $this->assertSame('A module provided layout', (string) $layout_definition->getDescription());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getLabel());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getCategory());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getDescription());
     $this->assertSame(NULL, $layout_definition->getTemplate());
-    $this->assertSame("$module_a_path/layouts", $layout_definition->getPath());
+    $this->assertSame('modules/module_a/layouts', $layout_definition->getPath());
     $this->assertSame('module_a/onecol', $layout_definition->getLibrary());
     $this->assertSame('onecol', $layout_definition->getThemeHook());
     $this->assertSame(NULL, $layout_definition->getTemplatePath());
@@ -149,19 +160,26 @@ class LayoutPluginManagerTest extends UnitTestCase {
     $this->assertSame(LayoutDefault::class, $layout_definition->getClass());
     $expected_regions = [
       'top' => [
-        'label' => 'Top region',
+        'label' => new TranslatableMarkup('Top region', [], ['context' => 'layout_region']),
       ],
       'bottom' => [
-        'label' => 'Bottom region',
+        'label' => new TranslatableMarkup('Bottom region', [], ['context' => 'layout_region']),
       ],
     ];
-    $this->assertSame($expected_regions, $layout_definition->getRegions());
+    $regions = $layout_definition->getRegions();
+    $this->assertEquals($expected_regions, $regions);
+    $this->assertInstanceOf(TranslatableMarkup::class, $regions['top']['label']);
+    $this->assertInstanceOf(TranslatableMarkup::class, $regions['bottom']['label']);
 
     $core_path = '/core/lib/Drupal/Core';
     $layout_definition = $this->layoutPluginManager->getDefinition('plugin_provided_layout');
     $this->assertSame('plugin_provided_layout', $layout_definition->id());
     $this->assertEquals('Layout plugin', $layout_definition->getLabel());
     $this->assertEquals('Columns: 1', $layout_definition->getCategory());
+    $this->assertEquals('Test layout', $layout_definition->getDescription());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getLabel());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getCategory());
+    $this->assertInstanceOf(TranslatableMarkup::class, $layout_definition->getDescription());
     $this->assertSame('plugin-provided-layout', $layout_definition->getTemplate());
     $this->assertSame($core_path, $layout_definition->getPath());
     $this->assertSame(NULL, $layout_definition->getLibrary());
@@ -172,10 +190,12 @@ class LayoutPluginManagerTest extends UnitTestCase {
     $this->assertSame('Drupal\Core\Plugin\Layout\TestLayout', $layout_definition->getClass());
     $expected_regions = [
       'main' => [
-        'label' => 'Main Region',
+        'label' => new TranslatableMarkup('Main Region', [], ['context' => 'layout_region']),
       ],
     ];
-    $this->assertEquals($expected_regions, $layout_definition->getRegions());
+    $regions = $layout_definition->getRegions();
+    $this->assertEquals($expected_regions, $regions);
+    $this->assertInstanceOf(TranslatableMarkup::class, $regions['main']['label']);
   }
 
   /**
@@ -183,7 +203,8 @@ class LayoutPluginManagerTest extends UnitTestCase {
    */
   public function testProcessDefinition() {
     $this->moduleHandler->alter('layout', Argument::type('array'))->shouldNotBeCalled();
-    $this->setExpectedException(InvalidPluginDefinitionException::class, 'The "module_a_derived_layout:array_based" layout definition must extend ' . LayoutDefinition::class);
+    $this->expectException(InvalidPluginDefinitionException::class);
+    $this->expectExceptionMessage('The "module_a_derived_layout:array_based" layout definition must extend ' . LayoutDefinition::class);
     $module_a_provided_layout = <<<'EOS'
 module_a_derived_layout:
   deriver: \Drupal\Tests\Core\Layout\LayoutDeriver
@@ -204,7 +225,6 @@ EOS;
    */
   public function testGetThemeImplementations() {
     $core_path = '/core/lib/Drupal/Core';
-    $theme_a_path = vfsStream::url('root/themes/theme_a');
     $expected = [
       'layout' => [
         'render element' => 'content',
@@ -213,7 +233,7 @@ EOS;
         'render element' => 'content',
         'base hook' => 'layout',
         'template' => 'twocol',
-        'path' => "$theme_a_path/templates",
+        'path' => 'themes/theme_a/templates',
       ],
       'plugin_provided_layout' => [
         'render element' => 'content',
@@ -284,6 +304,7 @@ EOS;
 module_a_provided_layout:
   label: 1 column layout
   category: 'Columns: 1'
+  description: 'A module provided layout'
   theme_hook: onecol
   path: layouts
   library: module_a/onecol
@@ -301,6 +322,7 @@ theme_a_provided_layout:
   class: '\Drupal\Core\Layout\LayoutDefault'
   label: 2 column layout
   category: 'Columns: 2'
+  description: 'A theme provided layout'
   template: twocol
   path: templates
   library: theme_a/twocol
@@ -325,7 +347,7 @@ use Drupal\Core\Layout\LayoutDefault;
  *   template = "templates/plugin-provided-layout",
  *   regions = {
  *     "main" = {
- *       "label" = @Translation("Main Region")
+ *       "label" = @Translation("Main Region", context = "layout_region")
  *     }
  *   }
  * )
@@ -383,6 +405,7 @@ class LayoutDeriver extends DeriverBase {
         'id' => 'invalid_provider',
         'provider' => 'invalid_provider',
       ]);
+      $this->derivatives['invalid_provider']->setClass(LayoutInterface::class);
     }
     return $this->derivatives;
   }

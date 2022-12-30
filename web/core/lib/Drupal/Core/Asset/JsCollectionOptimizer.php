@@ -2,6 +2,7 @@
 
 namespace Drupal\Core\Asset;
 
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\State\StateInterface;
 
 /**
@@ -38,6 +39,13 @@ class JsCollectionOptimizer implements AssetCollectionOptimizerInterface {
   protected $state;
 
   /**
+   * The file system service.
+   *
+   * @var \Drupal\Core\File\FileSystemInterface
+   */
+  protected $fileSystem;
+
+  /**
    * Constructs a JsCollectionOptimizer.
    *
    * @param \Drupal\Core\Asset\AssetCollectionGrouperInterface $grouper
@@ -48,12 +56,15 @@ class JsCollectionOptimizer implements AssetCollectionOptimizerInterface {
    *   The dumper for optimized JS assets.
    * @param \Drupal\Core\State\StateInterface $state
    *   The state key/value store.
+   * @param \Drupal\Core\File\FileSystemInterface $file_system
+   *   The file system service.
    */
-  public function __construct(AssetCollectionGrouperInterface $grouper, AssetOptimizerInterface $optimizer, AssetDumperInterface $dumper, StateInterface $state) {
+  public function __construct(AssetCollectionGrouperInterface $grouper, AssetOptimizerInterface $optimizer, AssetDumperInterface $dumper, StateInterface $state, FileSystemInterface $file_system) {
     $this->grouper = $grouper;
     $this->optimizer = $optimizer;
     $this->dumper = $dumper;
     $this->state = $state;
+    $this->fileSystem = $file_system;
   }
 
   /**
@@ -80,7 +91,7 @@ class JsCollectionOptimizer implements AssetCollectionOptimizerInterface {
     // Drupal contrib can override this default JS aggregator to keep the same
     // grouping, optimizing and dumping, but change the strategy that is used to
     // determine when the aggregate should be rebuilt (e.g. mtime, HTTPS …).
-    $map = $this->state->get('system.js_cache_files') ?: [];
+    $map = $this->state->get('system.js_cache_files', []);
     $js_assets = [];
     foreach ($js_groups as $order => $js_group) {
       // We have to return a single asset, not a group of assets. It is now up
@@ -180,10 +191,12 @@ class JsCollectionOptimizer implements AssetCollectionOptimizerInterface {
     $delete_stale = function ($uri) {
       // Default stale file threshold is 30 days.
       if (REQUEST_TIME - filemtime($uri) > \Drupal::config('system.performance')->get('stale_file_threshold')) {
-        file_unmanaged_delete($uri);
+        $this->fileSystem->delete($uri);
       }
     };
-    file_scan_directory('public://js', '/.*/', ['callback' => $delete_stale]);
+    if (is_dir('public://js')) {
+      $this->fileSystem->scanDirectory('public://js', '/.*/', ['callback' => $delete_stale]);
+    }
   }
 
 }

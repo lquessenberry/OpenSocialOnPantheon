@@ -9,6 +9,7 @@ use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Template\Attribute;
 use Drupal\Core\Url;
+use Drupal\Core\Utility\TableSort;
 
 /**
  * Prepares variables for view templates.
@@ -34,8 +35,17 @@ function template_preprocess_views_view(&$variables) {
 
   $css_class = $view->display_handler->getOption('css_class');
   if (!empty($css_class)) {
-    $variables['css_class'] = preg_replace('/[^a-zA-Z0-9- ]/', '-', $css_class);
-    $variables['attributes']['class'][] = $variables['css_class'];
+    // Views uses its own sanitization method. This is preserved to keep
+    // backwards compatibility.
+    // @todo https://www.drupal.org/project/drupal/issues/2977950 Decide what to
+    //   do with the backwards compatibility layer.
+    $bc_classes = explode(' ', preg_replace('/[^a-zA-Z0-9- ]/', '-', $css_class));
+    // Sanitize the classes using the classes using the proper API.
+    $sanitized_classes = array_map('\Drupal\Component\Utility\Html::cleanCssIdentifier', explode(' ', $css_class));
+    $view_classes = array_unique(array_merge($bc_classes, $sanitized_classes));
+    // Merge the view display classes into any existing classes if they exist.
+    $variables['attributes']['class'] = !empty($variables['attributes']['class']) ? array_merge($variables['attributes']['class'], $view_classes) : $view_classes;
+    $variables['css_class'] = implode(' ', $view_classes);
   }
 
   // contextual_preprocess() only works on render elements, and since this theme
@@ -129,7 +139,9 @@ function template_preprocess_views_view_fields(&$variables) {
       }
 
       if (!empty($variables['options']['separator']) && $previous_inline && $object->inline && $object->content) {
-        $object->separator = Xss::filterAdmin($variables['options']['separator']);
+        $object->separator = [
+          '#markup' => $variables['options']['separator'],
+        ];
       }
 
       $object->class = Html::cleanCssIdentifier($id);
@@ -251,11 +263,11 @@ function template_preprocess_views_view_summary(&$variables) {
 
   $active_urls = [
     // Force system path.
-    \Drupal::url('<current>', [], ['alias' => TRUE]),
+    Url::fromRoute('<current>', [], ['alias' => TRUE])->toString(),
     // Force system path.
     Url::fromRouteMatch(\Drupal::routeMatch())->setOption('alias', TRUE)->toString(),
     // Could be an alias.
-    \Drupal::url('<current>'),
+    Url::fromRoute('<current>')->toString(),
     // Could be an alias.
     Url::fromRouteMatch(\Drupal::routeMatch())->toString(),
   ];
@@ -340,9 +352,9 @@ function template_preprocess_views_view_summary_unformatted(&$variables) {
   $count = 0;
   $active_urls = [
     // Force system path.
-    \Drupal::url('<current>', [], ['alias' => TRUE]),
+    Url::fromRoute('<current>', [], ['alias' => TRUE])->toString(),
     // Could be an alias.
-    \Drupal::url('<current>'),
+    Url::fromRoute('<current>')->toString(),
   ];
   $active_urls = array_combine($active_urls, $active_urls);
 
@@ -440,7 +452,7 @@ function template_preprocess_views_view_table(&$variables) {
   // working URLs.
   $route_name = !empty($view->live_preview) ? '<current>' : '<none>';
 
-  $query = tablesort_get_query_parameters();
+  $query = TableSort::getQueryParameters(\Drupal::request());
   if (isset($view->exposed_raw_input)) {
     $query += $view->exposed_raw_input;
   }
@@ -575,12 +587,12 @@ function template_preprocess_views_view_table(&$variables) {
           if (!empty($column_reference['content']) && !empty($options['info'][$column]['separator'])) {
             $column_reference['content'][] = [
               'separator' => ['#markup' => $options['info'][$column]['separator']],
-              'field_output' => ['#markup' => $field_output]
+              'field_output' => ['#markup' => $field_output],
             ];
           }
           else {
             $column_reference['content'][] = [
-              'field_output' => ['#markup' => $field_output]
+              'field_output' => ['#markup' => $field_output],
             ];
           }
         }
@@ -648,9 +660,26 @@ function template_preprocess_views_view_table(&$variables) {
     $variables['caption_needed'] = FALSE;
   }
 
+  // For backwards compatibility, initialize the 'summary' and 'description'
+  // variables, although core templates now all use 'summary_element' instead.
   $variables['summary'] = $handler->options['summary'];
   $variables['description'] = $handler->options['description'];
-  $variables['caption_needed'] |= !empty($variables['summary']) || !empty($variables['description']);
+  if (!empty($handler->options['summary']) || !empty($handler->options['description'])) {
+    $variables['summary_element'] = [
+      '#type' => 'details',
+      '#title' => $handler->options['summary'],
+      // To ensure that the description is properly escaped during rendering,
+      // use an 'inline_template' to let Twig do its magic, instead of 'markup'.
+      'description' => [
+        '#type' => 'inline_template',
+        '#template' => '{{ description }}',
+        '#context' => [
+          'description' => $handler->options['description'],
+        ],
+      ],
+    ];
+    $variables['caption_needed'] = TRUE;
+  }
 
   $variables['responsive'] = FALSE;
   // If the table has headers and it should react responsively to columns hidden
@@ -802,7 +831,7 @@ function template_preprocess_views_view_unformatted(&$variables) {
  *   - view: A View object.
  */
 function template_preprocess_views_view_list(&$variables) {
-  $handler  = $variables['view']->style_plugin;
+  $handler = $variables['view']->style_plugin;
 
   // Fetch classes from handler options.
   if ($handler->options['class']) {
@@ -835,7 +864,7 @@ function template_preprocess_views_view_list(&$variables) {
  *   - rows: The raw row data.
  */
 function template_preprocess_views_view_rss(&$variables) {
-  $view  = $variables['view'];
+  $view = $variables['view'];
   $items = $variables['rows'];
   $style = $view->style_plugin;
 
@@ -856,36 +885,11 @@ function template_preprocess_views_view_rss(&$variables) {
     $title = $view->getTitle();
   }
   $variables['title'] = $title;
-
-  // Figure out which display which has a path we're using for this feed. If
-  // there isn't one, use the global $base_url
-  $link_display_id = $view->display_handler->getLinkDisplay();
-  /** @var \Drupal\views\Plugin\views\display\DisplayPluginBase $display */
-  if ($link_display_id && ($display = $view->displayHandlers->get($link_display_id)) && $display->isEnabled()) {
-    $url = $view->getUrl(NULL, $link_display_id);
-  }
-
-  /** @var \Drupal\Core\Url $url */
-  if (!empty($url)) {
-    $url_options = ['absolute' => TRUE];
-    if (!empty($view->exposed_raw_input)) {
-      $url_options['query'] = $view->exposed_raw_input;
-    }
-
-    // Compare the link to the default home page; if it's the default home page,
-    // just use $base_url.
-    $url_string = $url->setOptions($url_options)->toString();
-    if ($url_string === Url::fromUserInput($config->get('page.front'))->toString()) {
-      $url_string = Url::fromRoute('<front>')->setAbsolute()->toString();
-    }
-
-    $variables['link'] = $url_string;
-  }
-
+  $variables['link'] = Url::fromRoute('<front>')->setAbsolute()->toString();
   $variables['langcode'] = \Drupal::languageManager()->getCurrentLanguage()->getId();
   $variables['namespaces'] = new Attribute($style->namespaces);
   $variables['items'] = $items;
-  $variables['channel_elements'] = \Drupal::service('renderer')->render($style->channel_elements);
+  $variables['channel_elements'] = $style->channel_elements;
 
   // During live preview we don't want to output the header since the contents
   // of the feed are being displayed inside a normal HTML page.
@@ -936,7 +940,7 @@ function template_preprocess_views_view_row_rss(&$variables) {
  *   - rows: The raw row data.
  */
 function template_preprocess_views_view_opml(&$variables) {
-  $view  = $variables['view'];
+  $view = $variables['view'];
   $items = $variables['rows'];
 
   $config = \Drupal::config('system.site');
@@ -1015,31 +1019,38 @@ function template_preprocess_views_exposed_form(&$variables) {
  *     exposed input.
  */
 function template_preprocess_views_mini_pager(&$variables) {
-  global $pager_page_array, $pager_total;
+  /** @var \Drupal\Core\Pager\PagerManagerInterface $pager_manager */
+  $pager_manager = \Drupal::service('pager.manager');
 
   $tags = &$variables['tags'];
   $element = $variables['element'];
   $parameters = $variables['parameters'];
+  $pager = $pager_manager->getPager($element);
+  if (!$pager) {
+    return;
+  }
+  $current = $pager->getCurrentPage();
+  $total = $pager->getTotalPages();
 
   // Current is the page we are currently paged to.
-  $variables['items']['current'] = $pager_page_array[$element] + 1;
+  $variables['items']['current'] = $current + 1;
 
-  if ($pager_total[$element] > 1 && $pager_page_array[$element] > 0) {
+  if ($total > 1 && $current > 0) {
     $options = [
-      'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] - 1),
+      'query' => $pager_manager->getUpdatedParameters($parameters, $element, $current - 1),
     ];
-    $variables['items']['previous']['href'] = \Drupal::url('<current>', [], $options);
+    $variables['items']['previous']['href'] = Url::fromRoute('<current>', [], $options)->toString();
     if (isset($tags[1])) {
       $variables['items']['previous']['text'] = $tags[1];
     }
     $variables['items']['previous']['attributes'] = new Attribute();
   }
 
-  if ($pager_page_array[$element] < ($pager_total[$element] - 1)) {
+  if ($current < ($total - 1)) {
     $options = [
-      'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] + 1),
+      'query' => $pager_manager->getUpdatedParameters($parameters, $element, $current + 1),
     ];
-    $variables['items']['next']['href'] = \Drupal::url('<current>', [], $options);
+    $variables['items']['next']['href'] = Url::fromRoute('<current>', [], $options)->toString();
     if (isset($tags[3])) {
       $variables['items']['next']['text'] = $tags[3];
     }
@@ -1049,6 +1060,8 @@ function template_preprocess_views_mini_pager(&$variables) {
   // This is based on the entire current query string. We need to ensure
   // cacheability is affected accordingly.
   $variables['#cache']['contexts'][] = 'url.query_args';
+
+  $variables['heading_id'] = Html::getUniqueId('pagination-heading');
 }
 
 /**

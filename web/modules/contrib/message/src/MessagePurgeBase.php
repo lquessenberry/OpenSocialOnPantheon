@@ -68,7 +68,7 @@ abstract class MessagePurgeBase extends PluginBase implements MessagePurgeInterf
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.query')->get('message'),
+      $container->get('entity_type.manager')->getStorage('message')->getQuery(),
       $container->get('queue')->get('message_delete')
     );
   }
@@ -170,20 +170,6 @@ abstract class MessagePurgeBase extends PluginBase implements MessagePurgeInterf
     $this->configuration = $configuration['data'] + $this->defaultConfiguration();
     $this->weight = $configuration['weight'];
     return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function defaultConfiguration() {
-    return [];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function calculateDependencies() {
-    return [];
   }
 
 }

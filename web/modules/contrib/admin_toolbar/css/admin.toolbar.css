@@ -8,7 +8,7 @@
 
 .toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus {
   background-position: center right;
-  background-image: url('../misc/icons/0074bd/chevron-right.svg');
+  background-image: url(../misc/icons/0074bd/chevron-right.svg);
   background-repeat: no-repeat;
 }
 
@@ -24,18 +24,18 @@
 
 .toolbar-tray-horizontal ul li li.menu-item {
   border-top: none transparent;
-  border-right: 1px solid #dddddd;
-  border-bottom: 1px solid #dddddd;
-  border-left: 1px solid #dddddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid #ddd;
 }
 
 .toolbar .toolbar-tray-horizontal .menu-item:last-child {
-  border-left: 1px solid #dddddd;
-  border-right: 1px solid #dddddd;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
 }
 
 .toolbar .toolbar-tray-horizontal ul ul li.menu-item:first-child {
-  border-top: 1px solid #dddddd;
+  border-top: 1px solid #ddd;
 }
 
 .toolbar-tray-horizontal li.menu-item--expanded.hover-intent ul ul,
@@ -75,7 +75,7 @@
 
 .toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded {
   background-position: center right;
-  background-image: url('../misc/icons/0074bd/chevron-right.svg');
+  background-image: url(../misc/icons/0074bd/chevron-right.svg);
   background-repeat: no-repeat;
 }
 
@@ -104,6 +104,13 @@
   display: block;
 }
 
+.toolbar-menu  .menu-item > span {
+  padding: 1em 1.3333em;
+  display: block;
+  color: #434343;
+  cursor: pointer;
+}
+
 [dir="rtl"] .toolbar-tray-horizontal .menu-item:hover {
   background: #fff;
 }
@@ -114,7 +121,7 @@
 
 [dir="rtl"] .toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus {
   background-position: center right;
-  background-image: url('../misc/icons/0074bd/chevron-right.svg');
+  background-image: url(../misc/icons/0074bd/chevron-right.svg);
   background-repeat: no-repeat;
 }
 
@@ -130,18 +137,18 @@
 
 [dir="rtl"] .toolbar-tray-horizontal ul li li.menu-item {
   border-top: none transparent;
-  border-right: 1px solid #dddddd;
-  border-bottom: 1px solid #dddddd;
-  border-left: 1px solid #dddddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid #ddd;
 }
 
 [dir="rtl"] .toolbar .toolbar-tray-horizontal .menu-item:last-child {
-  border-left: 1px solid #dddddd;
-  border-right: 1px solid #dddddd;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
 }
 
 [dir="rtl"] .toolbar .toolbar-tray-horizontal ul ul li.menu-item:first-child {
-  border-top: 1px solid #dddddd;
+  border-top: 1px solid #ddd;
 }
 
 [dir="rtl"] .toolbar-tray-horizontal li.menu-item--expanded.hover-intent ul ul,
@@ -181,7 +188,7 @@
 
 [dir="rtl"] .toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded {
   background-position: center left;
-  background-image: url('../misc/icons/0074bd/chevron-left.svg');
+  background-image: url(../misc/icons/0074bd/chevron-left.svg);
   background-repeat: no-repeat;
 }
 

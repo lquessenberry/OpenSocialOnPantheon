@@ -3,7 +3,7 @@
 namespace Drupal\views\Plugin\views\filter;
 
 /**
- * Simple filter to handle greater than/less than filters
+ * Simple filter to handle greater than/less than filters.
  *
  * @ingroup views_filter_handlers
  *
@@ -20,6 +20,7 @@ class GroupByNumeric extends NumericFilter {
       $this->{$info[$this->operator]['method']}($field);
     }
   }
+
   protected function opBetween($field) {
     $placeholder_min = $this->placeholder();
     $placeholder_max = $this->placeholder();

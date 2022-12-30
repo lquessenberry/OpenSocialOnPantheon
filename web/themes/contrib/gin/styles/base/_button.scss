@@ -1,0 +1,127 @@
+.button,
+.dropbutton__item:first-of-type > *,
+.dropbutton__toggle {
+  font-size: .875rem;
+  color: var(--colorGinPrimary);
+  background-color: transparent;
+  box-shadow: none;
+  transition: var(--ginTransition);
+
+  @include mq($breakpointWide) {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    background-color: var(--colorGinPrimaryHover);
+  }
+
+  &:active, &:focus {
+    background-color: var(--colorGinPrimaryActive);
+  }
+
+  &:hover, &:active, &:focus {
+    color: var(--colorGinButtonText);
+  }
+}
+
+.button,
+.button:not(:focus),
+.form-actions .button,
+.action-link--icon-trash.action-link {
+  padding: calc(1rem - 2px) calc(1.5rem - 2px);
+  border: 2px solid var(--colorGinPrimary) !important;
+  border-radius: var(--ginBorderDefault);
+  box-shadow: 0 1px 2px var(--colorGinPrimaryLight);
+  transition: var(--ginTransition);
+
+  .gin--dark-mode & {
+    box-shadow: 0 2px 18px var(--colorGinButtonShadow);
+  }
+
+  &:hover {
+    background-color: var(--colorGinPrimaryHover);
+    border-color: var(--colorGinPrimaryHover) !important;
+  }
+
+  &:active, &:focus {
+    border-color: var(--colorGinPrimaryActive) !important;
+  }
+
+  &:hover, &:active, &:focus, &:hover:focus {
+    color: var(--colorGinButtonText);
+  }
+}
+
+.button.button--small {
+  padding: .5rem 1rem;
+  border-radius: var(--ginBorderSmall);
+}
+
+.button.button--extrasmall {
+  padding: .25rem .75rem;
+  border-radius: var(--ginBorderSmall);
+}
+
+.button--primary,
+.button--primary:not(:focus),
+.ief-entity-submit {
+  background: var(--colorGinPrimary);
+  box-shadow: .1em .25em .5em var(--colorGinPrimaryLight);
+
+  &:hover {
+    background-color: var(--colorGinPrimaryHover);
+  }
+
+  &:active, &:focus {
+    background-color: var(--colorGinPrimaryActive);
+  }
+
+  &, &:hover, &:active, &:focus {
+    color: var(--colorGinButtonText);
+  }
+}
+
+a.button:hover,
+a.button:active {
+  color: var(--colorGinButtonText);
+}
+
+a.button--primary:hover,
+a.button--primary:active,
+a.button--primary:focus,
+a.button--primary:focus:hover {
+  .gin--dark-mode & {
+    color: var(--colorGinAppBackground);
+  }
+}
+
+.button.button:disabled, .button.button.is-disabled {
+  &, &:hover, &:active, &:focus {
+    border: 2px solid var(--colorGinDisabled) !important;
+  }
+
+  .gin--dark-mode & {
+    color: var(--colorGinDisabled);
+    background-color: var(--colorGinInputBackground);
+  }
+}
+
+.action-link.action-link--icon-trash {
+  min-height: 48px;
+  padding: calc(.75rem - 1px) calc(1.5rem - 2px);
+  box-sizing: border-box;
+
+  &, &:hover, &:active, &:focus, &:focus:hover {
+    border: 2px solid var(--colorGinDanger) !important;
+    // border: 2px solid transparent !important;
+  }
+}
+
+// Autocomplete field remove button
+.multiple-fields-remove-button.button {
+  border: 0 none !important;
+  mask-image: icon('remove');
+  mask-size: 16px 16px;
+  mask-repeat: no-repeat;
+  mask-position: center center;
+}

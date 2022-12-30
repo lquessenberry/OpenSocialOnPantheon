@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\Tests\mailsystem\Unit\AdapterTest.
- */
 
 namespace Drupal\Tests\mailsystem\Unit;
 
@@ -41,7 +37,7 @@ class AdapterTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->formatter = new Test();
     $this->sender = new Test();
     $this->adapter = new Adapter($this->formatter, $this->sender);
@@ -54,11 +50,11 @@ class AdapterTest extends UnitTestCase {
    *   Associative array which holds an empty message to test with.
    */
   protected function getEmptyMessage() {
-    return array(
+    return [
       'subject' => 'test',
       'message' => 'message',
-      'headers' => array(),
-    );
+      'headers' => [],
+    ];
   }
 
   /**
@@ -69,7 +65,7 @@ class AdapterTest extends UnitTestCase {
 
     $this->assertEquals(Test::TEST_SUBJECT, $message['subject'], 'Subject match');
     $this->assertEquals(Test::TEST_BODY, $message['body'], 'Body match');
-    $this->assertEquals(array(Test::TEST_HEADER_NAME => Test::TEST_HEADER_VALUE), $message['headers'], 'Header match');
+    $this->assertEquals([Test::TEST_HEADER_NAME => Test::TEST_HEADER_VALUE], $message['headers'], 'Header match');
   }
 
   /**
@@ -83,6 +79,7 @@ class AdapterTest extends UnitTestCase {
     $message['subject'] = Test::SEND_SUCCESS_SUBJECT;
     $this->assertTrue($this->adapter->mail($message), 'Sending message successful as expected');
   }
+
 }
 
 /**
@@ -99,11 +96,11 @@ class Test implements MailInterface {
    * {@inheritdoc}
    */
   public function format(array $message) {
-    return array(
+    return [
       'subject' => self::TEST_SUBJECT,
       'body' => self::TEST_BODY,
-      'headers' => array(self::TEST_HEADER_NAME => self::TEST_HEADER_VALUE),
-    );
+      'headers' => [self::TEST_HEADER_NAME => self::TEST_HEADER_VALUE],
+    ];
   }
 
   /**

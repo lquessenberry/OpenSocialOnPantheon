@@ -128,8 +128,7 @@ class Image implements ImageInterface {
       $this->fileSize = filesize($destination);
       $this->source = $destination;
 
-      // @todo Use File utility when https://www.drupal.org/node/2050759 is in.
-      if ($this->chmod($destination)) {
+      if (\Drupal::service('file_system')->chmod($destination)) {
         return $return;
       }
     }
@@ -197,26 +196,6 @@ class Image implements ImageInterface {
    */
   public function scale($width, $height = NULL, $upscale = FALSE) {
     return $this->apply('scale', ['width' => $width, 'height' => $height, 'upscale' => $upscale]);
-  }
-
-  /**
-   * Provides a wrapper for drupal_chmod() to allow unit testing.
-   *
-   * @param string $uri
-   *   A string containing a URI file, or directory path.
-   * @param int $mode
-   *   Integer value for the permissions. Consult PHP chmod() documentation for
-   *   more information.
-   *
-   * @see drupal_chmod()
-   *
-   * @todo Remove when https://www.drupal.org/node/2050759 is in.
-   *
-   * @return bool
-   *   TRUE for success, FALSE in the event of an error.
-   */
-  protected function chmod($uri, $mode = NULL) {
-    return drupal_chmod($uri, $mode);
   }
 
 }

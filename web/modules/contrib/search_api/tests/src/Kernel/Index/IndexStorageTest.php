@@ -18,7 +18,7 @@ class IndexStorageTest extends KernelTestBase {
    *
    * @var string[]
    */
-  public static $modules = ['search_api', 'user', 'system'];
+  protected static $modules = ['search_api', 'user', 'system'];
 
   /**
    * The search index storage.
@@ -30,10 +30,9 @@ class IndexStorageTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->installSchema('system', 'key_value_expire');
     $this->installEntitySchema('search_api_task');
     $this->installConfig('search_api');
 
@@ -46,7 +45,7 @@ class IndexStorageTest extends KernelTestBase {
    * Tests all CRUD operations as a queue of operations.
    */
   public function testIndexCrud() {
-    $this->assertTrue($this->storage instanceof ConfigEntityStorage, 'The Search API Index storage controller is loaded.');
+    $this->assertInstanceOf(ConfigEntityStorage::class, $this->storage, 'The Search API Index storage controller is loaded.');
 
     $index = $this->indexCreate();
     $this->indexLoad($index);
@@ -66,7 +65,7 @@ class IndexStorageTest extends KernelTestBase {
     ];
 
     $index = $this->storage->create($index_data);
-    $this->assertTrue($index instanceof IndexInterface, 'The newly created entity is a search index.');
+    $this->assertInstanceOf(IndexInterface::class, $index, 'The newly created entity is a search index.');
     $index->save();
 
     return $index;

@@ -1,0 +1,59 @@
+<!-- THEME SETTINGS GENERATION START -->
+{% for heading, settings in groups %}
+
+---
+
+### {{ heading|raw }}
+
+<table class="table table-striped table-responsive">
+  <thead>
+    <tr>
+      <th class="col-xs-3">{{ 'Setting name'|t }}</th>
+      <th>{{ 'Description and default value'|t }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for id, setting in settings %}<tr>
+      <td class="col-xs-3">
+        <span id="{{- id|clean_class -}}" data-anchor="true">{{- id -}}</span>
+      </td>
+      <td>
+        <div class="help-block">{{- setting.description -}}</div>
+        <pre class="language-yaml"><code>{{- setting.defaultValue -}}</code></pre>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+{% if deprecated %}
+
+---
+
+### {{ 'Deprecated'|t }}
+
+<table class="table table-responsive">
+  <thead>
+  <tr>
+    <th class="col-xs-3">{{ 'Setting name'|t }}</th>
+    <th>{{ 'Description and default value'|t }}</th>
+  </tr>
+  </thead>
+  <tbody>
+    {% for id, setting in deprecated %}<tr class="bg-warning">
+      <td class="col-xs-3">
+        <span id="{{- id -}}" data-anchor="true">{{- id -}}</span>
+      </td>
+      <td>
+        <div class="help-block">{{- setting.description -}}</div>
+        <pre class="language-yaml"><code>{{- setting.defaultValue -}}</code></pre>
+        <div class="alert alert-danger alert-sm">
+          <strong>{{ 'Deprecated since @version'|t({'@version': setting.deprecated.version }) }}</strong> - {{ setting.deprecated.reason }} ({{ 'see: @replacement'|t({'@replacement': setting.deprecated.replacement}) }})
+        </div>
+      </td>
+    </tr>
+  {% endfor -%}
+  </tbody>
+</table>
+{% endif %}
+<!-- THEME SETTINGS GENERATION END -->

@@ -61,7 +61,7 @@ interface ModuleHandlerInterface {
    * @return \Drupal\Core\Extension\Extension
    *   An extension object.
    *
-   * @throws \InvalidArgumentException
+   * @throws \Drupal\Core\Extension\Exception\UnknownExtensionException
    *   Thrown when the requested module does not exist.
    */
   public function getModule($name);
@@ -180,6 +180,13 @@ interface ModuleHandlerInterface {
    *
    * @return array
    *   An array with the names of the modules which are implementing this hook.
+   *
+   * @deprecated in drupal:9.4.0 and is removed from drupal:10.0.0. Instead you
+   *   should use ModuleHandlerInterface::invokeAllWith() for hook invocations
+   *   or you should use ModuleHandlerInterface::hasImplementations() to
+   *   determine if hooks implementations exist.
+   *
+   * @see https://www.drupal.org/node/3000490
    */
   public function getImplementations($hook);
 
@@ -194,6 +201,23 @@ interface ModuleHandlerInterface {
   public function resetImplementations();
 
   /**
+   * Determines whether there are implementations of a hook.
+   *
+   * @param string $hook
+   *   The name of the hook (e.g. "help" or "menu").
+   * @param string|string[]|null $modules
+   *   (optional) A single module or multiple modules to check if they have any
+   *   implementations of a hook. Use NULL to check if any enabled module has
+   *   implementations.
+   *
+   * @return bool
+   *   If $modules is provided, then TRUE if there are any implementations by
+   *   the module(s) provided. Or if $modules if NULL, then TRUE if there are
+   *   any implementations. Otherwise FALSE.
+   */
+  public function hasImplementations(string $hook, $modules = NULL): bool;
+
+  /**
    * Returns whether a given module implements a given hook.
    *
    * @param string $module
@@ -204,8 +228,30 @@ interface ModuleHandlerInterface {
    * @return bool
    *   TRUE if the module is both installed and enabled, and the hook is
    *   implemented in that module.
+   *
+   * @deprecated in drupal:9.4.0 and is removed from drupal:10.0.0. Use the
+   *   hasImplementations() methods instead with the $modules argument.
+   *
+   * @see https://www.drupal.org/node/3000490
    */
   public function implementsHook($module, $hook);
+
+  /**
+   * Executes a callback for each implementation of a hook.
+   *
+   * The callback is passed two arguments, a closure which executes a hook
+   * implementation. And the module name.
+   *
+   * @param string $hook
+   *   The name of the hook to invoke.
+   * @param callable $callback
+   *   A callable that invokes a hook implementation. Such that
+   *   $callback is callable(callable, string): mixed.
+   *   Arguments:
+   *    - Closure to a hook implementation.
+   *    - Implementation module machine name.
+   */
+  public function invokeAllWith(string $hook, callable $callback): void;
 
   /**
    * Invokes a hook in a particular module.
@@ -234,7 +280,7 @@ interface ModuleHandlerInterface {
    *   An array of return values of the hook implementations. If modules return
    *   arrays from their implementations, those are merged into one array
    *   recursively. Note: integer keys in arrays will be lost, as the merge is
-   *   done using array_merge_recursive().
+   *   done using Drupal\Component\Utility\NestedArray::mergeDeepArray().
    */
   public function invokeAll($hook, array $args = []);
 
@@ -284,7 +330,7 @@ interface ModuleHandlerInterface {
    *   An array of return values of the hook implementations. If modules return
    *   arrays from their implementations, those are merged into one array
    *   recursively. Note: integer keys in arrays will be lost, as the merge is
-   *   done using array_merge_recursive().
+   *   done using Drupal\Component\Utility\NestedArray::mergeDeepArray().
    *
    * @see \Drupal\Core\Extension\ModuleHandlerInterface::invokeAll()
    * @see https://www.drupal.org/core/deprecation#how-hook
@@ -310,7 +356,7 @@ interface ModuleHandlerInterface {
    *   $this->alter('mymodule_data', $alterable1, $alterable2, $context);
    * @endcode
    *
-   * Note that objects are always passed by reference in PHP5. If it is absolutely
+   * Note that objects are always passed by reference. If it is absolutely
    * required that no implementation alters a passed object in $context, then an
    * object needs to be cloned:
    * @code

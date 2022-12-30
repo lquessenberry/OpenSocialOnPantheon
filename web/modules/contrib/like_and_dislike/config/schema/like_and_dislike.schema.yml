@@ -5,6 +5,9 @@ like_and_dislike.settings:
     allow_cancel_vote:
       type: boolean
       label: 'Whether votes can be canceled'
+    hide_vote_widget:
+      type: boolean
+      label: 'Whether vote widget is hidden on missing permission'
     enabled_types:
       type: sequence
       label: 'Enabled entity types'

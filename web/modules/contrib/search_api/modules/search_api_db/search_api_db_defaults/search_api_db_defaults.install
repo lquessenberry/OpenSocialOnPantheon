@@ -5,7 +5,7 @@
  * Install, update and uninstall functions for the DB Search Defaults module.
  */
 
-use Drupal\node\Entity\NodeType;
+use Drupal\search_api\IndexListBuilder;
 
 /**
  * Implements hook_requirements().
@@ -14,60 +14,20 @@ function search_api_db_defaults_requirements($phase) {
   $requirements = [];
 
   if ($phase == 'install') {
-    $node_types = NodeType::loadMultiple();
-    $required_types = [
-      'article' => ['body', 'comment', 'field_tags', 'field_image'],
-      'page' => ['body'],
-    ];
-
-    /** @var \Drupal\Core\Entity\EntityFieldManager $entity_field_manager */
-    $entity_field_manager = \Drupal::service('entity_field.manager');
-
-    foreach ($required_types as $required_type_id => $required_fields) {
-      if (!isset($node_types[$required_type_id])) {
-        $requirements['search_api_db_defaults:' . $required_type_id] = [
-          'severity' => REQUIREMENT_ERROR,
-          'description' => t('Content type @content_type not found. Database Search Defaults module could not be installed.', ['@content_type' => $required_type_id]),
-        ];
-      }
-      else {
-        // Check if all the fields are here.
-        $fields = $entity_field_manager->getFieldDefinitions('node', $required_type_id);
-        foreach ($required_fields as $required_field) {
-          if (!isset($fields[$required_field])) {
-            $requirements['search_api_db_defaults:' . $required_type_id . ':' . $required_field] = [
-              'severity' => REQUIREMENT_ERROR,
-              'description' => t('Field @field in content type @node_type not found. Database Search Defaults module could not be installed', ['@node_type' => $required_type_id, '@field' => $required_field]),
-            ];
-          }
-        }
-      }
+    // In case this is installed at the same time as the Search API module
+    // itself, the class autoloader will not be able to find the
+    // \Drupal\search_api\IndexListBuilder class on its own. Load it manually.
+    if (!class_exists(IndexListBuilder::class)) {
+      $search_api_path = \Drupal::service('extension.list.module')->getPath('search_api');
+      require_once $search_api_path . '/src/IndexListBuilder.php';
     }
 
-    if (\Drupal::moduleHandler()->moduleExists('search_api_db')) {
-      $entities_to_check = [
-        'search_api_index' => 'default_index',
-        'search_api_server' => 'default_server',
-        'view' => 'search_content',
+    $errors = IndexListBuilder::checkDefaultsModuleCanBeInstalled();
+    foreach ($errors as $type => $error) {
+      $requirements["search_api_db_defaults:$type"] = [
+        'severity' => REQUIREMENT_ERROR,
+        'description' => $error,
       ];
-
-      /** @var \Drupal\Core\Entity\EntityTypeManager $entity_type_manager */
-      $entity_type_manager = \Drupal::service('entity_type.manager');
-      foreach ($entities_to_check as $entity_type => $entity_id) {
-        // Find out if the entity is already in place. If so, fail to install the
-        // module.
-        $entity_storage = $entity_type_manager->getStorage($entity_type);
-        $entity_storage->resetCache();
-        $entity = $entity_storage->load($entity_id);
-
-        if ($entity) {
-          $requirements['search_api_db_defaults:defaults_exist'] = [
-            'severity' => REQUIREMENT_ERROR,
-            'description' => t('It looks like the default setup provided by this module already exists on your site. Cannot re-install module.'),
-          ];
-          break;
-        }
-      }
     }
   }
 

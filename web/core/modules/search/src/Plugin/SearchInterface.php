@@ -21,7 +21,7 @@ interface SearchInterface extends PluginInspectionInterface {
    * @param array $attributes
    *   Array of attributes, usually from the current request object.
    *
-   * @return \Drupal\search\Plugin\SearchInterface
+   * @return $this
    *   A search plugin object for chaining.
    */
   public function setSearch($keywords, array $parameters, array $attributes);
@@ -66,8 +66,8 @@ interface SearchInterface extends PluginInspectionInterface {
    *   The type used by this search plugin in the search index, or NULL if this
    *   plugin does not use the search index.
    *
-   * @see search_index()
-   * @see search_index_clear()
+   * @see \Drupal\search\SearchIndexInterface::index()
+   * @see \Drupal\search\SearchIndexInterface::clear()
    */
   public function getType();
 
@@ -144,5 +144,16 @@ interface SearchInterface extends PluginInspectionInterface {
    * @see SearchInterface::searchFormAlter()
    */
   public function buildSearchUrlQuery(FormStateInterface $form_state);
+
+  /**
+   * Returns whether or not search results should be displayed in admin theme.
+   *
+   * @return bool
+   *   TRUE if search results should be displayed in the admin theme, and FALSE
+   *   otherwise.
+   *
+   * @see \Drupal\search\Annotation\SearchPlugin::$use_admin_theme
+   */
+  public function usesAdminTheme();
 
 }

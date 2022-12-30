@@ -12,7 +12,12 @@ use Drupal\Tests\BrowserTestBase;
  */
 class LanguageNegotiationFormOverrideTest extends BrowserTestBase {
 
-  public static $modules = ['language', 'locale', 'locale_test'];
+  protected static $modules = ['language', 'locale', 'locale_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests that overrides do not affect language-negotiation form values.
@@ -33,25 +38,26 @@ class LanguageNegotiationFormOverrideTest extends BrowserTestBase {
     $edit = [
       'predefined_langcode' => 'es',
     ];
-    $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add language'));
+    $this->drupalGet('admin/config/regional/language/add');
+    $this->submitForm($edit, 'Add language');
 
     // Overridden string for language-negotiation should not exist in the form.
     $this->drupalGet('admin/config/regional/language/detection/url');
 
     // The language-negotiation form should be found.
-    $this->assertText('Path prefix configuration', 'Language-negotiation form found for English.');
+    $this->assertSession()->pageTextContains('Path prefix configuration');
 
     // The English override should not be found.
-    $this->assertNoFieldByName('prefix[en]', $overridden_value_en, 'Language-negotiation config override not found in English.');
+    $this->assertSession()->fieldValueNotEquals('prefix[en]', $overridden_value_en);
 
     // Now check the Spanish version of the page for the same thing.
     $this->drupalGet($overridden_value_es . '/admin/config/regional/language/detection/url');
 
     // The language-negotiation form should be found.
-    $this->assertText('Path prefix configuration', 'Language-negotiation form found for Spanish using the overridden prefix.');
+    $this->assertSession()->pageTextContains('Path prefix configuration');
 
     // The Spanish override should not be found.
-    $this->assertNoFieldByName('prefix[es]', $overridden_value_es, 'Language-negotiation config override not found in Spanish.');
+    $this->assertSession()->fieldValueNotEquals('prefix[es]', $overridden_value_es);
 
   }
 

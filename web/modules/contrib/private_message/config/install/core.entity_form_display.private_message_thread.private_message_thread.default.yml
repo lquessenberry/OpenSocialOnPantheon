@@ -12,6 +12,8 @@ content:
     type: private_message_thread_member_widget
     settings:
       match_operator: CONTAINS
+      match_limit: 10
+      max_members: 0
       size: 60
       placeholder: ''
     weight: -3

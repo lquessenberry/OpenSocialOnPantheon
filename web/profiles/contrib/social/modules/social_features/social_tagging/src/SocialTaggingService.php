@@ -4,20 +4,27 @@ namespace Drupal\social_tagging;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Url;
 use Drupal\taxonomy\TermInterface;
 
 /**
  * Provides a custom tagging service.
  */
-class SocialTaggingService {
+class SocialTaggingService implements SocialTaggingServiceInterface {
+
+  /**
+   * The name of the hook provides supported entity types.
+   */
+  private const HOOK = 'social_tagging_type';
 
   /**
    * The taxonomy storage.
    *
-   * @var \Drupal\Taxonomy\TermStorageInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $termStorage;
+  protected $entityTypeManager;
 
   /**
    * The configuration factory.
@@ -27,103 +34,144 @@ class SocialTaggingService {
   protected $configFactory;
 
   /**
-   * SocialTaggingService constructor.
+   * The language manager.
    *
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
-   *   Injection of the entityTypeManager.
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
-   *   Injection of the configFactory.
-   *
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @var \Drupal\Core\Language\LanguageManagerInterface
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager, ConfigFactoryInterface $configFactory) {
-    $this->termStorage = $entityTypeManager->getStorage('taxonomy_term');
+  protected $languageManager;
+
+  /**
+   * The module handler.
+   */
+  private ModuleHandlerInterface $moduleHandler;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(
+    EntityTypeManagerInterface $entityTypeManager,
+    ConfigFactoryInterface $configFactory,
+    LanguageManagerInterface $language_manager,
+    ModuleHandlerInterface $module_handler
+  ) {
+    $this->entityTypeManager = $entityTypeManager;
     $this->configFactory = $configFactory;
+    $this->languageManager = $language_manager;
+    $this->moduleHandler = $module_handler;
   }
 
   /**
-   * Returns wether the feature is turned on or not.
-   *
-   * @return bool
-   *   Wether tagging is turnded on or not.
+   * {@inheritdoc}
    */
-  public function active() {
-    return (bool) $this->configFactory->get('social_tagging.settings')->get('enable_content_tagging');
+  public function active(): bool {
+    return (bool) $this->configFactory->get('social_tagging.settings')
+      ->get('enable_content_tagging');
   }
 
   /**
-   * Returns if there are any taxonomy items available.
-   *
-   * @return bool
-   *   If there are tags available.
+   * {@inheritdoc}
    */
-  public function hasContent() {
-
-    if (count($this->getCategories()) == 0) {
-      return FALSE;
-    }
-
-    if (count($this->getAllChildren()) == 0) {
-      return FALSE;
-    }
-
-    return TRUE;
+  public function groupActive(): bool {
+    return (bool) $this->configFactory->get('social_tagging.settings')
+      ->get('tag_type_group');
   }
 
   /**
-   * Returns wether splitting of fields is allowed.
-   *
-   * @return bool
-   *   Wether category split on field level is turnded on or not.
+   * {@inheritdoc}
    */
-  public function allowSplit() {
-    return (bool) ($this->active() && $this->configFactory->get('social_tagging.settings')->get('allow_category_split'));
+  public function profileActive(): bool {
+    return (bool) $this->configFactory->get('social_tagging.settings')->get('tag_type_profile');
   }
 
   /**
-   * Returns all the top level term items, that are considered categories.
-   *
-   * @return array
-   *   An array of top level category items.
+   * {@inheritdoc}
    */
-  public function getCategories() {
+  public function hasContent(): bool {
+    return count($this->getCategories()) > 0 && count($this->getAllChildren()) > 0;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function allowSplit(): bool {
+    return $this->active() &&
+      $this->configFactory->get('social_tagging.settings')
+        ->get('allow_category_split');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function queryCondition(): string {
+    return $this->configFactory->get('social_tagging.settings')
+      ->get('use_and_condition') ? 'AND' : 'OR';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function useCategoryParent(): bool {
+    return $this->active() &&
+      $this->configFactory->get('social_tagging.settings')
+        ->get('use_category_parent');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCategories(): array {
     // Define as array.
     $options = [];
+
+    // Get the site's current language.
+    $current_lang = $this->languageManager->getCurrentLanguage()->getId();
+
     // Fetch main categories.
-    foreach ($this->termStorage->loadTree('social_tagging', 0, 1) as $category) {
-      $options[$category->tid] = $category->name;
+    // If the website is multilingual, we want to first check for the terms
+    // in current language. At the moment, users do not add proper language to
+    // vocabulary terms which may result in return of empty array on loadTree()
+    // function. So, we want to check for the terms also in default language if
+    // we don't find terms in current language.
+    if (!empty($current_lang_terms = $this->entityTypeManager->getStorage('taxonomy_term')->loadTree('social_tagging', 0, 1, FALSE, $current_lang))) {
+      $options = $this->prepareTermOptions($current_lang_terms);
     }
+    // Add a fallback to default language of the website if the current
+    // language has no terms.
+    elseif (!empty($default_lang_terms = $this->entityTypeManager->getStorage('taxonomy_term')->loadTree('social_tagging', 0, 1, FALSE))) {
+      $options = $this->prepareTermOptions($default_lang_terms);
+    }
+
     // Return array.
     return $options;
   }
 
   /**
-   * Returns the children of top level term items.
-   *
-   * @param int $category
-   *   The category you want to fetch the child items from.
-   *
-   * @return array
-   *   An array of child items.
+   * {@inheritdoc}
    */
-  public function getChildren($category) {
+  public function getChildren(int $category): array {
     // Define as array.
     $options = [];
-    // Fetch main categories.
-    foreach ($this->termStorage->loadTree('social_tagging', $category, 1) as $category) {
-      $options[$category->tid] = $category->name;
+
+    // Get the site's current language.
+    $current_lang = $this->languageManager->getCurrentLanguage()->getId();
+
+    if (!empty($current_lang_terms = $this->entityTypeManager->getStorage('taxonomy_term')->loadTree('social_tagging', $category, 1, FALSE, $current_lang))) {
+      $options = $this->prepareTermOptions($current_lang_terms);
     }
+    // Add a fallback to default language of the website if the current
+    // language has no terms.
+    elseif (!empty($default_lang_terms = $this->entityTypeManager->getStorage('taxonomy_term')->loadTree('social_tagging', $category, 1, FALSE))) {
+      $options = $this->prepareTermOptions($default_lang_terms);
+    }
+
     // Return array.
     return $options;
   }
 
   /**
-   * Returns all the children of top level term items.
-   *
-   * @return array
-   *   An array of child items.
+   * {@inheritdoc}
    */
-  public function getAllChildren() {
+  public function getAllChildren(): array {
     // Define as array.
     $options = [];
 
@@ -136,52 +184,143 @@ class SocialTaggingService {
   }
 
   /**
-   * Returns a multilevel tree.
-   *
-   * @param array $terms
-   *   An array of items that are selected.
-   *
-   * @return array
-   *   An hierarchy array of items with their parent.
+   * {@inheritdoc}
    */
-  public function buildHierarchy(array $terms) {
-
+  public function buildHierarchy(array $term_ids, string $entity_type): array {
     $tree = [];
+    // Load all the terms together.
+    if (!empty($terms = $this->entityTypeManager->getStorage('taxonomy_term')->loadMultiple(array_column($term_ids, 'target_id')))) {
+      // Get current language.
+      // This is used to get the translated term, if available.
+      $langcode = $this->languageManager->getCurrentLanguage()->getId();
 
-    foreach ($terms as $term) {
-      if (!isset($term['target_id'])) {
-        continue;
+      // Get splitting of fields option.
+      $allowSplit = $this->allowSplit();
+
+      // Set the route.
+      if ($entity_type === 'group') {
+        $route = 'view.search_groups.page_no_value';
       }
-
-      $current_term = $this->termStorage->load($term['target_id']);
-      // Must be a valid Term.
-      if (!$current_term instanceof TermInterface) {
-        continue;
-      }
-      // Get current terms parents.
-      $parents = $this->termStorage->loadParents($current_term->id());
-      $parent = reset($parents);
-      $category = $parent->getName();
-
-      if ($this->allowSplit()) {
-        $parameter = social_tagging_to_machine_name($category);
+      elseif ($entity_type === 'profile') {
+        $route = 'view.search_users.page_no_value';
       }
       else {
-        $parameter = 'tag';
+        $route = 'view.search_content.page_no_value';
       }
 
-      $url = Url::fromRoute('view.search_content.page_no_value', [
-        $parameter . '[]' => $current_term->id(),
-      ]);
+      // Build the hierarchy.
+      foreach ($terms as $current_term) {
+        // Must be a valid Term.
+        if (
+          !$current_term instanceof TermInterface ||
+          !$current_term->isPublished()
+        ) {
+          continue;
+        }
+        // Get current terms parents.
+        if ($parents = $this->entityTypeManager->getStorage('taxonomy_term')->loadParents($current_term->id())) {
+          /** @var \Drupal\taxonomy\Entity\Term $parent */
+          $parent = reset($parents);
+          if ($parent->hasTranslation($langcode)) {
+            /** @var \Drupal\taxonomy\Entity\Term $translated_term */
+            $translated_term = $parent->getTranslation($langcode);
+            $category_label = $translated_term->getName();
+          }
+          else {
+            $category_label = $parent->getName();
+          }
+        }
+        // Or add the parent term itself if it connected to the content.
+        else {
+          if ($current_term->hasTranslation($langcode)) {
+            /** @var \Drupal\taxonomy\Entity\Term $translated_term */
+            $translated_term = $current_term->getTranslation($langcode);
+            $category_label = $translated_term->getName();
+          }
+          else {
+            $category_label = $current_term->getName();
+          }
+          $parent = $current_term;
+        }
+        // Prepare the parameter;.
+        // @todo Replace with dependency injection in Open Social 12.0.0.
+        $parameter = $allowSplit ? \Drupal::service('social_core.machine_name')->transform($category_label) : 'tag';
 
-      $tree[$parent->id()]['title'] = $category;
-      $tree[$parent->id()]['tags'][$current_term->id()] = [
-        'url' => $url->toString(),
-        'name' => $current_term->getName(),
-      ];
+        $route_parameters = [
+          $parameter . '[]' => $current_term->id(),
+        ];
+        if ($entity_type == 'profile') {
+          $route_parameters['created_op'] = '<';
+        }
+
+        // Prepare the URL for the search by term.
+        $url = Url::fromRoute($route, $route_parameters)->toString();
+
+        // Finally, prepare the hierarchy.
+        $tree[$parent->id()]['title'] = $category_label;
+
+        if ($current_term->hasTranslation($langcode)) {
+          /** @var \Drupal\taxonomy\Entity\Term $translated_term */
+          $translated_term = $current_term->getTranslation($langcode);
+          $term_name = $translated_term->getName();
+        }
+        else {
+          $term_name = $current_term->getName();
+        }
+
+        $tree[$parent->id()]['tags'][$current_term->id()] = [
+          'url' => $url,
+          'name' => $term_name,
+        ];
+      }
     }
+
     // Return the tree.
     return $tree;
+  }
+
+  /**
+   * Helper function to prepare term options.
+   *
+   * @param array $terms
+   *   Array of terms.
+   *
+   * @return array
+   *   Returns a list of terms options.
+   */
+  private function prepareTermOptions(array $terms) {
+    $options = [];
+    foreach ($terms as $category) {
+      if ((bool) $category->status) {
+        $options[$category->tid] = $category->name;
+      }
+    }
+
+    return $options;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function types(bool $short = FALSE): array {
+    $items = [];
+
+    foreach ($this->moduleHandler->invokeAll(self::HOOK) as $item) {
+      if (is_array($item)) {
+        $entity_type = $item['entity_type'];
+        $bundles = $item['bundles'];
+      }
+      else {
+        $entity_type = $item;
+        $bundles = [];
+      }
+
+      $items[$entity_type] = $bundles;
+    }
+
+    $this->moduleHandler->alter(self::HOOK, $items);
+
+    return $short ? array_keys($items) : $items;
   }
 
 }

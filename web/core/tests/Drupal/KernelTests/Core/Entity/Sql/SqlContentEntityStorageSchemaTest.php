@@ -27,10 +27,10 @@ class SqlContentEntityStorageSchemaTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    /* @var \Drupal\Core\KeyValueStore\KeyValueFactoryInterface $key_value_factory */
+    /** @var \Drupal\Core\KeyValueStore\KeyValueFactoryInterface $key_value_factory */
     $key_value_factory = $this->container->get('keyvalue');
     $this->installedStorageSchema = $key_value_factory->get('entity.storage_schema.sql');
     $this->entityDefinitionUpdateManager = $this->container->get('entity.definition_update_manager');
@@ -101,7 +101,7 @@ class SqlContentEntityStorageSchemaTest extends EntityKernelTestBase {
     $this->assertSame($expected, $actual);
 
     // Now add an entity and repeat the process.
-    $entity_storage = $this->entityManager->getStorage('entity_test');
+    $entity_storage = $this->entityTypeManager->getStorage('entity_test');
     $entity_storage->create([
       'shape' => [
         'shape' => 'rectangle',

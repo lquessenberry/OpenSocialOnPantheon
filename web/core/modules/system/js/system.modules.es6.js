@@ -18,8 +18,11 @@
    */
   Drupal.behaviors.tableFilterByText = {
     attach(context, settings) {
-      const $input = $('input.table-filter-text').once('table-filter-text');
-      const $table = $($input.attr('data-table'));
+      const [input] = once('table-filter-text', 'input.table-filter-text');
+      if (!input) {
+        return;
+      }
+      const $table = $(input.getAttribute('data-table'));
       let $rowsAndDetails;
       let $rows;
       let $details;
@@ -32,15 +35,21 @@
       }
 
       function filterModuleList(e) {
-        const query = $(e.target).val();
+        const query = e.target.value;
         // Case insensitive expression to find query at the beginning of a word.
         const re = new RegExp(`\\b${query}`, 'i');
 
         function showModuleRow(index, row) {
-          const $row = $(row);
-          const $sources = $row.find('.table-filter-text-source, .module-name, .module-description');
-          const textMatch = $sources.text().search(re) !== -1;
-          $row.closest('tr').toggle(textMatch);
+          const sources = row.querySelectorAll(
+            '.table-filter-text-source, .module-name, .module-description',
+          );
+          let sourcesConcat = '';
+          // Concatenate the textContent of the elements in the row.
+          sources.forEach((item) => {
+            sourcesConcat += item.textContent;
+          });
+          const textMatch = sourcesConcat.search(re) !== -1;
+          $(row).closest('tr').toggle(textMatch);
         }
         // Search over all rows and packages.
         $rowsAndDetails.show();
@@ -53,25 +62,26 @@
           // Note that we first open all <details> to be able to use ':visible'.
           // Mark the <details> elements that were closed before filtering, so
           // they can be reclosed when filtering is removed.
-          $details.not('[open]').attr('data-drupal-system-state', 'forced-open');
+          $details
+            .not('[open]')
+            .attr('data-drupal-system-state', 'forced-open');
 
           // Hide the package <details> if they don't have any visible rows.
           // Note that we first show() all <details> to be able to use ':visible'.
           $details.attr('open', true).each(hidePackageDetails);
 
           Drupal.announce(
-            Drupal.t(
-              '!modules modules are available in the modified list.',
-              { '!modules': $rowsAndDetails.find('tbody tr:visible').length },
-            ),
+            Drupal.t('!modules modules are available in the modified list.', {
+              '!modules': $rowsAndDetails.find('tbody tr:visible').length,
+            }),
           );
-        }
-        else if (searching) {
+        } else if (searching) {
           searching = false;
           $rowsAndDetails.show();
           // Return <details> elements that had been closed before filtering
           // to a closed state.
-          $details.filter('[data-drupal-system-state="forced-open"]')
+          $details
+            .filter('[data-drupal-system-state="forced-open"]')
             .removeAttr('data-drupal-system-state')
             .attr('open', false);
         }
@@ -89,11 +99,11 @@
         $rows = $table.find('tbody tr');
         $details = $rowsAndDetails.filter('.package-listing');
 
-        $input.on({
+        $(input).on({
           keyup: debounce(filterModuleList, 200),
           keydown: preventEnterKey,
         });
       }
     },
   };
-}(jQuery, Drupal, Drupal.debounce));
+})(jQuery, Drupal, Drupal.debounce);

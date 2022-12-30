@@ -1,25 +1,39 @@
 <?php
+
 namespace Drush\Drupal\Commands\config;
 
+use Drupal\Core\Config\ConfigDirectoryNotDefinedException;
+use Drupal\Core\Config\ImportStorageTransformer;
 use Consolidation\AnnotatedCommand\CommandError;
 use Consolidation\AnnotatedCommand\CommandData;
+use Consolidation\AnnotatedCommand\Input\StdinAwareInterface;
+use Consolidation\AnnotatedCommand\Input\StdinAwareTrait;
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
+use Consolidation\SiteAlias\SiteAliasManagerAwareTrait;
+use Consolidation\SiteProcess\Util\Escape;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Config\StorageComparer;
 use Drupal\Core\Config\StorageInterface;
+use Drupal\Core\Site\Settings;
 use Drush\Commands\DrushCommands;
 use Drush\Drush;
+use Drush\Exec\ExecTrait;
+use Drush\SiteAlias\SiteAliasManagerAwareInterface;
 use Drush\Utils\FsUtils;
+use Drush\Utils\StringUtils;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Yaml\Parser;
-use Webmozart\PathUtil\Path;
 
-class ConfigCommands extends DrushCommands
+class ConfigCommands extends DrushCommands implements StdinAwareInterface, SiteAliasManagerAwareInterface
 {
+    use StdinAwareTrait;
+    use ExecTrait;
+    use SiteAliasManagerAwareTrait;
 
     /**
      * @var ConfigFactoryInterface
@@ -27,9 +41,16 @@ class ConfigCommands extends DrushCommands
     protected $configFactory;
 
     /**
-     * @return ConfigFactoryInterface
+     * @var StorageInterface
      */
-    public function getConfigFactory()
+    protected $configStorageExport;
+
+    /**
+     * @var ImportStorageTransformer
+     */
+    protected $importStorageTransformer;
+
+    public function getConfigFactory(): ConfigFactoryInterface
     {
         return $this->configFactory;
     }
@@ -38,11 +59,47 @@ class ConfigCommands extends DrushCommands
     /**
      * ConfigCommands constructor.
      * @param ConfigFactoryInterface $configFactory
+     * @param StorageInterface $configStorage
      */
-    public function __construct($configFactory)
+    public function __construct($configFactory, StorageInterface $configStorage)
     {
         parent::__construct();
         $this->configFactory = $configFactory;
+        $this->configStorage = $configStorage;
+    }
+
+    /**
+     * @param StorageInterface $exportStorage
+     */
+    public function setExportStorage(StorageInterface $exportStorage): void
+    {
+        $this->configStorageExport = $exportStorage;
+    }
+
+    /**
+     * @return StorageInterface
+     */
+    public function getConfigStorageExport()
+    {
+        if (isset($this->configStorageExport)) {
+            return $this->configStorageExport;
+        }
+        return $this->configStorage;
+    }
+
+    public function setImportTransformer(ImportStorageTransformer $importStorageTransformer): void
+    {
+        $this->importStorageTransformer = $importStorageTransformer;
+    }
+
+    public function hasImportTransformer(): bool
+    {
+        return isset($this->importStorageTransformer);
+    }
+
+    public function getImportTransformer(): ImportStorageTransformer
+    {
+        return $this->importStorageTransformer;
     }
 
     /**
@@ -51,8 +108,8 @@ class ConfigCommands extends DrushCommands
      * @command config:get
      * @validate-config-name
      * @interact-config-name
-     * @param $config_name The config object name, for example "system.site".
-     * @param $key The config key, for example "page.front". Optional.
+     * @param $config_name The config object name, for example <info>system.site</info>.
+     * @param $key The config key, for example <info>page.front</info>. Optional.
      * @option source The config storage source to read. Additional labels may be defined in settings.php.
      * @option include-overridden Apply module and settings.php overrides to values.
      * @usage drush config:get system.site
@@ -72,52 +129,64 @@ class ConfigCommands extends DrushCommands
     }
 
     /**
-     * Set config value directly. Does not perform a config import.
+     * Save a config value directly. Does not perform a config import.
      *
      * @command config:set
      * @validate-config-name
      * @todo @interact-config-name deferred until we have interaction for key.
-     * @param $config_name The config object name, for example "system.site".
-     * @param $key The config key, for example "page.front".
-     * @param $value The value to assign to the config key. Use '-' to read from STDIN.
-     * @option input-format Format to parse the object. Use "string" for string (default), and "yaml" for YAML.
-     * // A convenient way to pass a multiline value within a backend request.
-     * @option value The value to assign to the config key (if any).
-     * @hidden-options value
-     * @usage drush config:set system.site page.front node
-     *   Sets system.site:page.front to "node".
+     * @param $config_name The config object name, for example <info>system.site</info>.
+     * @param $key The config key, for example <info>page.front</info>. Use <info>?</info> if you are updating multiple top-level keys.
+     * @param $value The value to assign to the config key. Use <info>-</info> to read from Stdin.
+     * @option input-format Format to parse the object. Recognized values: <info>string</info>, <info>yaml</info>. Since JSON is a subset of YAML, $value may be in JSON format.
+     * @usage drush config:set system.site name MySite
+     *   Sets a value for the key <info>name</info> of <info>system.site</info> config object.
+     * @usage drush config:set system.site page.front '/path/to/page'
+     *   Sets the given URL path as value for the config item with key <info>page.front</info> of <info>system.site</info> config object.
+     * @usage drush config:set system.site '[]'
+     *   Sets the given key to an empty array.
+     * @usage drush config:set --input-format=yaml user.role.authenticated permissions [foo,bar]
+     *   Use a sequence as value for the key <info>permissions</info> of <info>user.role.authenticated</info> config object.
+     * @usage drush config:set --input-format=yaml system.site page {403: '403', front: home}
+     *   Use a mapping as value for the key <info>page</info> of <info>system.site</info> config object.
+     * @usage drush config:set --input-format=yaml user.role.authenticated ? "{label: 'Auth user', weight: 5}"
+     *   Update two top level keys (label, weight) in the <info>system.site</info> config object.
      * @aliases cset,config-set
      */
-    public function set($config_name, $key, $value = null, $options = ['input-format' => 'string', 'value' => self::REQ])
+    public function set($config_name, $key, $value, $options = ['input-format' => 'string'])
     {
-        // This hidden option is a convenient way to pass a value without passing a key.
-        $data = $options['value'] ?: $value;
+        $data = $value;
 
         if (!isset($data)) {
             throw new \Exception(dt('No config value specified.'));
         }
 
-        $config = $this->getConfigFactory()->getEditable($config_name);
-        // Check to see if config key already exists.
-        $new_key = $config->get($key) === null;
-
         // Special flag indicating that the value has been passed via STDIN.
         if ($data === '-') {
-            $data = stream_get_contents(STDIN);
+            $data = $this->stdin()->contents();
         }
 
-        // Now, we parse the value.
+        // Special handling for empty array.
+        if ($data == '[]') {
+            $data = [];
+        }
+
+        // Parse the value if needed.
         switch ($options['input-format']) {
             case 'yaml':
                 $parser = new Parser();
                 $data = $parser->parse($data, true);
         }
 
-        if (is_array($data) && $this->io()->confirm(dt('Do you want to update or set multiple keys on !name config.', ['!name' => $config_name]))) {
-            foreach ($data as $data_key => $value) {
-                $config->set("$key.$data_key", $value);
+        $config = $this->getConfigFactory()->getEditable($config_name);
+        // Check to see if config key already exists.
+        $new_key = $config->get($key) === null;
+        $simulate = $this->getConfig()->simulate();
+
+        if ($key == '?' && !empty($data) && $this->io()->confirm(dt('Do you want to update or set multiple keys on !name config.', ['!name' => $config_name]))) {
+            foreach ($data as $data_key => $val) {
+                $config->set($data_key, $val);
             }
-            return $config->save();
+            return $simulate ? self::EXIT_SUCCESS : $config->save();
         } else {
             $confirmed = false;
             if ($config->isNew() && $this->io()->confirm(dt('!name config does not exist. Do you want to create a new config object?', ['!name' => $config_name]))) {
@@ -127,7 +196,7 @@ class ConfigCommands extends DrushCommands
             } elseif ($this->io()->confirm(dt('Do you want to update !key key in !name config?', ['!key' => $key, '!name' => $config_name]))) {
                 $confirmed = true;
             }
-            if ($confirmed && !\Drush\Drush::simulate()) {
+            if ($confirmed && !$simulate) {
                 return $config->set($key, $data)->save();
             }
         }
@@ -139,7 +208,7 @@ class ConfigCommands extends DrushCommands
      * @command config:edit
      * @validate-config-name
      * @interact-config-name
-     * @param $config_name The config object name, for example "system.site".
+     * @param $config_name The config object name, for example <info>system.site</info>.
      * @optionset_get_editor
      * @allow_additional_options config-import
      * @hidden-options source,partial
@@ -152,7 +221,7 @@ class ConfigCommands extends DrushCommands
      * @aliases cedit,config-edit
      * @validate-module-enabled config
      */
-    public function edit($config_name)
+    public function edit($config_name, $options = []): void
     {
         $config = $this->getConfigFactory()->get($config_name);
         $active_storage = $config->getStorage();
@@ -163,41 +232,51 @@ class ConfigCommands extends DrushCommands
         $temp_storage = new FileStorage($temp_dir);
         $temp_storage->write($config_name, $contents);
 
-        $exec = drush_get_editor();
-        drush_shell_exec_interactive($exec, $temp_storage->getFilePath($config_name));
+        // Note that `getEditor()` returns a string that contains a
+        // %s placeholder for the config file path.
+        $exec = self::getEditor($options['editor']);
+        $cmd = sprintf($exec, Escape::shellArg($temp_storage->getFilePath($config_name)));
+        $process = $this->processManager()->shell($cmd);
+        $process->setTty(true);
+        $process->mustRun();
 
         // Perform import operation if user did not immediately exit editor.
         if (!$options['bg']) {
-            $options = Drush::redispatchOptions()   + ['partial' => true, 'source' => $temp_dir];
-            $backend_options = ['interactive' => true];
-            return (bool) drush_invoke_process('@self', 'config-import', [], $options, $backend_options);
+            $redispatch_options = Drush::redispatchOptions() + ['strict' => 0, 'partial' => true, 'source' => $temp_dir];
+            $self = $this->siteAliasManager()->getSelf();
+            $process = $this->processManager()->drush($self, 'config-import', [], $redispatch_options);
+            $process->mustRun($process->showRealtime());
         }
     }
 
     /**
-     * Delete a configuration key, or a whole object.
+     * Delete a configuration key, or a whole object(s).
      *
      * @command config:delete
      * @validate-config-name
      * @interact-config-name
-     * @param $config_name The config object name, for example "system.site".
-     * @param $key A config key to clear, for example "page.front".
-     * @usage drush config:delete system.site
-     *   Delete the the system.site config object.
-     * @usage drush config:delete system.site page.front node
+     * @param $config_name The config object name(s). Delimit multiple with commas.
+     * @param $key A config key to clear, May not be used with multiple config names.
+     * @usage drush config:delete system.site,system.rss
+     *   Delete the system.site and system.rss config objects.
+     * @usage drush config:delete system.site page.front
      *   Delete the 'page.front' key from the system.site object.
      * @aliases cdel,config-delete
      */
-    public function delete($config_name, $key = null)
+    public function delete($config_name, $key = null): void
     {
-        $config = $this->getConfigFactory()->getEditable($config_name);
         if ($key) {
+            $config = $this->getConfigFactory()->getEditable($config_name);
             if ($config->get($key) === null) {
                 throw new \Exception(dt('Configuration key !key not found.', ['!key' => $key]));
             }
             $config->clear($key)->save();
         } else {
-            $config->delete();
+            $names = StringUtils::csvToArray($config_name);
+            foreach ($names as $name) {
+                $config = $this->getConfigFactory()->getEditable($name);
+                $config->delete();
+            }
         }
     }
 
@@ -206,8 +285,7 @@ class ConfigCommands extends DrushCommands
      *
      * @command config:status
      * @option state  A comma-separated list of states to filter results.
-     * @option prefix Prefix The config prefix. For example, "system". No prefix will return all names in the system.
-     * @option string $label A config directory label (i.e. a key in \$config_directories array in settings.php).
+     * @option prefix Prefix The config prefix. For example, <info>system</info>. No prefix will return all names in the system.
      * @usage drush config:status
      *   Display configuration items that need to be synchronized.
      * @usage drush config:status --state=Identical
@@ -216,21 +294,23 @@ class ConfigCommands extends DrushCommands
      *   Display all content types that would be created in active storage on configuration import.
      * @usage drush config:status --state=Any --format=list
      *   List all config names.
+     * @usage drush config:status 2>&amp;1 | grep "No differences"
+     *   Check there are no differences between database and exported config. Useful for CI.
      * @field-labels
      *   name: Name
      *   state: State
      * @default-fields name,state
      * @aliases cst,config-status
-     * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+     * @filter-default-field name
      */
-    public function status($options = ['state' => 'Only in DB,Only in sync dir,Different', 'prefix' => self::REQ, 'label' => self::REQ])
+    public function status($options = ['state' => 'Only in DB,Only in sync dir,Different', 'prefix' => self::REQ]): ?RowsOfFields
     {
         $config_list = array_fill_keys(
             $this->configFactory->listAll($options['prefix']),
             'Identical'
         );
 
-        $directory = $this->getDirectory($options['label']);
+        $directory = $this->getDirectory();
         $storage = $this->getStorage($directory);
         $state_map = [
             'create' => 'Only in DB',
@@ -276,11 +356,18 @@ class ConfigCommands extends DrushCommands
             ];
         }
 
-        if ($rows) {
-            return new RowsOfFields($rows);
-        } else {
+        if (!$rows) {
             $this->logger()->notice(dt('No differences between DB and sync directory.'));
+
+            // Suppress output if there are no differences and we are using the
+            // human readable "table" formatter so that we not uselessly output
+            // empty table headers.
+            if ($options['format'] === 'table') {
+                return null;
+            }
         }
+
+        return new RowsOfFields($rows);
     }
 
     /**
@@ -288,15 +375,12 @@ class ConfigCommands extends DrushCommands
      *
      * Directory path is determined based on the following precedence:
      *   1. User-provided $directory.
-     *   2. Directory path corresponding to $label (mapped via $config_directories in settings.php).
-     *   3. Default sync directory
+     *   2. Default sync directory
      *
-     * @param string $label
-     *   A configuration directory label.
      * @param string $directory
      *   A configuration directory.
      */
-    public static function getDirectory($label, $directory = null)
+    public static function getDirectory($directory = null): string
     {
         $return = null;
         // If the user provided a directory, use it.
@@ -310,8 +394,11 @@ class ConfigCommands extends DrushCommands
                 $return = $directory;
             }
         } else {
-            // If a directory isn't specified, use the label argument or default sync directory.
-            $return = \config_get_config_directory($label ?: CONFIG_SYNC_DIRECTORY);
+            // If a directory isn't specified, use default sync directory.
+            $return = Settings::get('config_sync_directory', false);
+            if ($return === false) {
+                throw new ConfigDirectoryNotDefinedException('The config sync directory is not defined in $settings["config_sync_directory"]');
+            }
         }
         return Path::canonicalize($return);
     }
@@ -319,12 +406,13 @@ class ConfigCommands extends DrushCommands
     /**
      * Returns the difference in configuration between active storage and target storage.
      */
-    public function getChanges($target_storage)
+    public function getChanges($target_storage): array
     {
-        /** @var StorageInterface $active_storage */
-        $active_storage = \Drupal::service('config.storage');
+        if ($this->hasImportTransformer()) {
+            $target_storage = $this->getImportTransformer()->transform($target_storage);
+        }
 
-        $config_comparer = new StorageComparer($active_storage, $target_storage, \Drupal::service('config.manager'));
+        $config_comparer = new StorageComparer($this->configStorage, $target_storage);
 
         $change_list = [];
         if ($config_comparer->createChangelist()->hasChanges()) {
@@ -340,7 +428,7 @@ class ConfigCommands extends DrushCommands
      */
     public function getStorage($directory)
     {
-        if ($directory == Path::canonicalize(\config_get_config_directory(CONFIG_SYNC_DIRECTORY))) {
+        if ($directory == Path::canonicalize(Settings::get('config_sync_directory'))) {
             return \Drupal::service('config.storage.sync');
         } else {
             return new FileStorage($directory);
@@ -355,7 +443,7 @@ class ConfigCommands extends DrushCommands
      *
      * @return Table A Symfony table object.
      */
-    public static function configChangesTable(array $config_changes, OutputInterface $output, $use_color = true)
+    public static function configChangesTable(array $config_changes, OutputInterface $output, $use_color = true): Table
     {
         $rows = [];
         foreach ($config_changes as $collection => $changes) {
@@ -398,30 +486,12 @@ class ConfigCommands extends DrushCommands
     /**
      * @hook interact @interact-config-name
      */
-    public function interactConfigName($input, $output)
+    public function interactConfigName($input, $output): void
     {
         if (empty($input->getArgument('config_name'))) {
             $config_names = $this->getConfigFactory()->listAll();
             $choice = $this->io()->choice('Choose a configuration', drush_map_assoc($config_names));
             $input->setArgument('config_name', $choice);
-        }
-    }
-
-    /**
-     * @hook interact @interact-config-label
-     */
-    public function interactConfigLabel(InputInterface $input, ConsoleOutputInterface $output)
-    {
-        global $config_directories;
-
-        $option_name = $input->hasOption('destination') ? 'destination' : 'source';
-        if (empty($input->getArgument('label') && empty($input->getOption($option_name)))) {
-            $choices = drush_map_assoc(array_keys($config_directories));
-            unset($choices[CONFIG_ACTIVE_DIRECTORY]);
-            if (count($choices) >= 2) {
-                $label = $this->io()->choice('Choose a '. $option_name. '.', $choices);
-                $input->setArgument('label', $label);
-            }
         }
     }
 
@@ -432,17 +502,20 @@ class ConfigCommands extends DrushCommands
      * argument name as the value of the annotation.
      *
      * @hook validate @validate-config-name
-     * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-     * @return \Consolidation\AnnotatedCommand\CommandError|null
+     * @param CommandData $commandData
+     * @return CommandError|null
      */
     public function validateConfigName(CommandData $commandData)
     {
         $arg_name = $commandData->annotationData()->get('validate-config-name', null) ?: 'config_name';
         $config_name = $commandData->input()->getArgument($arg_name);
-        $config = \Drupal::config($config_name);
-        if ($config->isNew()) {
-            $msg = dt('Config !name does not exist', ['!name' => $config_name]);
-            return new CommandError($msg);
+        $names = StringUtils::csvToArray($config_name);
+        foreach ($names as $name) {
+            $config = \Drupal::config($name);
+            if ($config->isNew()) {
+                $msg = dt('Config !name does not exist', ['!name' => $name]);
+                return new CommandError($msg);
+            }
         }
     }
 
@@ -453,8 +526,9 @@ class ConfigCommands extends DrushCommands
      *   The source config storage service.
      * @param StorageInterface $destination
      *   The destination config storage service.
+     * @throws \Exception
      */
-    public static function copyConfig(StorageInterface $source, StorageInterface $destination)
+    public static function copyConfig(StorageInterface $source, StorageInterface $destination): void
     {
         // Make sure the source and destination are on the default collection.
         if ($source->getCollectionName() != StorageInterface::DEFAULT_COLLECTION) {
@@ -466,7 +540,11 @@ class ConfigCommands extends DrushCommands
 
         // Export all the configuration.
         foreach ($source->listAll() as $name) {
-            $destination->write($name, $source->read($name));
+            try {
+                $destination->write($name, $source->read($name));
+            } catch (\TypeError $e) {
+                throw new \Exception(dt('Source not found for @name.', ['@name' => $name]));
+            }
         }
 
         // Export configuration collections.
@@ -488,7 +566,7 @@ class ConfigCommands extends DrushCommands
      * @return array|bool
      *   An array of strings containing the diff.
      */
-    public static function getDiff(StorageInterface $destination_storage, StorageInterface $source_storage, OutputInterface $output)
+    public static function getDiff(StorageInterface $destination_storage, StorageInterface $source_storage, OutputInterface $output): string
     {
         // Copy active storage to a temporary directory.
         $temp_destination_dir = drush_tempdir();
@@ -501,11 +579,13 @@ class ConfigCommands extends DrushCommands
         $temp_source_storage = new FileStorage($temp_source_dir);
         self::copyConfig($source_storage, $temp_source_storage);
 
-        $prefix = 'diff';
-        if (drush_program_exists('git') && $output->isDecorated()) {
-            $prefix = 'git diff --color=always';
+        $prefix = ['diff'];
+        if (self::programExists('git') && $output->isDecorated()) {
+            $prefix = ['git', 'diff', '--color=always'];
         }
-        drush_shell_exec($prefix . ' -u %s %s', $temp_destination_dir, $temp_source_dir);
-        return drush_shell_exec_output();
+        $args = array_merge($prefix, ['-u', $temp_destination_dir, $temp_source_dir]);
+        $process = Drush::process($args);
+        $process->run();
+        return $process->getOutput();
     }
 }

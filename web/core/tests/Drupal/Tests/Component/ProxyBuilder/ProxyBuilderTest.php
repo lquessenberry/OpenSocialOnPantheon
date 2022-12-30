@@ -26,7 +26,7 @@ class ProxyBuilderTest extends TestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->proxyBuilder = new ProxyBuilder();
@@ -133,10 +133,34 @@ EOS;
 /**
  * {@inheritdoc}
  */
-public function complexMethod($parameter, callable $function, \Drupal\Tests\Component\ProxyBuilder\TestServiceNoMethod $test_service = NULL, array &$elements = array (
-))
+public function complexMethod(string $parameter, callable $function, ?\Drupal\Tests\Component\ProxyBuilder\TestServiceNoMethod $test_service = NULL, array &$elements = array (
+)): array
 {
     return $this->lazyLoadItself()->complexMethod($parameter, $function, $test_service, $elements);
+}
+
+EOS;
+
+    $this->assertEquals($this->buildExpectedClass($class, $method_body), $result);
+  }
+
+  /**
+   * @covers ::buildMethodBody
+   */
+  public function testBuildServiceMethodReturnsVoid() {
+    $class = TestServiceMethodReturnsVoid::class;
+
+    $result = $this->proxyBuilder->build($class);
+
+    // @todo Solve the silly linebreak for array()
+    $method_body = <<<'EOS'
+
+/**
+ * {@inheritdoc}
+ */
+public function methodReturnsVoid(string $parameter): void
+{
+    $this->lazyLoadItself()->methodReturnsVoid($parameter);
 }
 
 EOS;
@@ -260,10 +284,40 @@ EOS;
   }
 
   /**
+   * @covers ::buildMethod
+   * @covers ::buildParameter
+   * @covers ::buildMethodBody
+   */
+  public function testBuildWithNullableSelfTypehint() {
+    $class = 'Drupal\Tests\Component\ProxyBuilder\TestServiceNullableTypehintSelf';
+
+    $result = $this->proxyBuilder->build($class);
+
+    // Ensure that the static method is not wrapped.
+    $method_body = <<<'EOS'
+
+/**
+ * {@inheritdoc}
+ */
+public function typehintSelf(?\Drupal\Tests\Component\ProxyBuilder\TestServiceNullableTypehintSelf $parameter): ?\Drupal\Tests\Component\ProxyBuilder\TestServiceNullableTypehintSelf
+{
+    return $this->lazyLoadItself()->typehintSelf($parameter);
+}
+
+EOS;
+
+    $this->assertEquals($this->buildExpectedClass($class, $method_body), $result);
+  }
+
+  /**
    * Constructs the expected class output.
    *
+   * @param string $class
+   *   The class name that is being built.
    * @param string $expected_methods_body
    *   The expected body of decorated methods.
+   * @param string $interface_string
+   *   (optional) The expected "implements" clause of the class definition.
    *
    * @return string
    *   The code of the entire proxy.
@@ -381,7 +435,23 @@ class TestServiceMethodWithParameter {
 
 class TestServiceComplexMethod {
 
-  public function complexMethod($parameter, callable $function, TestServiceNoMethod $test_service = NULL, array &$elements = []) {
+  public function complexMethod(string $parameter, callable $function, TestServiceNoMethod $test_service = NULL, array &$elements = []): array {
+    return [];
+  }
+
+}
+
+class TestServiceNullableTypehintSelf {
+
+  public function typehintSelf(?self $parameter): ?self {
+    return NULL;
+  }
+
+}
+
+class TestServiceMethodReturnsVoid {
+
+  public function methodReturnsVoid(string $parameter): void {
 
   }
 

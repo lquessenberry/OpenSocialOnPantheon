@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Configures administrative settings for VotingAPI.
- */
-
 namespace Drupal\votingapi\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -14,7 +9,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Class SettingsForm.
+ * A form used to configure Voting API settings.
  *
  * @package Drupal\votingapi\Form
  *
@@ -30,7 +25,7 @@ class SettingsForm extends ConfigFormBase {
   protected $dateFormatter;
 
   /**
-   * Creates a CommentAdminOverview form.
+   * Constructs a SettingsForm.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
@@ -38,7 +33,7 @@ class SettingsForm extends ConfigFormBase {
    *   The date formatter service.
    */
   public function __construct(ConfigFactoryInterface $config_factory, DateFormatter $date_formatter) {
-    $this->setConfigFactory($config_factory);
+    parent::__construct($config_factory);
     $this->dateFormatter = $date_formatter;
   }
 
@@ -53,10 +48,7 @@ class SettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Returns a unique string identifying the form.
-   *
-   * @return string
-   *   The unique string identifying the form.
+   * {@inheritdoc}
    */
   public function getFormId() {
     return 'votingapi_settings';
@@ -70,18 +62,9 @@ class SettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Defines the settings form for Vote entities.
-   *
-   * @param array $form
-   *   An associative array containing the structure of the form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The current state of the form.
-   *
-   * @return array
-   *   Form definition array.
+   * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-
     $config = $this->config('votingapi.settings');
 
     $unit_options = [
@@ -99,15 +82,16 @@ class SettingsForm extends ConfigFormBase {
       604800,
     ];
 
-    $options = [];
+    $options[0] = 'Immediately';
     foreach ($unit_options as $option) {
-      $options[$option] = $this->dateFormatter->formatInterval($option);;
+      $options[$option] = $this->dateFormatter->formatInterval($option);
     }
+    $options[-1] = 'Never';
 
     $form['anonymous_window'] = [
       '#type' => 'select',
       '#title' => $this->t('Anonymous vote rollover'),
-      '#description' => $this->t('The amount of time that must pass before two anonymous votes from the same computer are considered unique. Setting this to \'never\' will eliminate most double-voting, but will make it impossible for multiple anonymous on the same computer (like internet cafe customers) from casting votes.'),
+      '#description' => $this->t("The amount of time that must pass before two anonymous votes from the same computer are considered unique. Setting this to 'never' will eliminate most double-voting, but will make it impossible for multiple anonymous on the same computer (like internet cafe customers) from casting votes."),
       '#options' => $options,
       '#default_value' => $config->get('anonymous_window'),
     ];
@@ -115,7 +99,7 @@ class SettingsForm extends ConfigFormBase {
     $form['user_window'] = [
       '#type' => 'select',
       '#title' => $this->t('Registered user vote rollover'),
-      '#description' => $this->t('The amount of time that must pass before two registered user votes from the same user ID are considered unique. Setting this to \'never\' will eliminate most double-voting for registered users.'),
+      '#description' => $this->t("The amount of time that must pass before two registered user votes from the same user ID are considered unique. Setting this to 'never' will eliminate most double-voting for registered users."),
       '#options' => $options,
       '#default_value' => $config->get('user_window'),
     ];
@@ -136,7 +120,7 @@ class SettingsForm extends ConfigFormBase {
     $form['delete_everywhere'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Delete everywhere'),
-      '#description' => $this->t('Allow deleting votes to someone else\'s entity when owner user of this votes is deleting.'),
+      '#description' => $this->t("Allow deleting votes to someone else's entity when owner user of this votes is deleting."),
       '#default_value' => $config->get('delete_everywhere'),
     ];
 
@@ -148,20 +132,18 @@ class SettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('votingapi.settings');
-
     $settings = [
       'anonymous_window',
       'user_window',
       'calculation_schedule',
       'delete_everywhere',
     ];
-
     foreach ($settings as $setting) {
       $config->set($setting, $form_state->getValue($setting));
     }
-
     $config->save();
 
     parent::submitForm($form, $form_state);
   }
+
 }

@@ -112,10 +112,7 @@ class HtmlResponseAttachmentsProcessor implements AttachmentsResponseProcessorIn
    * {@inheritdoc}
    */
   public function processAttachments(AttachmentsInterface $response) {
-    // @todo Convert to assertion once https://www.drupal.org/node/2408013 lands
-    if (!$response instanceof HtmlResponse) {
-      throw new \InvalidArgumentException('\Drupal\Core\Render\HtmlResponse instance expected.');
-    }
+    assert($response instanceof HtmlResponse);
 
     // First, render the actual placeholders; this may cause additional
     // attachments to be added to the response, which the attachment
@@ -219,6 +216,30 @@ class HtmlResponseAttachmentsProcessor implements AttachmentsResponseProcessorIn
   }
 
   /**
+   * Formats an attribute string for an HTTP header.
+   *
+   * @param array $attributes
+   *   An associative array of attributes such as 'rel'.
+   *
+   * @return string
+   *   A ; separated string ready for insertion in a HTTP header. No escaping is
+   *   performed for HTML entities, so this string is not safe to be printed.
+   *
+   * @internal
+   *
+   * @see https://www.drupal.org/node/3000051
+   */
+  public static function formatHttpHeaderAttributes(array $attributes = []) {
+    foreach ($attributes as $attribute => &$data) {
+      if (is_array($data)) {
+        $data = implode(' ', $data);
+      }
+      $data = $attribute . '="' . $data . '"';
+    }
+    return $attributes ? ' ' . implode('; ', $attributes) : '';
+  }
+
+  /**
    * Renders placeholders (#attached['placeholders']).
    *
    * First, the HTML response object is converted to an equivalent render array,
@@ -295,7 +316,7 @@ class HtmlResponseAttachmentsProcessor implements AttachmentsResponseProcessorIn
     if (isset($placeholders['scripts']) || isset($placeholders['scripts_bottom'])) {
       // Optimize JS if necessary, but only during normal site operation.
       $optimize_js = !defined('MAINTENANCE_MODE') && !\Drupal::state()->get('system.maintenance_mode') && $this->config->get('js.preprocess');
-      list($js_assets_header, $js_assets_footer) = $this->assetResolver->getJsAssets($assets, $optimize_js);
+      [$js_assets_header, $js_assets_footer] = $this->assetResolver->getJsAssets($assets, $optimize_js);
       $variables['scripts'] = $this->jsCollectionRenderer->render($js_assets_header);
       $variables['scripts_bottom'] = $this->jsCollectionRenderer->render($js_assets_footer);
     }
@@ -372,7 +393,7 @@ class HtmlResponseAttachmentsProcessor implements AttachmentsResponseProcessorIn
   protected function processHtmlHead(array $html_head) {
     $head = [];
     foreach ($html_head as $item) {
-      list($data, $key) = $item;
+      [$data, $key] = $item;
       if (!isset($data['#type'])) {
         $data['#type'] = 'html_tag';
       }
@@ -384,8 +405,8 @@ class HtmlResponseAttachmentsProcessor implements AttachmentsResponseProcessorIn
   /**
    * Transform a html_head_link array into html_head and http_header arrays.
    *
-   * html_head_link is a special case of html_head which can be present as
-   * a link item in the HTML head section, and also as a Link: HTTP header,
+   * Variable html_head_link is a special case of html_head which can be present
+   * as a link item in the HTML head section, and also as a Link: HTTP header,
    * depending on options in the render array. Processing it can add to both the
    * html_head and http_header sections.
    *
@@ -408,20 +429,28 @@ class HtmlResponseAttachmentsProcessor implements AttachmentsResponseProcessorIn
 
     foreach ($html_head_link as $item) {
       $attributes = $item[0];
-      $should_add_header = isset($item[1]) ? $item[1] : FALSE;
+      $should_add_header = $item[1] ?? FALSE;
 
       $element = [
         '#tag' => 'link',
         '#attributes' => $attributes,
       ];
       $href = $attributes['href'];
-      $attached['html_head'][] = [$element, 'html_head_link:' . $attributes['rel'] . ':' . $href];
+      $rel = $attributes['rel'];
+
+      // Allow multiple hreflang tags to use the same href.
+      if (isset($attributes['hreflang'])) {
+        $attached['html_head'][] = [$element, 'html_head_link:' . $rel . ':' . $attributes['hreflang'] . ':' . $href];
+      }
+      else {
+        $attached['html_head'][] = [$element, 'html_head_link:' . $rel . ':' . $href];
+      }
 
       if ($should_add_header) {
         // Also add a HTTP header "Link:".
         $href = '<' . Html::escape($attributes['href']) . '>';
         unset($attributes['href']);
-        if ($param = drupal_http_header_attributes($attributes)) {
+        if ($param = static::formatHttpHeaderAttributes($attributes)) {
           $href .= ';' . $param;
         }
 

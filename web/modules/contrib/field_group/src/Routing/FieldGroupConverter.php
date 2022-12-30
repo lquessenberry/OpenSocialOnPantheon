@@ -2,6 +2,7 @@
 
 namespace Drupal\field_group\Routing;
 
+use Symfony\Component\Routing\Route;
 use Drupal\Core\ParamConverter\ParamConverterInterface;
 
 /**
@@ -12,7 +13,7 @@ class FieldGroupConverter implements ParamConverterInterface {
   /**
    * {@inheritdoc}
    */
-  public function applies($definition, $name, \Symfony\Component\Routing\Route $route) {
+  public function applies($definition, $name, Route $route) {
     return isset($definition['type']) && $definition['type'] == 'field_group';
   }
 
@@ -27,6 +28,5 @@ class FieldGroupConverter implements ParamConverterInterface {
 
     return field_group_load_field_group($identifiers[4], $identifiers[0], $identifiers[1], $identifiers[2], $identifiers[3]);
   }
-
 
 }

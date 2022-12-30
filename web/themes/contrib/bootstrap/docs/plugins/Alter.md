@@ -44,7 +44,7 @@ themes and are automatically supported out-of-the-box.
 Once a base theme has implemented an alter hook, like mentioned above, all
 subsequent sub-themes will have the ability to implement a plugin for that
 alter hook directly. All you have to do is simply create the plugin file in
-`./THEMENAME/src/Plugin/Alter`. No need to implement any code in
+`./themes/THEMENAME/src/Plugin/Alter`. No need to implement any code in
 `THEMENAME.theme`:
 
 - `hook_bootstrap_colorize_text_alter`
@@ -85,7 +85,7 @@ how to add a library from your sub-theme to every page request.
 Replace all following instances of `THEMENAME` with the actual machine name of
 your sub-theme.
 
-Create a file at `./THEMENAME/src/Plugin/Alter/PageAttachments.php` with the
+Create a file at `./themes/THEMENAME/src/Plugin/Alter/PageAttachments.php` with the
 following contents:
 
 ```php

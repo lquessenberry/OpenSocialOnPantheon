@@ -59,7 +59,7 @@ class Query extends QueryBase implements QueryInterface {
    * Overrides \Drupal\Core\Entity\Query\QueryBase::condition().
    *
    * Additional to the syntax defined in the QueryInterface you can use
-   * placeholders (*) to match all keys of an subarray. Let's take the follow
+   * placeholders (*) to match all keys of a subarray. Let's take the follow
    * yaml file as example:
    * @code
    *  level1:
@@ -89,7 +89,14 @@ class Query extends QueryBase implements QueryInterface {
       $direction = $sort['direction'] == 'ASC' ? -1 : 1;
       $field = $sort['field'];
       uasort($result, function ($a, $b) use ($field, $direction) {
-        return ($a[$field] <= $b[$field]) ? $direction : -$direction;
+        $properties = explode('.', $field);
+        foreach ($properties as $property) {
+          if (isset($a[$property]) || isset($b[$property])) {
+            $a = $a[$property] ?? NULL;
+            $b = $b[$property] ?? NULL;
+          }
+        }
+        return ($a <= $b) ? $direction : -$direction;
       });
     }
 
@@ -183,18 +190,21 @@ class Query extends QueryBase implements QueryInterface {
             return $id !== $value;
           };
           break;
+
         case 'STARTS_WITH':
           $filter = function ($name) use ($value, $prefix_length) {
             $id = substr($name, $prefix_length);
             return strpos($id, $value) === 0;
           };
           break;
+
         case 'CONTAINS':
           $filter = function ($name) use ($value, $prefix_length) {
             $id = substr($name, $prefix_length);
             return strpos($id, $value) !== FALSE;
           };
           break;
+
         case 'ENDS_WITH':
           $filter = function ($name) use ($value, $prefix_length) {
             $id = substr($name, $prefix_length);

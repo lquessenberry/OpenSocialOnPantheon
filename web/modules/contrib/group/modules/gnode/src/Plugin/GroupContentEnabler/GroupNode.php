@@ -19,7 +19,11 @@ use Drupal\Core\Form\FormStateInterface;
  *   entity_access = TRUE,
  *   reference_label = @Translation("Title"),
  *   reference_description = @Translation("The title of the node to add to the group"),
- *   deriver = "Drupal\gnode\Plugin\GroupContentEnabler\GroupNodeDeriver"
+ *   deriver = "Drupal\gnode\Plugin\GroupContentEnabler\GroupNodeDeriver",
+ *   handlers = {
+ *     "access" = "Drupal\group\Plugin\GroupContentAccessControlHandler",
+ *     "permission_provider" = "Drupal\gnode\Plugin\GroupNodePermissionProvider",
+ *   }
  * )
  */
 class GroupNode extends GroupContentEnablerBase {
@@ -46,29 +50,13 @@ class GroupNode extends GroupContentEnablerBase {
     if ($group->hasPermission("create $plugin_id entity", $account)) {
       $route_params = ['group' => $group->id(), 'plugin_id' => $plugin_id];
       $operations["gnode-create-$type"] = [
-        'title' => $this->t('Create @type', ['@type' => $this->getNodeType()->label()]),
+        'title' => $this->t('Add @type', ['@type' => $this->getNodeType()->label()]),
         'url' => new Url('entity.group_content.create_form', $route_params),
         'weight' => 30,
       ];
     }
 
     return $operations;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getTargetEntityPermissions() {
-    $permissions = parent::getTargetEntityPermissions();
-    $plugin_id = $this->getPluginId();
-
-    // Add a 'view unpublished' permission by re-using most of the 'view' one.
-    $original = $permissions["view $plugin_id entity"];
-    $permissions["view unpublished $plugin_id entity"] = [
-      'title' => str_replace('View ', 'View unpublished ', $original['title']),
-    ] + $original;
-
-    return $permissions;
   }
 
   /**

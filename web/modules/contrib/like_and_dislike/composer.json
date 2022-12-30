@@ -1,14 +1,34 @@
 {
   "name": "drupal/like_and_dislike",
+  "description": "Enable like and dislike widgets and statistics",
   "type": "drupal-module",
-  "description": "Like & Dislike",
-  "keywords": ["Drupal"],
-  "license": "GPL-2.0+",
-  "homepage": "http://drupal.org/project/like_and_dislike",
-  "minimum-stability": "dev",
+  "keywords": ["Drupal", "Votes", "Like", "Dislike"],
+  "homepage": "https://drupal.org/project/like_and_dislike",
+  "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "Adrian Cid Almaguer (adriancid)",
+      "email": "adriancid@gmail.com",
+      "homepage": "https://www.drupal.org/u/adriancid",
+      "role": "Maintainer"
+    },
+    {
+      "name": "Sascha Grossenbacher (Berdir)",
+      "homepage": "https://www.drupal.org/u/berdir",
+      "role": "Maintainer"
+    },
+    {
+      "name": "Pedro Rocha (pedrorocha)",
+      "homepage": "https://www.drupal.org/u/pedrorocha",
+      "role": "Maintainer"
+    }
+  ],
   "support": {
-    "issues": "http://drupal.org/project/issues/like_and_dislike",
-    "source": "http://cgit.drupalcode.org/like_and_dislike"
+    "issues": "https://drupal.org/project/issues/like_and_dislike",
+    "source": "https://cgit.drupalcode.org/like_and_dislike"
   },
-  "require": { }
+  "require": {
+    "drupal/votingapi": "^3.0",
+    "drupal/core": "^8.7.7 || ^9.0"
+  }
 }

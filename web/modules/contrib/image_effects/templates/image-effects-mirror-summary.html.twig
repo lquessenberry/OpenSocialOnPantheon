@@ -15,7 +15,7 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   {% if data.x_axis and data.y_axis %}
     {{ 'both horizontal and vertical'|t }}
   {% elseif data.x_axis %}
@@ -23,4 +23,4 @@
   {% elseif data.y_axis %}
     {{ 'vertical'|t }}
   {% endif %}
-{% endspaceless %}
+{% endapply %}

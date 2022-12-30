@@ -7,6 +7,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotAcceptableHttpException;
@@ -28,15 +29,10 @@ class ViewListBuilder extends ConfigEntityListBuilder {
   /**
    * {@inheritdoc}
    */
-  protected $limit;
-
-  /**
-   * {@inheritdoc}
-   */
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('plugin.manager.views.display')
     );
   }
@@ -160,22 +156,32 @@ class ViewListBuilder extends ConfigEntityListBuilder {
    */
   public function getDefaultOperations(EntityInterface $entity) {
     $operations = parent::getDefaultOperations($entity);
+    // Remove destination redirect for Edit operation.
+    $operations['edit']['url'] = $entity->toUrl('edit-form');
 
     if ($entity->hasLinkTemplate('duplicate-form')) {
       $operations['duplicate'] = [
         'title' => $this->t('Duplicate'),
         'weight' => 15,
-        'url' => $entity->urlInfo('duplicate-form'),
+        'url' => $entity->toUrl('duplicate-form'),
       ];
     }
 
     // Add AJAX functionality to enable/disable operations.
     foreach (['enable', 'disable'] as $op) {
       if (isset($operations[$op])) {
-        $operations[$op]['url'] = $entity->urlInfo($op);
+        $operations[$op]['url'] = $entity->toUrl($op);
         // Enable and disable operations should use AJAX.
         $operations[$op]['attributes']['class'][] = 'use-ajax';
       }
+    }
+
+    // ajax.js focuses automatically on the data-drupal-selector element. When
+    // enabling the view again, focusing on the disable link doesn't work, as it
+    // is hidden. We assign data-drupal-selector to every link, so it focuses
+    // on the edit link.
+    foreach ($operations as &$operation) {
+      $operation['attributes']['data-drupal-selector'] = 'views-listing-' . $entity->id();
     }
 
     return $operations;
@@ -192,7 +198,7 @@ class ViewListBuilder extends ConfigEntityListBuilder {
     $list['#attached']['library'][] = 'core/drupal.ajax';
     $list['#attached']['library'][] = 'views_ui/views_ui.listing';
 
-    $form['filters'] = [
+    $list['filters'] = [
       '#type' => 'container',
       '#attributes' => [
         'class' => ['table-filter', 'js-show'],
@@ -227,8 +233,6 @@ class ViewListBuilder extends ConfigEntityListBuilder {
         $list[$status]['table']['#rows'][$entity->id()] = $this->buildRow($entity);
       }
     }
-    // @todo Use a placeholder for the entity label if this is abstracted to
-    // other entity types.
     $list['enabled']['table']['#empty'] = $this->t('There are no enabled views.');
     $list['disabled']['table']['#empty'] = $this->t('There are no disabled views.');
 
@@ -262,7 +266,7 @@ class ViewListBuilder extends ConfigEntityListBuilder {
             try {
               // @todo Views should expect and store a leading /. See:
               //   https://www.drupal.org/node/2423913
-              $rendered_path = \Drupal::l('/' . $path, Url::fromUserInput('/' . $path));
+              $rendered_path = Link::fromTextAndUrl('/' . $path, Url::fromUserInput('/' . $path))->toString();
             }
             catch (NotAcceptableHttpException $e) {
               $rendered_path = '/' . $path;

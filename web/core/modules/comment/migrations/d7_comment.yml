@@ -4,6 +4,7 @@ audit: true
 migration_tags:
   - Drupal 7
   - Content
+class: Drupal\comment\Plugin\migrate\D7Comment
 source:
   plugin: d7_comment
   constants:
@@ -13,10 +14,26 @@ process:
   # the cid field to allow incremental migrations.
   cid: cid
   pid:
-    plugin: migration_lookup
-    migration: d7_comment
-    source: pid
-  entity_id: nid
+    -
+      plugin: skip_on_empty
+      method: process
+      source: pid
+    -
+      plugin: migration_lookup
+      migration: d7_comment
+  entity_id:
+    -
+      plugin: migration_lookup
+      migration:
+        - d7_node_complete
+        - d7_node
+        - d7_node_translation
+      source: nid
+    -
+      plugin: node_complete_node_lookup
+    -
+      plugin: skip_on_empty
+      method: row
   entity_type: 'constants/entity_type'
   comment_type:
     -
@@ -26,6 +43,11 @@ process:
     -
       plugin: skip_on_empty
       method: row
+  # Comments migrated from Drupal 6 to Drupal 7 may not have a language.
+  langcode:
+    plugin: default_value
+    source: language
+    default_value: und
   field_name: '@comment_type'
   subject: subject
   uid: uid
@@ -44,3 +66,5 @@ migration_dependencies:
   required:
     - d7_node
     - d7_comment_type
+  optional:
+    - d7_node_translation

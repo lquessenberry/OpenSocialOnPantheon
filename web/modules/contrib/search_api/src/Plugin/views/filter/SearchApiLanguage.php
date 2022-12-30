@@ -19,7 +19,7 @@ class SearchApiLanguage extends LanguageFilter {
    * {@inheritdoc}
    */
   public function query() {
-    $substitutions = self::queryLanguageSubstitutions();
+    $substitutions = static::queryLanguageSubstitutions();
     foreach ($this->value as $i => $value) {
       if (isset($substitutions[$value])) {
         $this->value[$i] = $substitutions[$value];
@@ -29,14 +29,21 @@ class SearchApiLanguage extends LanguageFilter {
     // Only set the languages using $query->setLanguages() if the condition
     // would be placed directly on the query, as an AND condition.
     $query = $this->getQuery();
-    $direct_condition = $this->operator == 'in'
-      && $query->getGroupType($this->options['group'])
-      && $query->getGroupOperator() == 'AND';
-    if ($direct_condition) {
+    $op_in_required = $this->operator == 'in'
+      && $query->getGroupType($this->options['group']) === 'AND'
+      && $query->getGroupOperator() === 'AND';
+    if ($this->realField === 'search_api_language' && $op_in_required) {
       $query->setLanguages($this->value);
     }
     else {
       parent::query();
+    }
+
+    // Also add a query option for any direct language filter including all
+    // included languages, in case any component needs this information in
+    // addition to the filter we placed.
+    if ($op_in_required && $this->value) {
+      $query->setOption('search_api_included_languages', array_values($this->value));
     }
   }
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace Drupal\Tests\flag\Kernel;
 
 use Drupal\flag\Entity\Flag;
@@ -31,14 +32,9 @@ class FlagServiceTest extends FlagKernelTestBase {
 
     // Search for flag.
     $user_with_access = $this->createUser(['flag ' . $flag->id()]);
-    $result = $this->flagService->getUsersFlags($user_with_access, 'node', 'article');
+    $result = $this->flagService->getAllFlags('node', 'article');
     $this->assertIdentical(count($result), 1, 'Found flag type');
     $this->assertEquals([$flag->id()], array_keys($result));
-
-    // Search denied.
-    $user_no_access = $this->createUser();
-    $empty_result = $this->flagService->getUsersFlags($user_no_access, 'node', 'article');
-    $this->assertIdentical(count($empty_result), 0, 'Flag type access denied');
   }
 
   /**
@@ -70,7 +66,6 @@ class FlagServiceTest extends FlagKernelTestBase {
     $flag->save();
 
     // Test flagging.
-
     // Try flagging an entity that's not a node: a user account.
     try {
       $this->flagService->flag($flag, $account, $account, $session_id);
@@ -121,7 +116,6 @@ class FlagServiceTest extends FlagKernelTestBase {
     }
 
     // Test unflagging.
-
     // Try unflagging an entity that's not a node: a user account.
     try {
       $this->flagService->unflag($flag, $account, $account, $session_id);
@@ -169,7 +163,7 @@ class FlagServiceTest extends FlagKernelTestBase {
       $this->flagService->unflag($flag, $flaggable_node, $account, $session_id);
       $this->pass('The unflag() method throws no exception when the flaggable entity and user is correct');
     }
-    catch (\LogicException $e){
+    catch (\LogicException $e) {
       $this->fail('The unfag() method threw an exception where processing a valid unflag request.');
     }
   }
@@ -179,7 +173,7 @@ class FlagServiceTest extends FlagKernelTestBase {
    */
   public function testFlagServiceGetFlaggingUsers() {
     // The service methods don't check access, so our user can be anybody.
-    $accounts = array($this->createUser(), $this->createUser());
+    $accounts = [$this->createUser(), $this->createUser()];
 
     // Create a flag.
     $flag = Flag::create([
@@ -215,6 +209,77 @@ class FlagServiceTest extends FlagKernelTestBase {
       }
       $this->assertTrue($flagging_user->id() == $account->id(), "The returned array has the flagged account included.");
     }
+  }
+
+  /**
+   * Tests global flags in combination with retrieval of all entity flaggings.
+   */
+  public function testGlobalFlaggingRetrieval() {
+    // Create a global flag.
+    $flag = Flag::create([
+      'id' => strtolower($this->randomMachineName()),
+      'label' => $this->randomString(),
+      'entity_type' => 'node',
+      'bundles' => ['article'],
+      'flag_type' => 'entity:node',
+      'link_type' => 'reload',
+      'flagTypeConfig' => [],
+      'linkTypeConfig' => [],
+      'global' => TRUE,
+    ]);
+    $flag->save();
+
+    // Flag the node.
+    $flaggable_node = Node::create([
+      'type' => 'article',
+      'title' => $this->randomMachineName(8),
+    ]);
+    $flaggable_node->save();
+
+    $account_1 = $this->createUser();
+    $account_2 = $this->createUser();
+
+    // Flag the global flag as account 1.
+    $this->flagService->flag($flag, $flaggable_node, $account_1);
+
+    // Verify flagging is retrievable without an account.
+    $flaggings = $this->flagService->getAllEntityFlaggings($flaggable_node);
+    $this->assertEquals(1, count($flaggings));
+
+    // User that flagged should see the flagging.
+    $flaggings = $this->flagService->getAllEntityFlaggings($flaggable_node, $account_1);
+    $this->assertEquals(1, count($flaggings));
+
+    // Since this is a global flag, any user should see it returned.
+    $flaggings = $this->flagService->getAllEntityFlaggings($flaggable_node, $account_2);
+    $this->assertEquals(1, count($flaggings));
+
+    // For a non-global flag verify only the owner gets the flag.
+    $flag = Flag::create([
+      'id' => strtolower($this->randomMachineName()),
+      'label' => $this->randomString(),
+      'entity_type' => 'node',
+      'bundles' => ['article'],
+      'flag_type' => 'entity:node',
+      'link_type' => 'reload',
+      'flagTypeConfig' => [],
+      'linkTypeConfig' => [],
+      'global' => FALSE,
+    ]);
+    $flag->save();
+    $this->flagService->flag($flag, $flaggable_node, $account_2);
+
+    // Verify both flaggings are returned.
+    $flaggings = $this->flagService->getAllEntityFlaggings($flaggable_node);
+    $this->assertEquals(2, count($flaggings));
+
+    // User that flagged should see both flaggings.
+    $flaggings = $this->flagService->getAllEntityFlaggings($flaggable_node, $account_2);
+    $this->assertEquals(2, count($flaggings));
+
+    // User that hasn't used the second flag will only see the global flag.
+    $flaggings = $this->flagService->getAllEntityFlaggings($flaggable_node, $account_1);
+    $this->assertEquals(1, count($flaggings));
   }
 
 }

@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Class MaskImageEffect.
+ * Apply a mask to the image.
  *
  * @ImageEffect(
  *   id = "image_effects_mask",
@@ -209,8 +209,8 @@ class MaskImageEffect extends ConfigurableImageEffectBase implements ContainerFa
 
     // Calculate position of mask on source image based on placement option.
     list($x, $y) = explode('-', $this->configuration['placement']);
-    $x_pos = round(image_filter_keyword($x, $image->getWidth(), $mask_width));
-    $y_pos = round(image_filter_keyword($y, $image->getHeight(), $mask_height));
+    $x_pos = ImageUtility::getKeywordOffset($x, $image->getWidth(), $mask_width);
+    $y_pos = ImageUtility::getKeywordOffset($y, $image->getHeight(), $mask_height);
 
     // Calculate offset based on px/percentage.
     $x_offset = (int) ImageUtility::percentFilter($this->configuration['x_offset'], $image->getWidth());

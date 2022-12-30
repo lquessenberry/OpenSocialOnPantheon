@@ -2,11 +2,8 @@
 
 namespace Drush\Utils;
 
-use Drush\Drush;
-
 class StringUtils
 {
-
     /**
      * Convert a csv string, or an array of items which
      * may contain csv strings, into an array of items.
@@ -14,12 +11,9 @@ class StringUtils
      * @param $args
      *   A simple csv string; e.g. 'a,b,c'
      *   or a simple list of items; e.g. array('a','b','c')
-     *   or some combination; e.g. array('a,b','c') or array('a,','b,','c,')
-     *
-     * @return array
-     *   A simple list of items (e.g. array('a','b','c')
+     *   or some combination; e.g. array('a,b','c') or array('a,','b,','c,').
      */
-    public static function csvToArray($args)
+    public static function csvToArray($args): array
     {
         //
         // Step 1: implode(',',$args) converts from, say, array('a,','b,','c,') to 'a,,b,,c,'
@@ -28,7 +22,8 @@ class StringUtils
         // Step 4: array_map(...) trims extra whitespace from each item
         // (handles csv strings with extra whitespace, e.g. 'a, b, c')
         //
-        return array_map('trim', array_filter(explode(',', is_array($args) ? implode(',', $args) : $args)));
+        $args = is_array($args) ? implode(',', array_map('strval', $args)) : (string) $args;
+        return array_map('trim', array_filter(explode(',', $args)));
     }
 
     /**
@@ -42,10 +37,9 @@ class StringUtils
      *   The string with placeholders to be interpolated.
      * @param array $context
      *   An associative array of values to be inserted into the message.
-     * @return string
      *   The resulting string with all placeholders filled in.
      */
-    public static function interpolate($message, array $context = [])
+    public static function interpolate(string $message, array $context = []): string
     {
         // Take no action if there is no context
         if (empty($context)) {
@@ -69,10 +63,9 @@ class StringUtils
      *
      * @param string $key
      *   A key from an interpolation context.
-     * @return string
      *   The key prepared for interpolation.
      */
-    private static function interpolationKey($key)
+    private static function interpolationKey(string $key): string
     {
         if (ctype_alpha($key)) {
             return sprintf('{%s}', $key);
@@ -103,13 +96,11 @@ class StringUtils
     }
 
   /**
-   * Generate a random alphanumeric password.  Copied from user.module.
-   *
-   * @param int $length
-   *
-   * @return string
-   */
-    public static function generatePassword($length = 10)
+     * Generate a random alphanumeric password.  Copied from user.module.
+     *
+     *
+     */
+    public static function generatePassword(int $length = 10): string
     {
         // This variable contains the list of allowable characters for the
         // password. Note that the number 0 and the letter 'O' have been

@@ -35,6 +35,13 @@ class DaysTest extends KernelTestBase {
   protected $template;
 
   /**
+   * The time service.
+   *
+   * @var \Drupal\Component\Datetime\Time
+   */
+  protected $timeService;
+
+  /**
    * {@inheritdoc}
    */
   public function setUp() {
@@ -46,6 +53,7 @@ class DaysTest extends KernelTestBase {
       'template' => 'foo',
     ]);
     $this->template->save();
+    $this->timeService = $this->container->get('datetime.time');
   }
 
   /**
@@ -79,7 +87,7 @@ class DaysTest extends KernelTestBase {
     $this->assertEquals([], $this->plugin->fetch($this->template));
 
     // Set message 3 to be 3 days old.
-    $messages[3]->set('created', REQUEST_TIME - 86400 * 3);
+    $messages[3]->set('created', $this->timeService->getRequestTime() - 86400 * 3);
     $messages[3]->save();
     $this->createPlugin($configuration);
     $this->assertEquals([3 => 3], $this->plugin->fetch($this->template));
@@ -96,7 +104,7 @@ class DaysTest extends KernelTestBase {
     $messages = [];
     foreach (range(1, 5) as $i) {
       $message = Message::create(['template' => $this->template->id()]);
-      $message->set('created', REQUEST_TIME - 86400);
+      $message->set('created', $this->timeService->getRequestTime() - 86400);
       $message->save();
       $messages[$i] = $message;
     }

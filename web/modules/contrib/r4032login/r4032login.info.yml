@@ -1,11 +1,11 @@
 name: 'Redirect 403 to User Login'
-type: module
 description: 'Redirect anonymous users from 403 Access Denied pages to the /user/login page.'
-# core: 8.x
+core_version_requirement: ^9.3 || ^10
+type: module
+
 configure: system.site_information_settings
 
-# Information added by Drupal.org packaging script on 2018-07-05
-version: '8.x-1.0'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-04-04
+version: '2.2.0'
 project: 'r4032login'
-datestamp: 1530773027
+datestamp: 1649051154

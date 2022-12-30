@@ -2,8 +2,8 @@
 
 namespace Drupal\Tests\image\Kernel;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
+use Drupal\Core\Url;
 use Drupal\entity_test\Entity\EntityTest;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
@@ -23,7 +23,7 @@ class ImageFormatterTest extends FieldKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['file', 'image'];
+  protected static $modules = ['file', 'image'];
 
   /**
    * @var string
@@ -48,7 +48,7 @@ class ImageFormatterTest extends FieldKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installConfig(['field']);
@@ -58,7 +58,7 @@ class ImageFormatterTest extends FieldKernelTestBase {
 
     $this->entityType = 'entity_test';
     $this->bundle = $this->entityType;
-    $this->fieldName = Unicode::strtolower($this->randomMachineName());
+    $this->fieldName = mb_strtolower($this->randomMachineName());
 
     FieldStorageConfig::create([
       'entity_type' => $this->entityType,
@@ -75,7 +75,8 @@ class ImageFormatterTest extends FieldKernelTestBase {
       ],
     ])->save();
 
-    $this->display = entity_get_display($this->entityType, $this->bundle, 'default')
+    $this->display = \Drupal::service('entity_display.repository')
+      ->getViewDisplay($this->entityType, $this->bundle)
       ->setComponent($this->fieldName, [
         'type' => 'image',
         'label' => 'hidden',
@@ -153,9 +154,9 @@ class ImageFormatterTest extends FieldKernelTestBase {
     $this->assertEquals('medium', $build[$this->fieldName][0]['#image_style']);
     // We check that the image URL contains the expected style directory
     // structure.
-    $this->assertTrue(strpos($build[$this->fieldName][0]['#markup'], 'styles/medium/public/test-image.png') !== FALSE);
-    $this->assertTrue(strpos($build[$this->fieldName][0]['#markup'], 'width="220"') !== FALSE);
-    $this->assertTrue(strpos($build[$this->fieldName][0]['#markup'], 'height="220"') !== FALSE);
+    $this->assertStringContainsString('styles/medium/public/test-image.png', $build[$this->fieldName][0]['#markup']);
+    $this->assertStringContainsString('width="220"', $build[$this->fieldName][0]['#markup']);
+    $this->assertStringContainsString('height="220"', $build[$this->fieldName][0]['#markup']);
 
     // The second image is an SVG, which is not supported by the GD toolkit.
     // The image style should still be applied with its cache tags, but image
@@ -166,11 +167,36 @@ class ImageFormatterTest extends FieldKernelTestBase {
     $this->assertEquals('medium', $build[$this->fieldName][1]['#image_style']);
     // We check that the image URL does not contain the style directory
     // structure.
-    $this->assertFalse(strpos($build[$this->fieldName][1]['#markup'], 'styles/medium/public/test-image.svg'));
+    $this->assertStringNotContainsString('styles/medium/public/test-image.svg', $build[$this->fieldName][1]['#markup']);
     // Since we did not store original image dimensions, width and height
     // HTML attributes will not be present.
-    $this->assertFalse(strpos($build[$this->fieldName][1]['#markup'], 'width'));
-    $this->assertFalse(strpos($build[$this->fieldName][1]['#markup'], 'height'));
+    $this->assertStringNotContainsString('width', $build[$this->fieldName][1]['#markup']);
+    $this->assertStringNotContainsString('height', $build[$this->fieldName][1]['#markup']);
+  }
+
+  /**
+   * Tests Image Formatter URL options handling.
+   */
+  public function testImageFormatterUrlOptions() {
+    $this->display->setComponent($this->fieldName, ['settings' => ['image_link' => 'content']]);
+
+    // Create a test entity with the image field set.
+    $entity = EntityTest::create([
+      'name' => $this->randomMachineName(),
+    ]);
+    $entity->{$this->fieldName}->generateSampleItems(2);
+    $entity->save();
+
+    // Generate the render array to verify URL options are as expected.
+    $build = $this->display->build($entity);
+    $this->assertInstanceOf(Url::class, $build[$this->fieldName][0]['#url']);
+    $build[$this->fieldName][0]['#url']->setOption('attributes', ['data-attributes-test' => 'test123']);
+
+    /** @var \Drupal\Core\Render\RendererInterface $renderer */
+    $renderer = $this->container->get('renderer');
+
+    $output = $renderer->renderRoot($build[$this->fieldName][0]);
+    $this->assertStringContainsString('<a href="' . $entity->toUrl()->toString() . '" data-attributes-test="test123"', (string) $output);
   }
 
   /**
@@ -180,8 +206,10 @@ class ImageFormatterTest extends FieldKernelTestBase {
    *   The renderable array. Must have a #cache[tags] element.
    * @param array $cache_tags
    *   The expected cache tags.
+   *
+   * @internal
    */
-  protected function assertCacheTags(array $renderable, array $cache_tags) {
+  protected function assertCacheTags(array $renderable, array $cache_tags): void {
     $diff = array_diff($cache_tags, $renderable['#cache']['tags']);
     $this->assertEmpty($diff);
   }

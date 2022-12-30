@@ -21,7 +21,7 @@ abstract class DisplayDeriverBase extends DeriverBase implements ContainerDerive
   protected $derivatives = NULL;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
@@ -43,20 +43,20 @@ abstract class DisplayDeriverBase extends DeriverBase implements ContainerDerive
   }
 
   /**
-   * Retrieves the entity manager.
+   * Retrieves the entity type manager.
    *
    * @return \Drupal\Core\Entity\EntityTypeManagerInterface
-   *   The entity manager.
+   *   The entity type manager.
    */
   public function getEntityTypeManager() {
     return $this->entityTypeManager;
   }
 
   /**
-   * Sets the entity manager.
+   * Sets the entity type manager.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity manager.
+   *   The new entity type manager.
    *
    * @return $this
    */

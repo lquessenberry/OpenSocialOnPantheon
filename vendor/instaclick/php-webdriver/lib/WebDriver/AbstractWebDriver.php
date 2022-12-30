@@ -90,11 +90,11 @@ abstract class AbstractWebDriver
     /**
      * Curl request to webdriver server.
      *
-     * @param string $requestMethod HTTP request method, e.g., 'GET', 'POST', or 'DELETE'
-     * @param string $command       If not defined in methods() this function will throw.
-     * @param array  $parameters    If an array(), they will be posted as JSON parameters
-     *                              If a number or string, "/$params" is appended to url
-     * @param array  $extraOptions  key=>value pairs of curl options to pass to curl_setopt()
+     * @param string               $requestMethod HTTP request method, e.g., 'GET', 'POST', or 'DELETE'
+     * @param string               $command       If not defined in methods() this function will throw.
+     * @param array|integer|string $parameters    If an array(), they will be posted as JSON parameters
+     *                                            If a number or string, "/$params" is appended to url
+     * @param array                $extraOptions  key=>value pairs of curl options to pass to curl_setopt()
      *
      * @return array array('value' => ..., 'info' => ...)
      *
@@ -120,49 +120,55 @@ abstract class AbstractWebDriver
             $url .= '/' . $parameters;
         }
 
+        $this->assertSerializable($parameters);
+
         list($rawResult, $info) = ServiceFactory::getInstance()->getService('service.curl')->execute($requestMethod, $url, $parameters, $extraOptions);
 
         $httpCode = $info['http_code'];
 
-        // According to https://w3c.github.io/webdriver/webdriver-spec.html all 4xx responses are to be considered
-        // an error and return plaintext, while 5xx responses are json encoded
-        if ($httpCode >= 400 && $httpCode <= 499) {
+        if ($httpCode === 0) {
             throw WebDriverException::factory(
                 WebDriverException::CURL_EXEC,
-                'Webdriver http error: ' . $httpCode . ', payload :' . substr($rawResult, 0, 1000)
+                $info['error']
             );
         }
 
         $result = json_decode($rawResult, true);
 
-        if (!empty($rawResult) && $result === null && json_last_error() != JSON_ERROR_NONE) {
+        if (! empty($rawResult) && $result === null && json_last_error() != JSON_ERROR_NONE) {
+            // Legacy webdriver 4xx responses are to be considered a plaintext error
+            if ($httpCode >= 400 && $httpCode <= 499) {
+                throw WebDriverException::factory(
+                    WebDriverException::CURL_EXEC,
+                    'Webdriver http error: ' . $httpCode . ', payload :' . substr($rawResult, 0, 1000)
+                );
+            }
+
             throw WebDriverException::factory(
                 WebDriverException::CURL_EXEC,
                 'Payload received from webdriver is not valid json: ' . substr($rawResult, 0, 1000)
             );
         }
 
-        if (is_array($result) && !array_key_exists('status', $result)) {
+        if (is_array($result) && ! array_key_exists('status', $result) && ! array_key_exists('value', $result) && ! isset($result['value']['ready']) && ! isset($result['value']['error'])) {
             throw WebDriverException::factory(
                 WebDriverException::CURL_EXEC,
                 'Payload received from webdriver is valid but unexpected json: ' . substr($rawResult, 0, 1000)
             );
         }
 
-        $value   = (is_array($result) && array_key_exists('value', $result)) ? $result['value'] : null;
-        $message = (is_array($value) && array_key_exists('message', $value)) ? $value['message'] : null;
+        $value   = $this->offsetGet('value', $result);
+        $message = $this->offsetGet('message', $result) ?: $this->offsetGet('message', $value);
+        $error   = $this->offsetGet('error', $result)   ?: $this->offsetGet('error', $value);
 
         // if not success, throw exception
         if ((int) $result['status'] !== 0) {
             throw WebDriverException::factory($result['status'], $message);
         }
 
-        $sessionId = isset($result['sessionId'])
-           ? $result['sessionId']
-           : (isset($value['webdriver.remote.sessionid'])
-               ? $value['webdriver.remote.sessionid']
-               : null
-           );
+        $sessionId = $this->offsetGet('sessionId', $result)
+                  ?: $this->offsetGet('sessionId', $value)
+                  ?: $this->offsetGet('webdriver.remote.sessionid', $value);
 
         return array(
             'value'      => $value,
@@ -219,6 +225,47 @@ abstract class AbstractWebDriver
         );
 
         return $result['value'];
+    }
+
+    /**
+     * Sanity check
+     *
+     * @param mixed $parameters
+     */
+    private function assertSerializable($parameters)
+    {
+        if ($parameters === null || is_scalar($parameters)) {
+            return;
+        }
+
+        if (is_array($parameters)) {
+            foreach ($parameters as $value) {
+                $this->assertSerializable($value);
+            }
+
+            return;
+        }
+
+        throw WebDriverException::factory(
+            WebDriverException::UNEXPECTED_PARAMETERS,
+            sprintf(
+                "Unable to serialize non-scalar type %s",
+                is_object($parameters) ? get_class($parameters) : gettype($parameters)
+            )
+        );
+    }
+
+    /**
+     * Extract value from result
+     *
+     * @param string $key
+     * @param mixed  $result
+     *
+     * @return string|null
+     */
+    private function offsetGet($key, $result)
+    {
+        return (is_array($result) && array_key_exists($key, $result)) ? $result[$key] : null;
     }
 
     /**

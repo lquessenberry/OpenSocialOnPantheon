@@ -28,6 +28,13 @@ abstract class MessageTestBase extends BrowserTestBase {
   protected $accessController;
 
   /**
+   * Default theme.
+   *
+   * @var string
+   */
+  protected $defaultTheme = 'stable';
+
+  /**
    * Load a message template easily.
    *
    * @param string $template

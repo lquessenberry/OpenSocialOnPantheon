@@ -9,10 +9,10 @@
  * operational information.
  */
 
+use Drupal\Core\Url;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\views\ViewEntityInterface;
 use Drupal\views\ViewExecutable;
 
 /**
@@ -27,9 +27,11 @@ function dblog_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Monitoring your site') . '</dt>';
-      $output .= '<dd>' . t('The Database Logging module allows you to view an event log on the <a href=":dblog">Recent log messages</a> page. The log is a chronological list of recorded events containing usage data, performance data, errors, warnings and operational information. Administrators should check the log on a regular basis to ensure their site is working properly.', [':dblog' => \Drupal::url('dblog.overview')]) . '</dd>';
+      $output .= '<dd>' . t('The Database Logging module allows you to view an event log on the <a href=":dblog">Recent log messages</a> page. The log is a chronological list of recorded events containing usage data, performance data, errors, warnings and operational information. Administrators should check the log on a regular basis to ensure their site is working properly.', [':dblog' => Url::fromRoute('dblog.overview')->toString()]) . '</dd>';
       $output .= '<dt>' . t('Debugging site problems') . '</dt>';
-      $output .= '<dd>' . t('In case of errors or problems with the site, the <a href=":dblog">Recent log messages</a> page can be useful for debugging, since it shows the sequence of events. The log messages include usage information, warnings, and errors.', [':dblog' => \Drupal::url('dblog.overview')]) . '</dd>';
+      $output .= '<dd>' . t('In case of errors or problems with the site, the <a href=":dblog">Recent log messages</a> page can be useful for debugging, since it shows the sequence of events. The log messages include usage information, warnings, and errors.', [':dblog' => Url::fromRoute('dblog.overview')->toString()]) . '</dd>';
+      $output .= '<dt>' . t('This log is not persistent') . '</dt>';
+      $output .= '<dd>' . t('The Database Logging module logs may be cleared by administrators and automated cron tasks, so they should not be used for <a href=":audit_trail_wiki">forensic logging</a>. For forensic purposes, use the Syslog module.', [':audit_trail_wiki' => 'https://en.wikipedia.org/wiki/Audit_trail']) . '</dd>';
       $output .= '</dl>';
       return $output;
 
@@ -67,7 +69,8 @@ function dblog_cron() {
   // Counting the most recent n rows avoids issues with wid number sequences,
   // e.g. auto_increment value > 1 or rows deleted directly from the table.
   if ($row_limit > 0) {
-    $min_row = db_select('watchdog', 'w')
+    $connection = \Drupal::database();
+    $min_row = $connection->select('watchdog', 'w')
       ->fields('w', ['wid'])
       ->orderBy('wid', 'DESC')
       ->range($row_limit - 1, 1)
@@ -75,7 +78,7 @@ function dblog_cron() {
 
     // Delete all table entries older than the nth row, if nth row was found.
     if ($min_row) {
-      db_delete('watchdog')
+      $connection->delete('watchdog')
         ->condition('wid', $min_row, '<')
         ->execute();
     }
@@ -89,7 +92,7 @@ function dblog_cron() {
  *   List of uniquely defined database log message types.
  */
 function _dblog_get_message_types() {
-  return db_query('SELECT DISTINCT(type) FROM {watchdog} ORDER BY type')
+  return \Drupal::database()->query('SELECT DISTINCT([type]) FROM {watchdog} ORDER BY [type]')
     ->fetchAllKeyed(0, 0);
 }
 
@@ -103,7 +106,7 @@ function dblog_form_system_logging_settings_alter(&$form, FormStateInterface $fo
     '#title' => t('Database log messages to keep'),
     '#default_value' => \Drupal::configFactory()->getEditable('dblog.settings')->get('row_limit'),
     '#options' => [0 => t('All')] + array_combine($row_limits, $row_limits),
-    '#description' => t('The maximum number of messages to keep in the database log. Requires a <a href=":cron">cron maintenance task</a>.', [':cron' => \Drupal::url('system.status')])
+    '#description' => t('The maximum number of messages to keep in the database log. Requires a <a href=":cron">cron maintenance task</a>.', [':cron' => Url::fromRoute('system.status')->toString()]),
   ];
 
   $form['#submit'][] = 'dblog_logging_settings_submit';
@@ -116,77 +119,6 @@ function dblog_form_system_logging_settings_alter(&$form, FormStateInterface $fo
  */
 function dblog_logging_settings_submit($form, FormStateInterface $form_state) {
   \Drupal::configFactory()->getEditable('dblog.settings')->set('row_limit', $form_state->getValue('dblog_row_limit'))->save();
-}
-
-/**
- * Implements hook_ENTITY_TYPE_presave() for views entities.
- *
- * This hook ensures there are no views based that are using a wrong plugin for
- * wid and uid fields on views that use watchdog as base table.
- *
- * @deprecated in Drupal 8.4.x and will be removed before 9.0.0.
- *
- * @see https://www.drupal.org/node/2876378
- */
-function dblog_view_presave(ViewEntityInterface $view) {
-  // Only interested in watchdog based views.
-  if ($view->get('base_table') != 'watchdog') {
-    return;
-  }
-
-  $displays = $view->get('display');
-  $update = FALSE;
-  foreach ($displays as $display_name => $display) {
-
-    // Iterate through all the fields of watchdog views based tables.
-    if (isset($display['display_options']['fields'])) {
-      foreach ($display['display_options']['fields'] as $field_name => $field) {
-        // We are only interested in wid and uid fields from the watchdog table
-        // that still use the numeric id.
-        if (isset($field['table']) &&
-            $field['table'] === 'watchdog' &&
-            $field['plugin_id'] == 'numeric' &&
-            in_array($field['field'], ['wid', 'uid'], TRUE)) {
-
-          $displays[$display_name]['display_options']['fields'][$field_name]['plugin_id'] = 'standard';
-
-          // Delete all the attributes related to numeric fields.
-          unset(
-            $displays[$display_name]['display_options']['fields'][$field_name]['set_precision'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['precision'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['decimal'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['separator'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['format_plural'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['format_plural_string'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['prefix'],
-            $displays[$display_name]['display_options']['fields'][$field_name]['suffix']
-          );
-
-          $update = TRUE;
-          @trigger_error("The numeric plugin for watchdog.$field_name field is deprecated in Drupal 8.4.0 and will be removed before Drupal 9.0.0. Must use standard plugin instead. See https://www.drupal.org/node/2876378.", E_USER_DEPRECATED);
-        }
-      }
-    }
-
-    // Iterate all filters looking for type filters to update.
-    if (isset($display['display_options']['filters'])) {
-      foreach ($display['display_options']['filters'] as $filter_name => $filter) {
-        if (isset($filter['table']) &&
-            $filter['table'] === 'watchdog' &&
-            $filter['plugin_id'] == 'in_operator' &&
-            $filter['field'] == 'type') {
-
-          $displays[$display_name]['display_options']['filters'][$filter_name]['plugin_id'] = 'dblog_types';
-          $update = TRUE;
-          @trigger_error("The in_operator plugin for watchdog.type filter is deprecated in Drupal 8.4.0 and will be removed before Drupal 9.0.0. Must use dblog_types plugin instead. See https://www.drupal.org/node/2876378.", E_USER_DEPRECATED);
-        }
-      }
-    }
-  }
-
-  if ($update) {
-    $view->set('display', $displays);
-  }
 }
 
 /**

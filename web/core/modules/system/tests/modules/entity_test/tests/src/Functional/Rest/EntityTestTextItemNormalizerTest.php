@@ -17,7 +17,12 @@ class EntityTestTextItemNormalizerTest extends EntityTestResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['filter_test'];
+  protected static $modules = ['filter_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * {@inheritdoc}
@@ -123,7 +128,7 @@ class EntityTestTextItemNormalizerTest extends EntityTestResourceTestBase {
       'foo:bar',
       'foo:baz',
       // The cache tags set by the filter_test_cache_merge filter.
-      'merge:tag'
+      'merge:tag',
     ], parent::getExpectedCacheTags());
   }
 
@@ -149,7 +154,7 @@ class EntityTestTextItemNormalizerTest extends EntityTestResourceTestBase {
    */
   public function testGetWithFormat($text_format_id, array $expected_cache_tags) {
     FilterFormat::create([
-      'name' => 'Pablo Piccasso',
+      'name' => 'Pablo Picasso',
       'format' => 'pablo',
       'langcode' => 'es',
       'filters' => [],
@@ -172,7 +177,7 @@ class EntityTestTextItemNormalizerTest extends EntityTestResourceTestBase {
     $this->setUpAuthorization('GET');
     $response = $this->request('GET', $url, $request_options);
     $expected_cache_tags = Cache::mergeTags($expected_cache_tags, parent::getExpectedCacheTags());
-    $this->assertSame($expected_cache_tags, explode(' ', $response->getHeader('X-Drupal-Cache-Tags')[0]));
+    $this->assertEqualsCanonicalizing($expected_cache_tags, explode(' ', $response->getHeader('X-Drupal-Cache-Tags')[0]));
   }
 
   public function providerTestGetWithFormat() {

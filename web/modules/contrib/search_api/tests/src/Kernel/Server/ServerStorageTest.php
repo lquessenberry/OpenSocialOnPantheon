@@ -21,7 +21,7 @@ class ServerStorageTest extends KernelTestBase {
    *
    * @var string[]
    */
-  public static $modules = [
+  protected static $modules = [
     'search_api',
     'search_api_test',
     'user',
@@ -38,10 +38,8 @@ class ServerStorageTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-
-    $this->installSchema('system', 'key_value_expire');
 
     $this->installEntitySchema('search_api_task');
     $this->storage = $this->container->get('entity_type.manager')->getStorage('search_api_server');
@@ -51,7 +49,7 @@ class ServerStorageTest extends KernelTestBase {
    * Tests all CRUD operations as a queue of operations.
    */
   public function testServerCrud() {
-    $this->assertTrue($this->storage instanceof ConfigEntityStorage, 'The Search API Server storage controller is loaded.');
+    $this->assertInstanceOf(ConfigEntityStorage::class, $this->storage, 'The Search API Server storage controller is loaded.');
 
     $server = $this->serverCreate();
     $this->serverLoad($server);
@@ -73,7 +71,7 @@ class ServerStorageTest extends KernelTestBase {
     ];
     $server = $this->storage->create($server_data);
 
-    $this->assertTrue($server instanceof ServerInterface, 'The newly created entity is a Search API Server.');
+    $this->assertInstanceOf(ServerInterface::class, $server, 'The newly created entity is a Search API Server.');
     $server->save();
 
     $key = 'search_api_test.methods_called.' . $server->id();

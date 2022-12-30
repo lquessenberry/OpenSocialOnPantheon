@@ -12,9 +12,10 @@ third_party_settings:
     activity_destinations:
       stream_explore: stream_explore
       stream_profile: stream_profile
-    activity_create_direct: 1
-    activity_aggregate: 1
+    activity_create_direct: TRUE
+    activity_aggregate: TRUE
     activity_entity_condition: comment_not_reply
+    email_subject: ''
 template: create_comment_group_post
 label: 'Create comment on post in the group'
 description: 'A user add a comment to post in the group'
@@ -29,8 +30,4 @@ settings:
   'token options':
     clear: false
     'token replace': true
-  purge:
-    override: false
-    enabled: false
-    quota: null
-    days: null
+  purge_methods: {  }

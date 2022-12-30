@@ -23,7 +23,7 @@ use Symfony\Component\Routing\RouteCollection;
 class EntityModerationRouteProvider implements EntityRouteProviderInterface, EntityHandlerInterface {
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
    * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
@@ -32,11 +32,11 @@ class EntityModerationRouteProvider implements EntityRouteProviderInterface, Ent
   /**
    * Constructs a new DefaultHtmlRouteProvider.
    *
-   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
    */
-  public function __construct(EntityFieldManagerInterface $entity_manager) {
-    $this->entityFieldManager = $entity_manager;
+  public function __construct(EntityFieldManagerInterface $entity_field_manager) {
+    $this->entityFieldManager = $entity_field_manager;
   }
 
   /**
@@ -81,7 +81,7 @@ class EntityModerationRouteProvider implements EntityRouteProviderInterface, Ent
           '_title_callback' => '\Drupal\Core\Entity\Controller\EntityController::title',
         ])
         // If the entity type is a node, unpublished content will be visible
-        // if the user has the "view all unpublished content" permission.
+        // if the user has the "view any unpublished content" permission.
         ->setRequirement('_entity_access', "{$entity_type_id}.view")
         ->setRequirement('_content_moderation_latest_version', 'TRUE')
         ->setOption('_content_moderation_entity_type', $entity_type_id)

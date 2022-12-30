@@ -5,10 +5,12 @@ namespace Drupal\private_message\Form;
 use Drupal\Core\Entity\ContentEntityConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\user\Entity\User;
+use Drupal\private_message\Entity\PrivateMessageThreadInterface;
 
 /**
  * Form definition for the private message delete form.
+ *
+ * @method PrivateMessageThreadInterface getEntity()
  */
 class PrivateMessageThreadDeleteForm extends ContentEntityConfirmFormBase {
 
@@ -19,9 +21,11 @@ class PrivateMessageThreadDeleteForm extends ContentEntityConfirmFormBase {
     $members = $this->getEntity()->getMembers();
     $member_names = [];
     foreach ($members as $member) {
+      if ($member->id() == $this->currentUser()->id()) {
+        continue;
+      }
       $member_names[] = $member->getDisplayName();
     }
-
     return $this->t('Are you sure you want to delete the thread between you and the following users: @others?', ['@others' => implode(', ', $member_names)]);
   }
 
@@ -45,8 +49,7 @@ class PrivateMessageThreadDeleteForm extends ContentEntityConfirmFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
 
-    $user = User::load($this->currentUser()->id());
-    $this->getEntity()->delete($user);
+    $this->getEntity()->delete();
 
     $form_state->setRedirect('private_message.private_message_page');
   }

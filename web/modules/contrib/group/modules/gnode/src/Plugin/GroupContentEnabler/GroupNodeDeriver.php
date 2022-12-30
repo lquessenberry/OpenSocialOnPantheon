@@ -11,6 +11,8 @@ class GroupNodeDeriver extends DeriverBase {
    * {@inheritdoc}.
    */
   public function getDerivativeDefinitions($base_plugin_definition) {
+    $this->derivatives = [];
+
     foreach (NodeType::loadMultiple() as $name => $node_type) {
       $label = $node_type->label();
 

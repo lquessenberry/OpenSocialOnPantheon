@@ -16,17 +16,7 @@ class CropEntityProvidersTest extends CropUnitTestBase {
    *
    * @var array
    */
-  public static $modules = ['crop', 'file', 'image', 'user', 'system'];
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp() {
-    parent::setUp();
-
-    $this->container->get('entity.manager')
-      ->onEntityTypeCreate($this->container->get('entity.manager')->getDefinition('file'));
-  }
+  protected static $modules = ['crop', 'file', 'image', 'user', 'system'];
 
   /**
    * Tests file provider plugin.
@@ -47,7 +37,7 @@ class CropEntityProvidersTest extends CropUnitTestBase {
       'height' => '50',
     ];
     /** @var \Drupal\crop\CropInterface $crop */
-    $crop = $this->container->get('entity.manager')->getStorage('crop')->create($values);
+    $crop = $this->container->get('entity_type.manager')->getStorage('crop')->create($values);
     $crop->save();
 
     try {

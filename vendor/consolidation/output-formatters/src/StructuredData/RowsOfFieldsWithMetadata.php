@@ -1,4 +1,5 @@
 <?php
+
 namespace Consolidation\OutputFormatters\StructuredData;
 
 use Consolidation\OutputFormatters\Options\FormatterOptions;
@@ -10,11 +11,6 @@ use Consolidation\OutputFormatters\Options\FormatterOptions;
 class RowsOfFieldsWithMetadata extends RowsOfFields implements MetadataInterface, MetadataHolderInterface
 {
     use MetadataHolderTrait;
-
-    public function __constructor($data)
-    {
-        parent::__construct($data);
-    }
 
     /**
      * Restructure this data for output by converting it into a table

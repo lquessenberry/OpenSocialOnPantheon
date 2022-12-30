@@ -1,0 +1,67 @@
+<?php
+
+/**
+ * @file
+ * This is the Select2 module.
+ */
+
+/**
+ * Implements hook_library_info_alter().
+ */
+function select2_library_info_alter(&$libraries, $extension) {
+  if ($extension === 'select2') {
+    $libraries_path = 'libraries/select2';
+    if (\Drupal::hasService('library.libraries_directory_file_finder')) {
+      $libraries_path = \Drupal::service('library.libraries_directory_file_finder')->find('select2');
+    }
+    elseif (function_exists('libraries_get_path')) {
+      $libraries_path = libraries_get_path('select2');
+    }
+
+    $libraries['select2.min']['js'] = ['/' . $libraries_path . '/dist/js/select2.min.js' => ['minified' => TRUE]];
+    $libraries['select2.min']['css']['component'] = ['/' . $libraries_path . '/dist/css/select2.min.css' => []];
+    foreach (\Drupal::languageManager()->getLanguages() as $language) {
+      if (file_exists($libraries_path . '/dist/js/i18n/' . $language->getId() . '.js')) {
+        $libraries['select2.i18n.' . $language->getId()] = [
+          'js' => [
+            '/' . $libraries_path . '/dist/js/i18n/' . $language->getId() . '.js' => ['minified' => TRUE],
+          ],
+          'dependencies' => [
+            'select2/select2',
+          ],
+        ];
+      }
+    }
+  }
+
+  $module_path = \Drupal::moduleHandler()->getModule('select2')->getPath();
+  if (file_exists("$module_path/css/select2.$extension.css")) {
+    $libraries['select2.theme'] = [
+      'css' => [
+        'component' => [
+          "/$module_path/css/select2.$extension.css" => [],
+        ],
+      ],
+    ];
+  }
+}
+
+/**
+ * Implements hook_library_info_build().
+ */
+function select2_library_info_build() {
+  $libraries = [];
+  foreach (\Drupal::languageManager()->getLanguages() as $language) {
+    if (file_exists('libraries/select2/dist/js/i18n/' . $language->getId() . '.js')) {
+      $libraries['select2.i18n.' . $language->getId()] = [
+        'js' => [
+          '/libraries/select2/dist/js/i18n/' . $language->getId() . '.js' => ['minified' => TRUE],
+        ],
+        'dependencies' => [
+          'select2/select2',
+        ],
+      ];
+    }
+  }
+  return $libraries;
+}

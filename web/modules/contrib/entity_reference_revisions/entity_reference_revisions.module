@@ -6,9 +6,14 @@
  */
 
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\Core\Entity\TranslatableRevisionableStorageInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\entity_reference_revisions\Plugin\Field\FieldType\EntityReferenceRevisionsItem;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\FieldStorageConfigInterface;
@@ -217,4 +222,130 @@ function entity_reference_revisions_form_field_ui_field_storage_add_form_alter(a
   // "Other".
   unset($form['add']['new_storage_type']['#options'][(string) t('Reference revisions')]['entity_reference_revisions']);
   $form['add']['new_storage_type']['#options'][(string) t('Reference revisions')]['entity_reference_revisions'] = t('Other…');
+}
+
+/**
+ * Implements hook_entity_revision_create().
+ */
+function entity_reference_revisions_entity_revision_create(ContentEntityInterface $new_revision, ContentEntityInterface $entity, $keep_untranslatable_fields) {
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $storage = \Drupal::entityTypeManager()->getStorage($entity->getEntityTypeId());
+  foreach ($entity->getFieldDefinitions() as $field_name => $field_definition) {
+    if ($field_definition->getType() == 'entity_reference_revisions' && !$field_definition->isTranslatable()) {
+      $target_entity_type_id = $field_definition->getSetting('target_type');
+      if ($entity_type_manager->getDefinition($target_entity_type_id)->get('entity_revision_parent_id_field')) {
+
+        // The default implementation copied the values from the current
+        // default revision into the field since it is not translatable.
+        // Take the originally referenced entity, create a new revision
+        // of it and set that instead on the new entity revision.
+        $active_langcode = $entity->language()->getId();
+        $target_storage = \Drupal::entityTypeManager()->getStorage($target_entity_type_id);
+        if ($target_storage instanceof TranslatableRevisionableStorageInterface) {
+
+          $items = $entity->get($field_name);
+          $translation_items = NULL;
+          if (!$new_revision->isDefaultTranslation() && $storage instanceof TranslatableRevisionableStorageInterface) {
+            $translation_items = $items;
+            $items = $storage->load($new_revision->id())->get($field_name);
+          }
+
+          $values = [];
+          foreach ($items as $delta => $item) {
+            // If the target entity is missing, let's skip it.
+            if (empty($item->entity)) {
+              continue;
+            }
+
+            // Use the item from the translation if it exists.
+            // If we have translation items, use that if one with the matching
+            // target id exists.
+            if ($translation_items) {
+              foreach ($translation_items as $translation_item) {
+                if ($item->target_id == $translation_item->target_id) {
+                  $item = $translation_item;
+                  break;
+                }
+              }
+            }
+
+            /** @var \Drupal\Core\Entity\ContentEntityInterface $target_entity */
+            $target_entity = $item->entity;
+            if (!$target_entity->hasTranslation($active_langcode)) {
+              $target_entity->addTranslation($active_langcode, $target_entity->toArray());
+            }
+            $target_entity = $item->entity->getTranslation($active_langcode);
+            $revised_entity = $target_storage->createRevision($target_entity, $new_revision->isDefaultRevision(), $keep_untranslatable_fields);
+
+            // Restore the revision ID.
+            $revision_key = $revised_entity->getEntityType()->getKey('revision');
+            $revised_entity->set($revision_key, $revised_entity->getLoadedRevisionId());
+            $values[$delta] = $revised_entity;
+          }
+          $new_revision->set($field_name, $values);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Batch callback to dispatch the orphan composite batch operation to a service.
+ */
+function _entity_reference_revisions_orphan_purger_batch_dispatcher() {
+  $args = func_get_args();
+  list($service, $method) = explode(':', array_shift($args));
+  // The second argument (context) is passed by reference.
+  $values = $args[1];
+  $args[1] = &$values;
+  call_user_func_array([\Drupal::service($service), $method], $args);
+}
+
+/**
+ * Implements hook_entity_delete().
+ *
+ * Performs garbage collection for composite entities that were not removed
+ * by EntityReferenceRevisionsItem.
+ */
+function entity_reference_revisions_entity_delete(EntityInterface $entity) {
+  if (!$entity instanceof FieldableEntityInterface) {
+    return;
+  }
+
+  $entity_type_manager = \Drupal::entityTypeManager();
+  /** @var \Drupal\Core\Field\FieldTypePluginManager $field_type_manager */
+  $field_type_manager = \Drupal::service('plugin.manager.field.field_type');
+  foreach ($entity->getFieldDefinitions() as $field_name => $field_definition) {
+    $field_class = $field_type_manager->getPluginClass($field_definition->getType());
+    if ($field_class == EntityReferenceRevisionsItem::class || is_subclass_of($field_class, EntityReferenceRevisionsItem::class)) {
+      $target_entity_type_id = $field_definition->getSetting('target_type');
+      $target_entity_storage = $entity_type_manager->getStorage($target_entity_type_id);
+      $target_entity_type = $target_entity_storage->getEntityType();
+
+      $parent_type_field = $target_entity_type->get('entity_revision_parent_type_field');
+      $parent_id_field = $target_entity_type->get('entity_revision_parent_id_field');
+      $parent_name_field = $target_entity_type->get('entity_revision_parent_field_name_field');
+
+      if ($parent_type_field && $parent_id_field && $parent_name_field) {
+        $entity_ids = $target_entity_storage
+          ->getQuery()
+          ->allRevisions()
+          ->condition($parent_type_field, $entity->getEntityTypeId())
+          ->condition($parent_id_field, $entity->id())
+          ->condition($parent_name_field, $field_name)
+          ->execute();
+
+        if (empty($entity_ids)) {
+          continue;
+        }
+        $entity_ids = array_unique($entity_ids);
+        foreach ($entity_ids as $revision_id => $entity_id) {
+          \Drupal::queue('entity_reference_revisions_orphan_purger')->createItem([
+            'entity_id' => $entity_id,
+            'entity_type_id' => $target_entity_type_id,
+          ]);
+        }
+      }
+    }
+  }
 }

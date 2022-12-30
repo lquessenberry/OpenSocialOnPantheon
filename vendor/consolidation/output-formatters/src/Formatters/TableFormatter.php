@@ -1,10 +1,10 @@
 <?php
+
 namespace Consolidation\OutputFormatters\Formatters;
 
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Helper\TableStyle;
-
 use Consolidation\OutputFormatters\Validate\ValidDataTypesInterface;
 use Consolidation\OutputFormatters\Options\FormatterOptions;
 use Consolidation\OutputFormatters\Validate\ValidDataTypesTrait;
@@ -135,11 +135,20 @@ class TableFormatter implements FormatterInterface, ValidDataTypesInterface, Ren
         // The 'consolidation' style is the same as the 'symfony-style-guide'
         // style, except it maintains the colored headers used in 'default'.
         $consolidationStyle = new TableStyle();
-        $consolidationStyle
-            ->setHorizontalBorderChar('-')
-            ->setVerticalBorderChar(' ')
-            ->setCrossingChar(' ')
-        ;
+
+        if (method_exists($consolidationStyle, 'setHorizontalBorderChars')) {
+            $consolidationStyle
+                ->setHorizontalBorderChars('-')
+                ->setVerticalBorderChars(' ')
+                ->setDefaultCrossingChar(' ')
+            ;
+        } else {
+            $consolidationStyle
+                ->setHorizontalBorderChar('-')
+                ->setVerticalBorderChar(' ')
+                ->setCrossingChar(' ')
+            ;
+        }
         $table->setStyleDefinition('consolidation', $consolidationStyle);
     }
 }

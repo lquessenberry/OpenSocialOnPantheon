@@ -1,8 +1,11 @@
 <?php
 // @codingStandardsIgnoreFile
 
+namespace Drupal\social\Behat;
+
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\TableNode;
+use Drupal\ultimate_cron\Entity\CronJob;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\HttpFoundation\File\File;
@@ -45,12 +48,17 @@ class EmailContext implements Context {
    *
    * @return Finder|null
    *   Returns a Finder if the directory exists.
+   * @throws Exception
    */
   public function getSpooledEmails() {
     $finder = new Finder();
+    $spoolDir = $this->getSpoolDir();
+
+    if(empty($spoolDir)) {
+      throw new \Exception('Could not retrieve the spool directory, or the directory does not exist.');
+    }
 
     try {
-      $spoolDir = $this->getSpoolDir();
       $finder->files()->in($spoolDir);
       return $finder;
     }
@@ -79,7 +87,12 @@ class EmailContext implements Context {
    *   The path where the spooled emails are stored.
    */
   protected function getSpoolDir() {
-    return '/var/www/html/profiles/contrib/social/tests/behat/features/swiftmailer-spool';
+    $path = \Drupal::service('extension.list.profile')->getPath('social') . '/tests/behat/features/swiftmailer-spool';
+    if (!file_exists($path)) {
+      mkdir($path, 0777, true);
+    }
+
+    return $path;
   }
 
   /**
@@ -107,6 +120,7 @@ class EmailContext implements Context {
    *
    * @return bool
    *   Email was found or not.
+   * @throws Exception
    */
   protected function findSubjectAndBody($subject, $body) {
     $finder = $this->getSpooledEmails();
@@ -122,9 +136,9 @@ class EmailContext implements Context {
         $email_body = $email->getBody();
 
         // Make it a traversable HTML doc.
-        $doc = new DOMDocument();
-        $doc->loadHTML($email_body);
-        $xpath = new DOMXPath($doc);
+        $doc = new \DOMDocument();
+        @$doc->loadHTML($email_body);
+        $xpath = new \DOMXPath($doc);
         // Find the post header and email content in the HTML file.
         $content = $xpath->evaluate('string(//*[contains(@class,"postheader")])');
         $content .= $xpath->evaluate('string(//*[contains(@class,"main")])');
@@ -140,6 +154,9 @@ class EmailContext implements Context {
           $found_email = TRUE;
         }
       }
+    }
+    else {
+      throw new \Exception('There are no email messages.');
     }
 
     return $found_email;
@@ -161,6 +178,15 @@ class EmailContext implements Context {
     \Drupal::state()->set('digest.' . $frequency . '.last_run', 1);
 
     \Drupal::service('cron')->run();
+
+    if (\Drupal::moduleHandler()->moduleExists('ultimate_cron')) {
+      $jobs = CronJob::loadMultiple();
+
+      /** @var CronJob $job */
+      foreach($jobs as $job) {
+        $job->run(t('Launched by drush'));
+      }
+    }
   }
 
   /**

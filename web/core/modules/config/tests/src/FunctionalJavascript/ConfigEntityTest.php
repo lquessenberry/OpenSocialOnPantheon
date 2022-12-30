@@ -2,25 +2,32 @@
 
 namespace Drupal\Tests\config\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 
 /**
  * Tests the Config operations through the UI.
  *
  * @group config
  */
-class ConfigEntityTest extends JavascriptTestBase {
+class ConfigEntityTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['config_test'];
+  protected static $modules = ['config_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests ajax operations through the UI on 'Add' page.
    */
   public function testAjaxOnAddPage() {
-    $this->drupalLogin($this->drupalCreateUser(['administer site configuration']));
+    $this->drupalLogin($this->drupalCreateUser([
+      'administer site configuration',
+    ]));
 
     $page = $this->getSession()->getPage();
     $assert_session = $this->assertSession();

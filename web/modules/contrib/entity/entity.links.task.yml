@@ -1,3 +1,2 @@
-entity.revisions_overview:
-  deriver: 'Drupal\entity\Plugin\Derivative\RevisionsOverviewDeriver'
-  weight: 100
+entity.entity_tasks:
+  deriver: Drupal\entity\Plugin\Derivative\EntityTasksDeriver

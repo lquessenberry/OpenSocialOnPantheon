@@ -20,11 +20,10 @@ use Drupal\Component\Utility\Html as HtmlUtility;
  *   element. Table elements would contain rows elements that would in turn
  *   contain column elements.
  * - #empty: Text to display when no rows are present.
- * - #responsive: Indicates whether to add the drupal.responsive_table library
+ * - #responsive: Indicates whether to add the drupal.tableresponsive library
  *   providing responsive tables.  Defaults to TRUE.
  * - #sticky: Indicates whether to add the drupal.tableheader library that makes
  *   table headers always visible at the top of the page. Defaults to FALSE.
- * - #size: The size of the input element in characters.
  *
  * Usage example:
  * @code
@@ -64,7 +63,7 @@ class Table extends FormElement {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#header' => [],
       '#rows' => [],
@@ -383,7 +382,7 @@ class Table extends FormElement {
       $element['#attributes']['class'][] = 'responsive-enabled';
     }
 
-    // If the custom #tabledrag is set and there is a HTML ID, add the table's
+    // If the custom #tabledrag is set and there is an HTML ID, add the table's
     // HTML ID to the options and attach the behavior.
     if (!empty($element['#tabledrag']) && isset($element['#attributes']['id'])) {
       foreach ($element['#tabledrag'] as $options) {

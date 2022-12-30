@@ -27,7 +27,7 @@ class FieldTypePluginManager extends DefaultPluginManager implements FieldTypePl
   protected $typedDataManager;
 
   /**
-   * Constructs the FieldTypePluginManager object
+   * Constructs the FieldTypePluginManager object.
    *
    * @param \Traversable $namespaces
    *   An object that implements \Traversable which contains the root paths
@@ -167,8 +167,7 @@ class FieldTypePluginManager extends DefaultPluginManager implements FieldTypePl
    * {@inheritdoc}
    */
   public function getPluginClass($type) {
-    $plugin_definition = $this->getDefinition($type, FALSE);
-    return $plugin_definition['class'];
+    return $this->getDefinition($type)['class'];
   }
 
 }

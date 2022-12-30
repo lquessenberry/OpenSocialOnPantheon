@@ -1,0 +1,9 @@
+name: 'Social Event Anonymous Enrolments Export'
+description: 'Adds ability to export event enrolments (include guests) to a CSV.'
+type: module
+core_version_requirement: ^9
+package: Social
+dependencies:
+  - social:social_event_an_enroll
+  - social:social_event_enrolments_export
+  - social:social_event_managers

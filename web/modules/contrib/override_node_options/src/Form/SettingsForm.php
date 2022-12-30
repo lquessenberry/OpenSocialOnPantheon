@@ -5,6 +5,11 @@ namespace Drupal\override_node_options\Form;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
+/**
+ * Class SettingsForm.
+ *
+ * @package Drupal\override_node_options\Form
+ */
 class SettingsForm extends ConfigFormBase {
 
   /**
@@ -55,4 +60,5 @@ class SettingsForm extends ConfigFormBase {
       ->set('specific_permissions', $form_state->getValue('specific_permissions'))
       ->save(TRUE);
   }
+
 }

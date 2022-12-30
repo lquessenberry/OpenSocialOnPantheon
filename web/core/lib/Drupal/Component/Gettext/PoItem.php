@@ -11,49 +11,58 @@ namespace Drupal\Component\Gettext;
 class PoItem {
 
   /**
+   * The delimiter used to split plural strings.
+   *
+   * This is the ETX (End of text) character and is used as a minimal means to
+   * separate singular and plural variants in source and translation text. It
+   * was found to be the most compatible delimiter for the supported databases.
+   */
+  const DELIMITER = "\03";
+
+  /**
    * The language code this translation is in.
    *
    * @var string
    */
-  private $_langcode;
+  protected $langcode;
 
   /**
    * The context this translation belongs to.
    *
    * @var string
    */
-  private $_context = '';
+  protected $context = '';
 
   /**
    * The source string or array of strings if it has plurals.
    *
    * @var string|array
    *
-   * @see $_plural
+   * @see $plural
    */
-  private $_source;
+  protected $source;
 
   /**
    * Flag indicating if this translation has plurals.
    *
    * @var bool
    */
-  private $_plural;
+  protected $plural;
 
   /**
    * The comment of this translation.
    *
    * @var string
    */
-  private $_comment;
+  protected $comment;
 
   /**
    * The translation string or array of strings if it has plurals.
    *
    * @var string|array
-   * @see $_plural
+   * @see $plural
    */
-  private $_translation;
+  protected $translation;
 
   /**
    * Gets the language code of the currently used language.
@@ -61,16 +70,17 @@ class PoItem {
    * @return string with langcode
    */
   public function getLangcode() {
-    return $this->_langcode;
+    return $this->langcode;
   }
 
   /**
    * Set the language code of the current language.
    *
    * @param string $langcode
+   *   The language code of the current language.
    */
   public function setLangcode($langcode) {
-    $this->_langcode = $langcode;
+    $this->langcode = $langcode;
   }
 
   /**
@@ -79,16 +89,17 @@ class PoItem {
    * @return string $context
    */
   public function getContext() {
-    return $this->_context;
+    return $this->context;
   }
 
   /**
    * Set the context this translation belongs to.
    *
    * @param string $context
+   *   The context this translation belongs to.
    */
   public function setContext($context) {
-    $this->_context = $context;
+    $this->context = $context;
   }
 
   /**
@@ -98,7 +109,7 @@ class PoItem {
    * @return string or array $translation
    */
   public function getSource() {
-    return $this->_source;
+    return $this->source;
   }
 
   /**
@@ -106,9 +117,10 @@ class PoItem {
    * plurals.
    *
    * @param string|array $source
+   *   The source string or the array of strings if the translation has plurals.
    */
   public function setSource($source) {
-    $this->_source = $source;
+    $this->source = $source;
   }
 
   /**
@@ -118,7 +130,7 @@ class PoItem {
    * @return string or array $translation
    */
   public function getTranslation() {
-    return $this->_translation;
+    return $this->translation;
   }
 
   /**
@@ -126,18 +138,21 @@ class PoItem {
    * plurals.
    *
    * @param string|array $translation
+   *   The translation string or the array of strings if the translation has
+   *   plurals.
    */
   public function setTranslation($translation) {
-    $this->_translation = $translation;
+    $this->translation = $translation;
   }
 
   /**
    * Set if the translation has plural values.
    *
    * @param bool $plural
+   *   TRUE, if the translation has plural values. FALSE otherwise.
    */
   public function setPlural($plural) {
-    $this->_plural = $plural;
+    $this->plural = $plural;
   }
 
   /**
@@ -146,7 +161,7 @@ class PoItem {
    * @return bool
    */
   public function isPlural() {
-    return $this->_plural;
+    return $this->plural;
   }
 
   /**
@@ -155,22 +170,24 @@ class PoItem {
    * @return String $comment
    */
   public function getComment() {
-    return $this->_comment;
+    return $this->comment;
   }
 
   /**
    * Set the comment of this translation.
    *
    * @param string $comment
+   *   The comment of this translation.
    */
   public function setComment($comment) {
-    $this->_comment = $comment;
+    $this->comment = $comment;
   }
 
   /**
    * Create the PoItem from a structured array.
    *
    * @param array $values
+   *   A structured array to create the PoItem from.
    */
   public function setFromArray(array $values = []) {
     if (isset($values['context'])) {
@@ -185,11 +202,11 @@ class PoItem {
     if (isset($values['comment'])) {
       $this->setComment($values['comment']);
     }
-    if (isset($this->_source) &&
-        strpos($this->_source, LOCALE_PLURAL_DELIMITER) !== FALSE) {
-      $this->setSource(explode(LOCALE_PLURAL_DELIMITER, $this->_source));
-      $this->setTranslation(explode(LOCALE_PLURAL_DELIMITER, $this->_translation));
-      $this->setPlural(count($this->_source) > 1);
+    if (isset($this->source) &&
+        strpos($this->source, self::DELIMITER) !== FALSE) {
+      $this->setSource(explode(self::DELIMITER, $this->source));
+      $this->setTranslation(explode(self::DELIMITER, $this->translation ?? ''));
+      $this->setPlural(count($this->source) > 1);
     }
   }
 
@@ -207,12 +224,12 @@ class PoItem {
     $output = '';
 
     // Format string context.
-    if (!empty($this->_context)) {
-      $output .= 'msgctxt ' . $this->formatString($this->_context);
+    if (!empty($this->context)) {
+      $output .= 'msgctxt ' . $this->formatString($this->context);
     }
 
     // Format translation.
-    if ($this->_plural) {
+    if ($this->plural) {
       $output .= $this->formatPlural();
     }
     else {
@@ -232,11 +249,11 @@ class PoItem {
     $output = '';
 
     // Format source strings.
-    $output .= 'msgid ' . $this->formatString($this->_source[0]);
-    $output .= 'msgid_plural ' . $this->formatString($this->_source[1]);
+    $output .= 'msgid ' . $this->formatString($this->source[0]);
+    $output .= 'msgid_plural ' . $this->formatString($this->source[1]);
 
-    foreach ($this->_translation as $i => $trans) {
-      if (isset($this->_translation[$i])) {
+    foreach ($this->translation as $i => $trans) {
+      if (isset($this->translation[$i])) {
         $output .= 'msgstr[' . $i . '] ' . $this->formatString($trans);
       }
       else {
@@ -252,8 +269,8 @@ class PoItem {
    */
   private function formatSingular() {
     $output = '';
-    $output .= 'msgid ' . $this->formatString($this->_source);
-    $output .= 'msgstr ' . (isset($this->_translation) ? $this->formatString($this->_translation) : '""');
+    $output .= 'msgid ' . $this->formatString($this->source);
+    $output .= 'msgstr ' . (isset($this->translation) ? $this->formatString($this->translation) : '""');
     return $output;
   }
 

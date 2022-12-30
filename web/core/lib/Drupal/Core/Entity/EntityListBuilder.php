@@ -2,6 +2,7 @@
 
 namespace Drupal\Core\Entity;
 
+use Drupal\Core\Messenger\MessengerTrait;
 use Drupal\Core\Routing\RedirectDestinationTrait;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -13,6 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class EntityListBuilder extends EntityHandlerBase implements EntityListBuilderInterface, EntityHandlerInterface {
 
+  use MessengerTrait;
   use RedirectDestinationTrait;
 
   /**
@@ -52,7 +54,7 @@ class EntityListBuilder extends EntityHandlerBase implements EntityListBuilderIn
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id())
+      $container->get('entity_type.manager')->getStorage($entity_type->id())
     );
   }
 
@@ -93,6 +95,7 @@ class EntityListBuilder extends EntityHandlerBase implements EntityListBuilderIn
    */
   protected function getEntityIds() {
     $query = $this->getStorage()->getQuery()
+      ->accessCheck(TRUE)
       ->sort($this->entityType->getKey('id'));
 
     // Only add the pager if a limit is specified.
@@ -100,23 +103,6 @@ class EntityListBuilder extends EntityHandlerBase implements EntityListBuilderIn
       $query->pager($this->limit);
     }
     return $query->execute();
-  }
-
-  /**
-   * Gets the label of an entity.
-   *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
-   *   The entity being listed.
-   *
-   * @return string
-   *   The entity label.
-   *
-   * @deprecated in Drupal 8.0.x, will be removed before Drupal 9.0.0
-   *   Use $entity->label() instead. This method used to escape the entity
-   *   label. The render system's autoescape is now relied upon.
-   */
-  protected function getLabel(EntityInterface $entity) {
-    return $entity->label();
   }
 
   /**
@@ -223,7 +209,7 @@ class EntityListBuilder extends EntityHandlerBase implements EntityListBuilderIn
       '#header' => $this->buildHeader(),
       '#title' => $this->getTitle(),
       '#rows' => [],
-      '#empty' => $this->t('There is no @label yet.', ['@label' => $this->entityType->getLabel()]),
+      '#empty' => $this->t('There are no @label yet.', ['@label' => $this->entityType->getPluralLabel()]),
       '#cache' => [
         'contexts' => $this->entityType->getListCacheContexts(),
         'tags' => $this->entityType->getListCacheTags(),
@@ -247,9 +233,7 @@ class EntityListBuilder extends EntityHandlerBase implements EntityListBuilderIn
   /**
    * Gets the title of the page.
    */
-  protected function getTitle() {
-    return;
-  }
+  protected function getTitle() {}
 
   /**
    * Ensures that a destination is present on the given URL.

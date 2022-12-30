@@ -4,6 +4,7 @@ namespace Drupal\Tests\Component\Utility;
 
 use Drupal\Component\Utility\Unicode;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bridge\PhpUnit\ExpectDeprecationTrait;
 
 /**
  * Test unicode handling features implemented in Unicode component.
@@ -13,70 +14,18 @@ use PHPUnit\Framework\TestCase;
  * @coversDefaultClass \Drupal\Component\Utility\Unicode
  */
 class UnicodeTest extends TestCase {
+  use ExpectDeprecationTrait;
 
   /**
-   * {@inheritdoc}
-   *
-   * @covers ::check
-   */
-  protected function setUp() {
-    // Initialize unicode component.
-    Unicode::check();
-  }
-
-  /**
-   * Getting and settings the multibyte environment status.
-   *
-   * @dataProvider providerTestStatus
-   * @covers ::getStatus
-   * @covers ::setStatus
-   */
-  public function testStatus($value, $expected, $invalid = FALSE) {
-    if ($invalid) {
-      if (method_exists($this, 'expectException')) {
-        $this->expectException('InvalidArgumentException');
-      }
-      else {
-        $this->setExpectedException('InvalidArgumentException');
-      }
-    }
-    Unicode::setStatus($value);
-    $this->assertEquals($expected, Unicode::getStatus());
-  }
-
-  /**
-   * Data provider for testStatus().
-   *
-   * @see testStatus()
-   *
-   * @return array
-   *   An array containing:
-   *     - The status value to set.
-   *     - The status value to expect after setting the new value.
-   *     - (optional) Boolean indicating invalid status. Defaults to FALSE.
-   */
-  public function providerTestStatus() {
-    return [
-      [Unicode::STATUS_SINGLEBYTE, Unicode::STATUS_SINGLEBYTE],
-      [rand(10, 100), Unicode::STATUS_SINGLEBYTE, TRUE],
-      [rand(10, 100), Unicode::STATUS_SINGLEBYTE, TRUE],
-      [Unicode::STATUS_MULTIBYTE, Unicode::STATUS_MULTIBYTE],
-      [rand(10, 100), Unicode::STATUS_MULTIBYTE, TRUE],
-      [Unicode::STATUS_ERROR, Unicode::STATUS_ERROR],
-      [Unicode::STATUS_MULTIBYTE, Unicode::STATUS_MULTIBYTE],
-    ];
-  }
-
-  /**
-   * Tests multibyte encoding and decoding.
+   * Tests multibyte encoding.
    *
    * @dataProvider providerTestMimeHeader
    * @covers ::mimeHeaderEncode
-   * @covers ::mimeHeaderDecode
+   * @group legacy
    */
-  public function testMimeHeader($value, $encoded) {
+  public function testMimeHeaderEncode($value, $encoded) {
+    $this->expectDeprecation('\Drupal\Component\Utility\Unicode::mimeHeaderEncode() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use \Symfony\Component\Mime\Header\UnstructuredHeader instead. See https://www.drupal.org/node/3207439');
     $this->assertEquals($encoded, Unicode::mimeHeaderEncode($value));
-    $this->assertEquals($value, Unicode::mimeHeaderDecode($encoded));
   }
 
   /**
@@ -89,84 +38,52 @@ class UnicodeTest extends TestCase {
    */
   public function providerTestMimeHeader() {
     return [
-      ['tést.txt', '=?UTF-8?B?dMOpc3QudHh0?='],
-      // Simple ASCII characters.
-      ['ASCII', 'ASCII'],
+      "Base64 encoding" => ['tést.txt', '=?UTF-8?B?dMOpc3QudHh0?='],
+      "ASCII characters only" => ['test.txt', 'test.txt'],
     ];
   }
 
   /**
-   * Tests multibyte strtolower.
+   * Tests multibyte decoding.
    *
-   * @dataProvider providerStrtolower
-   * @covers ::strtolower
-   * @covers ::caseFlip
+   * @dataProvider providerTestMimeHeaderDecode
+   * @covers ::mimeHeaderDecode
+   * @group legacy
    */
-  public function testStrtolower($text, $expected, $multibyte = FALSE) {
-    $status = $multibyte ? Unicode::STATUS_MULTIBYTE : Unicode::STATUS_SINGLEBYTE;
-    Unicode::setStatus($status);
-    $this->assertEquals($expected, Unicode::strtolower($text));
+  public function testMimeHeaderDecode($value, $encoded) {
+    $this->expectDeprecation('\Drupal\Component\Utility\Unicode::mimeHeaderDecode() is deprecated in drupal:9.2.0 and is removed from drupal:10.0.0. Use iconv_mime_decode() instead. See https://www.drupal.org/node/3207439');
+    $this->assertEquals($value, Unicode::mimeHeaderDecode($encoded));
   }
 
   /**
-   * Data provider for testStrtolower().
-   *
-   * @see testStrtolower()
+   * Data provider for testMimeHeaderDecode().
    *
    * @return array
-   *   An array containing a string, its lowercase version and whether it should
-   *   be processed as multibyte.
+   *   An array containing a string and its encoded value.
    */
-  public function providerStrtolower() {
-    $cases = [
-      ['tHe QUIcK bRoWn', 'the quick brown'],
-      ['FrançAIS is ÜBER-åwesome', 'français is über-åwesome'],
+  public function providerTestMimeHeaderDecode() {
+    return [
+      'Uppercase base64 encoding' => [
+        'tést.txt',
+        '=?utf-8?B?dMOpc3QudHh0?=',
+      ],
+      'Uppercase quoted-printable encoding' => [
+        'tést.txt',
+        '=?UTF-8?Q?t=C3=A9st.txt?=',
+      ],
+      'Lowercase base64 encoding' => [
+        'tést.txt',
+        '=?utf-8?b?dMOpc3QudHh0?=',
+      ],
+      'Lowercase quoted-printable encoding' => [
+        'tést.txt',
+        '=?UTF-8?q?t=C3=A9st.txt?=',
+      ],
+      'ASCII characters only' => [
+        'test.txt',
+        'test.txt',
+      ],
     ];
-    foreach ($cases as $case) {
-      // Test the same string both in multibyte and singlebyte conditions.
-      array_push($case, TRUE);
-      $cases[] = $case;
-    }
-    // Add a multibyte string.
-    $cases[] = ['ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΣὨ', 'αβγδεζηθικλμνξοσὠ', TRUE];
-    return $cases;
-  }
-
-  /**
-   * Tests multibyte strtoupper.
-   *
-   * @dataProvider providerStrtoupper
-   * @covers ::strtoupper
-   * @covers ::caseFlip
-   */
-  public function testStrtoupper($text, $expected, $multibyte = FALSE) {
-    $status = $multibyte ? Unicode::STATUS_MULTIBYTE : Unicode::STATUS_SINGLEBYTE;
-    Unicode::setStatus($status);
-    $this->assertEquals($expected, Unicode::strtoupper($text));
-  }
-
-  /**
-   * Data provider for testStrtoupper().
-   *
-   * @see testStrtoupper()
-   *
-   * @return array
-   *   An array containing a string, its uppercase version and whether it should
-   *   be processed as multibyte.
-   */
-  public function providerStrtoupper() {
-    $cases = [
-      ['tHe QUIcK bRoWn', 'THE QUICK BROWN'],
-      ['FrançAIS is ÜBER-åwesome', 'FRANÇAIS IS ÜBER-ÅWESOME'],
-    ];
-    foreach ($cases as $case) {
-      // Test the same string both in multibyte and singlebyte conditions.
-      array_push($case, TRUE);
-      $cases[] = $case;
-    }
-    // Add a multibyte string.
-    $cases[] = ['αβγδεζηθικλμνξοσὠ', 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΣὨ', TRUE];
-    return $cases;
   }
 
   /**
@@ -188,6 +105,7 @@ class UnicodeTest extends TestCase {
    *   An array containing a string and its uppercase first version.
    */
   public function providerUcfirst() {
+    // cSpell:disable
     return [
       ['tHe QUIcK bRoWn', 'THe QUIcK bRoWn'],
       ['françAIS', 'FrançAIS'],
@@ -196,6 +114,7 @@ class UnicodeTest extends TestCase {
       // A multibyte string.
       ['σion', 'Σion'],
     ];
+    // cSpell:enable
   }
 
   /**
@@ -204,9 +123,7 @@ class UnicodeTest extends TestCase {
    * @dataProvider providerLcfirst
    * @covers ::lcfirst
    */
-  public function testLcfirst($text, $expected, $multibyte = FALSE) {
-    $status = $multibyte ? Unicode::STATUS_MULTIBYTE : Unicode::STATUS_SINGLEBYTE;
-    Unicode::setStatus($status);
+  public function testLcfirst($text, $expected) {
     $this->assertEquals($expected, Unicode::lcfirst($text));
   }
 
@@ -216,18 +133,19 @@ class UnicodeTest extends TestCase {
    * @see testLcfirst()
    *
    * @return array
-   *   An array containing a string, its lowercase version and whether it should
-   *   be processed as multibyte.
+   *   An array containing a string and its lowercase version.
    */
   public function providerLcfirst() {
+    // cSpell:disable
     return [
       ['tHe QUIcK bRoWn', 'tHe QUIcK bRoWn'],
       ['FrançAIS is ÜBER-åwesome', 'françAIS is ÜBER-åwesome'],
       ['Über', 'über'],
       ['Åwesome', 'åwesome'],
       // Add a multibyte string.
-      ['ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΣὨ', 'αΒΓΔΕΖΗΘΙΚΛΜΝΞΟΣὨ', TRUE],
+      ['ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΣὨ', 'αΒΓΔΕΖΗΘΙΚΛΜΝΞΟΣὨ'],
     ];
+    // cSpell:enable
   }
 
   /**
@@ -236,9 +154,7 @@ class UnicodeTest extends TestCase {
    * @dataProvider providerUcwords
    * @covers ::ucwords
    */
-  public function testUcwords($text, $expected, $multibyte = FALSE) {
-    $status = $multibyte ? Unicode::STATUS_MULTIBYTE : Unicode::STATUS_SINGLEBYTE;
-    Unicode::setStatus($status);
+  public function testUcwords($text, $expected) {
     $this->assertEquals($expected, Unicode::ucwords($text));
   }
 
@@ -248,10 +164,10 @@ class UnicodeTest extends TestCase {
    * @see testUcwords()
    *
    * @return array
-   *   An array containing a string, its capitalized version and whether it should
-   *   be processed as multibyte.
+   *   An array containing a string and its capitalized version.
    */
   public function providerUcwords() {
+    // cSpell:disable
     return [
       ['tHe QUIcK bRoWn', 'THe QUIcK BRoWn'],
       ['françAIS', 'FrançAIS'],
@@ -260,96 +176,9 @@ class UnicodeTest extends TestCase {
       // Make sure we don't mangle extra spaces.
       ['frànçAIS is  über-åwesome', 'FrànçAIS Is  Über-Åwesome'],
       // Add a multibyte string.
-      ['σion', 'Σion', TRUE],
+      ['σion', 'Σion'],
     ];
-  }
-
-  /**
-   * Tests multibyte strlen.
-   *
-   * @dataProvider providerStrlen
-   * @covers ::strlen
-   */
-  public function testStrlen($text, $expected) {
-    // Run through multibyte code path.
-    Unicode::setStatus(Unicode::STATUS_MULTIBYTE);
-    $this->assertEquals($expected, Unicode::strlen($text));
-    // Run through singlebyte code path.
-    Unicode::setStatus(Unicode::STATUS_SINGLEBYTE);
-    $this->assertEquals($expected, Unicode::strlen($text));
-  }
-
-  /**
-   * Data provider for testStrlen().
-   *
-   * @see testStrlen()
-   *
-   * @return array
-   *   An array containing a string and its length.
-   */
-  public function providerStrlen() {
-    return [
-      ['tHe QUIcK bRoWn', 15],
-      ['ÜBER-åwesome', 12],
-      ['以呂波耳・ほへとち。リヌルヲ。', 15],
-    ];
-  }
-
-  /**
-   * Tests multibyte substr.
-   *
-   * @dataProvider providerSubstr
-   * @covers ::substr
-   */
-  public function testSubstr($text, $start, $length, $expected) {
-    // Run through multibyte code path.
-    Unicode::setStatus(Unicode::STATUS_MULTIBYTE);
-    $this->assertEquals($expected, Unicode::substr($text, $start, $length));
-    // Run through singlebyte code path.
-    Unicode::setStatus(Unicode::STATUS_SINGLEBYTE);
-    $this->assertEquals($expected, Unicode::substr($text, $start, $length));
-  }
-
-  /**
-   * Data provider for testSubstr().
-   *
-   * @see testSubstr()
-   *
-   * @return array
-   *   An array containing:
-   *     - The string to test.
-   *     - The start number to be processed by substr.
-   *     - The length number to be processed by substr.
-   *     - The expected string result.
-   */
-  public function providerSubstr() {
-    return [
-      ['frànçAIS is über-åwesome', 0, NULL, 'frànçAIS is über-åwesome'],
-      ['frànçAIS is über-åwesome', 0, 0, ''],
-      ['frànçAIS is über-åwesome', 0, 1, 'f'],
-      ['frànçAIS is über-åwesome', 0, 8, 'frànçAIS'],
-      ['frànçAIS is über-åwesome', 0, 23, 'frànçAIS is über-åwesom'],
-      ['frànçAIS is über-åwesome', 0, 24, 'frànçAIS is über-åwesome'],
-      ['frànçAIS is über-åwesome', 0, 25, 'frànçAIS is über-åwesome'],
-      ['frànçAIS is über-åwesome', 0, 100, 'frànçAIS is über-åwesome'],
-      ['frànçAIS is über-åwesome', 4, 4, 'çAIS'],
-      ['frànçAIS is über-åwesome', 1, 0, ''],
-      ['frànçAIS is über-åwesome', 100, 0, ''],
-      ['frànçAIS is über-åwesome', -4, 2, 'so'],
-      ['frànçAIS is über-åwesome', -4, 3, 'som'],
-      ['frànçAIS is über-åwesome', -4, 4, 'some'],
-      ['frànçAIS is über-åwesome', -4, 5, 'some'],
-      ['frànçAIS is über-åwesome', -7, 10, 'åwesome'],
-      ['frànçAIS is über-åwesome', 5, -10, 'AIS is üb'],
-      ['frànçAIS is über-åwesome', 0, -10, 'frànçAIS is üb'],
-      ['frànçAIS is über-åwesome', 0, -1, 'frànçAIS is über-åwesom'],
-      ['frànçAIS is über-åwesome', -7, -2, 'åweso'],
-      ['frànçAIS is über-åwesome', -7, -6, 'å'],
-      ['frànçAIS is über-åwesome', -7, -7, ''],
-      ['frànçAIS is über-åwesome', -7, -8, ''],
-      ['...', 0, 2, '..'],
-      ['以呂波耳・ほへとち。リヌルヲ。', 1, 3, '呂波耳'],
-    ];
+    // cSpell:enable
   }
 
   /**
@@ -376,6 +205,7 @@ class UnicodeTest extends TestCase {
    *     - (optional) Boolean for the $add_ellipsis flag. Defaults to FALSE.
    */
   public function providerTruncate() {
+    // cSpell:disable
     $tests = [
       ['frànçAIS is über-åwesome', 24, 'frànçAIS is über-åwesome'],
       ['frànçAIS is über-åwesome', 23, 'frànçAIS is über-åwesom'],
@@ -422,6 +252,7 @@ class UnicodeTest extends TestCase {
       ['Help! Help! Help!', 3, 'He…', TRUE, TRUE],
       ['Help! Help! Help!', 2, 'H…', TRUE, TRUE],
     ];
+    // cSpell:enable
 
     // Test truncate on text with multiple lines.
     $multi_line = <<<EOF
@@ -545,48 +376,6 @@ EOF;
       [chr(0x97), 'Windows-1252', '—'],
       [chr(0x99), 'Windows-1252', '™'],
       [chr(0x80), 'Windows-1252', '€'],
-    ];
-  }
-
-  /**
-   * Tests multibyte strpos.
-   *
-   * @dataProvider providerStrpos
-   * @covers ::strpos
-   */
-  public function testStrpos($haystack, $needle, $offset, $expected) {
-    // Run through multibyte code path.
-    Unicode::setStatus(Unicode::STATUS_MULTIBYTE);
-    $this->assertEquals($expected, Unicode::strpos($haystack, $needle, $offset));
-    // Run through singlebyte code path.
-    Unicode::setStatus(Unicode::STATUS_SINGLEBYTE);
-    $this->assertEquals($expected, Unicode::strpos($haystack, $needle, $offset));
-  }
-
-  /**
-   * Data provider for testStrpos().
-   *
-   * @see testStrpos()
-   *
-   * @return array
-   *   An array containing:
-   *     - The haystack string to be searched in.
-   *     - The needle string to search for.
-   *     - The offset integer to start at.
-   *     - The expected integer/FALSE result.
-   */
-  public function providerStrpos() {
-    return [
-      ['frànçAIS is über-åwesome', 'frànçAIS is über-åwesome', 0, 0],
-      ['frànçAIS is über-åwesome', 'rànçAIS is über-åwesome', 0, 1],
-      ['frànçAIS is über-åwesome', 'not in string', 0, FALSE],
-      ['frànçAIS is über-åwesome', 'r', 0, 1],
-      ['frànçAIS is über-åwesome', 'nçAIS', 0, 3],
-      ['frànçAIS is über-åwesome', 'nçAIS', 2, 3],
-      ['frànçAIS is über-åwesome', 'nçAIS', 3, 3],
-      ['以呂波耳・ほへとち。リヌルヲ。', '波耳', 0, 2],
-      ['以呂波耳・ほへとち。リヌルヲ。', '波耳', 1, 2],
-      ['以呂波耳・ほへとち。リヌルヲ。', '波耳', 2, 2],
     ];
   }
 

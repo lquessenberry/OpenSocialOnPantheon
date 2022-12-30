@@ -28,7 +28,7 @@ class TextfieldWidget extends StringTextfieldWidget {
 
     $element = $main_widget['value'];
     $element['#type'] = 'text_format';
-    $element['#format'] = isset($items[$delta]->format) ? $items[$delta]->format : NULL;
+    $element['#format'] = $items[$delta]->format ?? NULL;
     $element['#base_type'] = $main_widget['value']['#type'];
     return $element;
   }
@@ -38,8 +38,9 @@ class TextfieldWidget extends StringTextfieldWidget {
    */
   public function errorElement(array $element, ConstraintViolationInterface $violation, array $form, FormStateInterface $form_state) {
     if ($violation->arrayPropertyPath == ['format'] && isset($element['format']['#access']) && !$element['format']['#access']) {
-      // Ignore validation errors for formats if formats may not be changed,
-      // i.e. when existing formats become invalid. See filter_process_format().
+      // Ignore validation errors for formats that may not be changed,
+      // such as when existing formats become invalid.
+      // See \Drupal\filter\Element\TextFormat::processFormat().
       return FALSE;
     }
     return $element;

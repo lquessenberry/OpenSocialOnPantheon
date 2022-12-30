@@ -2,12 +2,13 @@
 
 namespace Drupal\views\Plugin\views\field;
 
+use Drupal\Component\Gettext\PoItem;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\PluralTranslatableMarkup;
 use Drupal\views\ResultRow;
 
 /**
- * Render a field as a numeric value
+ * Render a field as a numeric value.
  *
  * Definition terms:
  * - float: If true this field contains a decimal value. If unset this field
@@ -30,7 +31,7 @@ class NumericField extends FieldPluginBase {
     $options['decimal'] = ['default' => '.'];
     $options['separator'] = ['default' => ','];
     $options['format_plural'] = ['default' => FALSE];
-    $options['format_plural_string'] = ['default' => '1' . LOCALE_PLURAL_DELIMITER . '@count'];
+    $options['format_plural_string'] = ['default' => '1' . PoItem::DELIMITER . '@count'];
     $options['prefix'] = ['default' => ''];
     $options['suffix'] = ['default' => ''];
 
@@ -93,14 +94,14 @@ class NumericField extends FieldPluginBase {
       '#default_value' => $this->options['format_plural_string'],
     ];
 
-    $plural_array = explode(LOCALE_PLURAL_DELIMITER, $this->options['format_plural_string']);
+    $plural_array = explode(PoItem::DELIMITER, $this->options['format_plural_string']);
     $plurals = $this->getNumberOfPlurals($this->view->storage->get('langcode'));
     for ($i = 0; $i < $plurals; $i++) {
       $form['format_plural_values'][$i] = [
         '#type' => 'textfield',
         // @todo Should use better labels https://www.drupal.org/node/2499639
         '#title' => ($i == 0 ? $this->t('Singular form') : $this->formatPlural($i, 'First plural form', '@count. plural form')),
-        '#default_value' => isset($plural_array[$i]) ? $plural_array[$i] : '',
+        '#default_value' => $plural_array[$i] ?? '',
         '#description' => $this->t('Text to use for this variant, @count will be replaced with the value.'),
         '#states' => [
           'visible' => [
@@ -139,7 +140,7 @@ class NumericField extends FieldPluginBase {
     // Merge plural format options into one string and drop the individual
     // option values.
     $options = &$form_state->getValue('options');
-    $options['format_plural_string'] = implode(LOCALE_PLURAL_DELIMITER, $options['format_plural_values']);
+    $options['format_plural_string'] = implode(PoItem::DELIMITER, $options['format_plural_values']);
     unset($options['format_plural_values']);
     parent::submitOptionsForm($form, $form_state);
   }
@@ -156,6 +157,8 @@ class NumericField extends FieldPluginBase {
       return '';
     }
 
+    // After the hide_empty check NULL values should be treated as a 0 value.
+    $value = $value ?? 0;
     if (!empty($this->options['set_precision'])) {
       $precision = $this->options['precision'];
     }

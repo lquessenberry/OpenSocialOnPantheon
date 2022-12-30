@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Render\Renderer;
 use Drupal\social_profile\SocialProfileTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,7 +16,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Class AutocompleteController.
  *
- * TODO Add parameters here to prevent referencing users without access to node.
+ * @todo Add parameters here to prevent referencing users without access to node.
  *
  * @package Drupal\social_mentions\Controller
  */
@@ -45,6 +46,13 @@ class AutocompleteController extends ControllerBase {
   protected $entityTypeManager;
 
   /**
+   * Renderer services.
+   *
+   * @var \Drupal\Core\Render\Renderer
+   */
+  protected Renderer $renderer;
+
+  /**
    * AutocompleteController constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -53,11 +61,18 @@ class AutocompleteController extends ControllerBase {
    *   The database connection.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\Core\Render\Renderer $renderer
+   *   The renderer service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory, Connection $database, EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(
+    ConfigFactoryInterface $configFactory,
+    Connection $database,
+    EntityTypeManagerInterface $entityTypeManager,
+    Renderer $renderer) {
     $this->configFactory = $configFactory;
     $this->database = $database;
     $this->entityTypeManager = $entityTypeManager;
+    $this->renderer = $renderer;
   }
 
   /**
@@ -67,7 +82,8 @@ class AutocompleteController extends ControllerBase {
     return new static(
       $container->get('config.factory'),
       $container->get('database'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('renderer')
     );
   }
 
@@ -84,13 +100,14 @@ class AutocompleteController extends ControllerBase {
     $name = $request->get('term');
     $config = $this->configFactory->get('mentions.settings');
     $suggestion_format = $config->get('suggestions_format');
-    $result = $this->getUserIdsFromName($name, 8, $suggestion_format);
+    $suggestion_amount = $config->get('suggestions_amount');
+    $result = $this->getUserIdsFromName($name, $suggestion_amount, $suggestion_format);
     $response = [];
     $accounts = User::loadMultiple($result);
     $storage = $this->entityTypeManager->getStorage('profile');
     $view_builder = $this->entityTypeManager->getViewBuilder('profile');
 
-    /* @var \Drupal\Core\Session\AccountInterface $account */
+    /** @var \Drupal\Core\Session\AccountInterface $account */
     foreach ($accounts as $account) {
       $item = [
         'uid' => $account->id(),
@@ -100,11 +117,12 @@ class AutocompleteController extends ControllerBase {
         'profile_id' => '',
       ];
 
-      if ($storage && ($profile = $storage->loadByUser($account, 'profile', TRUE)) && $suggestion_format != SOCIAL_PROFILE_SUGGESTIONS_USERNAME) {
+      $profile = $storage->loadByUser($account, 'profile', TRUE);
+      if ($profile !== NULL && $suggestion_format != SOCIAL_PROFILE_SUGGESTIONS_USERNAME) {
         $build = $view_builder->view($profile, 'autocomplete_item');
-        $item['html_item'] = render($build);
+        $item['html_item'] = $this->renderer->render($build);
         $item['profile_id'] = $profile->id();
-        $item['value'] = $account->getDisplayName();
+        $item['value'] = strip_tags($account->getDisplayName());
       }
 
       $response[] = $item;

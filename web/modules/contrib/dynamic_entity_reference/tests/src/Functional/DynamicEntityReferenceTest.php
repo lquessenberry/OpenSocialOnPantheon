@@ -3,14 +3,12 @@
 namespace Drupal\Tests\dynamic_entity_reference\Functional;
 
 use Drupal\Component\Utility\Crypt;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
 use Drupal\dynamic_entity_reference\Plugin\Field\FieldType\DynamicEntityReferenceItem;
 use Drupal\entity_test\Entity\EntityTest;
-use Drupal\entity_test\Entity\EntityTestBundle;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\taxonomy\Entity\Term;
@@ -43,7 +41,7 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'field_ui',
     'dynamic_entity_reference',
     'entity_test',
@@ -63,12 +61,57 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
   ];
 
   /**
+   * List of excluded entity IDs.
+   *
+   * @var array
+   */
+  protected $excludedEntities = [
+    'user',
+    'file',
+    'path_alias',
+    'entity_test_label',
+    'entity_test_no_id',
+    'entity_test_no_bundle',
+    'entity_test_string_id',
+    'entity_test_computed_field',
+    'entity_test_map_field',
+    'entity_test_no_bundle_with_label',
+  ];
+
+  /**
+   * List of test entity IDs with bundle entities.
+   *
+   * @var array
+   */
+  protected $bundleAbleEntities = [
+    'entity_test_with_bundle' => 'entity_test_bundle',
+    'entity_test_mul_with_bundle' => 'entity_test_mul_bundle',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Sets the test up.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->adminUser = $this->drupalCreateUser($this->permissions);
     $this->anotherUser = $this->drupalCreateUser();
+    $entity_type_manager = \Drupal::entityTypeManager();
+
+    // Add entity bundles for entity with bundles.
+    foreach ($this->bundleAbleEntities as $entity_id => $bundle_able_entity_id) {
+      $entity_type_manager->getStorage($bundle_able_entity_id)
+        ->create([
+          'id' => $bundle_able_entity_id,
+          'label' => "$entity_id Bundle",
+          'description' => "Bundle for $entity_id",
+        ])
+        ->save();
+    }
   }
 
   /**
@@ -76,12 +119,6 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
    */
   public function testFieldSettings() {
     $assert_session = $this->assertSession();
-    // Add EntityTestBundle for EntityTestWithBundle.
-    EntityTestBundle::create([
-      'id' => 'test',
-      'label' => 'Test label',
-      'description' => 'My test description',
-    ])->save();
     $this->drupalLogin($this->adminUser);
     // Add a new dynamic entity reference field.
     $this->drupalGet('entity_test/structure/entity_test/fields/add-field');
@@ -103,22 +140,15 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
 
     $labels = $this->container->get('entity_type.repository')->getEntityTypeLabels(TRUE);
     $edit = [];
-    $excluded_entity_type_ids = [
-      'user',
-      'file',
-      'entity_test_label',
-      'entity_test_no_id',
-      'entity_test_no_bundle',
-      'entity_test_string_id',
-      'entity_test_computed_field',
-    ];
+    $excluded_entity_type_ids = $this->excludedEntities;
+    $bundled_entities_type_ids = $this->bundleAbleEntities;
     foreach ($labels[(string) t('Content', [], ['context' => 'Entity type group'])] as $entity_type_id => $entity_type_label) {
-      if (!in_array($entity_type_id, $excluded_entity_type_ids)) {
-        if ($entity_type_id !== 'entity_test_with_bundle') {
+      if (!in_array($entity_type_id, $excluded_entity_type_ids, TRUE)) {
+        if (!in_array($entity_type_id, array_keys($bundled_entities_type_ids, TRUE))) {
           $edit["settings[$entity_type_id][handler_settings][target_bundles][$entity_type_id]"] = TRUE;
         }
         else {
-          $edit['settings[entity_test_with_bundle][handler_settings][target_bundles][test]'] = TRUE;
+          $edit["settings[$entity_type_id][handler_settings][target_bundles][{$bundled_entities_type_ids[$entity_type_id]}]"] = TRUE;
         }
       }
     }
@@ -127,7 +157,10 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     $excluded_entity_type_ids = FieldStorageConfig::loadByName('entity_test', 'field_foobar')
       ->getSetting('entity_type_ids');
     $this->assertNotNull($excluded_entity_type_ids);
-    $this->assertSame(array_keys($excluded_entity_type_ids), ['user', 'entity_test_label']);
+    $this->assertSame(array_keys($excluded_entity_type_ids), [
+      'user',
+      'entity_test_label',
+    ]);
     // Check the include entity settings.
     $this->drupalGet('entity_test/structure/entity_test/fields/entity_test.entity_test.field_foobar/storage');
     $this->submitForm([
@@ -163,7 +196,10 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     $excluded_entity_type_ids = FieldStorageConfig::loadByName('entity_test', 'field_foobar')
       ->getSetting('entity_type_ids');
     $this->assertNotNull($excluded_entity_type_ids);
-    $this->assertSame(array_keys($excluded_entity_type_ids), ['user', 'entity_test_label']);
+    $this->assertSame(array_keys($excluded_entity_type_ids), [
+      'user',
+      'entity_test_label',
+    ]);
     // Check the default settings.
     $this->drupalGet('entity_test/structure/entity_test/fields/entity_test.entity_test.field_foobar');
     $this->submitForm([
@@ -172,7 +208,10 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     ], t('Save settings'));
 
     $field_config = FieldConfig::loadByName('entity_test', 'entity_test', 'field_foobar')->toArray();
-    $this->assertEquals($field_config['default_value']['0'], ['target_type' => 'user', 'target_uuid' => $this->adminUser->uuid()]);
+    $this->assertEquals($field_config['default_value']['0'], [
+      'target_type' => 'user',
+      'target_uuid' => $this->adminUser->uuid(),
+    ]);
   }
 
   /**
@@ -180,12 +219,6 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
    */
   public function testDynamicEntityReference() {
     $assert_session = $this->assertSession();
-    // Add EntityTestBundle for EntityTestWithBundle.
-    EntityTestBundle::create([
-      'id' => 'test',
-      'label' => 'Test label',
-      'description' => 'My test description',
-    ])->save();
     $this->drupalLogin($this->adminUser);
     // Add a new dynamic entity reference field.
     $this->drupalGet('entity_test/structure/entity_test/fields/add-field');
@@ -204,21 +237,16 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     $assert_session->fieldNotExists('settings[entity_test_string_id][handler_settings][target_bundles][entity_test_string_id]');
     $labels = $this->container->get('entity_type.repository')->getEntityTypeLabels(TRUE);
     $edit = [];
-    $excluded_entity_type_ids = [
-      'user',
-      'file',
-      'entity_test_no_id',
-      'entity_test_no_bundle',
-      'entity_test_string_id',
-      'entity_test_computed_field',
-    ];
+    $excluded_entity_type_ids = array_combine($this->excludedEntities, $this->excludedEntities);
+    unset($excluded_entity_type_ids['entity_test_label']);
+    $bundled_entities_type_ids = $this->bundleAbleEntities;
     foreach ($labels[(string) t('Content', [], ['context' => 'Entity type group'])] as $entity_type_id => $entity_type_label) {
-      if (!in_array($entity_type_id, $excluded_entity_type_ids)) {
-        if ($entity_type_id !== 'entity_test_with_bundle') {
+      if (!in_array($entity_type_id, $excluded_entity_type_ids, TRUE)) {
+        if (!in_array($entity_type_id, array_keys($bundled_entities_type_ids, TRUE))) {
           $edit["settings[$entity_type_id][handler_settings][target_bundles][$entity_type_id]"] = TRUE;
         }
         else {
-          $edit['settings[entity_test_with_bundle][handler_settings][target_bundles][test]'] = TRUE;
+          $edit["settings[$entity_type_id][handler_settings][target_bundles][{$bundled_entities_type_ids[$entity_type_id]}]"] = TRUE;
         }
       }
     }
@@ -245,6 +273,10 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     $input = $assert_session->fieldExists('field_foobar[0][target_id]');
     $settings = FieldConfig::loadByName('entity_test', 'entity_test', 'field_foobar')->getSettings();
     $selection_settings = $settings['entity_test_computed_field']['handler_settings'] ?: [];
+    $selection_settings += [
+      'match_operator' => 'CONTAINS',
+      'match_limit' => 10,
+    ];
     $data = serialize($selection_settings) . 'entity_test_computed_field' . $settings['entity_test_computed_field']['handler'];
     $selection_settings_key = Crypt::hmacBase64($data, Settings::getHashSalt());
     $expected_autocomplete_path = Url::fromRoute('system.entity_autocomplete', [
@@ -252,7 +284,7 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
       'selection_handler' => $settings['entity_test_computed_field']['handler'],
       'selection_settings_key' => $selection_settings_key,
     ])->toString();
-    $this->assertContains($input->getAttribute('data-autocomplete-path'), $expected_autocomplete_path);
+    $this->assertStringContainsString($input->getAttribute('data-autocomplete-path'), $expected_autocomplete_path);
 
     // Add some extra dynamic entity reference fields.
     $this->getSession()->getPage()->findButton('Add another item')->click();
@@ -290,8 +322,17 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
 
     // Ensure that the autocomplete path is correct.
-    foreach (['0' => 'user', '1' => 'entity_test', '2' => 'entity_test'] as $index => $expected_entity_type) {
+    $expected_entity_types = [
+      '0' => 'user',
+      '1' => 'entity_test',
+      '2' => 'entity_test',
+    ];
+    foreach ($expected_entity_types as $index => $expected_entity_type) {
       $selection_settings = $settings[$expected_entity_type]['handler_settings'] ?: [];
+      $selection_settings += [
+        'match_operator' => 'CONTAINS',
+        'match_limit' => 10,
+      ];
       $data = serialize($selection_settings) . $expected_entity_type . $settings[$expected_entity_type]['handler'];
       $selection_settings_key = Crypt::hmacBase64($data, Settings::getHashSalt());
       $input = $assert_session->fieldExists('field_foobar[' . $index . '][target_id]');
@@ -300,7 +341,7 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
         'selection_handler' => $settings[$expected_entity_type]['handler'],
         'selection_settings_key' => $selection_settings_key,
       ])->toString();
-      $this->assertContains($input->getAttribute('data-autocomplete-path'), $expected_autocomplete_path);
+      $this->assertStringContainsString($input->getAttribute('data-autocomplete-path'), $expected_autocomplete_path);
     }
 
     $edit = [
@@ -338,7 +379,13 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
 
     // We don't know the order in which the entities will be listed, so just
     // assert parts and make sure both are shown.
-    $error_message = t('Multiple entities match this reference;');
+    // @todo remove this once 9.1 and 9.0 are not supported anymore.
+    if (version_compare(\Drupal::VERSION, '9.2', '>=')) {
+      $error_message = t('Multiple test entity entities match this reference;');
+    }
+    else {
+      $error_message = t('Multiple entities match this reference;');
+    }
     $assert_session->responseContains($error_message);
     $assert_session->responseContains($labels[0]);
     $assert_session->responseContains($labels[1]);
@@ -361,7 +408,13 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     ];
     // We don't know which id it will display, so just assert a part of the
     // error.
-    $error_message = t('Many entities are called %value. Specify the one you want by appending the id in parentheses', $params);
+    // @todo remove this once 9.1 and 9.0 are not supported anymore.
+    if (version_compare(\Drupal::VERSION, '9.2', '>=')) {
+      $error_message = t('Many test entity entities are called %value. Specify the one you want by appending the id in parentheses', $params);
+    }
+    else {
+      $error_message = t('Many entities are called %value. Specify the one you want by appending the id in parentheses', $params);
+    }
     $assert_session->responseContains($error_message);
 
     // Submit with a label that does not match anything.
@@ -371,7 +424,13 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
       'field_foobar[1][target_id]' => 'does not exist',
     ];
     $this->submitForm($edit, t('Save'));
-    $assert_session->responseContains(t('There are no entities matching "%value".', ['%value' => 'does not exist']));
+    // @todo remove this once 9.1 and 9.0 are not supported anymore.
+    if (version_compare(\Drupal::VERSION, '9.2', '>=')) {
+      $assert_session->responseContains(t('There are no test entity entities matching "%value".', ['%value' => 'does not exist']));
+    }
+    else {
+      $assert_session->responseContains(t('There are no entities matching "%value".', ['%value' => 'does not exist']));
+    }
 
     $this->drupalGet('entity_test/manage/' . $entity->id() . '/edit');
     $edit = [
@@ -398,7 +457,7 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
     \Drupal::service('module_installer')->install(['taxonomy']);
     $vocabulary = Vocabulary::create([
       'name' => $this->randomMachineName(),
-      'vid' => Unicode::strtolower($this->randomMachineName()),
+      'vid' => mb_strtolower($this->randomMachineName()),
       'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
     ]);
     $vocabulary->save();
@@ -483,7 +542,7 @@ class DynamicEntityReferenceTest extends BrowserTestBase {
 
     $vocabulary = Vocabulary::create([
       'name' => $this->randomMachineName(),
-      'vid' => Unicode::strtolower($this->randomMachineName()),
+      'vid' => mb_strtolower($this->randomMachineName()),
       'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
     ]);
     $vocabulary->save();

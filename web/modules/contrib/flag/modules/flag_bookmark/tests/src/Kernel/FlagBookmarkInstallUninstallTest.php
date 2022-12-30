@@ -7,7 +7,7 @@ use Drupal\Tests\flag\Kernel\FlagKernelTestBase;
 use Drupal\views\Entity\View;
 
 /**
- *  Tests that the Flag bookmark module can be installed and uninstalled.
+ * Tests that the Flag bookmark module can be installed and uninstalled.
  *
  * @group flag_bookmark
  */
@@ -35,7 +35,7 @@ class FlagBookmarkInstallUninstallTest extends FlagKernelTestBase {
   }
 
   protected function doTestsOnInstall() {
-    $this->assertEquals(['flag_bookmark'], Flag::load('bookmark')->getDependencies()['module']);
+    $this->assertEquals(['node', 'flag_bookmark'], Flag::load('bookmark')->getDependencies()['module']);
     $this->assertEquals(['flag.flag.bookmark', 'system.menu.main'], View::load('flag_bookmark')->getDependencies()['config']);
   }
 

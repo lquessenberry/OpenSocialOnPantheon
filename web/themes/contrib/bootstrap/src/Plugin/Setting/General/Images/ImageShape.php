@@ -26,7 +26,7 @@ use Drupal\bootstrap\Plugin\Setting\SettingBase;
  *     "img-thumbnail" = @Translation("Thumbnail"),
  *   },
  *   see = {
- *     "https://getbootstrap.com/docs/3.3/css/#images-shapes" = @Translation("Image Shapes"),
+ *     "https://getbootstrap.com/docs/3.4/css/#images-shapes" = @Translation("Image Shapes"),
  *   },
  * )
  */

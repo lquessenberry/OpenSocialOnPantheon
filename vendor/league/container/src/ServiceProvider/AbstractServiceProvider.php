@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace League\Container\ServiceProvider;
 
 use League\Container\ContainerAwareTrait;
@@ -9,19 +11,18 @@ abstract class AbstractServiceProvider implements ServiceProviderInterface
     use ContainerAwareTrait;
 
     /**
-     * @var array
+     * @var string
      */
-    protected $provides = [];
+    protected $identifier;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function provides($alias = null)
+    public function getIdentifier(): string
     {
-        if (! is_null($alias)) {
-            return (in_array($alias, $this->provides));
-        }
+        return $this->identifier ?? get_class($this);
+    }
 
-        return $this->provides;
+    public function setIdentifier(string $id): ServiceProviderInterface
+    {
+        $this->identifier = $id;
+        return $this;
     }
 }

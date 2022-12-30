@@ -24,4 +24,5 @@ interface VoteTypeInterface extends ConfigEntityInterface {
    *   The type of vote value.
    */
   public function getValueType();
+
 }

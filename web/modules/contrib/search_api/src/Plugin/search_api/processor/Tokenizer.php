@@ -27,7 +27,14 @@ use Drupal\search_api\Utility\Utility;
 class Tokenizer extends FieldsProcessorPluginBase {
 
   /**
-   * PCRE character class contents identifying spaces in this processor.
+   * PCRE character class contents identifying ignored characters.
+   *
+   * @var string
+   */
+  protected $ignored;
+
+  /**
+   * PCRE character class contents identifying spaces.
    *
    * @var string
    */
@@ -40,6 +47,7 @@ class Tokenizer extends FieldsProcessorPluginBase {
     $configuration = parent::defaultConfiguration();
 
     $configuration += [
+      'ignored' => '._-',
       'spaces' => '',
       'overlap_cjk' => TRUE,
       'minimum_word_size' => 3,
@@ -66,6 +74,14 @@ class Tokenizer extends FieldsProcessorPluginBase {
       ':pcre-url' => Url::fromUri('https://php.net/manual/regexp.reference.character-classes.php')->toString(),
       ':doc-url' => Url::fromUri('https://api.drupal.org/api/drupal/core!lib!Drupal!Component!Utility!Unicode.php/constant/Unicode%3A%3APREG_CLASS_WORD_BOUNDARY/8')->toString(),
     ];
+
+    $form['ignored'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Ignored characters'),
+      '#description' => $this->t('Specify the characters that should be removed prior to processing, as the inside of a <a href=":pcre-url">PCRE character class</a>.', $args),
+      '#default_value' => $this->configuration['ignored'],
+    ];
+
     $form['spaces'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Whitespace characters'),
@@ -98,9 +114,13 @@ class Tokenizer extends FieldsProcessorPluginBase {
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::validateConfigurationForm($form, $form_state);
 
-    $spaces = str_replace('/', '\/', trim($form_state->getValues()['spaces']));
-    if ($spaces !== '' && @preg_match('/[' . $spaces . ']+/u', '') === FALSE) {
-      $form_state->setError($form['spaces'], $form['spaces']['#title'] . ': ' . $this->t('The entered text is no valid PCRE character class.'));
+    foreach (['spaces', 'ignored'] as $field) {
+      $field_value = $form_state->getValue($field, '');
+      $field_value = str_replace('/', '\/', trim($field_value));
+      if ($field_value !== ''
+          && @preg_match('/[' . $field_value . ']+/u', '') === FALSE) {
+        $form_state->setError($form[$field], $form[$field]['#title'] . ': ' . $this->t('The entered text is no valid PCRE character class.'));
+      }
     }
   }
 
@@ -205,7 +225,7 @@ class Tokenizer extends FieldsProcessorPluginBase {
 
     $value = [];
     foreach ($arr as $token) {
-      if (is_numeric($token) || Unicode::strlen($token) >= $this->configuration['minimum_word_size']) {
+      if (is_numeric($token) || mb_strlen($token) >= $this->configuration['minimum_word_size']) {
         $value[] = Utility::createTextToken($token);
       }
     }
@@ -236,17 +256,16 @@ class Tokenizer extends FieldsProcessorPluginBase {
     // Readable regular expression: "([number]+)[punctuation]+(?=[number])".
     $text = preg_replace('/([' . $this->getPregClassNumbers() . ']+)[' . $this->getPregClassPunctuation() . ']+(?=[' . $this->getPregClassNumbers() . '])/u', '\1', $text);
 
-    // Multiple dot and dash groups are word boundaries and replaced with space.
-    // No need to use the Unicode modifier here because 0-127 ASCII characters
-    // can't match higher UTF-8 characters as the leftmost bit of those are 1.
-    $text = preg_replace('/[.-]{2,}/', ' ', $text);
+    if ($this->ignored !== '') {
+      // A group of multiple ignored characters is still treated as whitespace.
+      $text = preg_replace('/[' . $this->ignored . ']{2,}/u', ' ', $text);
 
-    // The dot, underscore and dash are simply removed. This allows meaningful
-    // search behavior with acronyms and URLs. See Unicode note directly above.
-    $text = preg_replace('/[._-]+/', '', $text);
+      // Remove all other instances of ignored characters.
+      $text = preg_replace('/[' . $this->ignored . ']+/u', '', $text);
+    }
 
-    // With the exception of the rules above, we consider all punctuation,
-    // marks, spaces, etc, to be a word boundary.
+    // Finally, convert all characters we want to treat as word boundaries to
+    // plain spaces.
     $text = preg_replace('/[' . $this->spaces . ']+/u', ' ', $text);
 
     return trim($text);
@@ -277,7 +296,7 @@ class Tokenizer extends FieldsProcessorPluginBase {
   protected function expandCjk(array $matches) {
     $min = $this->configuration['minimum_word_size'];
     $str = $matches[0];
-    $length = Unicode::strlen($str);
+    $length = mb_strlen($str);
     // If the text is shorter than the minimum word size, don't tokenize it.
     if ($length <= $min) {
       return ' ' . $str . ' ';
@@ -287,7 +306,7 @@ class Tokenizer extends FieldsProcessorPluginBase {
     $chars = [];
     for ($i = 0; $i < $length; $i++) {
       // Add the next character off the beginning of the string to the queue.
-      $current = Unicode::substr($str, 0, 1);
+      $current = mb_substr($str, 0, 1);
       $str = substr($str, strlen($current));
       $chars[] = $current;
       if ($i >= $min - 1) {
@@ -304,15 +323,23 @@ class Tokenizer extends FieldsProcessorPluginBase {
    * {@inheritdoc}
    */
   protected function process(&$value) {
-    // We don't process integers, NULL values or the like.
-    if (is_string($value)) {
-      $this->prepare();
-      $value = trim($this->simplifyText($value));
+    $this->prepare();
+    $value = trim($this->simplifyText($value));
+
+    $min = $this->configuration['minimum_word_size'];
+    if ($min > 1) {
+      $words = explode(' ', $value);
+      foreach ($words as $i => $word) {
+        if (mb_strlen($word) < $min) {
+          unset($words[$i]);
+        }
+      }
+      $value = implode(' ', $words);
     }
   }
 
   /**
-   * Prepares the processor by setting the $spaces property.
+   * Prepares the processor by setting the $spaces and $ignored properties.
    */
   protected function prepare() {
     if (!isset($this->spaces)) {
@@ -322,6 +349,9 @@ class Tokenizer extends FieldsProcessorPluginBase {
       else {
         $this->spaces = Unicode::PREG_CLASS_WORD_BOUNDARY;
       }
+    }
+    if (!isset($this->ignored)) {
+      $this->ignored = str_replace('/', '\/', $this->configuration['ignored']);
     }
   }
 

@@ -7,6 +7,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Url;
@@ -32,7 +33,7 @@ class VocabularyListBuilder extends DraggableListBuilder {
   protected $currentUser;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
@@ -46,6 +47,13 @@ class VocabularyListBuilder extends DraggableListBuilder {
   protected $renderer;
 
   /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs a new VocabularyListBuilder object.
    *
    * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
@@ -53,16 +61,23 @@ class VocabularyListBuilder extends DraggableListBuilder {
    * @param \Drupal\Core\Session\AccountInterface $current_user
    *   The current user.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity manager service.
+   *   The entity type manager service.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer service.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
    */
-  public function __construct(EntityTypeInterface $entity_type, AccountInterface $current_user, EntityTypeManagerInterface $entity_type_manager, RendererInterface $renderer = NULL) {
+  public function __construct(EntityTypeInterface $entity_type,
+                              AccountInterface $current_user,
+                              EntityTypeManagerInterface $entity_type_manager,
+                              RendererInterface $renderer = NULL,
+                              MessengerInterface $messenger) {
     parent::__construct($entity_type, $entity_type_manager->getStorage($entity_type->id()));
 
     $this->currentUser = $current_user;
     $this->entityTypeManager = $entity_type_manager;
     $this->renderer = $renderer;
+    $this->messenger = $messenger;
   }
 
   /**
@@ -73,7 +88,8 @@ class VocabularyListBuilder extends DraggableListBuilder {
       $entity_type,
       $container->get('current_user'),
       $container->get('entity_type.manager'),
-      $container->get('renderer')
+      $container->get('renderer'),
+      $container->get('messenger')
     );
   }
 
@@ -161,7 +177,7 @@ class VocabularyListBuilder extends DraggableListBuilder {
       $this->renderer->addCacheableDependency($build['table'], $create_access);
       if ($create_access->isAllowed()) {
         $build['table']['#empty'] = t('No vocabularies available. <a href=":link">Add vocabulary</a>.', [
-          ':link' => Url::fromRoute('entity.taxonomy_vocabulary.add_form')->toString()
+          ':link' => Url::fromRoute('entity.taxonomy_vocabulary.add_form')->toString(),
         ]);
       }
       else {
@@ -189,7 +205,7 @@ class VocabularyListBuilder extends DraggableListBuilder {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
 
-    drupal_set_message(t('The configuration options have been saved.'));
+    $this->messenger->addStatus($this->t('The configuration options have been saved.'));
   }
 
 }

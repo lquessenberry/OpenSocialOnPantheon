@@ -43,8 +43,8 @@ interface PrivateMessageMapperInterface {
    *
    * @param \Drupal\user\UserInterface $user
    *   The user whose most recently thread IDs should be retrieved.
-   * @param int $count
-   *   The number of thread IDs to retrieve.
+   * @param mixed $count
+   *   The number of thread IDs to retrieve or FALSE to retrieve them all.
    * @param int $timestamp
    *   A timestamp relative to which only thread IDs with an earlier timestamp
    *   should be returned.
@@ -52,7 +52,7 @@ interface PrivateMessageMapperInterface {
    * @return array
    *   An array of thread IDs if any threads exist.
    */
-  public function getThreadIdsForUser(UserInterface $user, $count, $timestamp = FALSE);
+  public function getThreadIdsForUser(UserInterface $user, $count = FALSE, $timestamp = FALSE);
 
   /**
    * Check if a thread exists after with an ID greater than the given thread ID.
@@ -151,5 +151,13 @@ interface PrivateMessageMapperInterface {
    *   belongs.
    */
   public function getThreadIdFromMessage(PrivateMessageInterface $privateMessage);
+
+  /**
+   * Retrieve the IDs of all threads in the system.
+   *
+   * @return array
+   *   An array of thread IDs for threads in the system.
+   */
+  public function getThreadIds();
 
 }

@@ -3,11 +3,13 @@
 namespace Drupal\Tests\migrate\Kernel\process;
 
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\migrate\Plugin\migrate\process\Route;
 use Drupal\migrate\MigrateExecutableInterface;
+use Drupal\migrate\Plugin\migrate\process\Route;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\Row;
-use Drupal\user\Entity\User;
+use Drupal\Tests\user\Traits\UserCreationTrait;
+
+// cspell:ignore nzdt
 
 /**
  * Tests the route process plugin.
@@ -18,10 +20,12 @@ use Drupal\user\Entity\User;
  */
 class RouteTest extends KernelTestBase {
 
+  use UserCreationTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['user', 'system'];
+  protected static $modules = ['user', 'system'];
 
   /**
    * Tests Route plugin based on providerTestRoute() values.
@@ -195,15 +199,9 @@ class RouteTest extends KernelTestBase {
    * @dataProvider providerTestRouteWithParamQuery
    */
   public function testRouteWithParamQuery($value, $expected) {
-    $this->installSchema('system', ['sequences']);
-    $this->installEntitySchema('user');
-    $this->installConfig(['user']);
-
     // Create a user so that user/1/edit is a valid path.
-    $adminUser = User::create([
-      'name' => $this->randomMachineName(),
-    ]);
-    $adminUser->save();
+    $this->setUpCurrentUser();
+    $this->installConfig(['user']);
 
     $actual = $this->doTransform($value);
     $this->assertSame($expected, $actual);
@@ -263,15 +261,13 @@ class RouteTest extends KernelTestBase {
    *   The route information based on the source link_path.
    */
   protected function doTransform($value) {
-    // Rebuild the routes.
-    $this->container->get('router.builder')->rebuild();
     $pathValidator = $this->container->get('path.validator');
     $row = new Row();
     $migration = $this->prophesize(MigrationInterface::class)->reveal();
     $executable = $this->prophesize(MigrateExecutableInterface::class)->reveal();
 
     $plugin = new Route([], 'route', [], $migration, $pathValidator);
-    $actual = $plugin->transform($value, $executable, $row, 'destinationproperty');
+    $actual = $plugin->transform($value, $executable, $row, 'destination_property');
     return $actual;
   }
 

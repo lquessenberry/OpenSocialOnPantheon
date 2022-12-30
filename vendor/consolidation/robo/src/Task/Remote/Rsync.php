@@ -1,9 +1,11 @@
 <?php
+
 namespace Robo\Task\Remote;
 
 use Robo\Contract\CommandInterface;
 use Robo\Task\BaseTask;
 use Robo\Exception\TaskException;
+use Robo\Common\ExecOneCommand;
 
 /**
  * Executes rsync in a flexible manner.
@@ -46,7 +48,7 @@ use Robo\Exception\TaskException;
  */
 class Rsync extends BaseTask implements CommandInterface
 {
-    use \Robo\Common\ExecOneCommand;
+    use ExecOneCommand;
 
     /**
      * @var string
@@ -447,6 +449,8 @@ class Rsync extends BaseTask implements CommandInterface
     }
 
     /**
+     * @param string $from
+     *
      * @return string
      */
     protected function getFromPathSpec($from)

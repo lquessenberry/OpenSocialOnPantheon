@@ -1,0 +1,12 @@
+services:
+  plugin.manager.typed_data_filter:
+    class: Drupal\typed_data\DataFilterManager
+    parent: default_plugin_manager
+  plugin.manager.typed_data_form_widget:
+    class: Drupal\typed_data\Widget\FormWidgetManager
+    arguments: ['@container.namespaces', '@module_handler']
+  typed_data.data_fetcher:
+    class: Drupal\typed_data\DataFetcher
+  typed_data.placeholder_resolver:
+    class: Drupal\typed_data\PlaceholderResolver
+    arguments: ['@typed_data.data_fetcher', '@plugin.manager.typed_data_filter']

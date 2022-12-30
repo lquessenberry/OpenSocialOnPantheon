@@ -3,7 +3,7 @@
 namespace Drupal\Core\Archiver;
 
 /**
- * Defines a archiver implementation for .zip files.
+ * Defines an archiver implementation for .zip files.
  *
  * @link http://php.net/zip
  */
@@ -29,7 +29,7 @@ class Zip implements ArchiverInterface {
   public function __construct($file_path) {
     $this->zip = new \ZipArchive();
     if ($this->zip->open($file_path) !== TRUE) {
-      throw new ArchiverException(t('Cannot open %file_path', ['%file_path' => $file_path]));
+      throw new ArchiverException("Cannot open '$file_path'");
     }
   }
 

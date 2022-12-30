@@ -22,7 +22,7 @@ class Second extends PluginBase implements BundlePluginTestInterface {
   public function buildFieldDefinitions() {
     $fields = [];
     $fields['second_mail'] = BundleFieldDefinition::create('email')
-      ->setLabel(t('Email'))
+      ->setLabel($this->t('Email'))
       ->setRequired(TRUE);
 
     return $fields;

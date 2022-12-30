@@ -17,7 +17,7 @@ use Drupal\Core\Access\AccessManager;
 use Drupal\Core\Access\DefaultAccessCheck;
 use Drupal\Tests\UnitTestCase;
 use Drupal\router_test\Access\DefinedTestAccessCheck;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\Route;
@@ -53,33 +53,33 @@ class AccessManagerTest extends UnitTestCase {
   /**
    * The route provider.
    *
-   * @var \PHPUnit_Framework_MockObject_MockObject
+   * @var \PHPUnit\Framework\MockObject\MockObject
    */
   protected $routeProvider;
 
   /**
    * The parameter converter.
    *
-   * @var \Drupal\Core\ParamConverter\ParamConverterManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\ParamConverter\ParamConverterManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $paramConverter;
 
   /**
    * The mocked account.
    *
-   * @var \Drupal\Core\Session\AccountInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Session\AccountInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $account;
 
   /**
    * The access arguments resolver.
    *
-   * @var \Drupal\Core\Access\AccessArgumentsResolverFactoryInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Access\AccessArgumentsResolverFactoryInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $argumentsResolverFactory;
 
   /**
-   * @var \Drupal\Core\Session\AccountInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Session\AccountInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $currentUser;
 
@@ -91,12 +91,13 @@ class AccessManagerTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->container = new ContainerBuilder();
     $cache_contexts_manager = $this->prophesize(CacheContextsManager::class)->reveal();
     $this->container->set('cache_contexts_manager', $cache_contexts_manager);
+    $this->container->setParameter('dynamic_access_check_services', []);
     \Drupal::setContainer($this->container);
 
     $this->routeCollection = new RouteCollection();
@@ -105,15 +106,15 @@ class AccessManagerTest extends UnitTestCase {
     $this->routeCollection->add('test_route_3', new Route('/test-route-3', [], ['_access' => 'FALSE']));
     $this->routeCollection->add('test_route_4', new Route('/test-route-4/{value}', [], ['_access' => 'TRUE']));
 
-    $this->routeProvider = $this->getMock('Drupal\Core\Routing\RouteProviderInterface');
+    $this->routeProvider = $this->createMock('Drupal\Core\Routing\RouteProviderInterface');
     $map = [];
     foreach ($this->routeCollection->all() as $name => $route) {
-      $map[] = [$name, [], $route];
+      $map[] = [$name, $route];
     }
-    $map[] = ['test_route_4', ['value' => 'example'], $this->routeCollection->get('test_route_4')];
+    $map[] = ['test_route_4', $this->routeCollection->get('test_route_4')];
     $this->routeProvider->expects($this->any())
       ->method('getRouteByName')
-      ->will($this->returnValueMap($map));
+      ->willReturnMap($map);
 
     $map = [];
     $map[] = ['test_route_1', [], '/test-route-1'];
@@ -121,11 +122,11 @@ class AccessManagerTest extends UnitTestCase {
     $map[] = ['test_route_3', [], '/test-route-3'];
     $map[] = ['test_route_4', ['value' => 'example'], '/test-route-4/example'];
 
-    $this->paramConverter = $this->getMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
+    $this->paramConverter = $this->createMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
 
-    $this->account = $this->getMock('Drupal\Core\Session\AccountInterface');
-    $this->currentUser = $this->getMock('Drupal\Core\Session\AccountInterface');
-    $this->argumentsResolverFactory = $this->getMock('Drupal\Core\Access\AccessArgumentsResolverFactoryInterface');
+    $this->account = $this->createMock('Drupal\Core\Session\AccountInterface');
+    $this->currentUser = $this->createMock('Drupal\Core\Session\AccountInterface');
+    $this->argumentsResolverFactory = $this->createMock('Drupal\Core\Access\AccessArgumentsResolverFactoryInterface');
     $this->checkProvider = new CheckProvider();
     $this->checkProvider->setContainer($this->container);
 
@@ -147,9 +148,9 @@ class AccessManagerTest extends UnitTestCase {
 
     $this->checkProvider->setChecks($this->routeCollection);
 
-    $this->assertEquals($this->routeCollection->get('test_route_1')->getOption('_access_checks'), NULL);
-    $this->assertEquals($this->routeCollection->get('test_route_2')->getOption('_access_checks'), ['test_access_default']);
-    $this->assertEquals($this->routeCollection->get('test_route_3')->getOption('_access_checks'), ['test_access_default']);
+    $this->assertNull($this->routeCollection->get('test_route_1')->getOption('_access_checks'));
+    $this->assertEquals(['test_access_default'], $this->routeCollection->get('test_route_2')->getOption('_access_checks'));
+    $this->assertEquals(['test_access_default'], $this->routeCollection->get('test_route_3')->getOption('_access_checks'));
   }
 
   /**
@@ -160,8 +161,9 @@ class AccessManagerTest extends UnitTestCase {
     $this->accessManager = new AccessManager($this->routeProvider, $this->paramConverter, $this->argumentsResolverFactory, $this->currentUser, $this->checkProvider);
 
     // Setup the dynamic access checker.
-    $access_check = $this->getMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
+    $access_check = $this->createMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
     $this->container->set('test_access', $access_check);
+    $this->container->setParameter('dynamic_access_check_services', ['test_access']);
     $this->checkProvider->addCheckService('test_access', 'access');
 
     $route = new Route('/test-path', [], ['_foo' => '1', '_bar' => '1']);
@@ -173,9 +175,9 @@ class AccessManagerTest extends UnitTestCase {
     $access_check->expects($this->exactly(2))
       ->method('applies')
       ->with($this->isInstanceOf('Symfony\Component\Routing\Route'))
-      ->will($this->returnCallback(function (Route $route) {
-         return $route->getRequirement('_bar') == 2;
-      }));
+      ->willReturnCallback(function (Route $route) {
+        return $route->getRequirement('_bar') == 2;
+      });
 
     $this->checkProvider->setChecks($collection);
     $this->assertEmpty($route->getOption('_access_checks'));
@@ -297,14 +299,13 @@ class AccessManagerTest extends UnitTestCase {
   }
 
   /**
-   * Test \Drupal\Core\Access\AccessManager::check() with conjunctions.
+   * Tests \Drupal\Core\Access\AccessManager::check() with conjunctions.
    *
    * @dataProvider providerTestCheckConjunctions
    */
   public function testCheckConjunctions($name, $condition_one, $condition_two, $expected_access) {
     $this->setupAccessChecker();
-    $access_check = new DefinedTestAccessCheck();
-    $this->container->register('test_access_defined', $access_check);
+    $this->container->register('test_access_defined', DefinedTestAccessCheck::class);
     $this->checkProvider->addCheckService('test_access_defined', 'access', ['_test_access']);
 
     $route_collection = new RouteCollection();
@@ -334,23 +335,12 @@ class AccessManagerTest extends UnitTestCase {
     $this->checkProvider->setChecks($this->routeCollection);
     $this->setupAccessArgumentsResolverFactory();
 
-    $this->paramConverter->expects($this->at(0))
+    $this->paramConverter->expects($this->exactly(4))
       ->method('convert')
-      ->with([RouteObjectInterface::ROUTE_NAME => 'test_route_2', RouteObjectInterface::ROUTE_OBJECT => $this->routeCollection->get('test_route_2')])
-      ->will($this->returnValue([]));
-    $this->paramConverter->expects($this->at(1))
-      ->method('convert')
-      ->with([RouteObjectInterface::ROUTE_NAME => 'test_route_2', RouteObjectInterface::ROUTE_OBJECT => $this->routeCollection->get('test_route_2')])
-      ->will($this->returnValue([]));
-
-    $this->paramConverter->expects($this->at(2))
-      ->method('convert')
-      ->with(['value' => 'example', RouteObjectInterface::ROUTE_NAME => 'test_route_4', RouteObjectInterface::ROUTE_OBJECT => $this->routeCollection->get('test_route_4')])
-      ->will($this->returnValue(['value' => 'example']));
-    $this->paramConverter->expects($this->at(3))
-      ->method('convert')
-      ->with(['value' => 'example', RouteObjectInterface::ROUTE_NAME => 'test_route_4', RouteObjectInterface::ROUTE_OBJECT => $this->routeCollection->get('test_route_4')])
-      ->will($this->returnValue(['value' => 'example']));
+      ->willReturnMap([
+        [[RouteObjectInterface::ROUTE_NAME => 'test_route_2', RouteObjectInterface::ROUTE_OBJECT => $this->routeCollection->get('test_route_2')], []],
+        [['value' => 'example', RouteObjectInterface::ROUTE_NAME => 'test_route_4', RouteObjectInterface::ROUTE_OBJECT => $this->routeCollection->get('test_route_4')], ['value' => 'example']],
+      ]);
 
     // Tests the access with routes with parameters without given request.
     $this->assertEquals(TRUE, $this->accessManager->checkNamedRoute('test_route_2', [], $this->account));
@@ -369,16 +359,15 @@ class AccessManagerTest extends UnitTestCase {
     $route = new Route('/test-route-1/{value}', [], ['_test_access' => 'TRUE']);
     $this->routeCollection->add('test_route_1', $route);
 
-    $this->routeProvider = $this->getMock('Drupal\Core\Routing\RouteProviderInterface');
+    $this->routeProvider = $this->createMock('Drupal\Core\Routing\RouteProviderInterface');
     $this->routeProvider->expects($this->any())
       ->method('getRouteByName')
-      ->with('test_route_1', ['value' => 'example'])
+      ->with('test_route_1')
       ->will($this->returnValue($route));
 
-    $map = [];
     $map[] = ['test_route_1', ['value' => 'example'], '/test-route-1/example'];
 
-    $this->paramConverter = $this->getMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
+    $this->paramConverter = $this->createMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
     $this->paramConverter->expects($this->atLeastOnce())
       ->method('convert')
       ->with(['value' => 'example', RouteObjectInterface::ROUTE_NAME => 'test_route_1', RouteObjectInterface::ROUTE_OBJECT => $route])
@@ -391,7 +380,7 @@ class AccessManagerTest extends UnitTestCase {
 
     $this->accessManager = new AccessManager($this->routeProvider, $this->paramConverter, $this->argumentsResolverFactory, $this->currentUser, $this->checkProvider);
 
-    $access_check = $this->getMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
+    $access_check = $this->createMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
     $access_check->expects($this->atLeastOnce())
       ->method('applies')
       ->will($this->returnValue(TRUE));
@@ -400,6 +389,7 @@ class AccessManagerTest extends UnitTestCase {
       ->will($this->returnValue(AccessResult::forbidden()));
 
     $this->container->set('test_access', $access_check);
+    $this->container->setParameter('dynamic_access_check_services', ['test_access']);
 
     $this->checkProvider->addCheckService('test_access', 'access');
     $this->checkProvider->setChecks($this->routeCollection);
@@ -418,16 +408,15 @@ class AccessManagerTest extends UnitTestCase {
     $route = new Route('/test-route-1/{value}', ['value' => 'example'], ['_test_access' => 'TRUE']);
     $this->routeCollection->add('test_route_1', $route);
 
-    $this->routeProvider = $this->getMock('Drupal\Core\Routing\RouteProviderInterface');
+    $this->routeProvider = $this->createMock('Drupal\Core\Routing\RouteProviderInterface');
     $this->routeProvider->expects($this->any())
       ->method('getRouteByName')
-      ->with('test_route_1', [])
+      ->with('test_route_1')
       ->will($this->returnValue($route));
 
-    $map = [];
     $map[] = ['test_route_1', ['value' => 'example'], '/test-route-1/example'];
 
-    $this->paramConverter = $this->getMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
+    $this->paramConverter = $this->createMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
     $this->paramConverter->expects($this->atLeastOnce())
       ->method('convert')
       ->with(['value' => 'example', RouteObjectInterface::ROUTE_NAME => 'test_route_1', RouteObjectInterface::ROUTE_OBJECT => $route])
@@ -440,7 +429,7 @@ class AccessManagerTest extends UnitTestCase {
 
     $this->accessManager = new AccessManager($this->routeProvider, $this->paramConverter, $this->argumentsResolverFactory, $this->currentUser, $this->checkProvider);
 
-    $access_check = $this->getMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
+    $access_check = $this->createMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
     $access_check->expects($this->atLeastOnce())
       ->method('applies')
       ->will($this->returnValue(TRUE));
@@ -449,6 +438,7 @@ class AccessManagerTest extends UnitTestCase {
       ->will($this->returnValue(AccessResult::forbidden()));
 
     $this->container->set('test_access', $access_check);
+    $this->container->setParameter('dynamic_access_check_services', ['test_access']);
 
     $this->checkProvider->addCheckService('test_access', 'access');
     $this->checkProvider->setChecks($this->routeCollection);
@@ -477,7 +467,7 @@ class AccessManagerTest extends UnitTestCase {
    * @dataProvider providerCheckException
    */
   public function testCheckException($return_value) {
-    $route_provider = $this->getMock('Drupal\Core\Routing\RouteProviderInterface');
+    $route_provider = $this->createMock('Drupal\Core\Routing\RouteProviderInterface');
 
     // Setup a test route for each access configuration.
     $requirements = [
@@ -494,7 +484,7 @@ class AccessManagerTest extends UnitTestCase {
       ->method('getRouteByName')
       ->will($this->returnValue($route));
 
-    $this->paramConverter = $this->getMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
+    $this->paramConverter = $this->createMock('Drupal\Core\ParamConverter\ParamConverterManagerInterface');
     $this->paramConverter->expects($this->any())
       ->method('convert')
       ->will($this->returnValue([]));
@@ -504,7 +494,7 @@ class AccessManagerTest extends UnitTestCase {
     $container = new ContainerBuilder();
 
     // Register a service that will return an incorrect value.
-    $access_check = $this->getMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
+    $access_check = $this->createMock('Drupal\Tests\Core\Access\TestAccessCheckInterface');
     $access_check->expects($this->any())
       ->method('access')
       ->will($this->returnValue($return_value));
@@ -514,7 +504,7 @@ class AccessManagerTest extends UnitTestCase {
     $this->checkProvider->setContainer($container);
     $this->checkProvider->addCheckService('test_incorrect_value', 'access');
 
-    $this->setExpectedException(AccessException::class);
+    $this->expectException(AccessException::class);
     $access_manager->checkNamedRoute('test_incorrect_value', [], $this->account);
   }
 
@@ -536,8 +526,7 @@ class AccessManagerTest extends UnitTestCase {
    * Adds a default access check service to the container and the access manager.
    */
   protected function setupAccessChecker() {
-    $access_check = new DefaultAccessCheck();
-    $this->container->register('test_access_default', $access_check);
+    $this->container->register('test_access_default', DefaultAccessCheck::class);
     $this->checkProvider->addCheckService('test_access_default', 'access', ['_access']);
   }
 
@@ -550,15 +539,16 @@ class AccessManagerTest extends UnitTestCase {
     }
     return $this->argumentsResolverFactory->expects($constraint)
       ->method('getArgumentsResolver')
-      ->will($this->returnCallback(function ($route_match, $account) {
-        $resolver = $this->getMock('Drupal\Component\Utility\ArgumentsResolverInterface');
+      ->willReturnCallback(function ($route_match, $account) {
+        $resolver = $this->createMock('Drupal\Component\Utility\ArgumentsResolverInterface');
         $resolver->expects($this->any())
           ->method('getArguments')
           ->will($this->returnCallback(function ($callable) use ($route_match) {
             return [$route_match->getRouteObject()];
           }));
+
         return $resolver;
-      }));
+      });
   }
 
 }
@@ -567,6 +557,7 @@ class AccessManagerTest extends UnitTestCase {
  * Defines an interface with a defined access() method for mocking.
  */
 interface TestAccessCheckInterface extends AccessCheckInterface {
+
   public function access();
 
 }

@@ -12,26 +12,35 @@ use Drupal\entity_test\Entity\EntityTest;
 class AddressPlainFormatterTest extends FormatterTestBase {
 
   /**
+   * The entity with an address field to test formatting with.
+   *
+   * @var \Drupal\Core\Entity\EntityInterface
+   */
+  protected $entity;
+
+  /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->createField('address', 'address_plain');
+
+    $this->entity = EntityTest::create([]);
+    $this->entity->{$this->fieldName} = [
+      'country_code' => 'AD',
+      'locality' => 'Canillo',
+      'postal_code' => 'AD500',
+      'address_line1' => 'C. Prat de la Creu, 62-64',
+    ];
+
   }
 
   /**
    * Tests the rendered output.
    */
   public function testRender() {
-    $entity = EntityTest::create([]);
-    $entity->{$this->fieldName} = [
-      'country_code' => 'AD',
-      'locality' => 'Canillo',
-      'postal_code' => 'AD500',
-      'address_line1' => 'C. Prat de la Creu, 62-64',
-    ];
-    $this->renderEntityFields($entity, $this->display);
+    $this->renderEntityFields($this->entity, $this->display);
 
     // Confirm the expected elements, including the predefined locality
     // (properly escaped), country name.
@@ -46,9 +55,40 @@ class AddressPlainFormatterTest extends FormatterTestBase {
     }
 
     // Confirm that an unrecognized locality is shown unmodified.
-    $entity->{$this->fieldName}->locality = 'FAKE_LOCALITY';
-    $this->renderEntityFields($entity, $this->display);
+    $this->entity->{$this->fieldName}->locality = 'FAKE_LOCALITY';
+    $this->renderEntityFields($this->entity, $this->display);
     $this->assertRaw('FAKE_LOCALITY');
+  }
+
+  /**
+   * Tests the theme hook suggestions.
+   *
+   * @see \Drupal\Tests\node\Functional\NodeTemplateSuggestionsTest
+   */
+  public function testAddressPlainThemeHookSuggestions() {
+    foreach (['full', 'my_custom_view_mode'] as $view_mode) {
+      // Simulate themeing of the address test entity.
+      $variables['theme_hook_original'] = 'address_plain';
+      $variables['view_mode'] = $view_mode;
+      $variables['address'] = $this->entity->{$this->fieldName};
+      $suggestions = \Drupal::moduleHandler()->invokeAll('theme_suggestions_address_plain', [$variables]);
+
+      $expected_suggestions = [
+        // Hook __ entity_type __ view_mode.
+        'address_plain__entity_test__' . $view_mode,
+        // Hook __ entity_type __ bundle.
+        'address_plain__entity_test__entity_test',
+        // Hook __ entity_type __ bundle __ view_mode.
+        'address_plain__entity_test__entity_test__' . $view_mode,
+        // Hook __ field_name.
+        'address_plain__' . $this->fieldName,
+        // Hook __ entity_type __ field_name.
+        'address_plain__entity_test__' . $this->fieldName,
+        // Hook __ entity_type __ field_name __ bundle.
+        'address_plain__entity_test__' . $this->fieldName . '__entity_test',
+      ];
+      $this->assertEquals($expected_suggestions, $suggestions, 'Unexpected theme suggestions for ' . $view_mode);
+    }
   }
 
 }

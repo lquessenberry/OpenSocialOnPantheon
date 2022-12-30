@@ -2,9 +2,12 @@
 
 namespace Drupal\update\Controller;
 
+use Drupal\Core\Batch\BatchBuilder;
+use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Render\RendererInterface;
+use Drupal\update\UpdateFetcherInterface;
 use Drupal\update\UpdateManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Controller\ControllerBase;
 
 /**
  * Controller routines for update routes.
@@ -19,13 +22,27 @@ class UpdateController extends ControllerBase {
   protected $updateManager;
 
   /**
+   * The renderer.
+   *
+   * @var \Drupal\Core\Render\RendererInterface
+   */
+  protected $renderer;
+
+  /**
    * Constructs update status data.
    *
    * @param \Drupal\update\UpdateManagerInterface $update_manager
    *   Update Manager Service.
+   * @param \Drupal\Core\Render\RendererInterface|null $renderer
+   *   The renderer.
    */
-  public function __construct(UpdateManagerInterface $update_manager) {
+  public function __construct(UpdateManagerInterface $update_manager, RendererInterface $renderer = NULL) {
     $this->updateManager = $update_manager;
+    if (is_null($renderer)) {
+      @trigger_error('The renderer service should be passed to UpdateController::__construct() since 9.1.0. This will be required in Drupal 10.0.0. See https://www.drupal.org/node/3179315', E_USER_DEPRECATED);
+      $renderer = \Drupal::service('renderer');
+    }
+    $this->renderer = $renderer;
   }
 
   /**
@@ -33,7 +50,8 @@ class UpdateController extends ControllerBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('update.manager')
+      $container->get('update.manager'),
+      $container->get('renderer')
     );
   }
 
@@ -45,11 +63,25 @@ class UpdateController extends ControllerBase {
    */
   public function updateStatus() {
     $build = [
-      '#theme' => 'update_report'
+      '#theme' => 'update_report',
     ];
     if ($available = update_get_available(TRUE)) {
       $this->moduleHandler()->loadInclude('update', 'compare.inc');
       $build['#data'] = update_calculate_project_data($available);
+
+      // @todo Consider using 'fetch_failures' from the 'update' collection
+      // in the key_value_expire service for this?
+      $fetch_failed = FALSE;
+      foreach ($build['#data'] as $project) {
+        if ($project['status'] === UpdateFetcherInterface::NOT_FETCHED) {
+          $fetch_failed = TRUE;
+          break;
+        }
+      }
+      if ($fetch_failed) {
+        $message = ['#theme' => 'update_fetch_error_message'];
+        $this->messenger()->addError($this->renderer->renderPlain($message));
+      }
     }
     return $build;
   }
@@ -59,16 +91,13 @@ class UpdateController extends ControllerBase {
    */
   public function updateStatusManually() {
     $this->updateManager->refreshUpdateData();
-    $batch = [
-      'operations' => [
-        [[$this->updateManager, 'fetchDataBatch'], []],
-      ],
-      'finished' => 'update_fetch_data_finished',
-      'title' => t('Checking available update data'),
-      'progress_message' => t('Trying to check available update data ...'),
-      'error_message' => t('Error checking available update data.'),
-    ];
-    batch_set($batch);
+    $batch_builder = (new BatchBuilder())
+      ->setTitle(t('Checking available update data'))
+      ->addOperation([$this->updateManager, 'fetchDataBatch'], [])
+      ->setProgressMessage(t('Trying to check available update data ...'))
+      ->setErrorMessage(t('Error checking available update data.'))
+      ->setFinishCallback('update_fetch_data_finished');
+    batch_set($batch_builder->toArray());
     return batch_process('admin/reports/updates');
   }
 

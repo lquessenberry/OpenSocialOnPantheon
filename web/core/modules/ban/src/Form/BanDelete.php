@@ -80,6 +80,10 @@ class BanDelete extends ConfirmFormBase {
   /**
    * {@inheritdoc}
    *
+   * @param array $form
+   *   A nested array form elements comprising the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
    * @param string $ban_id
    *   The IP address record ID to unban.
    */
@@ -96,7 +100,7 @@ class BanDelete extends ConfirmFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->ipManager->unbanIp($this->banIp);
     $this->logger('user')->notice('Deleted %ip', ['%ip' => $this->banIp]);
-    drupal_set_message($this->t('The IP address %ip was deleted.', ['%ip' => $this->banIp]));
+    $this->messenger()->addStatus($this->t('The IP address %ip was deleted.', ['%ip' => $this->banIp]));
     $form_state->setRedirectUrl($this->getCancelUrl());
   }
 

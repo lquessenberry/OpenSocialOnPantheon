@@ -13,7 +13,7 @@ abstract class MessageResourceTestBase extends EntityResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['contact'];
+  protected static $modules = ['contact'];
 
   /**
    * {@inheritdoc}
@@ -101,10 +101,6 @@ abstract class MessageResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     if ($method === 'POST') {
       return "The 'access site-wide contact form' permission is required.";
     }
@@ -116,7 +112,8 @@ abstract class MessageResourceTestBase extends EntityResourceTestBase {
    */
   public function testGet() {
     // Contact Message entities are not stored, so they cannot be retrieved.
-    $this->setExpectedException(RouteNotFoundException::class, 'Route "rest.entity.contact_message.GET" does not exist.');
+    $this->expectException(RouteNotFoundException::class);
+    $this->expectExceptionMessage('Route "rest.entity.contact_message.GET" does not exist.');
 
     $this->provisionEntityResource();
     Url::fromRoute('rest.entity.contact_message.GET')->toString(TRUE);
@@ -127,7 +124,8 @@ abstract class MessageResourceTestBase extends EntityResourceTestBase {
    */
   public function testPatch() {
     // Contact Message entities are not stored, so they cannot be modified.
-    $this->setExpectedException(RouteNotFoundException::class, 'Route "rest.entity.contact_message.PATCH" does not exist.');
+    $this->expectException(RouteNotFoundException::class);
+    $this->expectExceptionMessage('Route "rest.entity.contact_message.PATCH" does not exist.');
 
     $this->provisionEntityResource();
     Url::fromRoute('rest.entity.contact_message.PATCH')->toString(TRUE);
@@ -138,7 +136,8 @@ abstract class MessageResourceTestBase extends EntityResourceTestBase {
    */
   public function testDelete() {
     // Contact Message entities are not stored, so they cannot be deleted.
-    $this->setExpectedException(RouteNotFoundException::class, 'Route "rest.entity.contact_message.DELETE" does not exist.');
+    $this->expectException(RouteNotFoundException::class);
+    $this->expectExceptionMessage('Route "rest.entity.contact_message.DELETE" does not exist.');
 
     $this->provisionEntityResource();
     Url::fromRoute('rest.entity.contact_message.DELETE')->toString(TRUE);

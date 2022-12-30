@@ -2,9 +2,9 @@
 
 namespace Drupal\Tests\views\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
-use Drupal\simpletest\ContentTypeCreationTrait;
-use Drupal\simpletest\NodeCreationTrait;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
+use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
+use Drupal\Tests\node\Traits\NodeCreationTrait;
 use Drupal\views\Tests\ViewTestData;
 
 /**
@@ -12,7 +12,7 @@ use Drupal\views\Tests\ViewTestData;
  *
  * @group views
  */
-class PaginationAJAXTest extends JavascriptTestBase {
+class PaginationAJAXTest extends WebDriverTestBase {
 
   use ContentTypeCreationTrait;
   use NodeCreationTrait;
@@ -20,7 +20,12 @@ class PaginationAJAXTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_test_config'];
+  protected static $modules = ['node', 'views', 'views_test_config'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * @var array
@@ -33,7 +38,7 @@ class PaginationAJAXTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     ViewTestData::createTestViews(self::class, ['views_test_config']);
@@ -64,6 +69,12 @@ class PaginationAJAXTest extends JavascriptTestBase {
 
     $page = $this->getSession()->getPage();
 
+    $settings = $this->getDrupalSettings();
+
+    // Make sure that the view_path is set correctly.
+    $expected_view_path = '/test-content-ajax';
+    $this->assertEquals($expected_view_path, current($settings['views']['ajaxViews'])['view_path']);
+
     // Set the number of items displayed per page to 5 using the exposed pager.
     $page->selectFieldOption('edit-items-per-page', 5);
     $page->pressButton('Filter');
@@ -79,13 +90,13 @@ class PaginationAJAXTest extends JavascriptTestBase {
     /** @var \Behat\Mink\Element\NodeElement[] $rows */
     $rows = $page->findAll('css', 'tbody tr');
     $this->assertCount(5, $rows);
-    $this->assertContains('Node 1 content', $rows[0]->getHtml());
+    $this->assertStringContainsString('Node 1 content', $rows[0]->getHtml());
 
     $this->clickLink('Go to page 2');
     $session_assert->assertWaitOnAjaxRequest();
     $rows = $page->findAll('css', 'tbody tr');
     $this->assertCount(5, $rows);
-    $this->assertContains('Node 6 content', $rows[0]->getHtml());
+    $this->assertStringContainsString('Node 6 content', $rows[0]->getHtml());
     $link = $page->findLink('Go to page 3');
     // Test that no unwanted parameters are added to the URL.
     $this->assertEquals('?status=All&type=All&langcode=All&items_per_page=5&order=changed&sort=asc&title=&page=2', $link->getAttribute('href'));
@@ -95,39 +106,45 @@ class PaginationAJAXTest extends JavascriptTestBase {
     $session_assert->assertWaitOnAjaxRequest();
     $rows = $page->findAll('css', 'tbody tr');
     $this->assertCount(1, $rows);
-    $this->assertContains('Node 11 content', $rows[0]->getHtml());
+    $this->assertStringContainsString('Node 11 content', $rows[0]->getHtml());
 
     // Navigate back to the first page.
     $this->clickLink('Go to first page');
     $session_assert->assertWaitOnAjaxRequest();
     $rows = $page->findAll('css', 'tbody tr');
     $this->assertCount(5, $rows);
-    $this->assertContains('Node 1 content', $rows[0]->getHtml());
+    $this->assertStringContainsString('Node 1 content', $rows[0]->getHtml());
 
     // Navigate using the 'next' link.
     $this->clickLink('Go to next page');
     $session_assert->assertWaitOnAjaxRequest();
     $rows = $page->findAll('css', 'tbody tr');
     $this->assertCount(5, $rows);
-    $this->assertContains('Node 6 content', $rows[0]->getHtml());
+    $this->assertStringContainsString('Node 6 content', $rows[0]->getHtml());
 
     // Navigate using the 'last' link.
     $this->clickLink('Go to last page');
     $session_assert->assertWaitOnAjaxRequest();
     $rows = $page->findAll('css', 'tbody tr');
     $this->assertCount(1, $rows);
-    $this->assertContains('Node 11 content', $rows[0]->getHtml());
+    $this->assertStringContainsString('Node 11 content', $rows[0]->getHtml());
+
+    // Make sure the AJAX calls don't change the view_path.
+    $settings = $this->getDrupalSettings();
+    $this->assertEquals($expected_view_path, current($settings['views']['ajaxViews'])['view_path']);
   }
 
   /**
    * Assert that assets are not loaded twice on a page.
+   *
+   * @internal
    */
-  protected function assertNoDuplicateAssetsOnPage() {
+  protected function assertNoDuplicateAssetsOnPage(): void {
     /** @var \Behat\Mink\Element\NodeElement[] $scripts */
     $scripts = $this->getSession()->getPage()->findAll('xpath', '//script');
     $script_src = [];
     foreach ($scripts as $script) {
-      $this->assertFalse(in_array($script->getAttribute('src'), $script_src));
+      $this->assertNotContains($script->getAttribute('src'), $script_src);
       $script_src[] = $script->getAttribute('src');
     }
   }

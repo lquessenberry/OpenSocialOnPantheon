@@ -5,8 +5,31 @@ namespace Drupal\field\Plugin\migrate\source\d6;
 use Drupal\migrate\Row;
 use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 
+// cspell:ignore nodeapi
+
 /**
  * Drupal 6 field instances source from database.
+ *
+ * Available configuration keys:
+ * - node_type: (optional) The content type (machine name) to filter field
+ *   instances retrieved from the source. If omitted, all field instances are
+ *   retrieved.
+ *
+ * Example:
+ *
+ * @code
+ * source:
+ *   plugin: d6_field_instance
+ *   node_type: page
+ * @endcode
+ *
+ * In this example field instances of type page are retrieved from the source
+ * database.
+ *
+ * For additional configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
  *
  * @MigrateSource(
  *   id = "d6_field_instance",
@@ -23,8 +46,10 @@ class FieldInstance extends DrupalSqlBase {
     if (isset($this->configuration['node_type'])) {
       $query->condition('cnfi.type_name', $this->configuration['node_type']);
     }
-    $query->join('content_node_field', 'cnf', 'cnf.field_name = cnfi.field_name');
+    $query->join('content_node_field', 'cnf', '[cnf].[field_name] = [cnfi].[field_name]');
     $query->fields('cnf');
+    $query->orderBy('cnfi.field_name');
+    $query->orderBy('cnfi.type_name');
 
     return $query;
   }
@@ -59,6 +84,17 @@ class FieldInstance extends DrupalSqlBase {
     $row->setSourceProperty('widget_settings', $widget_settings);
     $row->setSourceProperty('display_settings', $display_settings);
     $row->setSourceProperty('global_settings', $global_settings);
+
+    // Determine the translatable setting.
+    $translatable = TRUE;
+    $synchronized_fields = $this->variableGet('i18nsync_nodeapi_' . $row->getSourceProperty('type_name'), NULL);
+    if ($synchronized_fields) {
+      if (in_array($row->getSourceProperty('field_name'), $synchronized_fields)) {
+        $translatable = FALSE;
+      }
+    }
+    $row->setSourceProperty('translatable', $translatable);
+
     return parent::prepareRow($row);
   }
 

@@ -1,0 +1,9 @@
+name: 'Social GraphQL'
+description: 'Enables GraphQL support for Open Social features.'
+type: module
+core_version_requirement: ^9
+dependencies:
+  - graphql:graphql
+  - graphql_oauth:graphql_oauth
+package: Social (Experimental)
+hidden: true

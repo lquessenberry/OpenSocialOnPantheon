@@ -2,9 +2,13 @@
 
 namespace Drupal\votingapi;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
+use Drupal\votingapi\Annotation\VoteResultFunction;
 
 /**
  * Manages vote result plugins.
@@ -20,7 +24,28 @@ use Drupal\Core\Plugin\DefaultPluginManager;
 class VoteResultFunctionManager extends DefaultPluginManager {
 
   /**
-   * Constructs a new ImageEffectManager.
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $database;
+
+  /**
+   * The entity_type.manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The datetime.time service.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface
+   */
+  protected $datetime;
+
+  /**
+   * Constructs a new VoteResultFunctionManager.
    *
    * @param \Traversable $namespaces
    *   An object that implements \Traversable which contains the root paths
@@ -29,11 +54,20 @@ class VoteResultFunctionManager extends DefaultPluginManager {
    *   Cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity_type.manager service.
+   * @param \Drupal\Component\Datetime\TimeInterface $datetime
+   *   The datetime.time service.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
-    parent::__construct('Plugin/VoteResultFunction', $namespaces, $module_handler, 'Drupal\votingapi\VoteResultFunctionInterface', 'Drupal\votingapi\Annotation\VoteResultFunction');
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, Connection $database, EntityTypeManagerInterface $entity_type_manager, TimeInterface $datetime) {
+    parent::__construct('Plugin/VoteResultFunction', $namespaces, $module_handler, VoteResultFunctionInterface::class, VoteResultFunction::class);
     $this->alterInfo('vote_result_info');
     $this->setCacheBackend($cache_backend, 'vote_result_plugins');
+    $this->database = $database;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->datetime = $datetime;
   }
 
   /**
@@ -45,12 +79,12 @@ class VoteResultFunctionManager extends DefaultPluginManager {
    *   The ID of the entity.
    *
    * @return array
-   *   An nested array
+   *   A nested array
    */
   public function getResults($entity_type_id, $entity_id) {
     $results = [];
 
-    $result = db_select('votingapi_result', 'v')
+    $result = $this->database->select('votingapi_result', 'v')
       ->fields('v', ['type', 'function', 'value'])
       ->condition('entity_type', $entity_type_id)
       ->condition('entity_id', $entity_id)
@@ -70,31 +104,32 @@ class VoteResultFunctionManager extends DefaultPluginManager {
    * assumed responsibility for the full voting cycle: the votingapi_set_vote()
    * function recalculates automatically.
    *
-   *
    * @param string $entity_type_id
    *   A string identifying the type of content being rated. Node, comment,
    *   aggregator item, etc.
    * @param string $entity_id
    *   The key ID of the content being rated.
    * @param string $vote_type
+   *   The type of vote cast.
    */
   public function recalculateResults($entity_type_id, $entity_id, $vote_type) {
-    db_delete('votingapi_result')
+    $this->database->delete('votingapi_result')
       ->condition('entity_type', $entity_type_id)
       ->condition('entity_id', $entity_id)
       ->condition('type', $vote_type)
       ->execute();
 
-    $vote_ids = \Drupal::entityQuery('vote')
+    $vote_storage = $this->entityTypeManager->getStorage('vote');
+    $vote_ids = $vote_storage->getQuery()
       ->condition('entity_type', $entity_type_id)
       ->condition('entity_id', $entity_id)
       ->condition('type', $vote_type)
       ->sort('type')
       ->execute();
-    $vote_storage = \Drupal::entityManager()->getStorage('vote');
-    $votes = [];
-    $vote_type = '';
+
     if (!empty($vote_ids)) {
+      $votes = [];
+      $vote_type = '';
       foreach ($vote_ids as $vote_id) {
         $vote = $vote_storage->load($vote_id);
 
@@ -108,34 +143,43 @@ class VoteResultFunctionManager extends DefaultPluginManager {
         $votes[] = $vote;
       }
 
-      // Still one last set to process
+      // Still one last set to process.
       $this->performAndStore($votes);
     }
   }
 
   /**
-   * Perform the result calculations available on a set of votes and store the
-   * results.
+   * Perform the result calculations on a set of votes and store the results.
    *
-   * @param VoteInterface[] $votes
+   * @param array $votes
    *   The set of votes to perform the calculations on. All votes in the set are
    *   expected to be the same vote type and for the same entity.
    */
-  protected function performAndStore($votes) {
+  protected function performAndStore(array $votes) {
     $entity_type_id = $votes[0]->getVotedEntityType();
     $entity_id = $votes[0]->getVotedEntityId();
     $vote_type = $votes[0]->bundle();
 
     foreach ($this->getDefinitions() as $plugin_id => $definition) {
       $plugin = $this->createInstance($plugin_id);
-      db_insert('votingapi_result')->fields([
+      $vote_results[] = [
         'entity_id' => $entity_id,
         'entity_type' => $entity_type_id,
         'type' => $vote_type,
         'function' => $plugin_id,
         'value' => $plugin->calculateResult($votes),
-        'timestamp' => \Drupal::time()->getRequestTime(),
-      ])->execute();
+        'value_type' => $votes[0]->get('value_type')->value,
+        'timestamp' => $this->datetime->getRequestTime(),
+      ];
+    }
+    // Give other modules a chance to act on the results of vote calculations.
+    $this->moduleHandler->alter('votingapi_results', $vote_results, $entity_type_id, $entity_id);
+
+    foreach ($vote_results as $id => $vote_result) {
+      if (!empty($vote_result)) {
+        $this->database->insert('votingapi_result')->fields($vote_result)->execute();
+      }
     }
   }
+
 }

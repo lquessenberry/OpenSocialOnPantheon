@@ -4,15 +4,15 @@ namespace Drupal\Tests\language\Functional\Rest;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Url;
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 use Drupal\language\Entity\ConfigurableLanguage;
 
-abstract class ConfigurableLanguageResourceTestBase extends EntityResourceTestBase {
+abstract class ConfigurableLanguageResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['language'];
+  protected static $modules = ['language'];
 
   /**
    * {@inheritdoc}
@@ -73,16 +73,17 @@ abstract class ConfigurableLanguageResourceTestBase extends EntityResourceTestBa
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
   /**
-   * Test a GET request for a default config entity, which has a _core key.
+   * Tests a GET request for a default config entity, which has a _core key.
    *
    * @see https://www.drupal.org/node/2915414
    */
   public function testGetDefaultConfig() {
     $this->initAuthentication();
-    $url = Url::fromUri('base:/entity/configurable_language/en')->setOption('query', ['_format' => static::$format]);;
+    $url = Url::fromUri('base:/entity/configurable_language/en')->setOption('query', ['_format' => static::$format]);
     $request_options = $this->getAuthenticationRequestOptions('GET');
     $this->provisionEntityResource();
     $this->setUpAuthorization('GET');

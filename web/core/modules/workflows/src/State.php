@@ -10,7 +10,7 @@ class State implements StateInterface {
   /**
    * The workflow the state is attached to.
    *
-   * @var \Drupal\workflows\WorkflowInterface
+   * @var \Drupal\workflows\WorkflowTypeInterface
    */
   protected $workflow;
 
@@ -38,7 +38,7 @@ class State implements StateInterface {
   /**
    * State constructor.
    *
-   * @param \Drupal\workflows\WorkflowInterface $workflow
+   * @param \Drupal\workflows\WorkflowTypeInterface $workflow
    *   The workflow the state is attached to.
    * @param string $id
    *   The state's ID.
@@ -103,6 +103,7 @@ class State implements StateInterface {
    * Helper method to convert a State value object to a label.
    *
    * @param \Drupal\workflows\StateInterface $state
+   *   The state.
    *
    * @return string
    *   The label of the state.

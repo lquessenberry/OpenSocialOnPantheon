@@ -8,7 +8,6 @@ description: 'Storage Test View for testing.'
 tag: test
 base_table: views_test_data
 base_field: nid
-core: '8'
 display:
   default:
     display_options:
@@ -32,7 +31,7 @@ display:
           table: views_test_data
           plugin_id: standard
     display_plugin: default
-    display_title: Master
+    display_title: Default
     id: default
     position: 0
   block_1:

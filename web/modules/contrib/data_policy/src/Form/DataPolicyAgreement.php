@@ -2,20 +2,24 @@
 
 namespace Drupal\data_policy\Form;
 
+use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
+use Drupal\Core\Render\Markup;
 use Drupal\Core\Routing\RedirectDestinationInterface;
-use Drupal\data_policy\Entity\DataPolicy;
 use Drupal\data_policy\DataPolicyConsentManagerInterface;
+use Drupal\data_policy\Entity\DataPolicyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
- * Class DataPolicyAgreement.
+ * Policy agreement form.
  *
  * @ingroup data_policy
  */
 class DataPolicyAgreement extends FormBase {
+  use StringTranslationTrait;
 
   /**
    * The Data Policy consent manager.
@@ -32,16 +36,30 @@ class DataPolicyAgreement extends FormBase {
   protected $destination;
 
   /**
+   * The date formatter service.
+   *
+   * @var \Drupal\Core\Datetime\DateFormatterInterface
+   */
+  protected $dateFormatter;
+
+  /**
    * DataPolicyAgreement constructor.
    *
    * @param \Drupal\data_policy\DataPolicyConsentManagerInterface $data_policy_manager
    *   The Data Policy consent manager.
    * @param \Drupal\Core\Routing\RedirectDestinationInterface $destination
    *   The redirect destination helper.
+   * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
+   *   The date formatter service.
    */
-  public function __construct(DataPolicyConsentManagerInterface $data_policy_manager, RedirectDestinationInterface $destination) {
+  public function __construct(
+    DataPolicyConsentManagerInterface $data_policy_manager,
+    RedirectDestinationInterface $destination,
+    DateFormatterInterface $date_formatter
+  ) {
     $this->dataPolicyConsentManager = $data_policy_manager;
     $this->destination = $destination;
+    $this->dateFormatter = $date_formatter;
   }
 
   /**
@@ -50,7 +68,8 @@ class DataPolicyAgreement extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('data_policy.manager'),
-      $container->get('redirect.destination')
+      $container->get('redirect.destination'),
+      $container->get('date.formatter')
     );
   }
 
@@ -65,14 +84,18 @@ class DataPolicyAgreement extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $this->dataPolicyConsentManager->saveConsent($this->currentUser()->id());
-
     $this->dataPolicyConsentManager->addCheckbox($form);
+    $this->dataPolicyConsentManager->saveConsent($this->currentUser()->id(), 'visit');
 
     // Add a message that the data policy was updated.
-    $entity_id = $this->config('data_policy.data_policy')->get('entity_id');
-    $timestamp = DataPolicy::load($entity_id)->getChangedTime();
-    $date = \Drupal::service('date.formatter')->format($timestamp, 'html_date');
+    $entity_ids = $this->dataPolicyConsentManager->getEntityIdsFromConsentText();
+    $revisions = $this->dataPolicyConsentManager->getRevisionsByEntityIds($entity_ids);
+    $timestamps = array_map(function (DataPolicyInterface $revision) {
+      return $revision->getChangedTime();
+    }, $revisions);
+    $timestamp = max($timestamps);
+    $date = $this->dateFormatter->format($timestamp, 'html_date');
+
     $form['date'] = [
       '#theme' => 'status_messages',
       '#message_list' => [
@@ -80,13 +103,13 @@ class DataPolicyAgreement extends FormBase {
           [
             '#type' => 'html_tag',
             '#tag' => 'strong',
-            '#value' => t('Our data policy has been updated on %date', [
+            '#value' => $this->t('Our data policy has been updated on %date', [
               '%date' => $date,
             ]),
           ],
         ],
       ],
-      '#weight' => -1,
+      '#weight' => -2,
     ];
 
     if (!empty($this->config('data_policy.data_policy')->get('enforce_consent'))) {
@@ -105,7 +128,7 @@ class DataPolicyAgreement extends FormBase {
         '#theme_wrappers' => [
           'form_element',
         ],
-        '#weight' => 0,
+        '#weight' => -1,
       ];
     }
 
@@ -123,28 +146,61 @@ class DataPolicyAgreement extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $agree = !empty($form_state->getValue('data_policy'));
-    $enforce = $this->config('data_policy.data_policy')->get('enforce_consent');
+    $values = $form_state->getValue('data_policy');
+    $result = [];
 
-    $this->dataPolicyConsentManager->saveConsent($this->currentUser()->id(), $agree);
+    foreach ($values as $name => $value) {
+      $result[$name] = [
+        'value' => $value,
+        'required' => $form['account']['data_policy'][$name]['#required'],
+        'entity_id' => (int) filter_var($name, FILTER_SANITIZE_NUMBER_INT),
+        'state' => !empty($values[$name]),
+      ];
+    }
 
-    // If the user agrees or does not agree (but it is not enforced), check if
-    // we should redirect him to the front page.
-    if ($agree || (!$agree && empty($enforce))) {
-      if ($this->destination->get() === '/data-policy-agreement') {
-        $form_state->setRedirect('<front>');
+    $this->dataPolicyConsentManager->saveConsent($this->currentUser()->id(), 'submit', $result);
+
+    foreach ($result as $item) {
+      // If the user does not agree and it is enforced, we will redirect to
+      // the cancel account page.
+      if ($item['required'] && !$item['value']) {
+        $this->getRequest()->query->remove('destination');
+
+        $form_state->setRedirect('entity.user.cancel_form', [
+          'user' => $this->currentUser()->id(),
+        ]);
       }
     }
 
-    // If the user does not agree and it is enforced, we will redirect him to
-    // the cancel account page.
-    if (!$agree && !empty($enforce)) {
-      $this->getRequest()->query->remove('destination');
-
-      $form_state->setRedirect('entity.user.cancel_form', [
-        'user' => $this->currentUser()->id(),
-      ]);
+    // If the user agrees or does not agree (but it is not enforced), check if
+    // we should redirect to the front page.
+    if ($this->destination->get() === '/data-policy-agreement') {
+      $form_state->setRedirect('<front>');
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    $errors = $form_state->getErrors();
+
+    if (!empty($errors)) {
+      $form_state->clearErrors();
+
+      foreach ($errors as $id => $error) {
+        /** @var \Drupal\Core\StringTranslation\TranslatableMarkup $g */
+        if (strpos($id, 'data_policy') !== FALSE) {
+          $name = Markup::create($error->getArguments()['@name']);
+          $form_state->setErrorByName($id, $this->t('@name field is required.', ['@name' => $name]));
+          continue;
+        }
+
+        $form_state->setErrorByName($id, $error);
+      }
+    }
+
+    parent::validateForm($form, $form_state);
   }
 
 }

@@ -3,14 +3,14 @@
 namespace Drupal\Tests\filter\Functional\Rest;
 
 use Drupal\filter\Entity\FilterFormat;
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 
-abstract class FilterFormatResourceTestBase extends EntityResourceTestBase {
+abstract class FilterFormatResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = [];
+  protected static $modules = [];
 
   /**
    * {@inheritdoc}
@@ -34,7 +34,7 @@ abstract class FilterFormatResourceTestBase extends EntityResourceTestBase {
    */
   protected function createEntity() {
     $pablo_format = FilterFormat::create([
-      'name' => 'Pablo Piccasso',
+      'name' => 'Pablo Picasso',
       'format' => 'pablo',
       'langcode' => 'es',
       'filters' => [
@@ -71,7 +71,7 @@ abstract class FilterFormatResourceTestBase extends EntityResourceTestBase {
       ],
       'format' => 'pablo',
       'langcode' => 'es',
-      'name' => 'Pablo Piccasso',
+      'name' => 'Pablo Picasso',
       'status' => TRUE,
       'uuid' => $this->entity->uuid(),
       'weight' => 0,
@@ -83,6 +83,7 @@ abstract class FilterFormatResourceTestBase extends EntityResourceTestBase {
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
 }

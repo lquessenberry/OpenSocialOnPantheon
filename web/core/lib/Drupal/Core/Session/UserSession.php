@@ -28,7 +28,7 @@ class UserSession implements AccountInterface {
   /**
    * The Unix timestamp when the user last accessed the site.
    *
-   * @var string.
+   * @var string
    */
   protected $access;
 
@@ -154,13 +154,6 @@ class UserSession implements AccountInterface {
   /**
    * {@inheritdoc}
    */
-  public function getUsername() {
-    return $this->getAccountName();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function getAccountName() {
     return $this->name;
   }
@@ -202,7 +195,7 @@ class UserSession implements AccountInterface {
    *   The role storage object.
    */
   protected function getRoleStorage() {
-    return \Drupal::entityManager()->getStorage('user_role');
+    return \Drupal::entityTypeManager()->getStorage('user_role');
   }
 
 }

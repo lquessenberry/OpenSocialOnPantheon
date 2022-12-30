@@ -24,7 +24,19 @@ class MenuLinkTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['views', 'views_ui', 'user', 'node', 'menu_ui', 'block'];
+  protected static $modules = [
+    'views',
+    'views_ui',
+    'user',
+    'node',
+    'menu_link_content',
+    'block',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with permission to administer views, menus and view content.
@@ -36,18 +48,21 @@ class MenuLinkTest extends ViewTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->enableViewsTestModule();
 
-    $this->adminUser = $this->drupalCreateUser(['administer views', 'administer menu']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer views',
+      'administer menu',
+    ]);
     $this->drupalPlaceBlock('system_menu_block:main');
     $this->drupalCreateContentType(['type' => 'page']);
   }
 
   /**
-   * Test that menu links using menu_link_content as parent are visible.
+   * Tests that menu links using menu_link_content as parent are visible.
    */
   public function testHierarchicalMenuLinkVisibility() {
     $this->drupalLogin($this->adminUser);
@@ -68,31 +83,32 @@ class MenuLinkTest extends ViewTestBase {
 
     // Alter the view's menu link in view page to use the menu link from the
     // node as parent.
-    $this->drupalPostForm("admin/structure/views/nojs/display/test_menu_link/page_1/menu", [
+    $this->drupalGet("admin/structure/views/nojs/display/test_menu_link/page_1/menu");
+    $this->submitForm([
       'menu[type]' => 'normal',
       'menu[title]' => 'Secondary level view page',
       'menu[parent]' => $parent_menu_value,
     ], 'Apply');
 
     // Save view which has pending changes.
-    $this->drupalPostForm(NULL, [], 'Save');
+    $this->submitForm([], 'Save');
 
     // Test if the node as parent menu item is selected in our views settings.
     $this->drupalGet('admin/structure/views/nojs/display/test_menu_link/page_1/menu');
-    $this->assertOptionSelected('edit-menu-parent', $parent_menu_value);
+    $this->assertTrue($this->assertSession()->optionExists('edit-menu-parent', $parent_menu_value)->isSelected());
 
     $this->drupalGet('');
 
     // Test if the primary menu item (node) is visible, and the secondary menu
     // item (view) is hidden.
-    $this->assertText('Primary level node');
-    $this->assertNoText('Secondary level view page');
+    $this->assertSession()->pageTextContains('Primary level node');
+    $this->assertSession()->pageTextNotContains('Secondary level view page');
 
     // Go to the node page and ensure that both the first and second level items
     // are visible.
-    $this->drupalGet($node->urlInfo());
-    $this->assertText('Primary level node');
-    $this->assertText('Secondary level view page');
+    $this->drupalGet($node->toUrl());
+    $this->assertSession()->pageTextContains('Primary level node');
+    $this->assertSession()->pageTextContains('Secondary level view page');
   }
 
 }

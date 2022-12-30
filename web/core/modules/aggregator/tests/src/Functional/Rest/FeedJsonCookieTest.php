@@ -6,6 +6,7 @@ use Drupal\Tests\rest\Functional\CookieResourceTestTrait;
 
 /**
  * @group rest
+ * @group legacy
  */
 class FeedJsonCookieTest extends FeedResourceTestBase {
 
@@ -25,5 +26,10 @@ class FeedJsonCookieTest extends FeedResourceTestBase {
    * {@inheritdoc}
    */
   protected static $auth = 'cookie';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
 }

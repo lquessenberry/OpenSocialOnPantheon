@@ -12,12 +12,11 @@ description: ''
 tag: ''
 base_table: file_managed
 base_field: fid
-core: 8.x
 display:
   default:
     display_plugin: default
     id: default
-    display_title: Master
+    display_title: Default
     position: 0
     display_options:
       access:

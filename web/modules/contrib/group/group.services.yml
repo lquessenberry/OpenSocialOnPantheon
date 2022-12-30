@@ -17,12 +17,12 @@ services:
       - { name: 'access_check', applies_to: '_group_owns_content' }
   access_check.group_content.create:
     class: 'Drupal\group\Access\GroupContentCreateAccessCheck'
-    arguments: ['@entity.manager']
+    arguments: ['@entity_type.manager']
     tags:
       - { name: 'access_check', applies_to: '_group_content_create_access' }
   access_check.group_content.create_any:
     class: 'Drupal\group\Access\GroupContentCreateAnyAccessCheck'
-    arguments: ['@entity.manager']
+    arguments: ['@entity_type.manager']
     tags:
       - { name: 'access_check', applies_to: '_group_content_create_any_access' }
   access_check.group_content.create_entity:
@@ -33,35 +33,39 @@ services:
     class: 'Drupal\group\Access\GroupContentCreateAnyEntityAccessCheck'
     tags:
       - { name: 'access_check', applies_to: '_group_content_create_any_entity_access' }
+  access_check.group_latest_revision:
+    class: 'Drupal\group\Entity\Access\GroupLatestRevisionCheck'
+    arguments: ['@entity_type.manager']
+    calls:
+      - ['setContentModerationInfo', ['@?content_moderation.moderation_information']]
+    tags:
+      - { name: 'access_check', applies_to: '_group_latest_revision' }
+  access_check.group_revision:
+    class: 'Drupal\group\Entity\Access\GroupRevisionCheck'
+    arguments: ['@entity_type.manager', '@current_route_match']
+    tags:
+      - { name: 'access_check', applies_to: '_group_revision' }
 
-  cache_context.group:
-    class: 'Drupal\group\Cache\Context\GroupCacheContext'
-    arguments: ['@current_route_match']
+  cache.group_permission:
+    class: 'Drupal\Core\Cache\CacheBackendInterface'
+    factory: 'cache_factory:get'
+    arguments: ['group_permission']
+    tags:
+      - { name: 'cache.bin' }
+
+  cache_context.route.group:
+    class: 'Drupal\group\Cache\Context\RouteGroupCacheContext'
+    arguments: ['@current_route_match', '@entity_type.manager']
     tags:
       - { name: 'cache.context'}
-  cache_context.group.type:
-    class: 'Drupal\group\Cache\Context\GroupTypeCacheContext'
-    arguments: ['@current_route_match']
+  cache_context.user.group_permissions:
+    class: 'Drupal\group\Cache\Context\GroupPermissionsCacheContext'
+    arguments: ['@current_user', '@group.permissions_hash_generator']
     tags:
       - { name: 'cache.context'}
-  cache_context.group_membership:
-    class: 'Drupal\group\Cache\Context\GroupMembershipCacheContext'
-    arguments: ['@current_route_match', '@current_user', '@entity_type.manager']
-    tags:
-      - { name: 'cache.context'}
-  cache_context.group_membership.audience:
-    class: 'Drupal\group\Cache\Context\GroupMembershipAudienceCacheContext'
-    arguments: ['@current_route_match', '@current_user', '@entity_type.manager']
-    tags:
-      - { name: 'cache.context'}
-  cache_context.group_membership.roles:
-    class: 'Drupal\group\Cache\Context\GroupMembershipRolesCacheContext'
-    arguments: ['@current_route_match', '@current_user', '@entity_type.manager']
-    tags:
-      - { name: 'cache.context'}
-  cache_context.group_membership.roles.permissions:
-    class: 'Drupal\group\Cache\Context\GroupMembershipPermissionsCacheContext'
-    arguments: ['@current_route_match', '@current_user', '@entity_type.manager', '@group.permissions_hash_generator']
+  cache_context.user.is_group_member:
+    class: 'Drupal\group\Cache\Context\IsGroupMemberCacheContext'
+    arguments: ['@current_user', '@entity_type.manager', '@group.membership_loader']
     tags:
       - { name: 'cache.context'}
 
@@ -70,26 +74,60 @@ services:
     arguments: ['@config.factory']
     tags:
       - { name: 'event_subscriber' }
+  group.latest_revision.route_subscriber:
+    class: 'Drupal\group\Entity\Routing\GroupLatestRevisionRouteSubscriber'
+    tags:
+      - { name: 'event_subscriber' }
+  group.revision.route_subscriber:
+    class: 'Drupal\group\Entity\Routing\GroupRevisionRouteSubscriber'
+    tags:
+      - { name: 'event_subscriber' }
+  group.config_subscriber:
+    class: 'Drupal\group\EventSubscriber\ConfigSubscriber'
+    arguments: ['@entity_type.manager', '@plugin.manager.group_content_enabler']
+    tags:
+      - { name: 'event_subscriber' }
 
   group.group_route_context:
     class: 'Drupal\group\Context\GroupRouteContext'
-    arguments: ['@current_route_match']
+    arguments: ['@current_route_match', '@entity_type.manager', '@string_translation']
     tags:
       - { name: 'context_provider' }
   group.membership_loader:
     class: 'Drupal\group\GroupMembershipLoader'
     arguments: ['@entity_type.manager', '@current_user']
+  # @todo Rename to group_permission.builder in 8.2.0.
   group.permissions:
     class: 'Drupal\group\Access\GroupPermissionHandler'
     arguments: ['@module_handler', '@string_translation', '@controller_resolver', '@plugin.manager.group_content_enabler']
+  # @todo Rename to group_permission.hash_generator in 8.2.0.
   group.permissions_hash_generator:
     class: 'Drupal\group\Access\GroupPermissionsHashGenerator'
-    arguments: ['@private_key', '@cache.default', '@cache.static', '@entity_type.manager']
+    arguments: ['@private_key', '@cache.static', '@group_permission.chain_calculator']
+  group_permission.chain_calculator:
+    class: 'Drupal\group\Access\ChainGroupPermissionCalculator'
+    arguments: ['@variation_cache.group_default', '@variation_cache.corefix_static_no_serialize', '@cache.corefix_static_no_serialize', '@account_switcher']
+    tags:
+      - { name: service_collector, call: addCalculator, tag: group_permission_calculator }
+  group_permission.checker:
+    class: 'Drupal\group\Access\GroupPermissionChecker'
+    arguments: ['@group_permission.chain_calculator']
+  group_permission.default_calculator:
+    class: 'Drupal\group\Access\DefaultGroupPermissionCalculator'
+    arguments: ['@entity_type.manager', '@group.membership_loader']
+    tags:
+      - { name: group_permission_calculator, priority: -100 }
+  group_permission.synchronized_calculator:
+    class: 'Drupal\group\Access\SynchronizedGroupPermissionCalculator'
+    arguments: ['@entity_type.manager', '@group_role.synchronizer']
+    tags:
+      - { name: group_permission_calculator, priority: -50 }
+
   group.uninstall_validator.group_content:
     class: 'Drupal\group\UninstallValidator\GroupContentUninstallValidator'
     tags:
       - { name: 'module_install.uninstall_validator' }
-    arguments: ['@string_translation', '@entity.query', '@plugin.manager.group_content_enabler']
+    arguments: ['@string_translation', '@entity_type.manager', '@plugin.manager.group_content_enabler']
     lazy: 'true'
 
   group_content_type.breadcrumb:
@@ -104,5 +142,44 @@ services:
   plugin.manager.group_content_enabler:
     class: 'Drupal\group\Plugin\GroupContentEnablerManager'
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@entity_type.manager']
+    parent: container.trait
     tags:
       - { name: plugin_manager_cache_clear }
+
+  # Recently, core introduced a new static cache that does not serialize its
+  # data, unlike the cache.static service. This entity.memory_cache service has
+  # two major drawbacks: First of all, it is named confusingly as it can work
+  # for almost anything, not just entities. Secondly, it is not declared the
+  # way cache backend services should be declared, meaning it cannot make
+  # proper use of cache tags. In order to fix this, we declare the cache and
+  # its factory the right way, albeit prefixed with corefix_ so that we do not
+  # collide with core if it ever fixes this.
+  # @todo Follow up in: https://www.drupal.org/project/drupal/issues/2973286
+  # @todo Follow up in: https://www.drupal.org/project/drupal/issues/3016690
+  # @todo Create core bug: entity.memory_cache is not a registered bin?
+  cache.backend.corefix_memory_no_serialize:
+    class: Drupal\group\CoreFix\Cache\MemoryCacheFactory
+  cache.corefix_static_no_serialize:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    tags:
+      - { name: cache.bin, default_backend: cache.backend.corefix_memory_no_serialize }
+    factory: cache_factory:get
+    arguments: [corefix_static_no_serialize]
+
+  # Core also has a tendency to not allow people to vary their caches by cache
+  # contexts unless they abuse the render cache's built-in tools. We've fixed
+  # this in core, but it's taking a while to get reviewed and we simply can no
+  # allow it to block further Group releases. So we created the VariationCache
+  # module on drupal.org for now and will swap it out with the real deal once
+  # the core issue lands.
+  # See https://www.drupal.org/project/variationcache
+  # See https://www.drupal.org/project/drupal/issues/2551419
+  # @todo Rename to variation_cache.group_permission in 8.2.0.
+  variation_cache.group_default:
+    class: Drupal\variationcache\Cache\VariationCacheInterface
+    factory: variation_cache_factory:get
+    arguments: [group_permission]
+  variation_cache.corefix_static_no_serialize:
+    class: Drupal\variationcache\Cache\VariationCacheInterface
+    factory: variation_cache_factory:get
+    arguments: [corefix_static_no_serialize]

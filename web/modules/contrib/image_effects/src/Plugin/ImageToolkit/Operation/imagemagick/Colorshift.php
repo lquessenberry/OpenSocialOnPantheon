@@ -24,7 +24,7 @@ class Colorshift extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    $this->getToolkit()->addArgument("+level-colors " . $this->getToolkit()->escapeShellArg($arguments['RGB']) . ",white");
+    $this->addArgument("+level-colors " . $this->escapeArgument($arguments['RGB']) . ",white");
     return TRUE;
   }
 

@@ -2,7 +2,7 @@
 
 namespace Drupal\Core\Config;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 
 /**
  * An exception thrown if configuration with the same name already exists.
@@ -53,13 +53,13 @@ class PreExistingConfigException extends ConfigException {
    *   A list of configuration objects that already exist in active
    *   configuration, keyed by config collection.
    *
-   * @return \Drupal\Core\Config\PreExistingConfigException
+   * @return $this
    */
   public static function create($extension, array $config_objects) {
-    $message = SafeMarkup::format('Configuration objects (@config_names) provided by @extension already exist in active configuration',
+    $message = new FormattableMarkup('Configuration objects (@config_names) provided by @extension already exist in active configuration',
       [
         '@config_names' => implode(', ', static::flattenConfigObjects($config_objects)),
-        '@extension' => $extension
+        '@extension' => $extension,
       ]
     );
     $e = new static($message);

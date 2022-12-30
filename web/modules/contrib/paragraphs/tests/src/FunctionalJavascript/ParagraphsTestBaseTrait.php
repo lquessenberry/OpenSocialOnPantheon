@@ -2,14 +2,13 @@
 
 namespace Drupal\Tests\paragraphs\FunctionalJavascript;
 
-use Drupal\Core\Entity\Entity\EntityFormDisplay;
-use Drupal\Core\Entity\Entity\EntityViewDisplay;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\node\Entity\NodeType;
 use Drupal\paragraphs\Entity\ParagraphsType;
 use Drupal\Tests\TestFileCreationTrait;
+use Drupal\workflows\Entity\Workflow;
 
 /**
  * Test trait for Paragraphs JS tests.
@@ -19,6 +18,14 @@ trait ParagraphsTestBaseTrait {
   use TestFileCreationTrait;
 
   /**
+   * The workflow entity.
+   *
+   * @var \Drupal\workflows\WorkflowInterface
+   */
+  protected $workflow;
+
+
+  /**
    * Adds a content type with a Paragraphs field.
    *
    * @param string $content_type_name
@@ -26,9 +33,9 @@ trait ParagraphsTestBaseTrait {
    * @param string $paragraphs_field_name
    *   (optional) Field name to be used. Defaults to 'field_paragraphs'.
    * @param string $widget_type
-   *   (optional) Declares if we use experimental or classic widget.
-   *   Defaults to 'paragraphs' for experimental widget.
-   *   Use 'entity_reference_paragraphs' for classic widget.
+   *   (optional) Declares if we use stable or legacy widget.
+   *   Defaults to 'paragraphs' for stable widget.
+   *   Use 'entity_reference_paragraphs' for legacy widget.
    */
   protected function addParagraphedContentType($content_type_name, $paragraphs_field_name = 'field_paragraphs', $widget_type = 'paragraphs') {
     // Create the content type.
@@ -44,18 +51,18 @@ trait ParagraphsTestBaseTrait {
   /**
    * Adds a Paragraphs field to a given entity type.
    *
-   * @param string $entity_type_name
-   *   Entity type name to be used.
+   * @param string $bundle
+   *   bundle to be used.
    * @param string $paragraphs_field_name
    *   Paragraphs field name to be used.
    * @param string $entity_type
    *   Entity type where to add the field.
    * @param string $widget_type
-   *   (optional) Declares if we use experimental or classic widget.
-   *   Defaults to 'paragraphs' for experimental widget.
-   *   Use 'entity_reference_paragraphs' for classic widget.
+   *   (optional) Declares if we use stable or legacy widget.
+   *   Defaults to 'paragraphs' for stable widget.
+   *   Use 'entity_reference_paragraphs' for legacy widget.
    */
-  protected function addParagraphsField($entity_type_name, $paragraphs_field_name, $entity_type, $widget_type = 'paragraphs') {
+  protected function addParagraphsField($bundle, $paragraphs_field_name, $entity_type, $widget_type = 'paragraphs') {
     $field_storage = FieldStorageConfig::loadByName($entity_type, $paragraphs_field_name);
     if (!$field_storage) {
       // Add a paragraphs field.
@@ -72,7 +79,7 @@ trait ParagraphsTestBaseTrait {
     }
     $field = FieldConfig::create([
       'field_storage' => $field_storage,
-      'bundle' => $entity_type_name,
+      'bundle' => $bundle,
       'settings' => [
         'handler' => 'default:paragraph',
         'handler_settings' => ['target_bundles' => NULL],
@@ -80,12 +87,12 @@ trait ParagraphsTestBaseTrait {
     ]);
     $field->save();
 
-    $form_display = entity_get_form_display($entity_type, $entity_type_name, 'default')
-      ->setComponent($paragraphs_field_name, ['type' => $widget_type]);
+    $form_display = \Drupal::service('entity_display.repository')->getFormDisplay($entity_type, $bundle);
+    $form_display = $form_display->setComponent($paragraphs_field_name, ['type' => $widget_type]);
     $form_display->save();
 
-    $view_display = entity_get_display($entity_type, $entity_type_name, 'default')
-      ->setComponent($paragraphs_field_name, ['type' => 'entity_reference_revisions_entity_view']);
+    $view_display = \Drupal::service('entity_display.repository')->getViewDisplay($entity_type, $bundle);
+    $view_display->setComponent($paragraphs_field_name, ['type' => 'entity_reference_revisions_entity_view']);
     $view_display->save();
   }
 
@@ -119,7 +126,9 @@ trait ParagraphsTestBaseTrait {
 
     // Create a copy of the image, so that multiple file entities don't
     // reference the same file.
-    $copy_uri = file_unmanaged_copy($uri);
+    /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+    $file_system = \Drupal::service('file_system');
+    $copy_uri = $file_system->copy($uri, 'public://' . $file_system->basename($uri));
 
     // Create a new file entity.
     $file_entity = File::create([
@@ -166,13 +175,13 @@ trait ParagraphsTestBaseTrait {
 
     $field_type_definition = \Drupal::service('plugin.manager.field.field_type')->getDefinition($field_type);
 
-    entity_get_form_display('paragraph', $paragraph_type_id, 'default')
-      ->setComponent($field_name, ['type' => $field_type_definition['default_widget']])
+    $form_display = \Drupal::service('entity_display.repository')->getFormDisplay('paragraph', $paragraph_type_id);
+    $form_display->setComponent($field_name, ['type' => $field_type_definition['default_widget']])
       ->save();
 
-    entity_get_display('paragraph', $paragraph_type_id, 'default')
-      ->setComponent($field_name, ['type' => $field_type_definition['default_formatter']])
-      ->save();
+    $view_display = \Drupal::service('entity_display.repository')->getViewDisplay('paragraph', $paragraph_type_id);
+    $view_display->setComponent($field_name, ['type' => $field_type_definition['default_formatter']]);
+    $view_display->save();
   }
 
   /**
@@ -200,7 +209,7 @@ trait ParagraphsTestBaseTrait {
     $component = $default_form_display->getComponent($paragraphs_field);
 
     $updated_component = $component;
-    if ($field_widget === NULL || $field_widget === $component['type']) {
+    if ($field_widget === NULL || (isset($component['type']) && $field_widget === $component['type'])) {
       // The widget stays the same.
       $updated_component['settings'] = $settings + $component['settings'];
     }
@@ -219,6 +228,85 @@ trait ParagraphsTestBaseTrait {
 
     $default_form_display->setComponent($paragraphs_field, $updated_component)
       ->save();
+  }
+
+  /**
+   * Creates a workflow entity.
+   *
+   * @param string $bundle
+   *   The node bundle.
+   */
+  protected function createEditorialWorkflow($bundle) {
+    if (!isset($this->workflow)) {
+      $this->workflow = Workflow::create([
+        'type' => 'content_moderation',
+        'id' => $this->randomMachineName(),
+        'label' => 'Editorial',
+        'type_settings' => [
+          'states' => [
+            'archived' => [
+              'label' => 'Archived',
+              'weight' => 5,
+              'published' => FALSE,
+              'default_revision' => TRUE,
+            ],
+            'draft' => [
+              'label' => 'Draft',
+              'published' => FALSE,
+              'default_revision' => FALSE,
+              'weight' => -5,
+            ],
+            'published' => [
+              'label' => 'Published',
+              'published' => TRUE,
+              'default_revision' => TRUE,
+              'weight' => 0,
+            ],
+          ],
+          'transitions' => [
+            'archive' => [
+              'label' => 'Archive',
+              'from' => ['published'],
+              'to' => 'archived',
+              'weight' => 2,
+            ],
+            'archived_draft' => [
+              'label' => 'Restore to Draft',
+              'from' => ['archived'],
+              'to' => 'draft',
+              'weight' => 3,
+            ],
+            'archived_published' => [
+              'label' => 'Restore',
+              'from' => ['archived'],
+              'to' => 'published',
+              'weight' => 4,
+            ],
+            'create_new_draft' => [
+              'label' => 'Create New Draft',
+              'to' => 'draft',
+              'weight' => 0,
+              'from' => [
+                'draft',
+                'published',
+              ],
+            ],
+            'publish' => [
+              'label' => 'Publish',
+              'to' => 'published',
+              'weight' => 1,
+              'from' => [
+                'draft',
+                'published',
+              ],
+            ],
+          ],
+        ],
+      ]);
+    }
+
+    $this->workflow->getTypePlugin()->addEntityTypeAndBundle('node', $bundle);
+    $this->workflow->save();
   }
 
 }

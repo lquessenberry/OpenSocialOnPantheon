@@ -18,17 +18,28 @@ class FilterBooleanWebTest extends UITestBase {
   public static $testViews = ['test_view'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests the filter boolean UI.
    */
   public function testFilterBooleanUI() {
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_view/default/filter', ['name[views_test_data.status]' => TRUE], t('Add and configure @handler', ['@handler' => t('filter criteria')]));
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_view/default/filter');
+    $this->submitForm(['name[views_test_data.status]' => TRUE], 'Add and configure filter criteria');
 
     // Check the field widget label. 'title' should be used as a fallback.
     $result = $this->cssSelect('#edit-options-value--wrapper legend span');
-    $this->assertEqual($result[0]->getHtml(), 'Status');
+    $this->assertEquals('Status', $result[0]->getHtml());
 
-    $this->drupalPostForm(NULL, [], t('Expose filter'));
-    $this->drupalPostForm(NULL, [], t('Grouped filters'));
+    // Ensure that the operator and the filter value are displayed using correct
+    // layout.
+    $this->assertSession()->elementExists('css', '.views-left-30 .form-item-options-operator');
+    $this->assertSession()->elementExists('css', '.views-right-70 .form-item-options-value');
+
+    $this->submitForm([], 'Expose filter');
+    $this->submitForm([], 'Grouped filters');
 
     $edit = [];
     $edit['options[group_info][group_items][1][title]'] = 'Published';
@@ -41,28 +52,28 @@ class FilterBooleanWebTest extends UITestBase {
     $edit['options[group_info][group_items][3][operator]'] = '!=';
     $edit['options[group_info][group_items][3][value]'] = 1;
 
-    $this->drupalPostForm(NULL, $edit, t('Apply'));
+    $this->submitForm($edit, 'Apply');
 
     $this->drupalGet('admin/structure/views/nojs/handler/test_view/default/filter/status');
 
     $result = $this->xpath('//input[@name="options[group_info][group_items][1][value]"]');
-    $this->assertEqual($result[1]->getAttribute('checked'), 'checked');
+    $this->assertEquals('checked', $result[1]->getAttribute('checked'));
     $result = $this->xpath('//input[@name="options[group_info][group_items][2][value]"]');
-    $this->assertEqual($result[2]->getAttribute('checked'), 'checked');
+    $this->assertEquals('checked', $result[2]->getAttribute('checked'));
     $result = $this->xpath('//input[@name="options[group_info][group_items][3][value]"]');
-    $this->assertEqual($result[1]->getAttribute('checked'), 'checked');
+    $this->assertEquals('checked', $result[1]->getAttribute('checked'));
 
     // Test that there is a remove link for each group.
-    $this->assertEqual(count($this->cssSelect('a.views-remove-link')), 3);
+    $this->assertCount(3, $this->cssSelect('a.views-remove-link'));
 
     // Test selecting a default and removing an item.
     $edit = [];
     $edit['options[group_info][default_group]'] = 2;
     $edit['options[group_info][group_items][3][remove]'] = 1;
-    $this->drupalPostForm(NULL, $edit, t('Apply'));
+    $this->submitForm($edit, 'Apply');
     $this->drupalGet('admin/structure/views/nojs/handler/test_view/default/filter/status');
-    $this->assertFieldByName('options[group_info][default_group]', 2, 'Second item was set as the default.');
-    $this->assertNoField('options[group_info][group_items][3][remove]', 'Third item was removed.');
+    $this->assertSession()->fieldValueEquals('options[group_info][default_group]', 2);
+    $this->assertSession()->fieldNotExists('options[group_info][group_items][3][remove]');
   }
 
 }

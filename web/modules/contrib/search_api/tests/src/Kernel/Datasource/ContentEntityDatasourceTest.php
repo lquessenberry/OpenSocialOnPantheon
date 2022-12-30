@@ -30,7 +30,7 @@ class ContentEntityDatasourceTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'search_api',
     'language',
     'user',
@@ -48,7 +48,7 @@ class ContentEntityDatasourceTest extends KernelTestBase {
   /**
    * The datasource used for testing.
    *
-   * @var \Drupal\search_api\Plugin\search_api\datasource\EntityDatasourceInterface
+   * @var \Drupal\search_api\Plugin\search_api\datasource\ContentEntity
    */
   protected $datasource;
 
@@ -62,7 +62,7 @@ class ContentEntityDatasourceTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     // Enable translation for the entity_test module.
@@ -80,6 +80,7 @@ class ContentEntityDatasourceTest extends KernelTestBase {
         'weight' => $i,
       ])->save();
     }
+    $this->container->get('language_manager')->reset();
 
     // Create a test index.
     $this->index = Index::create([
@@ -170,6 +171,70 @@ class ContentEntityDatasourceTest extends KernelTestBase {
   }
 
   /**
+   * Tests viewing of items.
+   *
+   * @covers ::viewItem
+   * @covers ::viewMultipleItems
+   */
+  public function testItemViewing() {
+    $loaded_items = $this->datasource->loadMultiple($this->allItemIds);
+    /** @var \Drupal\Core\Entity\EntityViewBuilder $builder */
+    $builder = \Drupal::entityTypeManager()
+      ->getViewBuilder('entity_test_mulrev_changed');
+
+    $item = $loaded_items['1:l0'];
+    $build = $this->datasource->viewItem($item, 'foobar');
+    // Order of cache tags does not matter.
+    if (!empty($build['#cache']['tags'])) {
+      sort($build['#cache']['tags']);
+    }
+    $expected = [
+      '#entity_test_mulrev_changed' => $item->getValue(),
+      '#view_mode' => 'foobar',
+      '#cache' => [
+        'tags' => [
+          'entity_test_mulrev_changed:1',
+          'entity_test_mulrev_changed_view',
+        ],
+        'contexts' => [],
+        'max-age' => -1,
+      ],
+      '#weight' => 0,
+      '#pre_render' => [
+        [$builder, 'build'],
+      ],
+    ];
+    $this->assertEquals($expected, $build);
+
+    $build = $this->datasource->viewMultipleItems($loaded_items, 'foobar');
+    $this->assertTrue($build['#sorted']);
+    $this->assertEquals([[$builder, 'buildMultiple']], $build['#pre_render']);
+    foreach ($loaded_items as $item_id => $item) {
+      // Order of cache tags does not matter.
+      if (!empty($build[$item_id]['#cache']['tags'])) {
+        sort($build[$item_id]['#cache']['tags']);
+      }
+      /** @var \Drupal\Core\Entity\EntityInterface $entity */
+      $entity = $item->getValue();
+      $expected = [
+        '#entity_test_mulrev_changed' => $entity,
+        '#view_mode' => 'foobar',
+        '#cache' => [
+          'tags' => [
+            'entity_test_mulrev_changed:' . $entity->id(),
+            'entity_test_mulrev_changed_view',
+          ],
+          'contexts' => [],
+          'max-age' => -1,
+        ],
+      ];
+      $this->assertArrayHasKey('#weight', $build[$item_id]);
+      unset($build[$item_id]['#weight']);
+      $this->assertEquals($expected, $build[$item_id]);
+    }
+  }
+
+  /**
    * Verifies that paged item discovery works correctly.
    *
    * @covers ::getPartialItemIds
@@ -239,7 +304,7 @@ class ContentEntityDatasourceTest extends KernelTestBase {
    * @return string[]
    *   All discovered item IDs.
    *
-   * @see \Drupal\search_api\Plugin\search_api\datasource\EntityDatasourceInterface::getPartialItemIds()
+   * @see \Drupal\search_api\Plugin\search_api\datasource\ContentEntity::getPartialItemIds()
    */
   protected function getItemIds(array $bundles = NULL, array $languages = NULL) {
     $discovered_ids = [];
@@ -252,6 +317,97 @@ class ContentEntityDatasourceTest extends KernelTestBase {
     }
     sort($discovered_ids);
     return $discovered_ids;
+  }
+
+  /**
+   * Tests the getLanguages() method.
+   *
+   * @param array $language_config
+   *   The "languages" config to set on the datasource.
+   * @param string[] $expected
+   *   The expected returned language codes.
+   *
+   * @covers ::getLanguages
+   *
+   * @dataProvider getLanguagesDataProvider
+   */
+  public function testGetLanguages(array $language_config, array $expected) {
+    $this->datasource->setConfiguration([
+      'languages' => $language_config,
+    ]);
+    $method = new \ReflectionMethod($this->datasource, 'getLanguages');
+    $method->setAccessible(TRUE);
+    /** @var \Drupal\Core\Language\LanguageInterface[] $returned */
+    $returned = $method->invoke($this->datasource);
+    foreach ($returned as $langcode => $language) {
+      $this->assertEquals($langcode, $language->getId());
+    }
+    $actual = array_keys($returned);
+    sort($actual);
+    $this->assertEquals($expected, $actual);
+  }
+
+  /**
+   * Provides test data sets for testGetLanguages().
+   *
+   * @return array[]
+   *   An array of parameter arrays for testGetLanguages().
+   *
+   * @see \Drupal\Tests\search_api\Kernel\Datasource\ContentEntityDatasourceTest::testGetLanguages()
+   */
+  public function getLanguagesDataProvider(): array {
+    return [
+      'all' => [
+        'language_config' => [
+          'default' => TRUE,
+          'selected' => [],
+        ],
+        'expected' => [
+          'en',
+          'l0',
+          'l1',
+          'und',
+          'zxx',
+        ],
+      ],
+      'none' => [
+        'language_config' => [
+          'default' => FALSE,
+          'selected' => [],
+        ],
+        'expected' => [
+          'und',
+          'zxx',
+        ],
+      ],
+      'some removed' => [
+        'language_config' => [
+          'default' => TRUE,
+          'selected' => [
+            'l0',
+          ],
+        ],
+        'expected' => [
+          'en',
+          'l1',
+          'und',
+          'zxx',
+        ],
+      ],
+      'some added' => [
+        'language_config' => [
+          'default' => FALSE,
+          'selected' => [
+            'l0',
+          ],
+        ],
+        'expected' => [
+          'l0',
+          'und',
+          'zxx',
+        ],
+      ],
+    ];
   }
 
 }

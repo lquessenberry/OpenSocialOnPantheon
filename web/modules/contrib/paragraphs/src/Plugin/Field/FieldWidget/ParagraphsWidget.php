@@ -15,8 +15,12 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\SubformState;
 use Drupal\Core\Render\Element;
+use Drupal\Core\TypedData\TranslationStatusInterface;
+use Drupal\field_group\FormatterHelper;
 use Drupal\paragraphs\ParagraphInterface;
 use Drupal\paragraphs\Plugin\EntityReferenceSelection\ParagraphSelection;
+use Drupal\paragraphs\Traits\FieldWidgetTrait;
+use Symfony\Component\Validator\ConstraintViolationInterface;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 
 /**
@@ -24,14 +28,16 @@ use Symfony\Component\Validator\ConstraintViolationListInterface;
  *
  * @FieldWidget(
  *   id = "paragraphs",
- *   label = @Translation("Paragraphs EXPERIMENTAL"),
- *   description = @Translation("An experimental paragraphs inline form widget."),
+ *   label = @Translation("Paragraphs (stable)"),
+ *   description = @Translation("The stable paragraphs inline form widget."),
  *   field_types = {
  *     "entity_reference_revisions"
  *   }
  * )
  */
 class ParagraphsWidget extends WidgetBase {
+
+  use FieldWidgetTrait;
 
   /**
    * Action position is in the add paragraphs place.
@@ -124,9 +130,11 @@ class ParagraphsWidget extends WidgetBase {
       'edit_mode' => 'open',
       'closed_mode' => 'summary',
       'autocollapse' => 'none',
+      'closed_mode_threshold' => 0,
       'add_mode' => 'dropdown',
       'form_display_mode' => 'default',
       'default_paragraph_type' => '',
+      'features' => ['duplicate' => 'duplicate', 'collapse_edit_all' => 'collapse_edit_all'],
     );
   }
 
@@ -177,6 +185,24 @@ class ParagraphsWidget extends WidgetBase {
       '#options' => $this->getSettingOptions('autocollapse'),
       '#default_value' => $this->getSetting('autocollapse'),
       '#required' => TRUE,
+      '#states' => [
+        'visible' => [
+          'select[name="fields[' . $this->fieldDefinition->getName() .  '][settings_edit_form][settings][edit_mode]"]' => ['value' => 'closed'],
+        ],
+      ],
+    ];
+
+    $elements['closed_mode_threshold'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Closed mode threshold'),
+      '#default_value' => $this->getSetting('closed_mode_threshold'),
+      '#description' => $this->t('Number of items considered to leave paragraphs open e.g the threshold is 3, if a paragraph has less than 3 items, leave it open.'),
+      '#min' => 0,
+      '#states' => [
+        'invisible' => [
+          'select[name="fields[' . $this->fieldDefinition->getName() .  '][settings_edit_form][settings][edit_mode]"]' => ['value' => 'open'],
+        ],
+      ],
     ];
 
     $elements['add_mode'] = array(
@@ -211,6 +237,15 @@ class ParagraphsWidget extends WidgetBase {
       '#description' => $this->t('When creating a new host entity, a paragraph of this type is added.'),
     ];
 
+    $elements['features'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Enable widget features'),
+      '#options' => $this->getSettingOptions('features'),
+      '#default_value' => $this->getSetting('features'),
+      '#description' => $this->t('When editing, available as action. "Add above" only works in add mode "Modal form"'),
+      '#multiple' => TRUE,
+    ];
+
     return $elements;
   }
 
@@ -237,6 +272,7 @@ class ParagraphsWidget extends WidgetBase {
         $options = [
           'open' => $this->t('Open'),
           'closed' => $this->t('Closed'),
+          'closed_expand_nested' => $this->t('Closed, show nested'),
         ];
         break;
       case 'closed_mode':
@@ -259,6 +295,16 @@ class ParagraphsWidget extends WidgetBase {
           'modal' => $this->t('Modal form'),
         ];
         break;
+      case 'features':
+        $options = [
+          'duplicate' => $this->t('Duplicate'),
+          'collapse_edit_all' => $this->t('Collapse / Edit all'),
+          // The "Add above" feature will be completely injected clientside,
+          // whenever this option is enabled in the widget configuration.
+          // @see Drupal.behaviors.paragraphsAddAboveButton
+          'add_above' => $this->t('Add above'),
+        ];
+        break;
     }
 
     return isset($options) ? $options : NULL;
@@ -276,12 +322,17 @@ class ParagraphsWidget extends WidgetBase {
 
     $edit_mode = $this->getSettingOptions('edit_mode')[$this->getSetting('edit_mode')];
     $closed_mode = $this->getSettingOptions('closed_mode')[$this->getSetting('closed_mode')];
-    $autocollapse = $this->getSettingOptions('autocollapse')[$this->getSetting('autocollapse')];
     $add_mode = $this->getSettingOptions('add_mode')[$this->getSetting('add_mode')];
 
     $summary[] = $this->t('Edit mode: @edit_mode', ['@edit_mode' => $edit_mode]);
     $summary[] = $this->t('Closed mode: @closed_mode', ['@closed_mode' => $closed_mode]);
-    $summary[] = $this->t('Autocollapse: @autocollapse', ['@autocollapse' => $autocollapse]);
+    if ($this->getSetting('edit_mode') == 'closed') {
+      $autocollapse = $this->getSettingOptions('autocollapse')[$this->getSetting('autocollapse')];
+      $summary[] = $this->t('Autocollapse: @autocollapse', ['@autocollapse' => $autocollapse]);
+    }
+    if (($this->getSetting('edit_mode') == 'closed' || $this->getSetting('edit_mode') == 'closed_expand_nested') && $this->getSetting('closed_mode_threshold') > 0) {
+      $summary[] = $this->t('Closed mode threshold: @mode_limit', ['@mode_limit' => $this->getSetting('closed_mode_threshold')]);
+    }
     $summary[] = $this->t('Add mode: @add_mode', ['@add_mode' => $add_mode]);
 
     $summary[] = $this->t('Form display mode: @form_display_mode', [
@@ -291,6 +342,10 @@ class ParagraphsWidget extends WidgetBase {
       $summary[] = $this->t('Default paragraph type: @default_paragraph_type', [
         '@default_paragraph_type' => $this->getDefaultParagraphTypeLabelName()
       ]);
+    }
+    $features_labels = array_intersect_key($this->getSettingOptions('features'), array_filter($this->getSetting('features')));
+    if (!empty($features_labels)) {
+      $summary[] = $this->t('Features: @features', ['@features' => implode(', ', $features_labels)]);
     }
 
     return $summary;
@@ -305,7 +360,6 @@ class ParagraphsWidget extends WidgetBase {
   public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
     $field_name = $this->fieldDefinition->getName();
     $parents = $element['#field_parents'];
-    $info = [];
 
     /** @var \Drupal\paragraphs\Entity\Paragraph $paragraphs_entity */
     $paragraphs_entity = NULL;
@@ -332,11 +386,23 @@ class ParagraphsWidget extends WidgetBase {
       // We don't have a widget state yet, get from selector settings.
       if (!isset($widget_state['paragraphs'][$delta]['mode'])) {
 
-        if ($default_edit_mode == 'open') {
+        if ($default_edit_mode == 'open' || $widget_state['items_count'] < $this->getSetting('closed_mode_threshold')) {
           $item_mode = 'edit';
         }
         elseif ($default_edit_mode == 'closed') {
           $item_mode = 'closed';
+        }
+        elseif ($default_edit_mode == 'closed_expand_nested') {
+          $item_mode = 'closed';
+          $field_definitions = $paragraphs_entity->getFieldDefinitions();
+
+          // If the paragraph contains other paragraphs, then open it.
+          foreach ($field_definitions as $field_definition) {
+            if ($field_definition->getType() == 'entity_reference_revisions' && $field_definition->getSetting('target_type') == 'paragraph') {
+              $item_mode = 'edit';
+              break;
+            }
+          }
         }
       }
     }
@@ -348,30 +414,15 @@ class ParagraphsWidget extends WidgetBase {
       $paragraphs_entity = $entity_type_manager->getStorage($target_type)->create(array(
         $bundle_key => $widget_state['selected_bundle'],
       ));
+      $paragraphs_entity->setParentEntity($host, $field_name);
 
       $item_mode = 'edit';
-    }
-
-    if ($item_mode == 'closed') {
-      // Validate closed paragraphs and expand if needed.
-      // @todo Consider recursion.
-      $violations = $paragraphs_entity->validate();
-      $violations->filterByFieldAccess();
-      if (count($violations) > 0) {
-        $item_mode = 'edit';
-        $messages = [];
-        foreach ($violations as $violation) {
-          $messages[] = $violation->getMessage();
-        }
-        $info['validation_error'] = $this->createMessage($this->t('@messages', ['@messages' => strip_tags(implode('\n', $messages))]));
-      }
     }
 
     if ($paragraphs_entity) {
       // Detect if we are translating.
       $this->initIsTranslating($form_state, $host);
-      $langcode = $form_state->get('langcode');
-
+      $langcode = $this->getCurrentLangcode($form_state, $items);
       if (!$this->isTranslating) {
         // Set the langcode if we are not translating.
         $langcode_key = $paragraphs_entity->getEntityType()->getKey('langcode');
@@ -387,6 +438,12 @@ class ParagraphsWidget extends WidgetBase {
         }
       }
       else {
+        // If the node is being translated, the paragraphs should be all open
+        // when the form is not being rebuilt (E.g. when clicked on a paragraphs
+        // action) and when the translation is being added.
+        if (!$form_state->isRebuilding() && $host->getTranslationStatus($langcode) == TranslationStatusInterface::TRANSLATION_CREATED) {
+          $item_mode = 'edit';
+        }
         // Add translation if missing for the target language.
         if (!$paragraphs_entity->hasTranslation($langcode)) {
           // Get the selected translation of the paragraph entity.
@@ -417,6 +474,35 @@ class ParagraphsWidget extends WidgetBase {
         }
       }
 
+      // If untranslatable fields are hidden while translating, we are
+      // translating the parent and the Paragraph is open, then close the
+      // Paragraph if it does not have translatable fields.
+      $translating_force_close = FALSE;
+      if (\Drupal::moduleHandler()->moduleExists('content_translation')) {
+        $manager = \Drupal::service('content_translation.manager');
+        $settings = $manager->getBundleTranslationSettings('paragraph', $paragraphs_entity->getParagraphType()->id());
+        if (!empty($settings['untranslatable_fields_hide']) && $this->isTranslating) {
+          $translating_force_close = TRUE;
+          $display = EntityFormDisplay::collectRenderDisplay($paragraphs_entity, $this->getSetting('form_display_mode'));
+          // Check if the paragraph has translatable fields.
+          foreach (array_keys($display->get('content')) as $field) {
+            if ($paragraphs_entity->hasField($field)) {
+              $field_definition = $paragraphs_entity->get($field)->getFieldDefinition();
+              // Check if we are referencing paragraphs.
+              $is_paragraph = ($field_definition->getType() == 'entity_reference_revisions' && $field_definition->getSetting('target_type') == 'paragraph');
+              if ($is_paragraph || $field_definition->isTranslatable()) {
+                $translating_force_close = FALSE;
+                break;
+              }
+            }
+          }
+
+          if ($translating_force_close) {
+            $item_mode = 'closed';
+          }
+        }
+      }
+
       $element_parents = $parents;
       $element_parents[] = $field_name;
       $element_parents[] = $delta;
@@ -428,6 +514,7 @@ class ParagraphsWidget extends WidgetBase {
       $element += array(
         '#type' => 'container',
         '#element_validate' => array(array($this, 'elementValidate')),
+        '#paragraph_type' => $paragraphs_entity->bundle(),
         'subform' => array(
           '#type' => 'container',
           '#parents' => $element_parents,
@@ -437,38 +524,48 @@ class ParagraphsWidget extends WidgetBase {
       $element['#prefix'] = '<div id="' . $wrapper_id . '">';
       $element['#suffix'] = '</div>';
 
+      // Create top section structure with all needed subsections.
+      $element['top'] = [
+        '#type' => 'container',
+        '#weight' => -1000,
+        '#attributes' => [
+          'class' => [
+            'paragraph-top',
+            // Add a flag to indicate if the add_above feature is enabled and
+            // should be injected client-side.
+            $this->isFeatureEnabled('add_above') ? 'add-above-on' : 'add-above-off',
+          ],
+        ],
+        // Section for paragraph type information.
+        'type' => [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['paragraph-type']],
+        ],
+        // Section for info icons.
+        'icons' => [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['paragraph-info']],
+        ],
+        'summary' => [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['paragraph-summary']],
+        ],
+        // Paragraphs actions element for actions and dropdown actions.
+        'actions' => [
+          '#type' => 'paragraphs_actions',
+        ],
+      ];
+      // Holds information items.
+      $info = [];
+
       $item_bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo($target_type);
       if (isset($item_bundles[$paragraphs_entity->bundle()])) {
         $bundle_info = $item_bundles[$paragraphs_entity->bundle()];
 
-        // Create top section structure with all needed subsections.
-        $element['top'] = [
-          '#type' => 'container',
-          '#weight' => -1000,
-          '#attributes' => ['class' => ['paragraph-type-top']],
-          // Section for paragraph type information.
-          'type' => [
-            '#type' => 'container',
-            '#attributes' => ['class' => ['paragraph-type-title']],
-            'label' => ['#markup' => $bundle_info['label']],
-          ],
-          // Section for information icons.
-          'info' => [
-            '#type' => 'container',
-            '#attributes' => ['class' => ['paragraph-type-info']],
-          ],
-          'summary' => [
-            '#type' => 'container',
-            '#attributes' => ['class' => ['paragraph-type-summary']],
-          ],
-          // Paragraphs actions element for actions and dropdown actions.
-          'actions' => [
-            '#type' => 'paragraphs_actions',
-          ],
-        ];
+        $element['top']['type']['label'] = ['#markup' => $bundle_info['label']];
 
         // Type icon and label bundle.
-        if ($icon_url = $paragraphs_entity->type->entity->getIconUrl()) {
+        if ($icon_url = $paragraphs_entity->getParagraphType()->getIconUrl()) {
           $element['top']['type']['icon'] = [
             '#theme' => 'image',
             '#uri' => $icon_url,
@@ -500,14 +597,22 @@ class ParagraphsWidget extends WidgetBase {
           '#name' => $id_prefix . '_duplicate',
           '#weight' => 502,
           '#submit' => [[get_class($this), 'duplicateSubmit']],
-          '#limit_validation_errors' => [array_merge($parents, [$field_name, 'add_more'])],
+          '#limit_validation_errors' => [array_merge($parents, [$field_name, $delta])],
           '#delta' => $delta,
           '#ajax' => [
             'callback' => [get_class($this), 'itemAjax'],
             'wrapper' => $widget_state['ajax_wrapper_id'],
           ],
-          '#access' => $paragraphs_entity->access('update'),
+          '#access' => $this->duplicateButtonAccess($paragraphs_entity),
+          '#attributes' => [
+            'class' => ['button--small'],
+          ],
         ];
+
+        // Force the closed mode when the user cannot edit the Paragraph.
+        if (!$paragraphs_entity->access('update')) {
+          $item_mode = 'closed';
+        }
 
         if ($item_mode != 'remove') {
           $widget_actions['dropdown_actions']['remove_button'] = [
@@ -516,15 +621,19 @@ class ParagraphsWidget extends WidgetBase {
             '#name' => $id_prefix . '_remove',
             '#weight' => 501,
             '#submit' => [[get_class($this), 'paragraphsItemSubmit']],
-            '#limit_validation_errors' => [array_merge($parents, [$field_name, 'add_more'])],
+            // Ignore all validation errors because deleting invalid paragraphs
+            // is allowed.
+            '#limit_validation_errors' => [],
             '#delta' => $delta,
             '#ajax' => [
               'callback' => array(get_class($this), 'itemAjax'),
               'wrapper' => $widget_state['ajax_wrapper_id'],
             ],
-            // Hide the button when translating.
-            '#access' => $paragraphs_entity->access('delete') && !$this->isTranslating,
+            '#access' => $this->removeButtonAccess($paragraphs_entity),
             '#paragraphs_mode' => 'remove',
+            '#attributes' => [
+              'class' => ['button--small'],
+            ],
           ];
         }
 
@@ -535,17 +644,17 @@ class ParagraphsWidget extends WidgetBase {
               '#name' => $id_prefix . '_collapse',
               '#weight' => 1,
               '#submit' => [[get_class($this), 'paragraphsItemSubmit']],
-              '#limit_validation_errors' => [array_merge($parents, [$field_name, 'add_more'])],
+              '#limit_validation_errors' => [array_merge($parents, [$field_name, $delta])],
               '#delta' => $delta,
               '#ajax' => [
                 'callback' => [get_class($this), 'itemAjax'],
                 'wrapper' => $widget_state['ajax_wrapper_id'],
               ],
-              '#access' => $paragraphs_entity->access('update'),
+              '#access' => $paragraphs_entity->access('update') && !$translating_force_close,
               '#paragraphs_mode' => 'closed',
               '#paragraphs_show_warning' => TRUE,
               '#attributes' => [
-                'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-collapse'],
+                'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-collapse', 'button--extrasmall'],
                 'title' => $this->t('Collapse'),
               ],
             ];
@@ -557,20 +666,19 @@ class ParagraphsWidget extends WidgetBase {
             '#value' => $this->t('Edit'),
             '#name' => $id_prefix . '_edit',
             '#weight' => 1,
-            '#attributes' => ['class' => ['paragraphs-button']],
             '#submit' => [[get_class($this), 'paragraphsItemSubmit']],
             '#limit_validation_errors' => [
-              array_merge($parents, [$field_name, 'add_more']),
+              array_merge($parents, [$field_name, $delta]),
             ],
             '#delta' => $delta,
             '#ajax' => [
               'callback' => [get_class($this), 'itemAjax'],
               'wrapper' => $widget_state['ajax_wrapper_id'],
             ],
-            '#access' => $paragraphs_entity->access('update'),
+            '#access' => $paragraphs_entity->access('update') && !$translating_force_close,
             '#paragraphs_mode' => 'edit',
             '#attributes' => [
-              'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-edit'],
+              'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-edit', 'button--extrasmall'],
               'title' => $this->t('Edit'),
             ],
           ]);
@@ -583,10 +691,10 @@ class ParagraphsWidget extends WidgetBase {
             ];
           }
 
-          if (!$paragraphs_entity->access('view')) {
+          if (!$paragraphs_entity->isPublished()) {
             $info['preview'] = [
               '#theme' => 'paragraphs_info_icon',
-              '#message' => $this->t('You are not allowed to view this @title.', array('@title' => $this->getSetting('title'))),
+              '#message' => $this->t('Unpublished'),
               '#icon' => 'view',
             ];
           }
@@ -602,21 +710,16 @@ class ParagraphsWidget extends WidgetBase {
           ];
         }
 
-        if (!$paragraphs_entity->access('update') && !$paragraphs_entity->access('delete')) {
-          $info['edit'] = [
-            '#theme' => 'paragraphs_info_icon',
-            '#message' => $this->t('You are not allowed to edit or remove this @title.', ['@title' => $this->getSetting('title')]),
-            '#icon' => 'lock',
-          ];
-        }
-        elseif (!$paragraphs_entity->access('update')) {
+        // Avoid checking delete access for new entities.
+        $delete_access = $paragraphs_entity->isNew() || $paragraphs_entity->access('delete');
+        if (!$paragraphs_entity->access('update') && $delete_access) {
           $info['edit'] = [
             '#theme' => 'paragraphs_info_icon',
             '#message' => $this->t('You are not allowed to edit this @title.', ['@title' => $this->getSetting('title')]),
             '#icon' => 'edit-disabled',
           ];
         }
-        elseif (!$paragraphs_entity->access('delete')) {
+        elseif (!$delete_access && $paragraphs_entity->access('update')) {
           $info['remove'] = [
             '#theme' => 'paragraphs_info_icon',
             '#message' => $this->t('You are not allowed to remove this @title.', ['@title' => $this->getSetting('title')]),
@@ -626,36 +729,29 @@ class ParagraphsWidget extends WidgetBase {
 
         $context = [
           'form' => $form,
-          'widget' => self::getWidgetState($parents, $field_name, $form_state, $widget_state),
+          'widget' => self::getWidgetState($parents, $field_name, $form_state),
           'items' => $items,
           'delta' => $delta,
           'element' => $element,
           'form_state' => $form_state,
           'paragraphs_entity' => $paragraphs_entity,
+          'is_translating' => $this->isTranslating,
+          'allow_reference_changes' => $this->allowReferenceChanges(),
         ];
 
         // Allow modules to alter widget actions.
         \Drupal::moduleHandler()->alter('paragraphs_widget_actions', $widget_actions, $context);
 
-        if (count($widget_actions['actions'])) {
+        if (!empty($widget_actions['actions'])) {
           // Expand all actions to proper submit elements and add it to top
           // actions sub component.
           $element['top']['actions']['actions'] = array_map([$this, 'expandButton'], $widget_actions['actions']);
         }
 
-        if (count($widget_actions['dropdown_actions'])) {
+        if (!empty($widget_actions['dropdown_actions'])) {
           // Expand all dropdown actions to proper submit elements and add
           // them to top dropdown actions sub component.
           $element['top']['actions']['dropdown_actions'] = array_map([$this, 'expandButton'], $widget_actions['dropdown_actions']);
-        }
-
-        if (count($info)) {
-          foreach ($info as $info_item) {
-            if (!isset($info_item['#access']) || $info_item['#access']) {
-              $element['top']['info']['items'] = $info;
-              break;
-            }
-          }
         }
       }
 
@@ -673,55 +769,86 @@ class ParagraphsWidget extends WidgetBase {
         ];
 
         field_group_attach_groups($element['subform'], $context);
-        $element['subform']['#pre_render'][] = 'field_group_form_pre_render';
+        if (method_exists(FormatterHelper::class, 'formProcess')) {
+          $element['subform']['#process'][] = [FormatterHelper::class, 'formProcess'];
+        }
+        elseif (function_exists('field_group_form_pre_render')) {
+          $element['subform']['#pre_render'][] = 'field_group_form_pre_render';
+        }
+        elseif (function_exists('field_group_form_process')) {
+          $element['subform']['#process'][] = 'field_group_form_process';
+        }
       }
 
       if ($item_mode == 'edit') {
         $display->buildForm($paragraphs_entity, $element['subform'], $form_state);
-        // Get the field definitions of the paragraphs_entity.
-        // We need them to filter out entity reference revisions fields that
-        // reference paragraphs, cause otherwise we have problems with showing
-        // and hiding the right fields in nested paragraphs.
-        $field_definitions = $paragraphs_entity->getFieldDefinitions();
+        $hide_untranslatable_fields = $paragraphs_entity->isDefaultTranslationAffectedOnly();
+
+        $summary = $paragraphs_entity->getSummaryItems();
+        if (!empty($summary)) {
+          $element['top']['summary']['fields_info'] = [
+            '#theme' => 'paragraphs_summary',
+            '#summary' => $summary,
+            '#expanded' => TRUE,
+            '#access' => $paragraphs_entity->access('update') || $paragraphs_entity->access('view'),
+          ];
+        }
+        $info = array_merge($info, $paragraphs_entity->getIcons());
 
         foreach (Element::children($element['subform']) as $field) {
-          // Do a check if we have to add a class to the form element. We need
-          // those classes (paragraphs-content and paragraphs-behavior) to show
-          // and hide elements, depending of the active perspective.
-          $omit_class = FALSE;
-          if (isset($field_definitions[$field])) {
-            $type = $field_definitions[$field]->getType();
-            if ($type == 'entity_reference_revisions') {
+          if ($paragraphs_entity->hasField($field)) {
+            $field_definition = $paragraphs_entity->get($field)->getFieldDefinition();
+
+            // Do a check if we have to add a class to the form element. We need
+            // those classes (paragraphs-content and paragraphs-behavior) to show
+            // and hide elements, depending of the active perspective.
+            // We need them to filter out entity reference revisions fields that
+            // reference paragraphs, cause otherwise we have problems with showing
+            // and hiding the right fields in nested paragraphs.
+            $is_paragraph_field = FALSE;
+            if ($field_definition->getType() == 'entity_reference_revisions') {
               // Check if we are referencing paragraphs.
-              $target_entity_type = $field_definitions[$field]->get('entity_type');
-              if ($target_entity_type && $target_entity_type == 'paragraph') {
-                $omit_class = TRUE;
+              if ($field_definition->getSetting('target_type') == 'paragraph') {
+                $is_paragraph_field = TRUE;
               }
             }
-          }
 
-          if ($paragraphs_entity->hasField($field)) {
-            if (!$omit_class) {
+            if (!$is_paragraph_field) {
               $element['subform'][$field]['#attributes']['class'][] = 'paragraphs-content';
-            }
-            $translatable = $paragraphs_entity->{$field}->getFieldDefinition()->isTranslatable();
-            if ($translatable) {
-              $element['subform'][$field]['widget']['#after_build'][] = [
-                static::class,
-                'removeTranslatabilityClue',
+              $element['top']['summary']['fields_info'] = [
+                '#theme' => 'paragraphs_summary',
+                '#summary' => $summary,
+                '#expanded' => TRUE,
+                '#access' => $paragraphs_entity->access('update') || $paragraphs_entity->access('view'),
               ];
+            }
+            $translatable = $field_definition->isTranslatable();
+            // Hide untranslatable fields when configured to do so except
+            // paragraph fields.
+            if (!$translatable && $this->isTranslating && !$is_paragraph_field) {
+              if ($hide_untranslatable_fields) {
+                $element['subform'][$field]['#access'] = FALSE;
+              }
+              else {
+                $element['subform'][$field]['widget']['#after_build'][] = [
+                  static::class,
+                  'addTranslatabilityClue'
+                ];
+              }
             }
           }
         }
 
-        // Build the behavior plugins fields.
+        // Build the behavior plugins fields, do not display behaviors when
+        // translating and untranslatable fields are hidden.
         $paragraphs_type = $paragraphs_entity->getParagraphType();
-        if ($paragraphs_type && \Drupal::currentUser()->hasPermission('edit behavior plugin settings')) {
+        if ($paragraphs_type && \Drupal::currentUser()->hasPermission('edit behavior plugin settings') && (!$this->isTranslating || !$hide_untranslatable_fields)) {
           $element['behavior_plugins']['#weight'] = -99;
           foreach ($paragraphs_type->getEnabledBehaviorPlugins() as $plugin_id => $plugin) {
             $element['behavior_plugins'][$plugin_id] = [
               '#type' => 'container',
               '#group' => implode('][', array_merge($element_parents, ['paragraph_behavior'])),
+              '#parents' => array_merge(array_slice($element_parents, 0, -1), ['behavior_plugins', $plugin_id]),
             ];
             $subform_state = SubformState::createForSubform($element['behavior_plugins'][$plugin_id], $form, $form_state);
             if ($plugin_form = $plugin->buildBehaviorForm($paragraphs_entity, $element['behavior_plugins'][$plugin_id], $subform_state)) {
@@ -746,20 +873,32 @@ class ParagraphsWidget extends WidgetBase {
         else {
           // The closed paragraph is displayed as a summary.
           if ($paragraphs_entity) {
-            $summary = $paragraphs_entity->getSummary();
+            $summary = $paragraphs_entity->getSummaryItems();
             if (!empty($summary)) {
               $element['top']['summary']['fields_info'] = [
-                '#markup' => $summary,
-                '#prefix' => '<div class="paragraphs-collapsed-description">',
-                '#suffix' => '</div>',
-                '#access' => $paragraphs_entity->access('view'),
+                '#theme' => 'paragraphs_summary',
+                '#summary' => $summary,
+                '#expanded' => FALSE,
+                '#access' => $paragraphs_entity->access('update') || $paragraphs_entity->access('view'),
               ];
             }
+
+            $info = array_merge($info, $paragraphs_entity->getIcons());
           }
         }
       }
       else {
         $element['subform'] = array();
+      }
+
+      // If we have any info items lets add them to the top section.
+      if (!empty($info)) {
+        foreach ($info as $info_item) {
+          if (!isset($info_item['#access']) || $info_item['#access']) {
+            $element['top']['icons']['items'] = $info;
+            break;
+          }
+        }
       }
 
       $element['subform']['#attributes']['class'][] = 'paragraphs-subform';
@@ -774,6 +913,7 @@ class ParagraphsWidget extends WidgetBase {
       $widget_state['paragraphs'][$delta]['mode'] = $item_mode;
       $widget_state['closed_mode'] = $closed_mode_setting;
       $widget_state['autocollapse'] = $autocollapse_setting;
+      $widget_state['autocollapse_default'] = $this->getSetting('autocollapse');
 
       static::setWidgetState($parents, $field_name, $form_state, $widget_state);
     }
@@ -802,7 +942,7 @@ class ParagraphsWidget extends WidgetBase {
           'first-button',
         ],
       ],
-      '#access' => !$this->isTranslating,
+      '#access' => $this->allowReferenceChanges(),
       '#weight' => -2000,
     ];
 
@@ -812,13 +952,19 @@ class ParagraphsWidget extends WidgetBase {
       '#name' => 'button_add_modal',
       '#attributes' => [
         'class' => [
+          'field-add-more-submit',
           'paragraph-type-add-modal-button',
           'js-show',
+          'button--small',
         ],
       ],
     ];
 
     $element['#attached']['library'][] = 'paragraphs/drupal.paragraphs.modal';
+    if ($this->isFeatureEnabled('add_above')) {
+      $element['#attached']['library'][] = 'paragraphs/drupal.paragraphs.add_above_button';
+    }
+
   }
 
   /**
@@ -847,7 +993,7 @@ class ParagraphsWidget extends WidgetBase {
       $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo($field_definition ? $field_definition->getSetting('target_type') : $this->fieldDefinition->getSetting('target_type'));
       $weight = 0;
       foreach ($bundles as $machine_name => $bundle) {
-        if (!count($this->getSelectionHandlerSetting('target_bundles'))
+        if (empty($this->getSelectionHandlerSetting('target_bundles'))
           || in_array($machine_name, $this->getSelectionHandlerSetting('target_bundles'))) {
 
           $return_bundles[$machine_name] = array(
@@ -859,7 +1005,6 @@ class ParagraphsWidget extends WidgetBase {
         }
       }
     }
-
 
     return $return_bundles;
   }
@@ -884,9 +1029,12 @@ class ParagraphsWidget extends WidgetBase {
       if ($default_type) {
         // Place the default paragraph.
         $target_type = $this->getFieldSetting('target_type');
+
+        /** @var \Drupal\paragraphs\ParagraphInterface $paragraphs_entity */
         $paragraphs_entity = $entity_type_manager->getStorage($target_type)->create([
           'type' => $default_type,
         ]);
+        $paragraphs_entity->setParentEntity($items->getEntity(), $field_name);
         $field_state['selected_bundle'] = $default_type;
         $display = EntityFormDisplay::collectRenderDisplay($paragraphs_entity, $this->getSetting('form_display_mode'));
         $field_state['paragraphs'][0] = [
@@ -904,19 +1052,19 @@ class ParagraphsWidget extends WidgetBase {
     $is_multiple = $this->fieldDefinition->getFieldStorageDefinition()->isMultiple();
 
     $field_title = $this->fieldDefinition->getLabel();
-    $description = FieldFilteredMarkup::create(\Drupal::token()->replace($this->fieldDefinition->getDescription()));
+    $description = FieldFilteredMarkup::create(\Drupal::token()->replace($this->fieldDefinition->getDescription() ?? ''));
 
     $elements = array();
     $tabs = '';
     $this->fieldIdPrefix = implode('-', array_merge($this->fieldParents, array($field_name)));
-    $this->fieldWrapperId = Html::getUniqueId($this->fieldIdPrefix . '-add-more-wrapper');
+    $this->fieldWrapperId = Html::getId($this->fieldIdPrefix . '-add-more-wrapper');
 
     // If the parent entity is paragraph add the nested class if not then add
     // the perspective tabs.
     $field_prefix = strtr($this->fieldIdPrefix, '_', '-');
     if (count($this->fieldParents) == 0) {
       if ($items->getEntity()->getEntityTypeId() != 'paragraph') {
-        $tabs = '<ul class="paragraphs-tabs tabs primary clearfix"><li id="content" class="tabs__tab"><a href="#' . $field_prefix . '-values">Content</a></li><li id="behavior" class="tabs__tab"><a href="#' . $field_prefix . '-values">Behavior</a></li></ul>';
+        $tabs = '<ul class="paragraphs-tabs tabs primary tabs--secondary paragraphs-tabs-hide clearfix"><li class="tabs__tab paragraphs_content_tab"><a href="#' . $field_prefix . '-values" class="tabs__link">' . $this->t('Content', [], ['context' => 'paragraphs']) . '</a></li><li class="tabs__tab paragraphs_behavior_tab"><a href="#' . $field_prefix . '-values" class="tabs__link">' . $this->t('Behavior', [], ['context' => 'paragraphs']) . '</a></li></ul>';
       }
     }
     if (count($this->fieldParents) > 0) {
@@ -931,19 +1079,23 @@ class ParagraphsWidget extends WidgetBase {
     // Persist the widget state so formElement() can access it.
     static::setWidgetState($this->fieldParents, $field_name, $form_state, $field_state);
 
-    $header_actions = $this->buildHeaderActions($field_state, $form_state);
-    if ($header_actions) {
-      $elements['header_actions'] = $header_actions;
-      // Add a weight element so we guaranty that header actions will stay in
-      // first row. We will use this later in
-      // paragraphs_preprocess_field_multiple_value_form().
-      $elements['header_actions']['_weight'] = [
-        '#type' => 'weight',
-        '#default_value' => -100,
-      ];
-    }
-
     if (!empty($field_state['dragdrop'])) {
+      $elements['header_actions']['actions']['complete_button'] = $this->expandButton([
+        '#type' => 'submit',
+        '#name' => $this->fieldIdPrefix . '_dragdrop_mode',
+        '#value' => $this->t('Complete drag & drop'),
+        '#attributes' => ['class' => ['field-dragdrop-mode-submit']],
+        '#submit' => [[get_class($this), 'dragDropModeSubmit']],
+        '#ajax' => [
+          'callback' => [get_class($this), 'dragDropModeAjax'],
+          'wrapper' => $this->fieldWrapperId,
+        ],
+        '#limit_validation_errors' => [
+          array_merge($this->fieldParents, [$field_name]),
+        ],
+        '#button_type' => 'primary',
+      ]);
+
       $elements['#attached']['library'][] = 'paragraphs/paragraphs-dragdrop';
       //$elements['dragdrop_mode']['#button_type'] = 'primary';
       $elements['dragdrop'] = $this->buildNestedParagraphsFoDragDrop($form_state, NULL, []);
@@ -1008,54 +1160,67 @@ class ParagraphsWidget extends WidgetBase {
       '#max_delta' => $max - 1,
     ];
 
-    if ($this->realItemCount > 0) {
-      $elements += array(
-        '#theme' => 'field_multiple_value_form',
-        '#cardinality_multiple' => $is_multiple,
-        '#title' => $field_title,
-        '#description' => $description,
-      );
-
-    }
-    else {
-      $classes = $this->fieldDefinition->isRequired() ? ['form-required'] : [];
-      $elements += [
-        '#type' => 'container',
-        '#theme_wrappers' => ['container'],
-        '#cardinality_multiple' => TRUE,
-        'title' => [
-          '#type' => 'html_tag',
-          '#tag' => 'strong',
-          '#value' => $field_title,
-          '#attributes' => ['class' => $classes],
-        ],
-        'text' => [
-          '#type' => 'container',
-          'value' => [
-            '#markup' => $this->t('No @title added yet.', ['@title' => $this->getSetting('title')]),
-            '#prefix' => '<em>',
-            '#suffix' => '</em>',
-          ]
-        ],
-      ];
-
-      if ($description) {
-        $elements['description'] = [
-          '#type' => 'container',
-          'value' => ['#markup' => $description],
-          '#attributes' => ['class' => ['description']],
-        ];
-      }
-    }
+    $elements += [
+      '#theme' => 'field_multiple_value_form',
+      '#field_name' => $field_name,
+      '#cardinality' => $cardinality,
+      '#cardinality_multiple' => TRUE,
+      '#required' => $this->fieldDefinition->isRequired(),
+      '#title' => $field_title,
+      '#description' => $description,
+      '#max_delta' => $max - 1,
+    ];
 
     $host = $items->getEntity();
     $this->initIsTranslating($form_state, $host);
-
-    if (($this->realItemCount < $cardinality || $cardinality == FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED) && !$form_state->isProgrammed() && !$this->isTranslating) {
-      $elements['add_more'] = $this->buildAddActions();
+    if (!$form_state->has('langcode')) {
+      // Entity forms usually have the langcode set, but it's not guaranteed.
+      // Any form object can embed entities with their field widgets.
+      // At this point, without knowing the langcode from the form state,
+      // it's not certain which language is chosen. Remember the host entity,
+      // to get the langcode at a stage when the chosen value is more certain.
+      $elements['#host'] = $host;
     }
 
+    $header_actions = $this->buildHeaderActions($field_state, $form_state);
+    if ($header_actions) {
+      $elements['header_actions'] = $header_actions;
+      // Add a weight element so we guaranty that header actions will stay in
+      // first row. We will use this later in
+      // paragraphs_preprocess_field_multiple_value_form().
+      $elements['header_actions']['_weight'] = [
+        '#type' => 'weight',
+        '#default_value' => -100,
+      ];
+    }
+
+    if (($this->realItemCount < $cardinality || $cardinality == FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED) && !$form_state->isProgrammed() && $this->allowReferenceChanges()) {
+      $elements['add_more'] = $this->buildAddActions();
+      // Add the class to hide the add actions in the Behavior perspective.
+      $elements['add_more']['#attributes']['class'][] = 'paragraphs-add-wrapper';
+
+      // Hidden field is provided for additional integrations, where also
+      // position of addition can be specified. It should be used by sub-modules
+      // or other paragraphs integration. CSS class is used to support easier
+      // element selecting in JavaScript.
+      $elements['add_more']['add_more_delta'] = [
+        '#type' => 'hidden',
+        '#attributes' => [
+          'class' => [
+            'paragraph-type-add-delta',
+            $this->getSetting('add_mode')
+          ],
+        ],
+      ];
+    }
+
+    $elements['#allow_reference_changes'] = $this->allowReferenceChanges();
+    $elements['#paragraphs_widget'] = TRUE;
     $elements['#attached']['library'][] = 'paragraphs/drupal.paragraphs.widget';
+
+    if (\Drupal::theme()->getActiveTheme()->getName() == 'seven') {
+      $elements['#attached']['library'][] = 'paragraphs/paragraphs.seven';
+    }
 
     return $elements;
   }
@@ -1073,7 +1238,13 @@ class ParagraphsWidget extends WidgetBase {
       return ['#markup' => $this->t('No widget available for: %label.', ['%label' => $items->getFieldDefinition()->getLabel()])];
     }
 
-    return parent::form($items, $form, $form_state, $get_delta);
+    $elements = parent::form($items, $form, $form_state, $get_delta);
+
+    // Signal to content_translation that this field should be treated as
+    // multilingual and not be hidden, see
+    // \Drupal\content_translation\ContentTranslationHandler::entityFormSharedElements().
+    $elements['#multilingual'] = TRUE;
+    return $elements;
   }
 
   /**
@@ -1170,18 +1341,18 @@ class ParagraphsWidget extends WidgetBase {
     foreach ($field_definitions as $child_field_name => $field_definition) {
       $child_path = implode('][', array_merge($array_parents, [$child_field_name]));
       $cardinality = $field_definition->getFieldStorageDefinition()->getCardinality();
-      $allowed_types = implode(array_keys($this->getAllowedTypes($field_definition)), ',');
+      $allowed_types = implode(',', array_keys($this->getAllowedTypes($field_definition)));
       $elements[$child_field_name] = [
         '#type' => 'container',
         '#attributes' => ['class' => ['paragraphs-dragdrop-wrapper']],
       ];
 
       // Only show a field label if there is more than one paragraph field.
-      $label = count($field_definitions) > 1 || !$paragraph ? '<label><strong>' . $field_definition->getLabel() . '</strong></label>' : '';
+      $label = count($field_definitions) > 1 || !$paragraph ? '<label><strong class="paragraphs-dragdrop__label paragraphs-dragdrop__label--field">' . $field_definition->getLabel() . '</strong></label>' : '';
 
       $elements[$child_field_name]['list'] = [
         '#type' => 'markup',
-        '#prefix' => $label . '<ul class="paragraphs-dragdrop" data-paragraphs-dragdrop-cardinality="' . $cardinality . '" data-paragraphs-dragdrop-allowed-types="' . $allowed_types . '" data-paragraphs-dragdrop-path="' . $child_path . '">',
+        '#prefix' => $label . '<ul class="paragraphs-dragdrop__list" data-paragraphs-dragdrop-cardinality="' . $cardinality . '" data-paragraphs-dragdrop-allowed-types="' . $allowed_types . '" data-paragraphs-dragdrop-path="' . $child_path . '">',
         '#suffix' => '</ul>',
       ];
 
@@ -1193,7 +1364,7 @@ class ParagraphsWidget extends WidgetBase {
           '#attributes' => ['class' => ['paragraphs-summary-wrapper']],
         ];
         $element['top']['paragraph_summary']['type'] = [
-          '#markup' => '<strong>' . $child_paragraph->getParagraphType()->label() . '</strong>',
+          '#markup' => '<strong class="paragraphs-dragdrop__label paragraphs-dragdrop__label--bundle">' . $child_paragraph->getParagraphType()->label() . '</strong>',
         ];
 
         // We name the element '_weight' to avoid clashing with elements
@@ -1218,7 +1389,7 @@ class ParagraphsWidget extends WidgetBase {
 
         $summary_options = [];
 
-        $element['#prefix'] = '<li data-paragraphs-dragdrop-bundle="' . $child_paragraph->bundle() . '"><a href="#" class="tabledrag-handle"><div class="handle">&nbsp;</div></a>';
+        $element['#prefix'] = '<li class="paragraphs-dragdrop__item" data-paragraphs-dragdrop-bundle="' . $child_paragraph->bundle() . '"><a href="#" class="paragraphs-dragdrop__handle"><span class="paragraphs-dragdrop__icon"></span></a>';
         $element['#suffix'] = '</li>';
         $child_array_parents = array_merge($array_parents,  [$child_field_name, $child_delta]);
 
@@ -1227,14 +1398,20 @@ class ParagraphsWidget extends WidgetBase {
 
           // Set the depth limit to 0 to avoid displaying a summary for the
           // children.
-          $summary_options['depth_limit'] = 0;
+          $summary_options['depth_limit'] = 1;
         }
 
         $element['top']['summary']['fields_info'] = [
-          '#markup' => $child_paragraph->getSummary($summary_options),
-          '#prefix' => '<div class="paragraphs-collapsed-description">',
-          '#suffix' => '</div>',
+          '#theme' => 'paragraphs_summary',
+          '#summary' => $child_paragraph->getSummaryItems($summary_options),
+          '#expanded' => FALSE,
+          '#access' => $child_paragraph->access('update') || $child_paragraph->access('view'),
         ];
+
+        $info = $child_paragraph->getIcons();
+        if (isset($info['count'])) {
+          $element['top']['icons']['count'] = $info['count'];
+        }
 
         $elements[$child_field_name]['list'][$child_delta] = $element;
       }
@@ -1251,10 +1428,10 @@ class ParagraphsWidget extends WidgetBase {
   protected function buildAddActions() {
     if (count($this->getAccessibleOptions()) === 0) {
       if (count($this->getAllowedTypes()) === 0) {
-        $add_more_elements['info'] = $this->createMessage($this->t('You are not allowed to add any of the @title types.', ['@title' => $this->getSetting('title')]));
+        $add_more_elements['icons'] = $this->createMessage($this->t('You are not allowed to add any of the @title types.', ['@title' => $this->getSetting('title')]));
       }
       else {
-        $add_more_elements['info'] = $this->createMessage($this->t('You did not add any @title types yet.', ['@title' => $this->getSetting('title')]));
+        $add_more_elements['icons'] = $this->createMessage($this->t('You did not add any @title types yet.', ['@title' => $this->getSetting('title')]));
       }
 
       return $add_more_elements;
@@ -1278,6 +1455,8 @@ class ParagraphsWidget extends WidgetBase {
       return $this->accessOptions;
     }
 
+    $this->accessOptions = [];
+
     $entity_type_manager = \Drupal::entityTypeManager();
     $target_type = $this->getFieldSetting('target_type');
     $bundles = $this->getAllowedTypes();
@@ -1285,7 +1464,7 @@ class ParagraphsWidget extends WidgetBase {
     $dragdrop_settings = $this->getSelectionHandlerSetting('target_bundles_drag_drop');
 
     foreach ($bundles as $machine_name => $bundle) {
-      if ($dragdrop_settings || (!count($this->getSelectionHandlerSetting('target_bundles'))
+      if ($dragdrop_settings || (empty($this->getSelectionHandlerSetting('target_bundles'))
           || in_array($machine_name, $this->getSelectionHandlerSetting('target_bundles')))) {
         if ($access_control_handler->createAccess($machine_name)) {
           $this->accessOptions[$machine_name] = $bundle['label'];
@@ -1422,6 +1601,7 @@ class ParagraphsWidget extends WidgetBase {
       // Even though operations are run through the "links" element type, the
       // theme system will render any render array passed as a link "title".
       '#links' => $operations,
+      '#dropbutton_type' => 'small',
     ];
 
     return $build + $elements;
@@ -1438,15 +1618,13 @@ class ParagraphsWidget extends WidgetBase {
     $add_mode = $this->getSetting('add_mode');
     $paragraphs_type_storage = \Drupal::entityTypeManager()->getStorage('paragraphs_type');
 
-    // Build the buttons.
-    $add_more_elements = [];
     foreach ($options as $machine_name => $label) {
       $button_key = 'add_more_button_' . $machine_name;
       $add_more_elements[$button_key] = $this->expandButton([
         '#type' => 'submit',
         '#name' => $this->fieldIdPrefix . '_' . $machine_name . '_add_more',
         '#value' => $add_mode == 'modal' ? $label : $this->t('Add @type', ['@type' => $label]),
-        '#attributes' => ['class' => ['field-add-more-submit']],
+        '#attributes' => ['class' => ['field-add-more-submit', 'button--small']],
         '#limit_validation_errors' => [array_merge($this->fieldParents, [$this->fieldDefinition->getName(), 'add_more'])],
         '#submit' => [[get_class($this), 'addMoreSubmit']],
         '#ajax' => [
@@ -1461,15 +1639,21 @@ class ParagraphsWidget extends WidgetBase {
       }
     }
 
-    // Determine if buttons should be rendered as dropbuttons.
-    if (count($options) > 1 && $add_mode == 'dropdown') {
-      $add_more_elements = $this->buildDropbutton($add_more_elements);
+    // Define the way how buttons are rendered and add them to a container.
+    if ($add_mode == 'dropdown') {
+      if (count($add_more_elements) > 1) {
+        $add_more_elements = $this->buildDropbutton($add_more_elements);
+      }
+      else {
+        $add_more_elements['#attributes']['class'][] = 'paragraphs-dropbutton-wrapper';
+      }
       $add_more_elements['#suffix'] = $this->t('to %type', ['%type' => $this->fieldDefinition->getLabel()]);
     }
     elseif ($add_mode == 'modal') {
       $this->buildModalAddForm($add_more_elements);
-      $add_more_elements['add_modal_form_area']['#suffix'] = $this->t('to %type', ['%type' => $this->fieldDefinition->getLabel()]);
+      $add_more_elements['add_modal_form_area']['#suffix'] = '<span class="paragraphs-add-suffix">' . $this->t('to %type', ['%type' => $this->fieldDefinition->getLabel()]) . '</span>';
     }
+    $add_more_elements['#type'] = 'container';
     $add_more_elements['#weight'] = 1;
 
     return $add_more_elements;
@@ -1485,12 +1669,24 @@ class ParagraphsWidget extends WidgetBase {
     $field_name = $this->fieldDefinition->getName();
     $field_title = $this->fieldDefinition->getLabel();
     $setting_title = $this->getSetting('title');
+    $select_options = $this->getAccessibleOptions();
+
+    $add_more_elements = [
+      '#type' => 'container',
+    ];
+
     $add_more_elements['add_more_select'] = [
       '#type' => 'select',
-      '#options' => $this->getAccessibleOptions(),
+      '#options' => $select_options,
       '#title' => $this->t('@title type', ['@title' => $setting_title]),
       '#label_display' => 'hidden',
     ];
+
+    // Do not present the select element if only one option is available.
+    if (count($select_options) === 1) {
+      $add_more_elements['add_more_select']['#type'] = 'value';
+      $add_more_elements['add_more_select']['#value'] = key($select_options);
+    }
 
     $text = $this->t('Add @title', ['@title' => $setting_title]);
 
@@ -1517,6 +1713,25 @@ class ParagraphsWidget extends WidgetBase {
   }
 
   /**
+   * Gets current language code from the form state or item.
+   *
+   * Since the paragraph field is not set as translatable, the item language
+   * code is set to the source language. The intended translation language
+   * is only accessibly through the form state.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param \Drupal\Core\Field\FieldItemListInterface $items
+   *   The field item list.
+   *
+   * @return string
+   *   The language code.
+   */
+  protected function getCurrentLangcode(FormStateInterface $form_state, FieldItemListInterface $items) {
+    return $form_state->has('langcode') ? $form_state->get('langcode') : $items->getEntity()->language()->getId();
+  }
+
+  /**
    * {@inheritdoc}
    */
   public static function addMoreAjax(array $form, FormStateInterface $form_state) {
@@ -1527,6 +1742,13 @@ class ParagraphsWidget extends WidgetBase {
     $delta = $submit['element']['#max_delta'];
     $element[$delta]['#prefix'] = '<div class="ajax-new-content">' . (isset($element[$delta]['#prefix']) ? $element[$delta]['#prefix'] : '');
     $element[$delta]['#suffix'] = (isset($element[$delta]['#suffix']) ? $element[$delta]['#suffix'] : '') . '</div>';
+
+    // Clear the Add more delta.
+    NestedArray::setValue(
+      $element,
+      ['add_more', 'add_more_delta', '#value'],
+      ''
+    );
 
     return $element;
   }
@@ -1547,13 +1769,71 @@ class ParagraphsWidget extends WidgetBase {
   }
 
   /**
+   * Prepares the widget state to add a new paragraph at a specific position.
+   *
+   * In addition to the widget state change, also user input could be modified
+   * to handle adding of a new paragraph at a specific position between existing
+   * paragraphs.
+   *
+   * @param array $widget_state
+   *   Widget state as reference, so that it can be updated.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   Form state.
+   * @param array $field_path
+   *   Path to paragraph field.
+   * @param int|mixed $new_delta
+   *   Delta position in list of paragraphs, where new paragraph will be added.
+   */
+  protected static function prepareDeltaPosition(array &$widget_state, FormStateInterface $form_state, array $field_path, $new_delta) {
+    // Increase number of items to create place for new paragraph.
+    $widget_state['items_count']++;
+
+    // Default behavior is adding to end of list and in case delta is not
+    // provided or already at end, we can skip all other steps.
+    if (!is_numeric($new_delta) || intval($new_delta) >= $widget_state['real_item_count']) {
+      return;
+    }
+
+    $widget_state['real_item_count']++;
+
+    // Limit delta between 0 and "number of items" in paragraphs widget.
+    $new_delta = max(intval($new_delta), 0);
+
+    // Change user input in order to create new delta position.
+    $user_input = NestedArray::getValue($form_state->getUserInput(), $field_path);
+
+    // Rearrange all original deltas to make one place for the new element.
+    $new_original_deltas = [];
+    foreach ($widget_state['original_deltas'] as $current_delta => $original_delta) {
+      $new_current_delta = $current_delta >= $new_delta ? $current_delta + 1 : $current_delta;
+
+      $new_original_deltas[$new_current_delta] = $original_delta;
+      $user_input[$original_delta]['_weight'] = $new_current_delta;
+    }
+
+    // Add information into delta mapping for the new element.
+    $original_deltas_size = count($widget_state['original_deltas'] ?? []);
+    $new_original_deltas[$new_delta] = $original_deltas_size;
+    $user_input[$original_deltas_size]['_weight'] = $new_delta;
+
+    $widget_state['original_deltas'] = $new_original_deltas;
+    NestedArray::setValue($form_state->getUserInput(), $field_path, $user_input);
+  }
+
+  /**
    * {@inheritdoc}
    */
   public static function addMoreSubmit(array $form, FormStateInterface $form_state) {
     $submit = ParagraphsWidget::getSubmitElementInfo($form, $form_state);
 
     if ($submit['widget_state']['real_item_count'] < $submit['element']['#cardinality'] || $submit['element']['#cardinality'] == FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED) {
-      $submit['widget_state']['items_count']++;
+      $field_path = array_merge($submit['element']['#field_parents'], [$submit['element']['#field_name']]);
+      $add_more_delta = NestedArray::getValue(
+        $submit['element'],
+        ['add_more', 'add_more_delta', '#value']
+      );
+
+      static::prepareDeltaPosition($submit['widget_state'], $form_state, $field_path, $add_more_delta);
     }
 
     if (isset($submit['button']['#bundle_machine_name'])) {
@@ -1579,33 +1859,16 @@ class ParagraphsWidget extends WidgetBase {
     $element = NestedArray::getValue($form, array_slice($button['#array_parents'], 0, -5));
     $field_name = $element['#field_name'];
     $parents = $element['#field_parents'];
+    $filed_path = array_slice($button['#parents'], 0, -5);
 
     // Inserting new element in the array.
     $widget_state = static::getWidgetState($parents, $field_name, $form_state);
 
     // Map the button delta to the actual delta.
     $original_button_delta = $button['#delta'];
-    $current_button_delta = array_search($button['#delta'], $widget_state['original_deltas']);
+    $position = array_search($button['#delta'], $widget_state['original_deltas']) + 1;
+    static::prepareDeltaPosition($widget_state, $form_state, $filed_path, $position);
 
-    $widget_state['items_count']++;
-    $widget_state['real_item_count']++;
-
-    // Initialize the new original delta map with the new entry.
-    $new_original_deltas = [
-      $current_button_delta + 1 => count($widget_state['original_deltas']),
-    ];
-
-    $user_input = NestedArray::getValue($form_state->getUserInput(), array_slice($button['#parents'], 0, -5));
-    $user_input[count($widget_state['original_deltas'])]['_weight'] = $current_button_delta + 1;
-
-    // Increase all original deltas bigger than the delta of the duplicated
-    // element by one.
-    foreach ($widget_state['original_deltas'] as $current_delta => $original_delta) {
-      $new_delta = $current_delta > $current_button_delta ? $current_delta + 1 : $current_delta;
-      $new_original_deltas[$new_delta] = $original_delta;
-      $user_input[$original_delta]['_weight'] = $new_delta;
-    }
-    $widget_state['original_deltas'] = $new_original_deltas;
     /** @var \Drupal\Core\Entity\EntityInterface $entity */
     $entity = $widget_state['paragraphs'][$original_button_delta]['entity'];
 
@@ -1613,7 +1876,7 @@ class ParagraphsWidget extends WidgetBase {
 
     // Check if the replicate module is enabled.
     if (\Drupal::hasService('replicate.replicator')) {
-      $duplicate_entity = \Drupal::getContainer()->get('replicate.replicator')->replicateEntity($entity);
+      $duplicate_entity = \Drupal::getContainer()->get('replicate.replicator')->cloneEntity($entity);
     }
     else {
       $duplicate_entity = $entity->createDuplicate();
@@ -1625,7 +1888,6 @@ class ParagraphsWidget extends WidgetBase {
       'mode' => 'edit',
     ];
 
-    NestedArray::setValue($form_state->getUserInput(), array_slice($button['#parents'], 0, -5), $user_input);
     static::setWidgetState($parents, $field_name, $form_state, $widget_state);
     $form_state->setRebuild();
   }
@@ -1792,15 +2054,18 @@ class ParagraphsWidget extends WidgetBase {
 
           NestedArray::setValue($new_field_storage, $new_keys, $item_state);
           if (isset($item_values['dragdrop'])) {
-            $reorder_paragraphs(
-              $item_values['dragdrop'], array_merge(
-              $parents, [
-                $field_name,
-                $delta,
-                'subform'
-              ]
-            ), $item_state['entity']
-            );
+
+            // If there is no field storage yet for the new position, initialize
+            // it to an empty array in case all paragraphs have been moved away
+            // from it.
+            foreach (array_keys($item_values['dragdrop']) as $sub_field_name) {
+              $new_widget_state_keys = array_merge($parents, [$field_name, $item_values['_weight'] ,'subform', '#fields', $sub_field_name]);
+              if (!NestedArray::getValue($new_field_storage, $new_widget_state_keys)) {
+                NestedArray::setValue($new_field_storage, $new_widget_state_keys, ['paragraphs' => []]);
+              }
+            }
+
+            $reorder_paragraphs($item_values['dragdrop'], array_merge($parents, [$field_name, $delta, 'subform']), $item_state['entity']);
           }
         }
       }
@@ -1909,14 +2174,15 @@ class ParagraphsWidget extends WidgetBase {
       if ($widget_state['paragraphs'][$delta]['mode'] == 'edit') {
         // Extract the form values on submit for getting the current paragraph.
         $display->extractFormValues($entity, $element['subform'], $form_state);
-        $display->validateFormValues($entity, $element['subform'], $form_state);
 
         // Validate all enabled behavior plugins.
         $paragraphs_type = $entity->getParagraphType();
         if (\Drupal::currentUser()->hasPermission('edit behavior plugin settings')) {
           foreach ($paragraphs_type->getEnabledBehaviorPlugins() as $plugin_id => $plugin_values) {
-            $subform_state = SubformState::createForSubform($element['behavior_plugins'][$plugin_id], $form_state->getCompleteForm(), $form_state);
-            $plugin_values->validateBehaviorForm($entity, $element['behavior_plugins'][$plugin_id], $subform_state);
+            if (!empty($element['behavior_plugins'][$plugin_id])) {
+              $subform_state = SubformState::createForSubform($element['behavior_plugins'][$plugin_id], $form_state->getCompleteForm(), $form_state);
+              $plugin_values->validateBehaviorForm($entity, $element['behavior_plugins'][$plugin_id], $subform_state);
+            }
           }
         }
       }
@@ -1949,6 +2215,19 @@ class ParagraphsWidget extends WidgetBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function errorElement(array $element, ConstraintViolationInterface $error, array $form, FormStateInterface $form_state) {
+    // Validation errors might be a about a specific (behavior) form element
+    // attempt to find a matching element.
+    if (!empty($error->arrayPropertyPath) && $sub_element = NestedArray::getValue($element, $error->arrayPropertyPath)) {
+      return $sub_element;
+    }
+    return $element;
+  }
+
+
+  /**
    * Special handling to validate form elements with multiple values.
    *
    * @param array $elements
@@ -1964,7 +2243,7 @@ class ParagraphsWidget extends WidgetBase {
     $widget_state = static::getWidgetState($elements['#field_parents'], $field_name, $form_state);
 
     if ($elements['#required'] && $widget_state['real_item_count'] < 1) {
-      $form_state->setError($elements, t('@name field is required.', ['@name' => $this->fieldDefinition->getLabel()]));
+      $form_state->setError($elements, $this->t('@name field is required.', ['@name' => $this->fieldDefinition->getLabel()]));
     }
 
     static::setWidgetState($elements['#field_parents'], $field_name, $form_state, $widget_state);
@@ -1993,7 +2272,7 @@ class ParagraphsWidget extends WidgetBase {
       return $values;
     }
 
-    foreach ($values as $delta => &$item) {
+    foreach ($values as &$item) {
       if (isset($widget_state['paragraphs'][$item['_original_delta']]['entity'])
         && $widget_state['paragraphs'][$item['_original_delta']]['mode'] != 'remove') {
         /** @var \Drupal\paragraphs\ParagraphInterface $paragraphs_entity */
@@ -2007,14 +2286,20 @@ class ParagraphsWidget extends WidgetBase {
         // A content entity form saves without any rebuild. It needs to set the
         // language to update it in case of language change.
         $langcode_key = $paragraphs_entity->getEntityType()->getKey('langcode');
-        if ($paragraphs_entity->get($langcode_key)->value != $form_state->get('langcode')) {
+        $langcode = $form_state->get('langcode');
+        if (!isset($langcode) && isset($element['#host'])) {
+          // Use the host entity as a last resort to determine the langcode.
+          // @see self::formMultipleElements
+          $langcode = $element['#host']->language()->getId();
+        }
+        if ($paragraphs_entity->get($langcode_key)->value != $langcode) {
           // If a translation in the given language already exists, switch to
           // that. If there is none yet, update the language.
-          if ($paragraphs_entity->hasTranslation($form_state->get('langcode'))) {
-            $paragraphs_entity = $paragraphs_entity->getTranslation($form_state->get('langcode'));
+          if ($paragraphs_entity->hasTranslation($langcode)) {
+            $paragraphs_entity = $paragraphs_entity->getTranslation($langcode);
           }
           else {
-            $paragraphs_entity->set($langcode_key, $form_state->get('langcode'));
+            $paragraphs_entity->set($langcode_key, $langcode);
           }
         }
         if (isset($item['behavior_plugins'])) {
@@ -2030,6 +2315,33 @@ class ParagraphsWidget extends WidgetBase {
               if (isset($item['behavior_plugins'][$plugin_id])) {
                 $plugin_values->submitBehaviorForm($paragraphs_entity, $item['behavior_plugins'][$plugin_id], $subform_state);
               }
+            }
+          }
+        }
+
+        // We can only use the entity form display to display validation errors
+        // if it is in edit mode.
+        if (!$form_state->isValidationComplete() && $widget_state['paragraphs'][$item['_original_delta']]['mode'] === 'edit') {
+          $display->validateFormValues($paragraphs_entity, $element[$item['_original_delta']]['subform'], $form_state);
+        }
+        // Assume that the entity is being saved/previewed, in this case,
+        // validate even the closed paragraphs. If there are validation errors,
+        // add them on the parent level. Validation errors do not rebuild the
+        // form so it's not possible to auto-uncollapse the form at this point.
+        elseif (!$form_state->isValidationComplete() && $form_state->getLimitValidationErrors() === NULL) {
+          $violations = $paragraphs_entity->validate();
+          $violations->filterByFieldAccess();
+          if (!empty($violations)) {
+            /** @var \Symfony\Component\Validator\ConstraintViolationInterface $violation */
+            foreach ($violations as $violation) {
+
+              // Ignore text format related validation errors by ignoring
+              // the .format property.
+              if (substr($violation->getPropertyPath(), -7) === '.format') {
+                continue;
+              }
+
+              $form_state->setError($element[$item['_original_delta']], $this->t('Validation error on collapsed paragraph @path: @message', ['@path' => $violation->getPropertyPath(), '@message' => $violation->getMessage()]));
             }
           }
         }
@@ -2074,7 +2386,9 @@ class ParagraphsWidget extends WidgetBase {
   }
 
   /**
-   * Initializes the translation form state.
+   * Determine if widget is in translation.
+   *
+   * Initializes $this->isTranslating.
    *
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    * @param \Drupal\Core\Entity\ContentEntityInterface $host
@@ -2084,6 +2398,9 @@ class ParagraphsWidget extends WidgetBase {
       return;
     }
     $this->isTranslating = FALSE;
+
+    $this->initFormLangcodes($form_state, $host);
+
     if (!$host->isTranslatable()) {
       return;
     }
@@ -2095,48 +2412,58 @@ class ParagraphsWidget extends WidgetBase {
       return;
     }
 
+    // Supporting \Drupal\content_translation\Controller\ContentTranslationController.
     if (!empty($form_state->get('content_translation'))) {
-      // Adding a language through the ContentTranslationController.
+      // Adding a translation.
       $this->isTranslating = TRUE;
     }
-    if ($host->hasTranslation($form_state->get('langcode')) && $host->getTranslation($form_state->get('langcode'))->get($default_langcode_key)->value == 0) {
+    $langcode = $form_state->get('langcode');
+    if (isset($langcode) && $host->hasTranslation($langcode) && $host->getTranslation($langcode)->get($default_langcode_key)->value == 0) {
       // Editing a translation.
       $this->isTranslating = TRUE;
     }
   }
 
   /**
-   * After-build callback for removing the translatability clue from the widget.
+   * After-build callback for adding the translatability clue from the widget.
    *
-   * If the fields on the paragraph type are translatable,
-   * ContentTranslationHandler::addTranslatabilityClue()adds an
-   * "(all languages)" suffix to the widget title. That suffix is incorrect and
-   * is being removed by this method using a #after_build on the field widget.
+   * ContentTranslationHandler::addTranslatabilityClue() adds an
+   * "(all languages)" suffix to the widget title, replicate that here.
    *
    * @param array $element
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *
    * @return array
    */
-  public static function removeTranslatabilityClue(array $element, FormStateInterface $form_state) {
+  public static function addTranslatabilityClue(array $element, FormStateInterface $form_state) {
+    static $suffix, $fapi_title_elements;
+
     // Widgets could have multiple elements with their own titles, so remove the
     // suffix if it exists, do not recurse lower than this to avoid going into
     // nested paragraphs or similar nested field types.
-    $suffix = ' <span class="translation-entity-all-languages">(' . t('all languages') . ')</span>';
-    if (isset($element['#title']) && strpos($element['#title'], $suffix)) {
-      $element['#title'] = str_replace($suffix, '', $element['#title']);
+    // Elements which can have a #title attribute according to FAPI Reference.
+    if (!isset($suffix)) {
+      $suffix = ' <span class="translation-entity-all-languages">(' . t('all languages') . ')</span>';
+      $fapi_title_elements = array_flip(['checkbox', 'checkboxes', 'date', 'details', 'fieldset', 'file', 'item', 'password', 'password_confirm', 'radio', 'radios', 'select', 'textarea', 'textfield', 'weight']);
     }
-    // Loop over all widget deltas.
-    foreach (Element::children($element) as $delta) {
-      if (isset($element[$delta]['#title']) && strpos($element[$delta]['#title'], $suffix)) {
-        $element[$delta]['#title'] = str_replace($suffix, '', $element[$delta]['#title']);
+
+    // Update #title attribute for all elements that are allowed to have a
+    // #title attribute according to the Form API Reference. The reason for this
+    // check is because some elements have a #title attribute even though it is
+    // not rendered; for instance, field containers.
+    if (isset($element['#type']) && isset($fapi_title_elements[$element['#type']]) && isset($element['#title'])) {
+      $element['#title'] .= $suffix;
+    }
+    // If the current element does not have a (valid) title, try child elements.
+    elseif ($children = Element::children($element)) {
+      foreach ($children as $delta) {
+        $element[$delta] = static::addTranslatabilityClue($element[$delta], $form_state);
       }
-      // Loop over all form elements within the current delta.
-      foreach (Element::children($element[$delta]) as $field) {
-        if (isset($element[$delta][$field]['#title']) && strpos($element[$delta][$field]['#title'], $suffix)) {
-          $element[$delta][$field]['#title'] = str_replace($suffix, '', $element[$delta][$field]['#title']);
-        }
-      }
+    }
+    // If there are no children, fall back to the current #title attribute if it
+    // exists.
+    elseif (isset($element['#title'])) {
+      $element['#title'] .= $suffix;
     }
     return $element;
   }
@@ -2234,23 +2561,19 @@ class ParagraphsWidget extends WidgetBase {
    */
   public function buildHeaderActions(array $field_state, FormStateInterface $form_state) {
     $actions = [];
+    $field_name = $this->fieldDefinition->getName();
+    $id_prefix = implode('-', array_merge($this->fieldParents, [$field_name]));
+
     if (empty($this->fieldParents)) {
-      // Set actions.
-      $actions = [
-        '#type' => 'paragraphs_actions',
-      ];
-
-      $field_name = $this->fieldDefinition->getName();
-      $id_prefix = implode('-', array_merge($this->fieldParents, [$field_name]));
-
-      // Only show the dragdrop mode if we can find the sortable library.
+      // Only show the drag&drop mode if we have some items to actually drag
+      // around and can find the sortable library.
       $library_discovery = \Drupal::service('library.discovery');
       $library = $library_discovery->getLibraryByName('paragraphs', 'paragraphs-dragdrop');
-      if ($library || \Drupal::state()->get('paragraphs_test_dragdrop_force_show', FALSE)) {
-        $dragdrop_mode = $this->expandButton([
+      if ($this->realItemCount > 0 && ($library || \Drupal::state()->get('paragraphs_test_dragdrop_force_show', FALSE))) {
+        $actions['dropdown_actions']['dragdrop_mode'] = $this->expandButton([
           '#type' => 'submit',
           '#name' => $this->fieldIdPrefix . '_dragdrop_mode',
-          '#value' => !empty($field_state['dragdrop']) ? $this->t('Complete drag & drop') : $this->t('Drag & drop'),
+          '#value' => $this->t('Drag & drop'),
           '#attributes' => ['class' => ['field-dragdrop-mode-submit']],
           '#submit' => [[get_class($this), 'dragDropModeSubmit']],
           '#weight' => 8,
@@ -2258,77 +2581,75 @@ class ParagraphsWidget extends WidgetBase {
             'callback' => [get_class($this), 'dragDropModeAjax'],
             'wrapper' => $this->fieldWrapperId,
           ],
-        ]);
-
-        // Make the complete button a primary button, limit validation errors
-        // only for enabling drag and drop mode.
-        if (!empty($field_state['dragdrop'])) {
-          $dragdrop_mode['#button_type'] = 'primary';
-          $actions['actions']['dragdrop_mode'] = $dragdrop_mode;
-        }
-        else {
-          $dragdrop_mode['#limit_validation_errors'] = [
-            array_merge($this->fieldParents, [$field_name, 'dragdrop_mode']),
-          ];
-          $actions['dropdown_actions']['dragdrop_mode'] = $dragdrop_mode;
-        }
-      }
-
-      if ($this->realItemCount > 1 && empty($field_state['dragdrop'])) {
-
-        $collapse_all = $this->expandButton([
-          '#type' => 'submit',
-          '#value' => $this->t('Collapse all'),
-          '#submit' => [[get_class($this), 'changeAllEditModeSubmit']],
-          '#name' => $id_prefix . '_collapse_all',
-          '#paragraphs_mode' => 'closed',
           '#limit_validation_errors' => [
-            array_merge($this->fieldParents, [$field_name, 'collapse_all']),
+            array_merge($this->fieldParents, [$field_name, 'dragdrop_mode']),
           ],
-          '#ajax' => [
-            'callback' => [get_class($this), 'allActionsAjax'],
-            'wrapper' => $this->fieldWrapperId,
-          ],
-          '#weight' => -1,
-          '#paragraphs_show_warning' => TRUE,
+          '#access' => $this->allowReferenceChanges()
         ]);
+      }
+    }
 
-        $edit_all = $this->expandButton([
-          '#type' => 'submit',
-          '#value' => $this->t('Edit all'),
-          '#submit' => [[get_class($this), 'changeAllEditModeSubmit']],
-          '#name' => $id_prefix . '_edit-all',
-          '#paragraphs_mode' => 'edit',
-          '#limit_validation_errors' => [],
-          '#ajax' => [
-            'callback' => [get_class($this), 'allActionsAjax'],
-            'wrapper' => $this->fieldWrapperId,
-          ],
-        ]);
+    // Collapse & expand all.
+    if ($this->fieldDefinition->getType() == 'entity_reference_revisions' &&  $this->realItemCount > 1 && $this->isFeatureEnabled('collapse_edit_all')) {
+      $collapse_all = $this->expandButton([
+        '#type' => 'submit',
+        '#value' => $this->t('Collapse all'),
+        '#submit' => [[get_class($this), 'changeAllEditModeSubmit']],
+        '#name' => $id_prefix . '_collapse_all',
+        '#paragraphs_mode' => 'closed',
+        '#limit_validation_errors' => [
+          array_merge($this->fieldParents, [$field_name, 'collapse_all']),
+        ],
+        '#ajax' => [
+          'callback' => [get_class($this), 'allActionsAjax'],
+          'wrapper' => $this->fieldWrapperId,
+        ],
+        '#weight' => -1,
+        '#paragraphs_show_warning' => TRUE,
+      ]);
 
-        if (isset($field_state['paragraphs'][0]['mode']) && $field_state['paragraphs'][0]['mode'] === 'closed') {
-          $edit_all['#attributes'] = [
-            'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-edit'],
-            'title' => $this->t('Edit all'),
-          ];
-          $edit_all['#title'] = $this->t('Edit All');
-          $actions['actions']['edit_all'] = $edit_all;
-          $actions['dropdown_actions']['collapse_all'] = $collapse_all;
-        }
-        else {
-          $collapse_all['#attributes'] = [
-            'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-collapse'],
-            'title' => $this->t('Collapse all'),
-          ];
-          $actions['actions']['collapse_all'] = $collapse_all;
-          $actions['dropdown_actions']['edit_all'] = $edit_all;
-        }
+      $edit_all = $this->expandButton([
+        '#type' => 'submit',
+        '#value' => $this->t('Edit all'),
+        '#submit' => [[get_class($this), 'changeAllEditModeSubmit']],
+        '#name' => $id_prefix . '_edit-all',
+        '#paragraphs_mode' => 'edit',
+        '#limit_validation_errors' => [],
+        '#ajax' => [
+          'callback' => [get_class($this), 'allActionsAjax'],
+          'wrapper' => $this->fieldWrapperId,
+        ],
+      ]);
+
+      // Take the default edit mode if we don't have anything in state.
+      $mode = isset($field_state['paragraphs'][0]['mode']) ? $field_state['paragraphs'][0]['mode'] : $this->settings['edit_mode'];
+
+      // Depending on the state of the widget output close/edit all in the right
+      // order and with the right settings.
+      if ($mode === 'closed') {
+        $edit_all['#attributes'] = [
+          'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-edit', 'button--extrasmall'],
+          'title' => $this->t('Edit all'),
+        ];
+        $edit_all['#title'] = $this->t('Edit All');
+        $actions['actions']['edit_all'] = $edit_all;
+        $actions['dropdown_actions']['collapse_all'] = $collapse_all;
+      }
+      else {
+        $collapse_all['#attributes'] = [
+          'class' => ['paragraphs-icon-button', 'paragraphs-icon-button-collapse', 'button--extrasmall'],
+          'title' => $this->t('Collapse all'),
+        ];
+        $actions['actions']['collapse_all'] = $collapse_all;
+        $actions['dropdown_actions']['edit_all'] = $edit_all;
       }
     }
 
     // Add paragraphs_header flag which we use later in preprocessor to move
     // header actions to table header.
     if ($actions) {
+      // Set actions.
+      $actions['#type'] = 'paragraphs_actions';
       $actions['#paragraphs_header'] = TRUE;
     }
 
@@ -2356,12 +2677,13 @@ class ParagraphsWidget extends WidgetBase {
       }
     }
 
-    // Disable autocollapse when editing all and enable it when closing all.
-    if ($submit['button']['#paragraphs_mode'] === 'edit') {
-      $submit['widget_state']['autocollapse'] = 'none';
-    }
-    elseif ($submit['button']['#paragraphs_mode'] === 'closed') {
-      $submit['widget_state']['autocollapse'] = 'all';
+    if ($submit['widget_state']['autocollapse_default'] == 'all') {
+      if ($submit['button']['#paragraphs_mode'] === 'edit') {
+        $submit['widget_state']['autocollapse'] = 'none';
+      }
+      elseif ($submit['button']['#paragraphs_mode'] === 'closed') {
+        $submit['widget_state']['autocollapse'] = 'all';
+      }
     }
 
     static::setWidgetState($submit['parents'], $submit['field_name'], $form_state, $submit['widget_state']);
@@ -2387,6 +2709,93 @@ class ParagraphsWidget extends WidgetBase {
     }
 
     return $widget_state;
+  }
+
+  /**
+   * Checks if we can allow reference changes.
+   *
+   * @return bool
+   *   TRUE if we can allow reference changes, otherwise FALSE.
+   */
+  protected function allowReferenceChanges() {
+    return !$this->isTranslating;
+  }
+
+  /**
+   * Check remove button access.
+   *
+   * @param \Drupal\paragraphs\ParagraphInterface $paragraph
+   *   Paragraphs entity to check.
+   *
+   * @return bool
+   *   TRUE if we can remove paragraph, otherwise FALSE.
+   */
+  protected function removeButtonAccess(ParagraphInterface $paragraph) {
+    // Avoid checking delete access for new entities.
+    if (!$paragraph->isNew() && !$paragraph->access('delete')) {
+      return FALSE;
+    }
+
+    if (!$this->allowReferenceChanges()) {
+      return FALSE;
+    }
+
+    $field_required = $this->fieldDefinition->isRequired();
+    $allowed_types = $this->getAllowedTypes();
+    $cardinality = $this->fieldDefinition->getFieldStorageDefinition()->getCardinality();
+
+    // Hide the button if field is required, cardinality is one and just one
+    // paragraph type is allowed.
+    if ($field_required && $cardinality == 1 && (count($allowed_types) == 1)) {
+      return FALSE;
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Check duplicate button access.
+   *
+   * @param \Drupal\paragraphs\ParagraphInterface $paragraph
+   *   Paragraphs entity to check.
+   *
+   * @return bool
+   *   TRUE if we can duplicate the paragraph, otherwise FALSE.
+   */
+  protected function duplicateButtonAccess(ParagraphInterface $paragraph) {
+    if (!$this->isFeatureEnabled('duplicate')) {
+      return FALSE;
+    }
+
+    if (!$paragraph->access('update')) {
+      return FALSE;
+    }
+
+    if (!$this->allowReferenceChanges()) {
+      return FALSE;
+    }
+
+    $cardinality = $this->fieldDefinition->getFieldStorageDefinition()->getCardinality();
+
+    // Hide the button if field cardinality is reached.
+    return !($cardinality !== FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED && $this->realItemCount === $cardinality);
+  }
+
+  /**
+   * Checks if a widget feature is enabled or not.
+   *
+   * @param string $feature
+   *   Feature name to check.
+   *
+   * @return bool
+   *   TRUE if the feature is enabled, otherwise FALSE.
+   */
+  protected function isFeatureEnabled($feature) {
+    $features = $this->getSetting('features');
+    if (!empty($features[$feature])) {
+      return TRUE;
+    }
+    return FALSE;
   }
 
 }

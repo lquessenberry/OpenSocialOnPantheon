@@ -38,11 +38,9 @@ class SelectorsHandlerTest extends TestCase
         $this->assertTrue($handler->isSelectorRegistered('named_partial'));
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testXpathSelectorThrowsExceptionForArrayLocator()
     {
+        $this->expectException('InvalidArgumentException');
         $handler = new SelectorsHandler();
         $handler->selectorToXpath('xpath', array('some_xpath'));
     }
@@ -68,12 +66,7 @@ class SelectorsHandlerTest extends TestCase
 
         $this->assertEquals($ret, $handler->selectorToXpath('custom_selector', $locator));
 
-        if (method_exists($this, 'expectException')) {
-            $this->expectException('InvalidArgumentException');
-        } else {
-            // BC with PHPUnit 4 used for PHP 5.5 and older
-            $this->setExpectedException('InvalidArgumentException');
-        }
+        $this->expectException('InvalidArgumentException');
 
         $handler->selectorToXpath('undefined', 'asd');
     }

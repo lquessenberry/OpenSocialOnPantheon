@@ -7,6 +7,7 @@ use Drupal\Tests\rest\Functional\EntityResource\XmlEntityNormalizationQuirksTrai
 
 /**
  * @group rest
+ * @group legacy
  */
 class ItemXmlCookieTest extends ItemResourceTestBase {
 
@@ -27,5 +28,10 @@ class ItemXmlCookieTest extends ItemResourceTestBase {
    * {@inheritdoc}
    */
   protected static $auth = 'cookie';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
 }

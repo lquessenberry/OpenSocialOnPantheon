@@ -2,7 +2,7 @@
 
 namespace Drupal\layout_builder\Controller;
 
-use Drupal\Core\DependencyInjection\ClassResolverInterface;
+use Drupal\Core\Ajax\AjaxHelperTrait;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\layout_builder\LayoutTempstoreRepositoryInterface;
 use Drupal\layout_builder\Section;
@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
  * Defines a controller to add a new section.
  *
  * @internal
+ *   Controller classes are internal.
  */
 class AddSectionController implements ContainerInjectionInterface {
 
@@ -32,12 +33,9 @@ class AddSectionController implements ContainerInjectionInterface {
    *
    * @param \Drupal\layout_builder\LayoutTempstoreRepositoryInterface $layout_tempstore_repository
    *   The layout tempstore repository.
-   * @param \Drupal\Core\DependencyInjection\ClassResolverInterface $class_resolver
-   *   The class resolver.
    */
-  public function __construct(LayoutTempstoreRepositoryInterface $layout_tempstore_repository, ClassResolverInterface $class_resolver) {
+  public function __construct(LayoutTempstoreRepositoryInterface $layout_tempstore_repository) {
     $this->layoutTempstoreRepository = $layout_tempstore_repository;
-    $this->classResolver = $class_resolver;
   }
 
   /**
@@ -45,8 +43,7 @@ class AddSectionController implements ContainerInjectionInterface {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('layout_builder.tempstore_repository'),
-      $container->get('class_resolver')
+      $container->get('layout_builder.tempstore_repository')
     );
   }
 
@@ -63,7 +60,7 @@ class AddSectionController implements ContainerInjectionInterface {
    * @return \Symfony\Component\HttpFoundation\Response
    *   The controller response.
    */
-  public function build(SectionStorageInterface $section_storage, $delta, $plugin_id) {
+  public function build(SectionStorageInterface $section_storage, int $delta, $plugin_id) {
     $section_storage->insertSection($delta, new Section($plugin_id));
 
     $this->layoutTempstoreRepository->set($section_storage);

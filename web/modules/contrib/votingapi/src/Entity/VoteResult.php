@@ -15,7 +15,14 @@ use Drupal\votingapi\VoteResultInterface;
  *
  * @ContentEntityType(
  *   id = "vote_result",
- *   label = @Translation("Vote Result"),
+ *   label = @Translation("Vote result"),
+ *   label_collection = @Translation("Vote results"),
+ *   label_singular = @Translation("vote result"),
+ *   label_plural = @Translation("vote results"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count vote result",
+ *     plural = "@count vote results",
+ *   ),
  *   handlers = {
  *     "storage" = "Drupal\votingapi\VoteResultStorage",
  *     "access" = "Drupal\votingapi\VoteResultAccessControlHandler",
@@ -200,4 +207,5 @@ class VoteResult extends ContentEntityBase implements VoteResultInterface {
 
     return $fields;
   }
+
 }

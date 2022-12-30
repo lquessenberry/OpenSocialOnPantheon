@@ -6,15 +6,15 @@
  */
 
 use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\user\UserInterface;
-use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
-use Drupal\Core\Entity\Entity\EntityFormDisplay;
+use Drupal\profile\Plugin\Field\ProfileEntityFieldItemList;
+use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\profile\Entity\Profile;
 use Drupal\profile\Entity\ProfileType;
 use Drupal\field\FieldConfigInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -40,6 +40,32 @@ function profile_help($route_name, RouteMatchInterface $route_match) {
 }
 
 /**
+ * Implements hook_entity_bundle_info_alter().
+ */
+function profile_entity_bundle_info_alter(&$bundles) {
+  if (empty($bundles['profile'])) {
+    return;
+  }
+
+  $profile_type_ids = array_keys($bundles['profile']);
+  /** @var \Drupal\profile\Entity\ProfileTypeInterface[] $profile_types */
+  $profile_types = ProfileType::loadMultiple($profile_type_ids);
+  foreach ($bundles['profile'] as $bundle => $info) {
+    if (isset($profile_types[$bundle])) {
+      $profile_type = $profile_types[$bundle];
+      // Bundle info is loaded on most requests. Store the flags inside, so
+      // that modules can use them without needing to load the profile type.
+      if ($profile_type->allowsMultiple()) {
+        $bundles['profile'][$bundle]['multiple'] = TRUE;
+      }
+      if ($profile_type->showRevisionUi()) {
+        $bundles['profile'][$bundle]['revision_ui'] = TRUE;
+      }
+    }
+  }
+}
+
+/**
  * Implements hook_entity_field_access().
  */
 function profile_entity_field_access($operation, FieldDefinitionInterface $field_definition, AccountInterface $account, FieldItemListInterface $items = NULL) {
@@ -55,6 +81,21 @@ function profile_entity_field_access($operation, FieldDefinitionInterface $field
           return AccessResult::neutral();
         }
 
+        return AccessResult::forbiddenIf(!$account->hasPermission('administer profile'));
+      }
+    }
+  }
+  return AccessResult::neutral();
+}
+
+/**
+ * Implements hook_jsonapi_entity_field_filter_access().
+ */
+function profile_jsonapi_entity_field_filter_access(FieldDefinitionInterface $field_definition, AccountInterface $account) {
+  if ($field_definition->getTargetEntityTypeId() == 'profile') {
+    if ($field_definition instanceof FieldConfigInterface) {
+      $is_private = $field_definition->getThirdPartySetting('profile', 'profile_private', FALSE);
+      if ($is_private) {
         return AccessResult::forbiddenIf(!$account->hasPermission('administer profile'));
       }
     }
@@ -87,6 +128,7 @@ function template_preprocess_profile(array &$variables) {
   /** @var Drupal\profile\Entity\ProfileInterface $profile */
   $profile = $variables['elements']['#profile'];
 
+  $variables['view_mode'] = $variables['elements']['#view_mode'];
   $variables['profile'] = $profile;
   $variables['url'] = $profile->id() ? $profile->toUrl() : FALSE;
   // Helpful $content variable for templates.
@@ -94,53 +136,6 @@ function template_preprocess_profile(array &$variables) {
   foreach (Element::children($variables['elements']) as $key) {
     $variables['content'][$key] = $variables['elements'][$key];
   }
-}
-
-/**
- * Implements hook_user_view().
- */
-function profile_user_view(array &$build, UserInterface $account, EntityViewDisplayInterface $display, $view_mode) {
-  // Iterate through each bundle and see if it's component exists.
-  foreach (ProfileType::loadMultiple() as $bundle) {
-    $component_key = 'profile_' . $bundle->id();
-    if ($display->getComponent($component_key)) {
-
-      // Embed the view of active profiles for profile type.
-      $build[$component_key] = [
-        '#type' => 'view',
-        '#name' => 'profiles',
-        '#display_id' => 'user_view',
-        '#arguments' => [$account->id(), $bundle->id(), 1],
-        '#embed' => TRUE,
-        '#title' => $bundle->label(),
-        '#pre_render' => [
-          ['\Drupal\views\Element\View', 'preRenderViewElement'],
-          'profile_views_add_title_pre_render',
-        ],
-      ];
-    }
-  }
-}
-
-/**
- * Implements hook_entity_extra_field_info().
- */
-function profile_entity_extra_field_info() {
-  $extra = [];
-
-  // Add each profile type as an extra field for display. Not enabled by default
-  // as many sites will not need this and it otherwise also gets added
-  // automatically to other view modes.
-  /** @var \Drupal\profile\Entity\ProfileType $bundle */
-  foreach (ProfileType::loadMultiple() as $bundle) {
-    $extra['user']['user']['display']['profile_' . $bundle->id()] = array(
-      'label' => $bundle->label(),
-      'description' => t('Display @type profiles', ['@type' => $bundle->label()]),
-      'weight' => 10,
-      'visible' => FALSE,
-    );
-  }
-  return $extra;
 }
 
 /**
@@ -180,7 +175,7 @@ function profile_form_field_config_edit_form_alter(&$form, FormStateInterface $f
  *
  * @param array $form
  *   The form array.
- * @param FormStateInterface $form_state
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
  *   The form state.
  */
 function profile_form_field_config_edit_form_submit(array $form, FormStateInterface $form_state) {
@@ -199,141 +194,17 @@ function profile_form_field_config_edit_form_submit(array $form, FormStateInterf
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
- *
- * Add available profile forms to the user registration form.
+ * Implements hook_entity_form_display_alter().
  */
-function profile_form_user_register_form_alter(&$form, FormStateInterface $form_state) {
-  $attached_profile_form = FALSE;
-  $weight = 90;
-
-  /** @var ProfileType[] $profile_types */
-  $profile_types = ProfileType::loadMultiple();
-  foreach ($profile_types as $profile_type) {
-    $instances = array_filter(\Drupal::service('entity_field.manager')->getFieldDefinitions('profile', $profile_type->id()), function ($field_definition) {
-      return $field_definition instanceof FieldConfigInterface;
-    });
-
-    if ($profile_type->getRegistration() === TRUE && count($instances)) {
-      $property = ['profiles', $profile_type->id()];
-      $profile = $form_state->get($property);
-      if (empty($profile)) {
-        $profile = Profile::create([
-          'type' => $profile_type->id(),
-          'langcode' => $profile_type->language() ? $profile_type->language() : \Drupal::languageManager()->getDefaultLanguage()->getId(),
-        ]);
-
-        // Attach profile entity form.
-        $form_state->set($property, $profile);
-      }
-      $form_state->set('form_display_' . $profile_type->id(), EntityFormDisplay::collectRenderDisplay($profile, 'default'));
-      $form['entity_' . $profile_type->id()] = [
-        '#type' => 'details',
-        '#title' => $profile_type->label(),
-        '#tree' => TRUE,
-        '#parents' => ['entity_' . $profile_type->id()],
-        '#weight' => ++$weight,
-        '#open' => TRUE,
-      ];
-
-      // @see https://www.drupal.org/node/2871480.
-      if (\Drupal::moduleHandler()->moduleExists('field_group')) {
-        $context = [
-          'entity_type' => $profile->getEntityTypeId(),
-          'bundle' => $profile->bundle(),
-          'entity' => $profile,
-          'context' => 'form',
-          'display_context' => 'form',
-          'mode' => 'default',
-        ];
-
-        field_group_attach_groups($form['entity_' . $profile_type->id()], $context);
-        $form['entity_' . $profile_type->id()]['#pre_render'][] = 'field_group_form_pre_render';
-      }
-
-      $form_state
-        ->get('form_display_' . $profile_type->id())
-        ->buildForm($profile, $form['entity_' . $profile_type->id()], $form_state);
-
-      $attached_profile_form = TRUE;
-    }
+function profile_entity_form_display_alter(EntityFormDisplayInterface $form_display, array $context) {
+  if ($context['entity_type'] !== 'profile') {
+    return;
   }
-
-  if ($attached_profile_form) {
-    $form['actions']['submit']['#validate'][] = 'profile_form_user_register_form_validate';
-    $form['actions']['submit']['#submit'][] = 'profile_form_user_register_form_submit';
-  }
-}
-
-/**
- * Extra form validation handler for the user registration form.
- */
-function profile_form_user_register_form_validate(array &$form, FormStateInterface $form_state) {
-  $profiles = $form_state->get('profiles');
-  if (!empty($profiles)) {
-    foreach ($profiles as $bundle => $entity) {
-      /** @var \Drupal\Core\Entity\Display\EntityFormDisplayInterface $form_display */
-      $form_display = $form_state->get('form_display_' . $bundle);
-      if (isset($form['entity_' . $bundle])) {
-        $form_display->extractFormValues($entity, $form['entity_' . $bundle], $form_state);
-        $form_display->validateFormValues($entity, $form['entity_' . $bundle], $form_state);
-      }
-    }
-  }
-  // Entity was validated in entityFormValidate(). This will prevent validation
-  // exception from being thrown.
-  $form_state->getFormObject()->validateForm($form, $form_state);
-}
-
-/**
- * Extra form submission handler for the user registration form.
- */
-function profile_form_user_register_form_submit(array &$form, FormStateInterface $form_state) {
-  /** @var \Drupal\Core\Session\AccountInterface $account */
-  $account = $form_state->getFormObject()->getEntity();
-  $profiles = $form_state->get('profiles');
-  if (!empty($profiles)) {
-    foreach ($profiles as $bundle => $entity) {
-      $entity->setOwnerId($account->id());
-      $entity->setActive(TRUE);
-      $entity->save();
-    }
-  }
-}
-
-/**
- * Pre render callback for profile embedded views to ensure a title is set.
- * @param $element
- *
- * @return mixed
- */
-function profile_views_add_title_pre_render($element) {
-  /** @var \Drupal\views\ViewExecutable $view */
-  if (isset($element['#title'])) {
-    $view = $element['view_build']['#view'];
-    if (!empty($view->result)) {
-      $view->setTitle($element['#title']);
-    }
-  }
-
-  return $element;
-}
-
-/**
- * Implements hook_preprocess_HOOK().
- */
-function profile_preprocess_views_view(&$variables) {
-  // We have to manually add back the title since it was removed by Views.
-  // @see template_preprocess_views_view()
-  /** @var \Drupal\views\ViewExecutable $view */
-  $view = $variables['view'];
-  if ($view->storage->id() == 'profiles' && !empty($view->result)) {
-    // Test access to the profile.
-    /** @var \Drupal\profile\Entity\profile $entity */
-    $entity = reset($view->result)->_entity;
-    if ($entity->access('view')) {
-      $variables['title'] = $view->getTitle();
-    }
+  $profile_type_id = $context['bundle'];
+  $entity_type_bundle_info = \Drupal::service('entity_type.bundle.info');
+  $bundle_info = $entity_type_bundle_info->getBundleInfo('profile');
+  if (empty($bundle_info[$profile_type_id]['revision_ui'])) {
+    $form_display->removeComponent('revision_log_message');
   }
 }
 
@@ -382,4 +253,44 @@ function profile_theme_suggestions_profile(array $variables) {
   $suggestions[] = $original . '__' . $entity->id() . '__' . $sanitized_view_mode;
 
   return $suggestions;
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ */
+function profile_entity_base_field_info(EntityTypeInterface $entity_type) {
+  if ($entity_type->id() === 'user') {
+    $entity_type_manager = \Drupal::entityTypeManager();
+    $fields = [];
+
+    // In random cases, this hook is invoked before the profile_type entity
+    // definition is registered.
+    if (!$entity_type_manager->hasDefinition('profile_type')) {
+      return $fields;
+    }
+
+    /** @var Drupal\profile\Entity\ProfileType[] $profile_types */
+    $profile_types = $entity_type_manager->getStorage('profile_type')->loadMultiple();
+    foreach ($profile_types as $profile_type) {
+      $profile_type_id = $profile_type->id();
+      $fields[$profile_type_id . '_profiles'] = BaseFieldDefinition::create('entity_reference')
+        ->setName(sprintf('%s profiles', $profile_type->label()))
+        ->setLabel(t('@label profiles', ['@label' => $profile_type->label()]))
+        ->setDescription(t('User profiles.'))
+        ->setClass(ProfileEntityFieldItemList::class)
+        ->setSetting('target_type', 'profile')
+        ->setSetting('target_type', 'profile')
+        ->setSetting('handler_settings', [
+          'target_bundles' => [
+            $profile_type_id => $profile_type_id,
+          ],
+        ])
+        ->setSetting('profile_type', $profile_type_id)
+        ->setDisplayConfigurable('view', TRUE)
+        ->setDisplayConfigurable('form', TRUE)
+        ->setCardinality($profile_type->allowsMultiple() ? BaseFieldDefinition::CARDINALITY_UNLIMITED : 1)
+        ->setComputed(TRUE);
+    }
+    return $fields;
+  }
 }

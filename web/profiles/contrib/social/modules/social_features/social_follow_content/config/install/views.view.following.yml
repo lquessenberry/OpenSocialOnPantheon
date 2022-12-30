@@ -19,7 +19,6 @@ description: ''
 tag: ''
 base_table: flagging
 base_field: id
-core: 8.x
 display:
   default:
     display_plugin: default
@@ -46,7 +45,7 @@ display:
       exposed_form:
         type: basic
         options:
-          submit_button: Apply
+          submit_button: Filter
           reset_button: true
           reset_button_label: Reset
           exposed_sorts_label: 'Sort by'
@@ -257,7 +256,7 @@ display:
           exclude: false
           alter:
             alter_text: true
-            text: '<div class="btn btn-default btn-sm"> {{ link_flag }} </div>'
+            text: '{{ link_flag }}'
             make_link: false
             path: ''
             absolute: false
@@ -330,6 +329,8 @@ display:
               contentmanager: '0'
               sitemanager: '0'
             reduce: false
+            operator_limit_selection: false
+            operator_list: {  }
           is_grouped: false
           group_info:
             label: ''

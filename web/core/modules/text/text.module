@@ -5,6 +5,7 @@
  * Defines simple text field types.
  */
 
+use Drupal\Core\Url;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -18,11 +19,11 @@ function text_help($route_name, RouteMatchInterface $route_match) {
     case 'help.page.text':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Text module allows you to create short and long text fields with optional summaries. See the <a href=":field">Field module help</a> and the <a href=":field_ui">Field UI help</a> pages for general information on fields and how to create and manage them. For more information, see the <a href=":text_documentation">online documentation for the Text module</a>.', [':field' => \Drupal::url('help.page', ['name' => 'field']), ':field_ui' => (\Drupal::moduleHandler()->moduleExists('field_ui')) ? \Drupal::url('help.page', ['name' => 'field_ui']) : '#', ':text_documentation' => 'https://www.drupal.org/documentation/modules/text']) . '</p>';
+      $output .= '<p>' . t('The Text module allows you to create short and long text fields with optional summaries. See the <a href=":field">Field module help</a> and the <a href=":field_ui">Field UI help</a> pages for general information on fields and how to create and manage them. For more information, see the <a href=":text_documentation">online documentation for the Text module</a>.', [':field' => Url::fromRoute('help.page', ['name' => 'field'])->toString(), ':field_ui' => (\Drupal::moduleHandler()->moduleExists('field_ui')) ? Url::fromRoute('help.page', ['name' => 'field_ui'])->toString() : '#', ':text_documentation' => 'https://www.drupal.org/documentation/modules/text']) . '</p>';
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Managing and displaying text fields') . '</dt>';
-      $output .= '<dd>' . t('The <em>settings</em> and <em>display</em> of the text field can be configured separately. See the <a href=":field_ui">Field UI help</a> for more information on how to manage fields and their display.', [':field_ui' => (\Drupal::moduleHandler()->moduleExists('field_ui')) ? \Drupal::url('help.page', ['name' => 'field_ui']) : '#']) . '</dd>';
+      $output .= '<dd>' . t('The <em>settings</em> and <em>display</em> of the text field can be configured separately. See the <a href=":field_ui">Field UI help</a> for more information on how to manage fields and their display.', [':field_ui' => (\Drupal::moduleHandler()->moduleExists('field_ui')) ? Url::fromRoute('help.page', ['name' => 'field_ui'])->toString() : '#']) . '</dd>';
       $output .= '<dt>' . t('Creating short text fields') . '</dt>';
       $output .= '<dd>' . t('If you choose <em>Text (plain)</em> or <em>Text (formatted)</em> as the field type on the <em>Manage fields</em> page, then a field with a single row is displayed. You can change the maximum text length in the <em>Field settings</em> when you set up the field.') . '</dd>';
       $output .= '<dt>' . t('Creating long text fields') . '</dt>';
@@ -32,7 +33,7 @@ function text_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<dt>' . t('Displaying summaries instead of trimmed text') . '</dt>';
       $output .= '<dd>' . t('As an alternative to using a trimmed version of the text, you can enter a separate summary by choosing the <em>Text (formatted, long, with summary)</em> field type on the <em>Manage fields</em> page. Even when <em>Summary input</em> is enabled, and summaries are provided, you can display <em>trimmed</em> text nonetheless by choosing the appropriate format on the <em>Manage display</em> page.') . '</dd>';
       $output .= '<dt>' . t('Using text formats and editors') . '</dt>';
-      $output .= '<dd>' . t('If you choose <em>Text (plain)</em> or <em>Text (plain, long)</em> you restrict the input to <em>Plain text</em> only. If you choose <em>Text (formatted)</em>, <em>Text (formatted, long)</em>, or <em>Text (formatted, long with summary)</em> you allow users to write formatted text. Which options are available to individual users depends on the settings on the <a href=":formats">Text formats and editors page</a>.', [':formats' => \Drupal::url('filter.admin_overview')]) . '</dd>';
+      $output .= '<dd>' . t('If you choose <em>Text (plain)</em> or <em>Text (plain, long)</em> you restrict the input to <em>Plain text</em> only. If you choose <em>Text (formatted)</em>, <em>Text (formatted, long)</em>, or <em>Text (formatted, long with summary)</em> you allow users to write formatted text. Which options are available to individual users depends on the settings on the <a href=":formats">Text formats and editors page</a>.', [':formats' => Url::fromRoute('filter.admin_overview')->toString()]) . '</dd>';
       $output .= '</dl>';
       return $output;
   }
@@ -66,7 +67,7 @@ function text_summary($text, $format = NULL, $size = NULL) {
     $size = \Drupal::config('text.settings')->get('default_summary_length');
   }
 
-  // Find where the delimiter is in the body
+  // Find where the delimiter is in the body.
   $delimiter = strpos($text, '<!--break-->');
 
   // If the size is zero, and there is no delimiter, the entire body is the summary.
@@ -91,7 +92,7 @@ function text_summary($text, $format = NULL, $size = NULL) {
   }
 
   // If we have a short body, the entire body is the summary.
-  if (Unicode::strlen($text) <= $size) {
+  if (mb_strlen($text) <= $size) {
     return $text;
   }
 
@@ -151,9 +152,14 @@ function text_summary($text, $format = NULL, $size = NULL) {
     }
   }
 
-  // If the htmlcorrector filter is present, apply it to the generated summary.
-  if (isset($format) && $filters->has('filter_htmlcorrector') && $filters->get('filter_htmlcorrector')->status) {
-    $summary = Html::normalize($summary);
+  // If filter_html or filter_htmlcorrector is enabled, normalize the output.
+  if (isset($format)) {
+    $filter_enabled = function (string $filter) use ($filters) : bool {
+      return $filters->has($filter) && $filters->get($filter)->status;
+    };
+    if ($filter_enabled('filter_html') || $filter_enabled('filter_htmlcorrector')) {
+      $summary = Html::normalize($summary);
+    }
   }
 
   return $summary;

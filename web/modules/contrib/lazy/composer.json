@@ -1,0 +1,25 @@
+{
+    "name": "drupal/lazy",
+    "type": "drupal-module",
+    "description": "This module enables lazy-loading images and iframes via text-filters and image-fields. Requires lazysizes library.",
+    "keywords": ["Drupal", "lazy", "Lazy-load", "lazyload", "bLazy", "performance"],
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://www.drupal.org/project/lazy",
+    "authors": [
+        {
+            "name": "Osman Gormus",
+            "homepage": "https://www.drupal.org/u/osman",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/lazy",
+        "source": "https://git.drupalcode.org/project/lazy"
+    },
+    "require": {
+        "ext-json": "*"
+    },
+    "suggest": {
+        "bower-asset/lazysizes": "Lazysizes is a required library for the Lazy module. Must be installed to '/libraries/lazysizes' folder."
+    }
+}

@@ -21,7 +21,7 @@ class HandlerBaseTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->setupViewsData();
@@ -44,7 +44,7 @@ class HandlerBaseTest extends UnitTestCase {
       ->method('get')
       ->with('test_entity_type_table')
       ->willReturn([
-        'table' => ['entity type' => 'test_entity_type']
+        'table' => ['entity type' => 'test_entity_type'],
       ]);
     $handler->setViewsData($this->viewsData);
 

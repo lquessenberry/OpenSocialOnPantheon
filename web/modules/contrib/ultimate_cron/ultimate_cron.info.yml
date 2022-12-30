@@ -1,0 +1,10 @@
+type: module
+name: "Ultimate Cron"
+description: "Cron"
+core_version_requirement: ^9.3 || ^10
+configure: entity.ultimate_cron_job.collection
+
+# Information added by Drupal.org packaging script on 2022-10-22
+version: '8.x-2.0-alpha6'
+project: 'ultimate_cron'
+datestamp: 1666471451

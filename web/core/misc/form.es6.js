@@ -31,7 +31,7 @@
    */
   $.fn.drupalGetSummary = function () {
     const callback = this.data('summaryCallback');
-    return (this[0] && callback) ? $.trim(callback(this[0])) : '';
+    return this[0] && callback ? callback(this[0]).trim() : '';
   };
 
   /**
@@ -60,17 +60,18 @@
       };
     }
 
-    return this
-      .data('summaryCallback', callback)
-      // To prevent duplicate events, the handlers are first removed and then
-      // (re-)added.
-      .off('formUpdated.summary')
-      .on('formUpdated.summary', () => {
-        self.trigger('summaryUpdated');
-      })
-      // The actual summaryUpdated handler doesn't fire when the callback is
-      // changed, so we have to do this manually.
-      .trigger('summaryUpdated');
+    return (
+      this.data('summaryCallback', callback)
+        // To prevent duplicate events, the handlers are first removed and then
+        // (re-)added.
+        .off('formUpdated.summary')
+        .on('formUpdated.summary', () => {
+          self.trigger('summaryUpdated');
+        })
+        // The actual summaryUpdated handler doesn't fire when the callback is
+        // changed, so we have to do this manually.
+        .trigger('summaryUpdated')
+    );
   };
 
   /**
@@ -121,14 +122,16 @@
         const previousValues = $form.attr('data-drupal-form-submit-last');
         if (previousValues === formValues) {
           e.preventDefault();
-        }
-        else {
+        } else {
           $form.attr('data-drupal-form-submit-last', formValues);
         }
       }
 
-      $('body').once('form-single-submit')
-        .on('submit.singleSubmit', 'form:not([method~="GET"])', onFormSubmit);
+      $(once('form-single-submit', 'body')).on(
+        'submit.singleSubmit',
+        'form:not([method~="GET"])',
+        onFormSubmit,
+      );
     },
   };
 
@@ -154,12 +157,9 @@
    *   Array of IDs for form fields.
    */
   function fieldsList(form) {
-    const $fieldList = $(form).find('[name]').map((index, element) =>
-      // We use id to avoid name duplicates on radio fields and filter out
-      // elements with a name but no id.
-       element.getAttribute('id'));
-    // Return a true array.
-    return $.makeArray($fieldList);
+    // We use id to avoid name duplicates on radio fields and filter out
+    // elements with a name but no id.
+    return [].map.call(form.querySelectorAll('[name][id]'), (el) => el.id);
   }
 
   /**
@@ -178,7 +178,9 @@
     attach(context) {
       const $context = $(context);
       const contextIsForm = $context.is('form');
-      const $forms = (contextIsForm ? $context : $context.find('form')).once('form-updated');
+      const $forms = $(
+        once('form-updated', contextIsForm ? $context : $context.find('form')),
+      );
       let formFields;
 
       if ($forms.length) {
@@ -212,13 +214,15 @@
       const $context = $(context);
       const contextIsForm = $context.is('form');
       if (trigger === 'unload') {
-        const $forms = (contextIsForm ? $context : $context.find('form')).removeOnce('form-updated');
-        if ($forms.length) {
-          $.makeArray($forms).forEach((form) => {
+        once
+          .remove(
+            'form-updated',
+            contextIsForm ? $context : $context.find('form'),
+          )
+          .forEach((form) => {
             form.removeAttribute('data-drupal-form-fields');
             $(form).off('.formUpdated');
           });
-        }
       }
     },
   };
@@ -234,14 +238,23 @@
   Drupal.behaviors.fillUserInfoFromBrowser = {
     attach(context, settings) {
       const userInfo = ['name', 'mail', 'homepage'];
-      const $forms = $('[data-user-info-from-browser]').once('user-info-from-browser');
+      const $forms = $(
+        once('user-info-from-browser', '[data-user-info-from-browser]'),
+      );
       if ($forms.length) {
         userInfo.forEach((info) => {
           const $element = $forms.find(`[name=${info}]`);
           const browserData = localStorage.getItem(`Drupal.visitor.${info}`);
-          const emptyOrDefault = ($element.val() === '' || ($element.attr('data-drupal-default-value') === $element.val()));
-          if ($element.length && emptyOrDefault && browserData) {
-            $element.val(browserData);
+          if (!$element.length) {
+            return;
+          }
+          const emptyValue = $element[0].value === '';
+          const defaultValue =
+            $element.attr('data-drupal-default-value') === $element[0].value;
+          if (browserData && (emptyValue || defaultValue)) {
+            $element.each(function (index, item) {
+              item.value = browserData;
+            });
           }
         });
       }
@@ -249,7 +262,7 @@
         userInfo.forEach((info) => {
           const $element = $forms.find(`[name=${info}]`);
           if ($element.length) {
-            localStorage.setItem(`Drupal.visitor.${info}`, $element.val());
+            localStorage.setItem(`Drupal.visitor.${info}`, $element[0].value);
           }
         });
       });
@@ -267,10 +280,11 @@
   const handleFragmentLinkClickOrHashChange = (e) => {
     let url;
     if (e.type === 'click') {
-      url = e.currentTarget.location ? e.currentTarget.location : e.currentTarget;
-    }
-    else {
-      url = location;
+      url = e.currentTarget.location
+        ? e.currentTarget.location
+        : e.currentTarget;
+    } else {
+      url = window.location;
     }
     const hash = url.hash.substr(1);
     if (hash) {
@@ -285,10 +299,17 @@
     }
   };
 
-  const debouncedHandleFragmentLinkClickOrHashChange = debounce(handleFragmentLinkClickOrHashChange, 300, true);
+  const debouncedHandleFragmentLinkClickOrHashChange = debounce(
+    handleFragmentLinkClickOrHashChange,
+    300,
+    true,
+  );
 
   // Binds a listener to handle URL fragment changes.
-  $(window).on('hashchange.form-fragment', debouncedHandleFragmentLinkClickOrHashChange);
+  $(window).on(
+    'hashchange.form-fragment',
+    debouncedHandleFragmentLinkClickOrHashChange,
+  );
 
   /**
    * Binds a listener to handle clicks on fragment links and absolute URL links
@@ -296,5 +317,9 @@
    * because clicking such links doesn't trigger a hash change when the fragment
    * is already in the URL.
    */
-  $(document).on('click.form-fragment', 'a[href*="#"]', debouncedHandleFragmentLinkClickOrHashChange);
-}(jQuery, Drupal, Drupal.debounce));
+  $(document).on(
+    'click.form-fragment',
+    'a[href*="#"]',
+    debouncedHandleFragmentLinkClickOrHashChange,
+  );
+})(jQuery, Drupal, Drupal.debounce);

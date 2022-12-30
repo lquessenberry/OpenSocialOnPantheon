@@ -54,7 +54,7 @@ class IndexTaskManager implements IndexTaskManagerInterface, EventSubscriberInte
    * {@inheritdoc}
    */
   public static function getSubscribedEvents() {
-    $events['search_api.task.' . static::TRACK_ITEMS_TASK_TYPE][] = ['trackItems'];
+    $events['search_api.task.' . self::TRACK_ITEMS_TASK_TYPE][] = ['trackItems'];
 
     return $events;
   }
@@ -66,9 +66,6 @@ class IndexTaskManager implements IndexTaskManagerInterface, EventSubscriberInte
    *   The current batch context.
    * @param \Drupal\Core\Config\ConfigImporter $config_importer
    *   The config importer.
-   *
-   * @throws \Drupal\search_api\SearchApiException
-   *   Thrown if any error occurred while tracking items.
    */
   public static function processIndexTasks(&$context, ConfigImporter $config_importer) {
     $index_task_manager = \Drupal::getContainer()
@@ -161,7 +158,7 @@ class IndexTaskManager implements IndexTaskManagerInterface, EventSubscriberInte
 
     if ($reschedule) {
       ++$data['page'];
-      $this->taskManager->addTask(static::TRACK_ITEMS_TASK_TYPE, NULL, $index, $data);
+      $this->taskManager->addTask(self::TRACK_ITEMS_TASK_TYPE, NULL, $index, $data);
     }
   }
 
@@ -169,16 +166,12 @@ class IndexTaskManager implements IndexTaskManagerInterface, EventSubscriberInte
    * {@inheritdoc}
    */
   public function startTracking(IndexInterface $index, array $datasource_ids = NULL) {
-    if (!isset($datasource_ids)) {
-      $datasource_ids = $index->getDatasourceIds();
-    }
-
-    foreach ($datasource_ids as $datasource_id) {
+    foreach ($datasource_ids ?? $index->getDatasourceIds() as $datasource_id) {
       $data = [
         'datasource' => $datasource_id,
         'page' => 0,
       ];
-      $this->taskManager->addTask(static::TRACK_ITEMS_TASK_TYPE, NULL, $index, $data);
+      $this->taskManager->addTask(self::TRACK_ITEMS_TASK_TYPE, NULL, $index, $data);
     }
   }
 
@@ -193,7 +186,7 @@ class IndexTaskManager implements IndexTaskManagerInterface, EventSubscriberInte
    */
   protected function getTaskConditions(IndexInterface $index) {
     return [
-      'type' => static::TRACK_ITEMS_TASK_TYPE,
+      'type' => self::TRACK_ITEMS_TASK_TYPE,
       'index_id' => $index->id(),
     ];
   }

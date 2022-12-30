@@ -108,10 +108,12 @@ class Dropdown extends Basic {
     if (is_dir($this->configuration['path']) && $handle = opendir($this->configuration['path'])) {
       while ($file_name = readdir($handle)) {
         if (preg_match("/\.[ot]tf$/i", $file_name) == 1) {
-          $filelist[$file_name] = trim(substr($file_name, 0, -4));
-          $font = $this->getData($this->configuration['path'] . '/' . $file_name);
-          if (!empty($font['name'])) {
-            $filelist[$file_name] = $font['name'];
+          $font_name = $this->getDescription($this->configuration['path'] . '/' . $file_name);
+          if ($font_name !== NULL) {
+            $filelist[$file_name] = $font_name;
+          }
+          else {
+            $filelist[$file_name] = trim(substr($file_name, 0, -4));
           }
         }
       }

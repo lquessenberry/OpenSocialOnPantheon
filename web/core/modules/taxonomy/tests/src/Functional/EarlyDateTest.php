@@ -18,9 +18,14 @@ class EarlyDateTest extends TaxonomyTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'datetime'];
+  protected static $modules = ['node', 'datetime'];
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
 
     // Create a tags vocabulary for the 'article' content type.
@@ -39,17 +44,22 @@ class EarlyDateTest extends TaxonomyTestBase {
     ];
     $this->createEntityReferenceField('node', 'article', $field_name, 'Tags', 'taxonomy_term', 'default', $handler_settings, FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
 
-    entity_get_form_display('node', 'article', 'default')
+    \Drupal::service('entity_display.repository')
+      ->getFormDisplay('node', 'article')
       ->setComponent($field_name, [
         'type' => 'entity_reference_autocomplete_tags',
       ])
       ->save();
 
-    $this->drupalLogin($this->drupalCreateUser(['administer taxonomy', 'administer nodes', 'bypass node access']));
+    $this->drupalLogin($this->drupalCreateUser([
+      'administer taxonomy',
+      'administer nodes',
+      'bypass node access',
+    ]));
   }
 
   /**
-   * Test taxonomy functionality with nodes prior to 1970.
+   * Tests taxonomy functionality with nodes prior to 1970.
    */
   public function testTaxonomyEarlyDateNode() {
     // Posts an article with a taxonomy term and a date prior to 1970.
@@ -60,10 +70,11 @@ class EarlyDateTest extends TaxonomyTestBase {
     $edit['created[0][value][time]'] = $date->format('H:i:s');
     $edit['body[0][value]'] = $this->randomMachineName();
     $edit['field_tags[target_id]'] = $this->randomMachineName();
-    $this->drupalPostForm('node/add/article', $edit, t('Save'));
+    $this->drupalGet('node/add/article');
+    $this->submitForm($edit, 'Save');
     // Checks that the node has been saved.
     $node = $this->drupalGetNodeByTitle($edit['title[0][value]']);
-    $this->assertEqual($node->getCreatedTime(), $date->getTimestamp(), 'Legacy node was saved with the right date.');
+    $this->assertEquals($date->getTimestamp(), $node->getCreatedTime(), 'Legacy node was saved with the right date.');
   }
 
 }

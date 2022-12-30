@@ -1,0 +1,3 @@
+scope_provider: dynamic
+token_cron_batch_size: 0
+disable_openid_connect: false

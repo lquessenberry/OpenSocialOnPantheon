@@ -16,12 +16,17 @@ class LocaleFileSystemFormTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['system'];
+  protected static $modules = ['system'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
     $account = $this->drupalCreateUser(['administer site configuration']);
     $this->drupalLogin($account);
@@ -33,24 +38,24 @@ class LocaleFileSystemFormTest extends BrowserTestBase {
   public function testFileConfigurationPage() {
     // By default there should be no setting for the translation directory.
     $this->drupalGet('admin/config/media/file-system');
-    $this->assertNoFieldByName('translation_path');
+    $this->assertSession()->fieldNotExists('translation_path');
 
     // With locale module installed, the setting should appear.
     $module_installer = $this->container->get('module_installer');
     $module_installer->install(['locale']);
     $this->rebuildContainer();
     $this->drupalGet('admin/config/media/file-system');
-    $this->assertFieldByName('translation_path');
+    $this->assertSession()->fieldExists('translation_path');
 
     // The setting should persist.
     $translation_path = $this->publicFilesDirectory . '/translations_changed';
     $fields = [
-      'translation_path' => $translation_path
+      'translation_path' => $translation_path,
     ];
-    $this->drupalPostForm(NULL, $fields, t('Save configuration'));
+    $this->submitForm($fields, 'Save configuration');
     $this->drupalGet('admin/config/media/file-system');
-    $this->assertFieldByName('translation_path', $translation_path);
-    $this->assertEqual($translation_path, $this->config('locale.settings')->get('translation.path'));
+    $this->assertSession()->fieldValueEquals('translation_path', $translation_path);
+    $this->assertEquals($this->config('locale.settings')->get('translation.path'), $translation_path);
   }
 
 }

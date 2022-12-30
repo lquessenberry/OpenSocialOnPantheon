@@ -2,9 +2,12 @@
 
 namespace Drupal\Tests\Core\Entity;
 
+use Drupal\Core\Config\Entity\ConfigEntityInterface;
+use Drupal\Core\Entity\Entity\EntityFormMode;
 use Drupal\Core\Entity\EntityType;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\Core\StringTranslation\TranslationManager;
 use Drupal\Tests\UnitTestCase;
 
 /**
@@ -33,8 +36,8 @@ class EntityTypeTest extends UnitTestCase {
    *
    * @dataProvider providerTestGet
    */
-  public function testGet(array $defintion, $key, $expected) {
-    $entity_type = $this->setUpEntityType($defintion);
+  public function testGet(array $definition, $key, $expected) {
+    $entity_type = $this->setUpEntityType($definition);
     $this->assertSame($expected, $entity_type->get($key));
   }
 
@@ -73,7 +76,7 @@ class EntityTypeTest extends UnitTestCase {
   public function testGetKey($entity_keys, $expected) {
     $entity_type = $this->setUpEntityType(['entity_keys' => $entity_keys]);
     $this->assertSame($expected['bundle'], $entity_type->getKey('bundle'));
-    $this->assertSame(FALSE, $entity_type->getKey('bananas'));
+    $this->assertFalse($entity_type->getKey('bananas'));
   }
 
   /**
@@ -85,7 +88,7 @@ class EntityTypeTest extends UnitTestCase {
     $entity_type = $this->setUpEntityType(['entity_keys' => $entity_keys]);
     $this->assertSame(!empty($expected['bundle']), $entity_type->hasKey('bundle'));
     $this->assertSame(!empty($expected['id']), $entity_type->hasKey('id'));
-    $this->assertSame(FALSE, $entity_type->hasKey('bananas'));
+    $this->assertFalse($entity_type->hasKey('bananas'));
   }
 
   /**
@@ -166,6 +169,8 @@ class EntityTypeTest extends UnitTestCase {
     ]);
     $this->assertSame($controller, $entity_type->getHandlerClass('storage'));
     $this->assertSame($controller, $entity_type->getHandlerClass('form', 'default'));
+    $this->assertNull($entity_type->getHandlerClass('foo'));
+    $this->assertNull($entity_type->getHandlerClass('foo', 'bar'));
   }
 
   /**
@@ -271,7 +276,8 @@ class EntityTypeTest extends UnitTestCase {
   public function testIdExceedsMaxLength() {
     $id = $this->randomMachineName(33);
     $message = 'Attempt to create an entity type with an ID longer than 32 characters: ' . $id;
-    $this->setExpectedException('Drupal\Core\Entity\Exception\EntityTypeIdLengthException', $message);
+    $this->expectException('Drupal\Core\Entity\Exception\EntityTypeIdLengthException');
+    $this->expectExceptionMessage($message);
     $this->setUpEntityType(['id' => $id]);
   }
 
@@ -391,6 +397,12 @@ class EntityTypeTest extends UnitTestCase {
     $this->assertEquals('one entity test', $entity_type->getCountLabel(1));
     $this->assertEquals('2 entity test', $entity_type->getCountLabel(2));
     $this->assertEquals('200 entity test', $entity_type->getCountLabel(200));
+    $this->assertArrayNotHasKey('context', $entity_type->getCountLabel(1)->getOptions());
+
+    // Test a custom context.
+    $entity_type = $this->setUpEntityType(['label_count' => ['singular' => 'one entity test', 'plural' => '@count entity test', 'context' => 'custom context']]);
+    $entity_type->setStringTranslation($this->getStringTranslationStub());
+    $this->assertSame('custom context', $entity_type->getCountLabel(1)->getOption('context'));
   }
 
   /**
@@ -402,6 +414,7 @@ class EntityTypeTest extends UnitTestCase {
     $this->assertEquals('1 entity test plural', $entity_type->getCountLabel(1));
     $this->assertEquals('2 entity test plural entities', $entity_type->getCountLabel(2));
     $this->assertEquals('200 entity test plural entities', $entity_type->getCountLabel(200));
+    $this->assertSame('Entity type label', $entity_type->getCountLabel(1)->getOption('context'));
   }
 
   /**
@@ -441,7 +454,7 @@ class EntityTypeTest extends UnitTestCase {
    */
   public function testSetLinkTemplateWithInvalidPath() {
     $entity_type = $this->setUpEntityType(['id' => $this->randomMachineName()]);
-    $this->setExpectedException(\InvalidArgumentException::class);
+    $this->expectException(\InvalidArgumentException::class);
     $entity_type->setLinkTemplate('test', 'invalid-path');
   }
 
@@ -470,10 +483,68 @@ class EntityTypeTest extends UnitTestCase {
    * Asserts there on no public properties on the object instance.
    *
    * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
+   *   The entity type.
+   *
+   * @internal
    */
-  protected function assertNoPublicProperties(EntityTypeInterface $entity_type) {
+  protected function assertNoPublicProperties(EntityTypeInterface $entity_type): void {
     $reflection = new \ReflectionObject($entity_type);
     $this->assertEmpty($reflection->getProperties(\ReflectionProperty::IS_PUBLIC));
+  }
+
+  /**
+   * @covers ::entityClassImplements
+   */
+  public function testEntityClassImplements() {
+    $entity_type = $this->setUpEntityType(['class' => EntityFormMode::class]);
+    $this->assertTrue($entity_type->entityClassImplements(ConfigEntityInterface::class));
+    $this->assertFalse($entity_type->entityClassImplements(\DateTimeInterface::class));
+  }
+
+  /**
+   * @covers ::isSubclassOf
+   * @group legacy
+   */
+  public function testIsSubClassOf() {
+    $this->expectDeprecation('Drupal\Core\Entity\EntityType::isSubclassOf() is deprecated in drupal:8.3.0 and is removed from drupal:10.0.0. Use Drupal\Core\Entity\EntityTypeInterface::entityClassImplements() instead. See https://www.drupal.org/node/2842808');
+    $entity_type = $this->setUpEntityType(['class' => EntityFormMode::class]);
+    $this->assertTrue($entity_type->isSubclassOf(ConfigEntityInterface::class));
+    $this->assertFalse($entity_type->isSubclassOf(\DateTimeInterface::class));
+  }
+
+  /**
+   * Tests that the EntityType object can be serialized.
+   */
+  public function testIsSerializable() {
+    $entity_type = $this->setUpEntityType([]);
+
+    $translation_service = new UnserializableTranslationManager();
+    $translation_service->_serviceId = 'string_translation';
+
+    $entity_type->setStringTranslation($translation_service);
+    $entity_type = unserialize(serialize($entity_type));
+
+    $this->assertEquals('example_entity_type', $entity_type->id());
+  }
+
+}
+
+/**
+ * Test class.
+ */
+class UnserializableTranslationManager extends TranslationManager {
+
+  /**
+   * Constructs a UnserializableTranslationManager object.
+   */
+  public function __construct() {
+  }
+
+  /**
+   * @return array
+   */
+  public function __serialize(): array {
+    throw new \Exception();
   }
 
 }

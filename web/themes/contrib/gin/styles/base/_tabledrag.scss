@@ -1,0 +1,92 @@
+.draggable {
+  a.tabledrag-handle {
+    float: none;
+
+    &:focus::before {
+      box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+    }
+  }
+
+  &.drag-previous {
+    background-color: #ffffe9;
+  }
+
+  &.drag, &.drag:focus {
+    background-color: #f0f1f9;
+  }
+}
+
+.tabledrag-toggle-weight-wrapper {
+  margin-top: 0;
+
+  .action-link {
+    margin-bottom: .5rem;
+
+    .action-link {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.tabledrag-handle {
+  &::after {
+    background-image: none;
+    background-color: var(--colorGinTextLight);
+    mask-image: icon('drag');
+    mask-repeat: no-repeat;
+    mask-position: center center;
+    mask-size: 16px 16px;
+  }
+
+  &:hover {
+    &::after {
+      transform: scale(1);
+      background-color: var(--colorGinPrimary);
+    }
+  }
+}
+
+.draggable.drag, .draggable.drag:focus {
+  background-color: var(--colorGinLayer2Background);
+
+  .gin--dark-mode & {
+    background-color: var(--colorGinPrimaryLightHover);
+  }
+}
+
+.draggable.drag-previous {
+  background-color: var(--colorGinLayer2Background);
+  box-shadow: inset 6px 0 0 0 var(--colorGinWarning);
+}
+
+.tabledrag-cell-content__item {
+  .checkbox-toggle:hover {
+    cursor: pointer;
+  }
+}
+
+// Hack to fix border-radius
+.draggable-table thead th {
+  border-radius: var(--ginBorderDefault);
+
+  &:not(:first-of-type) {
+    &::before,
+    &::after {
+      content: "";
+      display: block;
+      width: calc(var(--ginBorderDefault) * 2);
+      height: var(--ginBorderDefault);
+      background: var(--colorGinTableHeader);
+      position: absolute;
+      left: calc(var(--ginBorderDefault) * -1);
+    }
+
+    &::before {
+      top: 0;
+    }
+
+    &::after {
+      bottom: 0;
+    }
+  }
+}

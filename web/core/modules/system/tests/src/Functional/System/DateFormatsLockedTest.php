@@ -12,6 +12,11 @@ use Drupal\Tests\BrowserTestBase;
 class DateFormatsLockedTest extends BrowserTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests attempts at listing, editing, and deleting locked date formats.
    */
   public function testDateLocking() {
@@ -21,22 +26,22 @@ class DateFormatsLockedTest extends BrowserTestBase {
     // formats are clearly marked as such; unlocked formats are not marked as
     // "locked".
     $this->drupalGet('admin/config/regional/date-time');
-    $this->assertLinkByHref('admin/config/regional/date-time/formats/manage/short');
-    $this->assertNoLinkByHref('admin/config/regional/date-time/formats/manage/html_date');
-    $this->assertText('Fallback date format');
-    $this->assertNoText('short (locked)');
+    $this->assertSession()->linkByHrefExists('admin/config/regional/date-time/formats/manage/short');
+    $this->assertSession()->linkByHrefNotExists('admin/config/regional/date-time/formats/manage/html_date');
+    $this->assertSession()->pageTextContains('Fallback date format');
+    $this->assertSession()->pageTextNotContains('short (locked)');
 
     // Locked date formats are not editable.
     $this->drupalGet('admin/config/regional/date-time/formats/manage/short');
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
     $this->drupalGet('admin/config/regional/date-time/formats/manage/html_date');
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
 
     // Locked date formats are not deletable.
     $this->drupalGet('admin/config/regional/date-time/formats/manage/short/delete');
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
     $this->drupalGet('admin/config/regional/date-time/formats/manage/html_date/delete');
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
   }
 
 }

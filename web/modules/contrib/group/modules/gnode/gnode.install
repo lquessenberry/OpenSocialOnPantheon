@@ -117,3 +117,10 @@ function gnode_update_8004() {
 function gnode_update_8005() {
   node_access_needs_rebuild(TRUE);
 }
+
+/**
+ * Update the group nodes view to use the new cache group permissions context.
+ */
+function gnode_update_8006() {
+  // Empty update. See group_post_update_view_cache_contexts();
+}

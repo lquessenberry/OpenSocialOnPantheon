@@ -1,0 +1,7 @@
+admin_toolbar.settings:
+  type: config_object
+  label: 'Admin Toolbar settings'
+  mapping:
+    menu_depth:
+      type: integer
+      label: 'Depth of displayed menu'

@@ -2,7 +2,8 @@
 
 namespace Drupal\Tests\views\Kernel\Plugin;
 
-use Drupal\simpletest\UserCreationTrait;
+use Drupal\Core\Database\Database;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\views\Views;
 
 /**
@@ -35,9 +36,20 @@ class RelationshipTest extends RelationshipJoinTestBase {
    * Tests the query result of a view with a relationship.
    */
   public function testRelationshipQuery() {
+    $connection = Database::getConnection();
     // Set the first entry to have the admin as author.
-    db_query("UPDATE {views_test_data} SET uid = 1 WHERE id = 1");
-    db_query("UPDATE {views_test_data} SET uid = 2 WHERE id <> 1");
+    $connection->update('views_test_data')
+      ->fields([
+        'uid' => 1,
+      ])
+      ->condition('id', 1)
+      ->execute();
+    $connection->update('views_test_data')
+      ->fields([
+        'uid' => 2,
+      ])
+      ->condition('id', 1, '<>')
+      ->execute();
 
     $view = Views::getView('test_view');
     $view->setDisplay();
@@ -78,8 +90,8 @@ class RelationshipTest extends RelationshipJoinTestBase {
     $expected_result = [
       [
         'name' => 'John',
-        'uid' => 1
-      ]
+        'uid' => 1,
+      ],
     ];
     $this->assertIdenticalResultset($view, $expected_result, $this->columnMap);
     $view->destroy();
@@ -101,8 +113,8 @@ class RelationshipTest extends RelationshipJoinTestBase {
     $expected_result = [
       [
         'name' => 'John',
-        'uid' => 1
-      ]
+        'uid' => 1,
+      ],
     ];
     $this->assertIdenticalResultset($view, $expected_result, $this->columnMap);
     $view->destroy();
@@ -132,12 +144,28 @@ class RelationshipTest extends RelationshipJoinTestBase {
    * Tests rendering of a view with a relationship.
    */
   public function testRelationshipRender() {
+    $connection = Database::getConnection();
     $author1 = $this->createUser();
-    db_query("UPDATE {views_test_data} SET uid = :uid WHERE id = 1", [':uid' => $author1->id()]);
+    $connection->update('views_test_data')
+      ->fields([
+        'uid' => $author1->id(),
+      ])
+      ->condition('id', 1)
+      ->execute();
     $author2 = $this->createUser();
-    db_query("UPDATE {views_test_data} SET uid = :uid WHERE id = 2", [':uid' => $author2->id()]);
+    $connection->update('views_test_data')
+      ->fields([
+        'uid' => $author2->id(),
+      ])
+      ->condition('id', 2)
+      ->execute();
     // Set uid to non-existing author uid for row 3.
-    db_query("UPDATE {views_test_data} SET uid = :uid WHERE id = 3", [':uid' => $author2->id() + 123]);
+    $connection->update('views_test_data')
+      ->fields([
+        'uid' => $author2->id() + 123,
+      ])
+      ->condition('id', 3)
+      ->execute();
 
     $view = Views::getView('test_view');
     // Add a relationship for authors.
@@ -170,9 +198,9 @@ class RelationshipTest extends RelationshipJoinTestBase {
 
     // Check that the output contains correct values.
     $xpath = '//div[@class="views-row" and div[@class="views-field views-field-id"]=:id and div[@class="views-field views-field-author"]=:author]';
-    $this->assertEqual(1, count($this->xpath($xpath, [':id' => 1, ':author' => $author1->getUsername()])));
-    $this->assertEqual(1, count($this->xpath($xpath, [':id' => 2, ':author' => $author2->getUsername()])));
-    $this->assertEqual(1, count($this->xpath($xpath, [':id' => 3, ':author' => ''])));
+    $this->assertCount(1, $this->xpath($xpath, [':id' => 1, ':author' => $author1->getAccountName()]));
+    $this->assertCount(1, $this->xpath($xpath, [':id' => 2, ':author' => $author2->getAccountName()]));
+    $this->assertCount(1, $this->xpath($xpath, [':id' => 3, ':author' => '']));
   }
 
 }

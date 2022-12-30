@@ -20,7 +20,7 @@ abstract class IndexPluginBase extends ConfigurablePluginBase implements IndexPl
    * {@inheritdoc}
    */
   public function __construct(array $configuration, $plugin_id, array $plugin_definition) {
-    if (!empty($configuration['#index']) && $configuration['#index'] instanceof IndexInterface) {
+    if (($configuration['#index'] ?? NULL) instanceof IndexInterface) {
       $this->setIndex($configuration['#index']);
       unset($configuration['#index']);
     }

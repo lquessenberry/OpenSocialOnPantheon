@@ -3,8 +3,8 @@
 namespace Drupal\Core\Menu;
 
 use Drupal\Core\Cache\CacheableMetadata;
-use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 
@@ -24,25 +24,25 @@ class MenuParentFormSelector implements MenuParentFormSelectorInterface {
   protected $menuLinkTree;
 
   /**
-   * The entity manager.
+   * The entity type manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
-   * Constructs a \Drupal\Core\Menu\MenuParentFormSelector
+   * Constructs a \Drupal\Core\Menu\MenuParentFormSelector.
    *
    * @param \Drupal\Core\Menu\MenuLinkTreeInterface $menu_link_tree
    *   The menu link tree service.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    *   The string translation service.
    */
-  public function __construct(MenuLinkTreeInterface $menu_link_tree, EntityManagerInterface $entity_manager, TranslationInterface $string_translation) {
+  public function __construct(MenuLinkTreeInterface $menu_link_tree, EntityTypeManagerInterface $entity_type_manager, TranslationInterface $string_translation) {
     $this->menuLinkTree = $menu_link_tree;
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
     $this->stringTranslation = $string_translation;
   }
 
@@ -88,7 +88,7 @@ class MenuParentFormSelector implements MenuParentFormSelectorInterface {
       if (!isset($options[$menu_parent])) {
         // The requested menu parent cannot be found in the menu anymore. Try
         // setting it to the top level in the current menu.
-        list($menu_name, $parent) = explode(':', $menu_parent, 2);
+        [$menu_name] = explode(':', $menu_parent, 2);
         $menu_parent = $menu_name . ':';
       }
       if (isset($options[$menu_parent])) {
@@ -182,7 +182,7 @@ class MenuParentFormSelector implements MenuParentFormSelectorInterface {
    *   Keys are menu names (ids) values are the menu labels.
    */
   protected function getMenuOptions(array $menu_names = NULL) {
-    $menus = $this->entityManager->getStorage('menu')->loadMultiple($menu_names);
+    $menus = $this->entityTypeManager->getStorage('menu')->loadMultiple($menu_names);
     $options = [];
     /** @var \Drupal\system\MenuInterface[] $menus */
     foreach ($menus as $menu) {

@@ -14,12 +14,27 @@ class InstallerDatabaseErrorMessagesTest extends InstallerTestBase {
   /**
    * {@inheritdoc}
    */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
   protected function setUpSettings() {
     // We are creating a table here to force an error in the installer because
     // it will try and create the drupal_install_test table as this is part of
     // the standard database tests performed by the installer in
     // Drupal\Core\Database\Install\Tasks.
-    Database::getConnection('default')->query('CREATE TABLE {drupal_install_test} (id int NULL)');
+    $spec = [
+      'fields' => [
+        'id' => [
+          'type' => 'int',
+          'not null' => TRUE,
+        ],
+      ],
+      'primary key' => ['id'],
+    ];
+
+    Database::getConnection('default')->schema()->createTable('drupal_install_test', $spec);
     parent::setUpSettings();
   }
 
@@ -34,7 +49,7 @@ class InstallerDatabaseErrorMessagesTest extends InstallerTestBase {
    * Verifies that the error message in the settings step is correct.
    */
   public function testSetUpSettingsErrorMessage() {
-    $this->assertRaw('<ul><li>Failed to <strong>CREATE</strong> a test table');
+    $this->assertSession()->responseContains('<ul><li>Failed to <strong>CREATE</strong> a test table');
   }
 
 }

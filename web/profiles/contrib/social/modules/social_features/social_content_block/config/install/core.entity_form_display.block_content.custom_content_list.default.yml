@@ -1,0 +1,132 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - block_content.type.custom_content_list
+    - field.field.block_content.custom_content_list.field_duration
+    - field.field.block_content.custom_content_list.field_item_amount
+    - field.field.block_content.custom_content_list.field_link
+    - field.field.block_content.custom_content_list.field_plugin_field
+    - field.field.block_content.custom_content_list.field_plugin_id
+    - field.field.block_content.custom_content_list.field_sorting
+    - field.field.block_content.custom_content_list.field_subtitle
+  module:
+    - field_group
+    - link
+    - social_content_block
+third_party_settings:
+  field_group:
+    group_display_options:
+      children:
+        - field_sorting
+        - field_duration
+      parent_name: ''
+      weight: 11
+      format_type: fieldset
+      format_settings:
+        label: Sorting
+        description: ''
+        required_fields: true
+        id: ''
+        classes: ''
+      label: Sorting
+      region: content
+    group_filter_options:
+      children:
+        - field_plugin_id
+        - field_plugin_field
+        - field_item_amount
+      parent_name: ''
+      weight: 3
+      format_type: fieldset
+      format_settings:
+        label: Content
+        description: ''
+        required_fields: true
+        id: ''
+        classes: ''
+      label: Content
+      region: content
+    group_information:
+      children:
+        - info
+        - field_subtitle
+      parent_name: ''
+      weight: 0
+      format_type: fieldset
+      format_settings:
+        id: ''
+        classes: ''
+        description: ''
+        required_fields: true
+      label: Information
+      region: content
+id: block_content.custom_content_list.default
+targetEntityType: block_content
+bundle: custom_content_list
+mode: default
+content:
+  field_duration:
+    weight: 13
+    settings:
+      placeholder: ''
+    third_party_settings: {  }
+    type: number
+    region: content
+  field_item_amount:
+    weight: 10
+    settings:
+      placeholder: ''
+    third_party_settings: {  }
+    type: number
+    region: content
+  field_link:
+    weight: 13
+    settings:
+      placeholder_url: ''
+      placeholder_title: ''
+    third_party_settings: {  }
+    type: link_default
+    region: content
+  field_plugin_field:
+    weight: 5
+    settings: {  }
+    third_party_settings: {  }
+    type: content_block_plugin_field
+    region: content
+  field_plugin_id:
+    weight: 4
+    settings: {  }
+    third_party_settings: {  }
+    type: content_block_plugin_id
+    region: content
+  field_sorting:
+    weight: 12
+    settings: {  }
+    third_party_settings: {  }
+    type: content_block_sorting
+    region: content
+  field_subtitle:
+    weight: 2
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  info:
+    type: string_textfield
+    weight: 1
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  langcode:
+    type: language_select
+    weight: 2
+    region: content
+    settings:
+      include_locked: true
+    third_party_settings: {  }
+hidden: {  }

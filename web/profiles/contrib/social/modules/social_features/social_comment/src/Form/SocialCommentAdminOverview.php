@@ -11,6 +11,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Renderer;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 
 /**
  * Provides the comments overview administration form.
@@ -174,7 +175,7 @@ class SocialCommentAdminOverview extends FormBase {
       ->pager(50)
       ->execute();
 
-    /* @var $comments \Drupal\comment\CommentInterface[] */
+    /** @var \Drupal\comment\CommentInterface[] $comments */
     $comments = $this->commentStorage->loadMultiple($cids);
 
     // Build a table listing the appropriate comments.
@@ -217,12 +218,17 @@ class SocialCommentAdminOverview extends FormBase {
         'title' => $this->t('Delete'),
         'url' => $comment->toUrl('delete-form', $comment_uri_options),
       ];
-      if ($this->moduleHandler->moduleExists('content_translation') && $this->moduleHandler->invoke('content_translation', 'translate_access', [$comment])->isAllowed()) {
+
+      // Add a 'Translate' operations link if the comment is translatable.
+      if ($this->moduleHandler->moduleExists('content_translation') &&
+        $comment->getCommentedEntity() instanceof ContentEntityInterface &&
+        $this->moduleHandler->invoke('content_translation', 'translate_access', [$comment])->isAllowed()) {
         $links['translate'] = [
           'title' => $this->t('Translate'),
           'url' => $comment->toUrl('drupal:content-translation-overview', $comment_uri_options),
         ];
       }
+
       $options[$comment->id()]['operations']['data'] = [
         '#type' => 'operations',
         '#links' => $links,
@@ -270,7 +276,7 @@ class SocialCommentAdminOverview extends FormBase {
         }
         $comment->save();
       }
-      drupal_set_message($this->t('The update has been performed.'));
+      $this->messenger()->addStatus($this->t('The update has been performed.'));
       $form_state->setRedirect('comment.admin');
     }
     else {

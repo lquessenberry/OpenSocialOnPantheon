@@ -4,11 +4,10 @@ namespace Drupal\Tests\message\Kernel\Plugin\QueueWorker;
 
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\KernelTests\Core\Entity\EntityKernelTestBase;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\message\Entity\Message;
 use Drupal\node\Entity\Node;
-use Drupal\simpletest\ContentTypeCreationTrait;
+use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
 use Drupal\Tests\message\Kernel\MessageTemplateCreateTrait;
 
 /**
@@ -41,14 +40,14 @@ class MessageCheckAndDeleteWorkerTest extends KernelTestBase {
   public function setUp() {
     parent::setUp();
 
-    $this->installConfig(['filter', 'node']);
-
     $this->installEntitySchema('user');
     $this->installEntitySchema('node');
     $this->installEntitySchema('message');
 
     $this->installSchema('system', ['sequences']);
     $this->installSchema('node', ['node_access']);
+
+    $this->installConfig(['filter', 'node']);
   }
 
   /**
@@ -131,13 +130,13 @@ class MessageCheckAndDeleteWorkerTest extends KernelTestBase {
     $message->save();
 
     $this->plugin->processItem([$message->id() => [$field_name]]);
-    $this->assertTrue(Message::load($message->id()), 'Message exists after deleting one of two referenced nodes.');
+    $this->assertNotEmpty(Message::load($message->id()), 'Message exists after deleting one of two referenced nodes.');
 
     // If there are no valid references left, then the message should be
     // deleted.
     $node->delete();
     $this->plugin->processItem([$message->id() => [$field_name]]);
-    $this->assertFalse(Message::load($message->id()), 'Message deleted after deleting all referenced nodes.');
+    $this->assertEmpty(Message::load($message->id()), 'Message deleted after deleting all referenced nodes.');
   }
 
   /**

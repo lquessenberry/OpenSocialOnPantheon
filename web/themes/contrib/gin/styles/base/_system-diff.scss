@@ -1,0 +1,53 @@
+table.diff {
+  .diffchange {
+    color: var(--colorGinDanger);
+  }
+
+  .diff-context {
+    background-color: transparent;
+  }
+
+  td {
+    padding: .5rem;
+    height: initial;
+  }
+
+  tr {
+    color: var(--colorGinTitle);
+
+    .field-name {
+      background-color: var(--colorGinTableHeader);
+    }
+
+    .diff-deletedline {
+      background-color: var(--colorGinDangerLightest);
+
+      .diffchange {
+        color: var(--colorGinDangerBackground);
+      }
+
+      .gin--dark-mode & {
+        .diffchange {
+          color: var(--colorGinDangerLight);
+        }
+      }
+    }
+
+    .diff-addedline {
+      background-color: var(--colorGinGreenLightest);
+
+      .diffchange {
+        color: var(--colorGinGreenBackground);
+      }
+
+      .gin--dark-mode & {
+        background: var(--colorGinGreenBackground);
+
+        .diffchange {
+          color: var(--colorGinGreenLightest);
+        }
+      }
+    }
+  }
+
+}

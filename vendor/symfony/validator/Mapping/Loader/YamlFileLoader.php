@@ -80,7 +80,7 @@ class YamlFileLoader extends FileLoader
      */
     protected function parseNodes(array $nodes)
     {
-        $values = array();
+        $values = [];
 
         foreach ($nodes as $name => $childNodes) {
             if (is_numeric($name) && \is_array($childNodes) && 1 === \count($childNodes)) {
@@ -106,32 +106,20 @@ class YamlFileLoader extends FileLoader
     /**
      * Loads the YAML class descriptions from the given file.
      *
-     * @param string $path The path of the YAML file
-     *
-     * @return array The class descriptions
-     *
      * @throws \InvalidArgumentException If the file could not be loaded or did
      *                                   not contain a YAML array
      */
-    private function parseFile($path)
+    private function parseFile(string $path): array
     {
-        $prevErrorHandler = set_error_handler(function ($level, $message, $script, $line) use ($path, &$prevErrorHandler) {
-            $message = E_USER_DEPRECATED === $level ? preg_replace('/ on line \d+/', ' in "'.$path.'"$0', $message) : $message;
-
-            return $prevErrorHandler ? $prevErrorHandler($level, $message, $script, $line) : false;
-        });
-
         try {
             $classes = $this->yamlParser->parseFile($path, Yaml::PARSE_CONSTANT);
         } catch (ParseException $e) {
-            throw new \InvalidArgumentException(sprintf('The file "%s" does not contain valid YAML.', $path), 0, $e);
-        } finally {
-            restore_error_handler();
+            throw new \InvalidArgumentException(sprintf('The file "%s" does not contain valid YAML: ', $path).$e->getMessage(), 0, $e);
         }
 
         // empty file
         if (null === $classes) {
-            return array();
+            return [];
         }
 
         // not an array

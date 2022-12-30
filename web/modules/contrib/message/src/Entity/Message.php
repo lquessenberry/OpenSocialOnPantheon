@@ -3,6 +3,8 @@
 namespace Drupal\message\Entity;
 
 use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Core\Annotation\PluralTranslation;
+use Drupal\Core\Annotation\Translation;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
@@ -19,6 +21,12 @@ use Drupal\user\UserInterface;
  * @ContentEntityType(
  *   id = "message",
  *   label = @Translation("Message"),
+ *   label_singular = @Translation("message"),
+ *   label_plural = @Translation("messages"),
+ *   label_count = @PluralTranslation(
+ *     singular="@count message",
+ *     plural="@count messages"
+ *   ),
  *   bundle_label = @Translation("Message template"),
  *   module = "message",
  *   base_table = "message",
@@ -133,10 +141,8 @@ class Message extends ContentEntityBase implements MessageInterface {
    * {@inheritdoc}
    */
   public function getArguments() {
-    $arguments = $this->get('arguments')->getValue();
-
-    // @todo: See if there is a easier way to get only the 0 key.
-    return $arguments ? $arguments[0] : [];
+    $arguments = $this->get('arguments')->first();
+    return $arguments ? $arguments->getValue() : [];
   }
 
   /**
@@ -318,7 +324,7 @@ class Message extends ContentEntityBase implements MessageInterface {
     $arguments = $this->getArguments();
     $this->setArguments(array_merge($tokens, $arguments));
 
-    parent::save();
+    return parent::save();
   }
 
   /**

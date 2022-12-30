@@ -11,6 +11,7 @@ class Po implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{0021}\x{0022}\x{0023}\x{0025}\x{0026}\x{0027}\x{002A}' .
       '\x{002C}\x{002E}\x{002F}\x{003A}\x{003B}\x{003F}\x{0040}' .
@@ -74,6 +75,7 @@ class Po implements UnicodeCharacterPropertyInterface {
       '\x{1104B}\x{1104C}\x{1104D}\x{110BB}\x{110BC}\x{110BE}\x{110BF}' .
       '\x{110C0}\x{110C1}\x{11140}\x{11141}\x{11142}\x{11143}\x{111C5}' .
       '\x{111C6}\x{111C7}\x{111C8}\x{12470}\x{12471}\x{12472}\x{12473}';
+    // phpcs:enable
   }
 
 }

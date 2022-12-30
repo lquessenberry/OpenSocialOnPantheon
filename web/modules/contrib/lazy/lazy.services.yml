@@ -1,0 +1,9 @@
+services:
+  lazy:
+    class: Drupal\lazy\Lazy
+    arguments:
+      - '@config.factory'
+      - '@request_stack'
+      - '@plugin.manager.condition'
+      - '@router.admin_context'
+      - '@module_handler'

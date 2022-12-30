@@ -2,6 +2,7 @@
 
 namespace Drupal\batch_test\Controller;
 
+use Drupal\Core\Batch\BatchBuilder;
 use Drupal\Core\Form\FormState;
 
 /**
@@ -19,7 +20,7 @@ class BatchTestController {
     return [
       'success' => [
         '#markup' => 'Redirection successful.',
-      ]
+      ],
     ];
   }
 
@@ -47,10 +48,9 @@ class BatchTestController {
    */
   public function testNestedDrupalFormSubmit($value = 1) {
     // Set the batch and process it.
-    $batch['operations'] = [
-      ['_batch_test_nested_drupal_form_submit_callback', [$value]],
-    ];
-    batch_set($batch);
+    $batch_builder = (new BatchBuilder())
+      ->addOperation('_batch_test_nested_drupal_form_submit_callback', [$value]);
+    batch_set($batch_builder->toArray());
     return batch_process('batch-test/redirect');
   }
 
@@ -103,7 +103,7 @@ class BatchTestController {
     return [
       'success' => [
         '#markup' => 'Got out of a programmatic batched form.',
-      ]
+      ],
     ];
   }
 

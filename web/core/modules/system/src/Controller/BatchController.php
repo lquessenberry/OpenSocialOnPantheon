@@ -35,7 +35,7 @@ class BatchController implements ContainerInjectionInterface {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('app.root')
+      $container->getParameter('app.root')
     );
   }
 
@@ -61,7 +61,7 @@ class BatchController implements ContainerInjectionInterface {
       return $output;
     }
     elseif (isset($output)) {
-      $title = isset($output['#title']) ? $output['#title'] : NULL;
+      $title = $output['#title'] ?? NULL;
       $page = [
         '#type' => 'page',
         '#title' => $title,

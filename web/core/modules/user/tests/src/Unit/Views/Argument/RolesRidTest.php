@@ -3,7 +3,6 @@
 namespace Drupal\Tests\user\Unit\Views\Argument;
 
 use Drupal\Core\DependencyInjection\ContainerBuilder;
-use Drupal\Core\Entity\EntityManager;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\user\Entity\Role;
@@ -23,7 +22,7 @@ class RolesRidTest extends UnitTestCase {
   public function testTitleQuery() {
     $role1 = new Role([
       'id' => 'test_rid_1',
-      'label' => 'test rid 1'
+      'label' => 'test rid 1',
     ], 'user_role');
     $role2 = new Role([
       'id' => 'test_rid_2',
@@ -34,20 +33,22 @@ class RolesRidTest extends UnitTestCase {
     $role_storage = $this->getMockForAbstractClass('Drupal\Core\Entity\EntityStorageInterface');
     $role_storage->expects($this->any())
       ->method('loadMultiple')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         [[], []],
         [['test_rid_1'], ['test_rid_1' => $role1]],
-        [['test_rid_1', 'test_rid_2'], ['test_rid_1' => $role1, 'test_rid_2' => $role2]],
-      ]));
+        [
+          ['test_rid_1', 'test_rid_2'],
+          ['test_rid_1' => $role1, 'test_rid_2' => $role2],
+        ],
+      ]);
 
-    $entity_type = $this->getMock('Drupal\Core\Entity\EntityTypeInterface');
+    $entity_type = $this->createMock('Drupal\Core\Entity\EntityTypeInterface');
     $entity_type->expects($this->any())
       ->method('getKey')
       ->with('label')
       ->will($this->returnValue('label'));
 
-    $entity_manager = new EntityManager();
-    $entity_type_manager = $this->getMock(EntityTypeManagerInterface::class);
+    $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
     $entity_type_manager->expects($this->any())
       ->method('getDefinition')
       ->with($this->equalTo('user_role'))
@@ -59,17 +60,13 @@ class RolesRidTest extends UnitTestCase {
       ->with($this->equalTo('user_role'))
       ->will($this->returnValue($role_storage));
 
-    // Set up a minimal container to satisfy Drupal\Core\Entity\Entity's
+    // Set up a minimal container to satisfy Drupal\Core\Entity\EntityBase's
     // dependency on it.
     $container = new ContainerBuilder();
-    $container->set('entity.manager', $entity_manager);
     $container->set('entity_type.manager', $entity_type_manager);
-    // Inject the container into entity.manager so it can defer to
-    // entity_type.manager.
-    $entity_manager->setContainer($container);
     \Drupal::setContainer($container);
 
-    $roles_rid_argument = new RolesRid([], 'user__roles_rid', [], $entity_manager);
+    $roles_rid_argument = new RolesRid([], 'user__roles_rid', [], $entity_type_manager);
 
     $roles_rid_argument->value = [];
     $titles = $roles_rid_argument->titleQuery();

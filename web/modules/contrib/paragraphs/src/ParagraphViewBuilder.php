@@ -34,10 +34,12 @@ class ParagraphViewBuilder extends EntityViewBuilder {
         ]);
       }
 
-      foreach ($paragraph_type->getEnabledBehaviorPlugins() as $plugin_id => $plugin_value) {
+      foreach ($paragraph_type->getEnabledBehaviorPlugins() as $plugin_value) {
         $plugin_value->view($build_list[$key], $build['#paragraph'], $display, $build['#view_mode']);
       }
+      $build_list[$key]['#attached']['library'][] = 'paragraphs/drupal.paragraphs.unpublished';
     }
+
     return $build_list;
   }
 

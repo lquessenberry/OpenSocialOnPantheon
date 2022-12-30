@@ -17,12 +17,12 @@ class ModuleRouteSubscriberTest extends UnitTestCase {
   /**
    * The mock module handler.
    *
-   * @var Drupal\Core\Extension\ModuleHandlerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var Drupal\Core\Extension\ModuleHandlerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $moduleHandler;
 
-  protected function setUp() {
-    $this->moduleHandler = $this->getMock('Drupal\Core\Extension\ModuleHandlerInterface');
+  protected function setUp(): void {
+    $this->moduleHandler = $this->createMock('Drupal\Core\Extension\ModuleHandlerInterface');
 
     $value_map = [
       ['enabled', TRUE],
@@ -31,7 +31,7 @@ class ModuleRouteSubscriberTest extends UnitTestCase {
 
     $this->moduleHandler->expects($this->any())
       ->method('moduleExists')
-      ->will($this->returnValueMap($value_map));
+      ->willReturnMap($value_map);
   }
 
   /**

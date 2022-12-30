@@ -6,8 +6,15 @@ namespace Drupal\Tests\aggregator\Functional;
  * Update feed test.
  *
  * @group aggregator
+ * @group legacy
  */
 class UpdateFeedTest extends AggregatorTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
   /**
    * Creates a feed and attempts to update it.
    */
@@ -23,21 +30,21 @@ class UpdateFeedTest extends AggregatorTestBase {
       if (isset($feed->{$same_field}->value)) {
         $edit[$same_field] = $feed->{$same_field}->value;
       }
-      $this->drupalPostForm('aggregator/sources/' . $feed->id() . '/configure', $edit, t('Save'));
-      $this->assertText(t('The feed @name has been updated.', ['@name' => $edit['title[0][value]']]), format_string('The feed %name has been updated.', ['%name' => $edit['title[0][value]']]));
+      $this->drupalGet('aggregator/sources/' . $feed->id() . '/configure');
+      $this->submitForm($edit, 'Save');
+      $this->assertSession()->pageTextContains('The feed ' . $edit['title[0][value]'] . ' has been updated.');
 
       // Verify that the creation message contains a link to a feed.
-      $view_link = $this->xpath('//div[@class="messages"]//a[contains(@href, :href)]', [':href' => 'aggregator/sources/']);
-      $this->assert(isset($view_link), 'The message area contains a link to a feed');
+      $this->assertSession()->elementExists('xpath', '//div[@data-drupal-messages]//a[contains(@href, "aggregator/sources/")]');
 
       // Check feed data.
-      $this->assertUrl($feed->url('canonical', ['absolute' => TRUE]));
+      $this->assertSession()->addressEquals($feed->toUrl('canonical'));
       $this->assertTrue($this->uniqueFeed($edit['title[0][value]'], $edit['url[0][value]']), 'The feed is unique.');
 
-      // Check feed source.
+      // Check feed source, the title should be on the page.
       $this->drupalGet('aggregator/sources/' . $feed->id());
-      $this->assertResponse(200, 'Feed source exists.');
-      $this->assertText($edit['title[0][value]'], 'Page title');
+      $this->assertSession()->statusCodeEquals(200);
+      $this->assertSession()->pageTextContains($edit['title[0][value]']);
 
       // Set correct title so deleteFeed() will work.
       $feed->title = $edit['title[0][value]'];

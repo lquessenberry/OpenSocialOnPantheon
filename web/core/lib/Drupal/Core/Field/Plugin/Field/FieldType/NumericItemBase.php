@@ -79,26 +79,26 @@ abstract class NumericItemBase extends FieldItemBase {
     $settings = $this->getSettings();
     $label = $this->getFieldDefinition()->getLabel();
 
-    if (!empty($settings['min'])) {
+    if (isset($settings['min']) && $settings['min'] !== '') {
       $min = $settings['min'];
       $constraints[] = $constraint_manager->create('ComplexData', [
         'value' => [
           'Range' => [
             'min' => $min,
             'minMessage' => t('%name: the value may be no less than %min.', ['%name' => $label, '%min' => $min]),
-          ]
+          ],
         ],
       ]);
     }
 
-    if (!empty($settings['max'])) {
+    if (isset($settings['max']) && $settings['max'] !== '') {
       $max = $settings['max'];
       $constraints[] = $constraint_manager->create('ComplexData', [
         'value' => [
           'Range' => [
             'max' => $max,
             'maxMessage' => t('%name: the value may be no greater than %max.', ['%name' => $label, '%max' => $max]),
-          ]
+          ],
         ],
       ]);
     }

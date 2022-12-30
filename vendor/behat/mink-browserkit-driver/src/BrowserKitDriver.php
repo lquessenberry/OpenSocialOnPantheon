@@ -14,6 +14,7 @@ use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
 use Symfony\Component\BrowserKit\Client;
 use Symfony\Component\BrowserKit\Cookie;
+use Symfony\Component\BrowserKit\Exception\BadMethodCallException;
 use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\DomCrawler\Field\ChoiceFormField;
@@ -71,7 +72,7 @@ class BrowserKitDriver extends CoreDriver
     /**
      * Tells driver to remove hostname from URL.
      *
-     * @param Boolean $remove
+     * @param boolean $remove
      *
      * @deprecated Deprecated as of 1.2, to be removed in 2.0. Pass the base url in the constructor instead.
      */
@@ -87,7 +88,7 @@ class BrowserKitDriver extends CoreDriver
     /**
      * Tells driver to remove script name from URL.
      *
-     * @param Boolean $remove
+     * @param boolean $remove
      *
      * @deprecated Deprecated as of 1.2, to be removed in 2.0. Pass the base url in the constructor instead.
      */
@@ -150,7 +151,13 @@ class BrowserKitDriver extends CoreDriver
      */
     public function getCurrentUrl()
     {
-        $request = $this->client->getInternalRequest();
+        // This should be encapsulated in `getRequest` method if any other method needs the request
+        try {
+            $request = $this->client->getInternalRequest();
+        } catch (BadMethodCallException $e) {
+            // Handling Symfony 5+ behaviour
+            $request = null;
+        }
 
         if ($request === null) {
             throw new DriverException('Unable to access the request before visiting a page');
@@ -193,12 +200,14 @@ class BrowserKitDriver extends CoreDriver
     {
         if (false === $user) {
             unset($this->serverParameters['PHP_AUTH_USER'], $this->serverParameters['PHP_AUTH_PW']);
+            unset($this->serverParameters['HTTP_AUTHORIZATION']);
 
             return;
         }
 
         $this->serverParameters['PHP_AUTH_USER'] = $user;
         $this->serverParameters['PHP_AUTH_PW'] = $password;
+        $this->serverParameters['HTTP_AUTHORIZATION'] = 'Basic ' . base64_encode($user . ':' . $password);
     }
 
     /**
@@ -266,7 +275,7 @@ class BrowserKitDriver extends CoreDriver
      */
     private function getCookiePath()
     {
-        $path = dirname(parse_url($this->getCurrentUrl(), PHP_URL_PATH));
+        $path = parse_url($this->getCurrentUrl(), PHP_URL_PATH);
 
         if ('\\' === DIRECTORY_SEPARATOR) {
             $path = str_replace('\\', '/', $path);
@@ -305,7 +314,14 @@ class BrowserKitDriver extends CoreDriver
      */
     public function getStatusCode()
     {
-        return $this->getResponse()->getStatus();
+        $response = $this->getResponse();
+
+        // BC layer for Symfony < 4.3
+        if (!method_exists($response, 'getStatusCode')) {
+            return $response->getStatus();
+        }
+
+        return $response->getStatusCode();
     }
 
     /**
@@ -344,7 +360,8 @@ class BrowserKitDriver extends CoreDriver
      */
     public function getText($xpath)
     {
-        $text = $this->getFilteredCrawler($xpath)->text();
+        $text = $this->getFilteredCrawler($xpath)->text(null, true);
+        // TODO drop our own normalization once supporting only dom-crawler 4.4+ as it already does it.
         $text = str_replace("\n", ' ', $text);
         $text = preg_replace('/ {2,}/', ' ', $text);
 
@@ -356,8 +373,7 @@ class BrowserKitDriver extends CoreDriver
      */
     public function getHtml($xpath)
     {
-        // cut the tag itself (making innerHTML out of outerHTML)
-        return preg_replace('/^\<[^\>]+\>|\<[^\>]+\>$/', '', $this->getOuterHtml($xpath));
+        return $this->getFilteredCrawler($xpath)->html();
     }
 
     /**
@@ -365,7 +381,13 @@ class BrowserKitDriver extends CoreDriver
      */
     public function getOuterHtml($xpath)
     {
-        $node = $this->getCrawlerNode($this->getFilteredCrawler($xpath));
+        $crawler = $this->getFilteredCrawler($xpath);
+
+        if (method_exists($crawler, 'outerHtml')) {
+            return $crawler->outerHtml();
+        }
+
+        $node = $this->getCrawlerNode($crawler);
 
         return $node->ownerDocument->saveHTML($node);
     }
@@ -405,7 +427,15 @@ class BrowserKitDriver extends CoreDriver
             return $this->getAttribute($xpath, 'value');
         }
 
-        return $field->getValue();
+        $value = $field->getValue();
+
+        if ('select' === $node->tagName && null === $value) {
+            // symfony/dom-crawler returns null as value for a non-multiple select without
+            // options but we want an empty string to match browsers.
+            $value = '';
+        }
+
+        return $value;
     }
 
     /**
@@ -538,7 +568,12 @@ class BrowserKitDriver extends CoreDriver
      */
     protected function getResponse()
     {
-        $response = $this->client->getInternalResponse();
+        try {
+            $response = $this->client->getInternalResponse();
+        } catch (BadMethodCallException $e) {
+            // Handling Symfony 5+ behaviour
+            $response = null;
+        }
 
         if (null === $response) {
             throw new DriverException('Unable to access the response before visiting a page');
@@ -557,6 +592,10 @@ class BrowserKitDriver extends CoreDriver
      */
     protected function prepareUrl($url)
     {
+        if (!$this->removeHostFromUrl && !$this->removeScriptFromUrl) {
+            return $url;
+        }
+
         $replacement = ($this->removeHostFromUrl ? '' : '$1') . ($this->removeScriptFromUrl ? '' : '$2');
 
         return preg_replace('#(https?\://[^/]+)(/[^/\.]+\.php)?#', $replacement, $url);
@@ -693,7 +732,7 @@ class BrowserKitDriver extends CoreDriver
             }
         }
 
-        $this->client->submit($form);
+        $this->client->submit($form, array(), $this->serverParameters);
 
         $this->forms = array();
     }

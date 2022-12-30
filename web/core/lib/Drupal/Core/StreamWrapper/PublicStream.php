@@ -86,10 +86,10 @@ class PublicStream extends LocalStream {
    *
    * The site path is injectable from the site.path service:
    * @code
-   * $base_path = PublicStream::basePath(\Drupal::service('site.path'));
+   * $base_path = PublicStream::basePath(\Drupal::getContainer()->getParameter('site.path'));
    * @endcode
    *
-   * @param \SplString $site_path
+   * @param string $site_path
    *   (optional) The site.path service parameter, which is typically the path
    *   to sites/ in a Drupal installation. This allows you to inject the site
    *   path using services from the caller. If omitted, this method will use the
@@ -99,12 +99,12 @@ class PublicStream extends LocalStream {
    * @return string
    *   The base path for public:// typically sites/default/files.
    */
-  public static function basePath(\SplString $site_path = NULL) {
+  public static function basePath($site_path = NULL) {
     if ($site_path === NULL) {
       // Find the site path. Kernel service is not always available at this
       // point, but is preferred, when available.
       if (\Drupal::hasService('kernel')) {
-        $site_path = \Drupal::service('site.path');
+        $site_path = \Drupal::getContainer()->getParameter('site.path');
       }
       else {
         // If there is no kernel available yet, we call the static
@@ -113,6 +113,30 @@ class PublicStream extends LocalStream {
       }
     }
     return Settings::get('file_public_path', $site_path . '/files');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getLocalPath($uri = NULL) {
+    $path = parent::getLocalPath($uri);
+    if (!$path || (strpos($path, 'vfs://') === 0)) {
+      return $path;
+    }
+
+    if (Settings::get('sa_core_2022_012_override') === TRUE) {
+      return $path;
+    }
+
+    $private_path = Settings::get('file_private_path');
+    if ($private_path) {
+      $private_path = realpath($private_path);
+      if ($private_path && strpos($path, $private_path) === 0) {
+        return FALSE;
+      }
+    }
+
+    return $path;
   }
 
 }

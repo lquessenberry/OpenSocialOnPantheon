@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\views\Unit;
 
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\views\Views;
@@ -27,17 +28,17 @@ class ViewsTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->container = new ContainerBuilder();
-    $user = $this->getMock('Drupal\Core\Session\AccountInterface');
+    $user = $this->createMock('Drupal\Core\Session\AccountInterface');
     $request_stack = new RequestStack();
     $request_stack->push(new Request());
     $views_data = $this->getMockBuilder('Drupal\views\ViewsData')
       ->disableOriginalConstructor()
       ->getMock();
-    $route_provider = $this->getMock('Drupal\Core\Routing\RouteProviderInterface');
+    $route_provider = $this->createMock('Drupal\Core\Routing\RouteProviderInterface');
     $this->container->set('views.executable', new ViewExecutableFactory($user, $request_stack, $views_data, $route_provider));
 
     \Drupal::setContainer($this->container);
@@ -59,17 +60,32 @@ class ViewsTest extends UnitTestCase {
       ->with('test_view')
       ->will($this->returnValue($view));
 
-    $entity_manager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
-    $entity_manager->expects($this->once())
+    $entity_type_manager = $this->createMock('Drupal\Core\Entity\EntityTypeManagerInterface');
+    $entity_type_manager->expects($this->once())
       ->method('getStorage')
       ->with('view')
       ->will($this->returnValue($view_storage));
-    $this->container->set('entity.manager', $entity_manager);
+    $this->container->set('entity_type.manager', $entity_type_manager);
 
     $executable = Views::getView('test_view');
     $this->assertInstanceOf('Drupal\views\ViewExecutable', $executable);
     $this->assertEquals($view->id(), $executable->storage->id());
     $this->assertEquals(spl_object_hash($view), spl_object_hash($executable->storage));
+  }
+
+  /**
+   * Tests the getView() method against a non-existent view.
+   *
+   * @covers ::getView
+   */
+  public function testGetNonExistentView() {
+    $entity_type_manager = $this->prophesize(EntityTypeManagerInterface::class);
+    $storage = $this->prophesize(EntityStorageInterface::class);
+    $storage->load('test_view_non_existent')->willReturn(NULL);
+    $entity_type_manager->getStorage('view')->willReturn($storage->reveal());
+    $this->container->set('entity_type.manager', $entity_type_manager->reveal());
+    $executable_does_not_exist = Views::getView('test_view_non_existent');
+    $this->assertNull($executable_does_not_exist);
   }
 
   /**
@@ -123,7 +139,7 @@ class ViewsTest extends UnitTestCase {
         'type_a' => [
           'display_plugin' => 'type_a',
           'display_options' => [
-            'enabled' => FALSE
+            'enabled' => FALSE,
           ],
         ],
         // Type D intentionally doesn't exist.
@@ -134,7 +150,7 @@ class ViewsTest extends UnitTestCase {
       ],
     ], 'view');
 
-    $query = $this->getMock('Drupal\Core\Entity\Query\QueryInterface');
+    $query = $this->createMock('Drupal\Core\Entity\Query\QueryInterface');
     $query->expects($this->exactly(2))
       ->method('condition')
       ->willReturnSelf();
@@ -154,7 +170,7 @@ class ViewsTest extends UnitTestCase {
       ->with(['test_view_1', 'test_view_2', 'test_view_3'])
       ->will($this->returnValue(['test_view_1' => $view_1, 'test_view_2' => $view_2, 'test_view_3' => $view_3]));
 
-    $entity_type_manager = $this->getMock(EntityTypeManagerInterface::class);
+    $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
     $entity_type_manager->expects($this->exactly(2))
       ->method('getStorage')
       ->with('view')
@@ -172,7 +188,7 @@ class ViewsTest extends UnitTestCase {
       ],
     ];
 
-    $display_manager = $this->getMock('Drupal\Component\Plugin\PluginManagerInterface');
+    $display_manager = $this->createMock('Drupal\Component\Plugin\PluginManagerInterface');
     $display_manager->expects($this->once())
       ->method('getDefinitions')
       ->willReturn($definitions);

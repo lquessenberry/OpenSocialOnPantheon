@@ -213,6 +213,13 @@ class Conversion {
    *   TRUE if the provided header is a mailbox header, and otherwise FALSE.
    */
   public static function swiftmailer_is_mailbox_header($key, $value) {
+    // Remove line breaks, which are legitimate within a mime header.
+    // A line break within the header does not mean
+    // a line break within the header value.
+    // See RFC 2047, the related RFCs.
+    // @see https://www.drupal.org/project/drupal/issues/84883.
+    $value = str_replace(["\n", "\r"], '', $value);
+
     if (preg_match('/' . static::SWIFTMAILER_MAILBOX_PATTERN . '/', $value)) {
       return TRUE;
     }
@@ -262,7 +269,7 @@ class Conversion {
    *   TRUE if the provided header is an id header, and otherwise FALSE.
    */
   public static function swiftmailer_is_id_header($key, $value) {
-    if (\Drupal::service('email.validator')->isValid($value) && $key == 'Message-ID') {
+    if ($key == 'Message-ID' && \Drupal::service('email.validator')->isValid($value)) {
       return TRUE;
     }
     else {
@@ -294,7 +301,7 @@ class Conversion {
    *
    * It is difficult to distinguish id, mailbox and path headers from each other
    * as they all may very well contain the exact same value. This public static function simply
-   * checks whether the header key equals to 'Message-ID' to determine if the
+   * checks whether the header key equals to 'Return-Path' to determine if the
    * header is a path header.
    *
    * @see http://swift_mailer.org/docs/header-path
@@ -308,7 +315,7 @@ class Conversion {
    *   TRUE if the provided header is a path header, and otherwise FALSE.
    */
   public static function swiftmailer_is_path_header($key, $value) {
-    if (\Drupal::service('email.validator')->isValid($value) && $key == 'Return-Path') {
+    if ($key == 'Return-Path' && \Drupal::service('email.validator')->isValid($value)) {
       return TRUE;
     }
     else {
@@ -365,6 +372,13 @@ class Conversion {
    */
   public static function swiftmailer_parse_mailboxes($value) {
     $validator = \Drupal::service('email.validator');
+
+    // Remove line breaks, which are legitimate within a mime header.
+    // A line break within the header does not mean
+    // a line break within the header value.
+    // See RFC 2047, the related RFCs.
+    // @see https://www.drupal.org/project/drupal/issues/84883.
+    $value = str_replace(["\n", "\r"], '', $value);
 
     // Split mailboxes by ',' (comma) and ';' (semicolon).
     $mailboxes_raw = [];

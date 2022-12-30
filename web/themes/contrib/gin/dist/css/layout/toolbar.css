@@ -1,0 +1,723 @@
+:root {
+  --ginToolbarSecondaryHeight: 48px;
+  --ginToolbarHeight: 39px;
+  --ginScrollOffset: 72px;
+  --ginHorizontalToolbarOffset: var(--ginToolbarHeight);
+  --ginVerticalToolbarOffset: 0px;
+  --ginStickyOffset: 0px;
+}
+
+@media (min-width: 976px) {
+  :root {
+    --ginToolbarSecondaryHeight: 60px;
+    --iconGinToolbar: 22px;
+    --ginScrollOffset: 130px;
+    --ginHorizontalToolbarOffset: 0px;
+    --ginVerticalToolbarOffset: var(--ginToolbarWidthCollapsed);
+    --ginStickyOffset: var(--ginStickyHeight);
+  }
+}
+
+@media (min-width: 976px) {
+  .toolbar-fixed[data-toolbar-menu=open] {
+    --ginVerticalToolbarOffset: var(--ginToolbarWidth, 240px);
+  }
+}
+
+@media (min-width: 976px) {
+  #toolbar-item-administration-tray {
+    border: 0 none;
+  }
+}
+
+.toolbar .toolbar-bar {
+  box-shadow: none;
+}
+
+[dir=rtl] .toolbar .toolbar-bar {
+  box-shadow: none;
+}
+
+@media (min-width: 588px) {
+  .toolbar .toolbar-bar {
+    display: flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  .toolbar .toolbar-bar {
+    height: 0;
+  }
+}
+
+.toolbar .toolbar-bar .toolbar-tab > .toolbar-item {
+  font-weight: normal;
+}
+
+[dir="ltr"] .toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-icon::before,
+[dir="ltr"] .toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+  left: 1em;
+}
+
+[dir="rtl"] .toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-icon::before,
+[dir="rtl"] .toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+  right: 1em;
+}
+
+@media (min-width: 976px) {
+  .toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-icon::before,
+.toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+    width: var(--iconGinToolbar);
+    height: var(--iconGinToolbar);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  [dir="ltr"] .toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-icon::before,
+[dir="ltr"] .toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+    left: calc((var(--ginToolbarWidthCollapsed) - var(--iconGinToolbar)) / 2 - 9px);
+  }
+
+  [dir="rtl"] .toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-icon::before,
+[dir="rtl"] .toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+    right: calc((var(--ginToolbarWidthCollapsed) - var(--iconGinToolbar)) / 2 - 9px);
+  }
+}
+
+@media (max-width: 588px) {
+  [dir="ltr"] .toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+    left: 0;
+  }
+
+  [dir="rtl"] .toolbar .toolbar-bar .toolbar-tab > .toolbar-icon-edit.toolbar-item::before {
+    right: 0;
+  }
+}
+
+@media (min-width: 976px) {
+  .toolbar .toolbar-bar .toolbar-logo {
+    height: var(--ginStickyHeight);
+  }
+
+  .toolbar .toolbar-bar .toolbar-icon-home {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+  }
+
+  .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon.override-icon:before {
+    width: 0;
+    content: none;
+  }
+
+  [dir="ltr"] .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon.override-icon:before {
+    left: 0;
+  }
+
+  [dir="rtl"] .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon.override-icon:before {
+    right: 0;
+  }
+}
+
+.toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-logo {
+  padding: 8px 0;
+}
+
+.toolbar .toolbar-bar #toolbar-item-administration-tray .toolbar-logo img {
+  max-width: calc(var(--ginToolbarWidthCollapsed) - 1px);
+  max-height: 40px;
+}
+
+@media (min-width: 976px) {
+  .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default {
+    font-size: 0;
+    height: 74px;
+    margin-bottom: 6px;
+    transition: top var(--ginTransition);
+  }
+}
+
+@media (min-width: 976px) {
+  .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default::before {
+    width: 32px;
+    height: 32px;
+    -webkit-mask-size: 32px 32px;
+            mask-size: 32px 32px;
+    -webkit-mask-position: center center;
+            mask-position: center center;
+  }
+
+  [dir="ltr"] .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default::before {
+    left: calc((var(--ginToolbarWidthCollapsed) - 32px) / 2 - 9px);
+  }
+
+  [dir="rtl"] .toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default::before {
+    right: calc((var(--ginToolbarWidthCollapsed) - 32px) / 2 - 9px);
+  }
+}
+
+.toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default:hover::before {
+  background: var(--colorGinPrimary);
+}
+
+.toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default::after {
+  display: none;
+}
+
+.toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default:focus {
+  box-shadow: none;
+}
+
+.toolbar .toolbar-bar #toolbar-item-administration-tray a.toolbar-icon-admin-toolbar-tools-help.toolbar-icon-default:focus::after {
+  box-shadow: inset 0 0 0 1px var(--colorGinFocusBorder), inset 0 0 0 4px var(--colorGinFocus);
+}
+
+.toolbar-tray a,
+.toolbar-tray span {
+  color: var(--colorGinText);
+}
+
+#gin-toolbar-bar.js-settings-tray-edit-mode {
+  justify-content: flex-end;
+}
+
+@media (min-width: 976px) {
+  #toolbar-item-administration-tray a.toolbar-icon.override-icon:before {
+    width: 0;
+    content: none;
+  }
+
+  [dir="ltr"] #toolbar-item-administration-tray a.toolbar-icon.override-icon:before {
+    left: 0;
+  }
+
+  [dir="rtl"] #toolbar-item-administration-tray a.toolbar-icon.override-icon:before {
+    right: 0;
+  }
+}
+
+.toolbar .toolbar-bar {
+  position: fixed;
+  width: 100%;
+}
+
+[dir="ltr"] .toolbar .toolbar-bar {
+  left: 0;
+}
+
+[dir="rtl"] .toolbar .toolbar-bar {
+  right: 0;
+}
+
+.toolbar .toolbar-menu {
+  background: transparent;
+}
+
+.toolbar .toolbar-menu .toolbar-menu {
+  background: var(--colorGinAppBackground);
+}
+
+.toolbar .toolbar-menu .toolbar-menu a,
+.toolbar .toolbar-menu .toolbar-menu span {
+  color: var(--colorGinText);
+}
+
+.toolbar .toolbar-tray .menu-item--active-trail > .toolbar-box a,
+.toolbar .toolbar-tray a.is-active {
+  color: var(--colorGinPrimary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+@media (max-width: 976px) {
+  .toolbar .toolbar-tray .menu-item--active-trail > .toolbar-box a,
+.toolbar .toolbar-tray a.is-active {
+    background: var(--colorGinPrimaryLight);
+  }
+}
+
+.toolbar-menu__title,
+.toolbar-menu__sub-title,
+a.toolbar-menu__trigger,
+.toolbar-menu__logo {
+  display: none;
+}
+
+@media (min-width: 976px) {
+  #toolbar-item-administration-tray {
+    display: block;
+  }
+
+  .toolbar-fixed {
+    transition: var(--ginTransition);
+  }
+
+  .toolbar .toolbar-box {
+    position: static;
+  }
+
+  .toolbar-tab > .toolbar-item.toolbar-icon-menu {
+    display: none;
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger {
+    position: fixed;
+    bottom: 0;
+    font-size: .875rem;
+    color: var(--colorGinTextLight);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    width: var(--ginToolbarWidthCollapsed);
+    height: 64px;
+    margin: 0;
+    transition: width var(--ginTransition);
+    overflow: hidden;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration a.toolbar-menu__trigger {
+    left: 0;
+    padding: 16px 0 16px var(--ginToolbarWidthCollapsed);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration a.toolbar-menu__trigger {
+    right: 0;
+    padding: 16px var(--ginToolbarWidthCollapsed) 16px 0;
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger, .toolbar-menu-administration a.toolbar-menu__trigger:active, .toolbar-menu-administration a.toolbar-menu__trigger:focus {
+    background-color: transparent;
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger:hover::before {
+    background-color: var(--colorGinTitle);
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger::before {
+    content: "";
+    position: absolute;
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--colorGinBorder);
+    background: var(--colorGinLayerBackground) url("data:image/svg+xml,%3Csvg width='9' height='14' viewBox='0 0 9 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 1.7109375,0.31445312 0.2890625,1.7226562 5.5917969,7.0761719 0.2890625,12.429688 1.7109375,13.837891 8.4082031,7.0761719 Z' fill='%23999999'/%3E%3C/svg%3E") no-repeat center center;
+    background-size: 11px 11px;
+    transition: transform var(--ginTransition);
+  }
+
+  [dir="ltr"] .toolbar-menu-administration a.toolbar-menu__trigger::before {
+    left: calc((var(--ginToolbarWidthCollapsed) - 36px) / 2);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration a.toolbar-menu__trigger::before {
+    right: calc((var(--ginToolbarWidthCollapsed) - 36px) / 2);
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger.is-active {
+    display: flex;
+    font-weight: normal;
+    color: var(--colorGinTextLight);
+    width: var(--ginToolbarWidth);
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger.is-active:hover {
+    color: var(--colorGinTitle);
+  }
+
+  [dir="ltr"] .toolbar-menu-administration a.toolbar-menu__trigger.is-active:before {
+    transform: rotate(180deg);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration a.toolbar-menu__trigger.is-active:before {
+    transform: rotate(-180deg);
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger .menu {
+    display: none;
+  }
+
+  .toolbar-menu-administration a.toolbar-menu__trigger .close {
+    display: inline;
+  }
+
+  .toolbar-tab--toolbar-item-administration {
+    order: -1;
+  }
+
+  .toolbar-menu-administration {
+    display: flex;
+    position: fixed;
+    top: auto;
+    width: var(--ginToolbarWidthCollapsed);
+    height: 100vh;
+    max-width: calc(100% - var(--ginToolbarHeight));
+    background: var(--colorGinLayerBackground);
+    transition: var(--ginTransition);
+  }
+
+  [dir="ltr"] .toolbar-menu-administration {
+    left: 0;
+    border-right: 1px solid var(--colorGinLayerBorder);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration {
+    right: 0;
+    border-left: 1px solid var(--colorGinLayerBorder);
+  }
+
+  .gin--dark-mode .toolbar-menu-administration {
+    box-shadow: 0 0 4px rgba(0, 0, 0, .1);
+  }
+
+  [data-toolbar-menu=open] .toolbar-menu-administration {
+    width: var(--ginToolbarWidth);
+  }
+
+  .toolbar-tray-horizontal .toolbar-menu-administration ul li.menu-item--expanded .menu-item.hover-intent ul {
+    margin-top: 0;
+  }
+
+  [dir="ltr"] .toolbar-tray-horizontal .toolbar-menu-administration ul li.menu-item--expanded .menu-item.hover-intent ul {
+    margin-left: calc(var(--ginToolbarWidth) - 2px);
+  }
+
+  [dir="rtl"] .toolbar-tray-horizontal .toolbar-menu-administration ul li.menu-item--expanded .menu-item.hover-intent ul {
+    margin-right: calc(var(--ginToolbarWidth) - 2px);
+  }
+
+  .toolbar-vertical .toolbar-menu-administration {
+    width: var(--ginToolbarWidth);
+  }
+
+  .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item {
+    border-top: 0 none;
+    border-bottom: 0 none;
+  }
+
+  .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon,
+.toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon {
+    width: auto;
+  }
+
+  [dir="ltr"] .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon,
+[dir="ltr"] .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon {
+    padding-left: 3.5rem;
+  }
+
+  [dir="rtl"] .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon,
+[dir="rtl"] .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon {
+    padding-right: 3.5rem;
+  }
+
+  [dir="ltr"] .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    left: var(--ginToolbarWidth);
+  }
+
+  [dir="rtl"] .toolbar-vertical .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    right: var(--ginToolbarWidth);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu {
+    align-self: flex-start;
+    height: 100%;
+    max-height: calc(100% - var(--ginToolbarWidthCollapsed));
+    overflow-y: auto;
+    background: transparent;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu .menu-item__spacer {
+    flex-grow: 1;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon {
+    font-size: 1rem;
+    color: var(--colorGinTextLight);
+    display: flex;
+    align-items: center;
+    width: calc(var(--ginToolbarWidth) - 16px);
+    height: 48px;
+    margin: 0 8px 1px;
+    border-radius: var(--ginBorderDefault);
+    overflow: hidden;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon,
+[dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon {
+    padding-left: calc(var(--ginToolbarWidthCollapsed) - 9px);
+    padding-right: 0;
+  }
+
+  [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon,
+[dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon {
+    padding-right: calc(var(--ginToolbarWidthCollapsed) - 9px);
+    padding-left: 0;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:hover,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon:hover {
+    color: var(--colorGinPrimary);
+    background-color: transparent;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon.is-active,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon.is-active {
+    color: var(--colorGinPrimary);
+    font-weight: 500;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon.is-active:before,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon.is-active:before {
+    background: var(--colorGinPrimary);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon.toolbar-handle,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon.toolbar-handle {
+    width: var(--ginToolbarWidthCollapsed);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon.toolbar-handle:before,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-box > .toolbar-icon.toolbar-handle:before {
+    display: none;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    display: none;
+    top: 0;
+    height: 100vh;
+    max-width: calc(100% - var(--ginToolbarHeight));
+    box-shadow: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    margin-left: calc(var(--ginToolbarWidthCollapsed) - 1px);
+    border-left: 1px solid var(--colorGinLayerBorder);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    margin-right: calc(var(--ginToolbarWidthCollapsed) - 1px);
+    border-right: 1px solid var(--colorGinLayerBorder);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu, [dir=rtl] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu, [dir=ltr] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    position: fixed;
+    width: var(--ginToolbarWidth);
+  }
+
+  [dir="ltr"] .gin--dark-mode .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    border-left: 1px solid #1b1b1d;
+  }
+
+  [dir="rtl"] .gin--dark-mode .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu {
+    border-right: 1px solid #1b1b1d;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu a,
+.toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu span {
+    color: var(--colorGinText);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu a.is-active,
+.toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu span.is-active {
+    color: var(--colorGinPrimary);
+    font-weight: 500;
+    background: var(--colorGinPrimaryLight);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu a.is-active:hover,
+.toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu span.is-active:hover {
+    color: var(--colorGinPrimaryHover);
+    background: var(--colorGinPrimaryLightHover);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu__title, .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu__sub-title {
+    position: relative;
+    display: block;
+    min-height: 36px;
+    font-size: 1.75em;
+    letter-spacing: -0.025em;
+    padding: 0;
+    margin: 1rem .75rem 1.25rem .75rem;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu__title a, .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu__sub-title a {
+    font-weight: 500;
+    color: var(--colorGinTitle);
+    padding: .75rem;
+    border-radius: var(--ginBorderDefault);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu__sub-title {
+    font-size: 1.375em;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.275rem;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu__sub-title a {
+    padding: .9rem .75rem;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu .menu-item {
+    border-top: 0 none;
+    border-bottom: 0 none;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu .menu-item {
+    border-left: 0 none;
+  }
+
+  [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu .menu-item {
+    border-right: 0 none;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu .menu-item .toolbar-icon {
+    font-size: .9375rem;
+    margin: .25em .75rem;
+    border-radius: var(--ginBorderDefault);
+    overflow: hidden;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu .menu-item .toolbar-icon {
+    padding: 1em 2rem 1em .75rem;
+  }
+
+  [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item .toolbar-menu .menu-item .toolbar-icon {
+    padding: 1em .75rem 1em 2rem;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration > .toolbar-menu, [dir="ltr"] .toolbar-menu-administration > .toolbar-menu .toolbar-menu {
+    background: linear-gradient(var(--colorGinLayerBackground) 30%, var(--colorGinLayerBackground)), linear-gradient(var(--colorGinLayerBackground), var(--colorGinLayerBackground) 80%) 0 100%, radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .15), rgba(0, 0, 0, 0)), radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .15), rgba(0, 0, 0, 0)) 0 100%;
+  }
+
+  [dir="rtl"] .toolbar-menu-administration > .toolbar-menu, [dir="rtl"] .toolbar-menu-administration > .toolbar-menu .toolbar-menu {
+    background: linear-gradient(var(--colorGinLayerBackground) 30%, var(--colorGinLayerBackground)), linear-gradient(var(--colorGinLayerBackground), var(--colorGinLayerBackground) 80%) 100% 100%, radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .15), rgba(0, 0, 0, 0)), radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .15), rgba(0, 0, 0, 0)) 100% 100%;
+  }
+
+  [dir] .toolbar-menu-administration > .toolbar-menu, [dir] .toolbar-menu-administration > .toolbar-menu .toolbar-menu {
+    background-color: var(--colorGinLayerBackground);
+    background-repeat: no-repeat;
+    background-attachment: local, local, scroll, scroll;
+    background-size: 100% 40px, 100% 40px, 100% 16px, 100% 16px;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu .toolbar-menu {
+    background-size: 100% 40px, 100% 40px, 100% 24px, 100% 24px;
+  }
+
+  .toolbar-menu-administration .menu-item.hover-intent > .toolbar-menu {
+    z-index: 2;
+    display: block;
+  }
+
+  [dir="ltr"] .toolbar-menu-administration .menu-item.hover-intent > .toolbar-menu {
+    border-right: 1px solid rgba(0, 0, 0, .075);
+    box-shadow: 7px 0 16px rgba(0, 0, 0, .075);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration .menu-item.hover-intent > .toolbar-menu {
+    border-left: 1px solid rgba(0, 0, 0, .075);
+    box-shadow: -7px 0 16px rgba(0, 0, 0, .075);
+  }
+
+  .toolbar-menu-administration .menu-item .menu-item:hover > .toolbar-icon {
+    color: var(--colorGinPrimaryHover);
+    background: var(--colorGinPrimaryLight);
+  }
+
+  .toolbar .toolbar-toggle-orientation button {
+    display: none;
+  }
+}
+
+[dir="ltr"] .gin--dark-mode.toolbar-horizontal .toolbar-tray > .toolbar-lining {
+  padding-right: 0;
+}
+
+[dir="rtl"] .gin--dark-mode.toolbar-horizontal .toolbar-tray > .toolbar-lining {
+  padding-left: 0;
+}
+
+.toolbar .toolbar-icon.toolbar-handle:focus {
+  background-color: rgba(255, 255, 255, .1);
+}
+
+#toolbar-item-administration-search-tray input {
+  width: 100%;
+  max-width: calc(100% - 16px);
+  outline: none;
+}
+
+.toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded,
+.toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus {
+  position: relative;
+}
+
+.toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded::before,
+.toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus::before {
+  z-index: 1;
+  top: 14px;
+}
+
+[dir="ltr"] .toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded::before,
+[dir="ltr"] .toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus::before {
+  right: 20px;
+}
+
+[dir="rtl"] .toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded::before,
+[dir="rtl"] .toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus::before {
+  left: 20px;
+}
+
+.toolbar-menu-administration > .toolbar-menu > .menu-item:hover {
+  background: transparent;
+}
+
+@media (min-width: 1024px) {
+  .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon, .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus, .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon {
+    box-shadow: none;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon::before, .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon::before,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus::before, .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon::before, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon::before, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon::before {
+    background: var(--colorGinPrimaryActive);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon::after, .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon::after,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus::after, .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon::after, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon::after, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 4px;
+    width: 40px;
+    height: 40px;
+    background: var(--colorGinPrimaryLight);
+    border-radius: var(--ginBorderDefault);
+  }
+
+  [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon::after, [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon::after, [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus::after, [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon::after, [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon::after, [dir="ltr"] .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon::after {
+    left: calc((var(--ginToolbarWidthCollapsed) - 40px) / 2 - 9px);
+  }
+
+  [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon::after, [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon::after, [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus::after, [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon::after, [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon::after, [dir="rtl"] .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon::after {
+    right: calc((var(--ginToolbarWidthCollapsed) - 40px) / 2 - 9px);
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon:focus, .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon:focus,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus:focus, .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon:focus, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon:focus, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon:focus {
+    background: transparent;
+  }
+
+  .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-icon:focus::after, .toolbar-menu-administration > .toolbar-menu > .menu-item:hover > .toolbar-box > a.toolbar-icon:focus::after,
+.toolbar-menu-administration > .toolbar-menu > .menu-item > .toolbar-icon:focus:focus::after, .toolbar-menu-administration > .toolbar-menu > .menu-item.hover-intent > .toolbar-icon:focus::after, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-icon:focus::after, .toolbar-menu-administration > .toolbar-menu > .menu-item.menu-item--active-trail > .toolbar-box > a.toolbar-icon:focus::after {
+    box-shadow: inset 0 0 0 1px var(--colorGinFocusBorder), inset 0 0 0 4px var(--colorGinFocus);
+  }
+}
+

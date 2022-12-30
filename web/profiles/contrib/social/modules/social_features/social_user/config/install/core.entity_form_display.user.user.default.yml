@@ -47,5 +47,6 @@ content:
     third_party_settings: {  }
 hidden:
   contact: true
-  language: true
   groups: true
+  language: true
+  profile_profiles: true

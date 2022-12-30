@@ -5,6 +5,7 @@ namespace Drupal\KernelTests\Core\Entity;
 use Drupal\entity_test\Entity\EntityTestMulRev;
 use Drupal\entity_test\Entity\EntityTestRev;
 use Drupal\language\Entity\ConfigurableLanguage;
+use Drupal\Tests\system\Functional\Entity\Traits\EntityDefinitionTestTrait;
 
 /**
  * Tests non-revisionable fields on revisionable (and translatable) entities.
@@ -13,12 +14,14 @@ use Drupal\language\Entity\ConfigurableLanguage;
  */
 class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
 
+  use EntityDefinitionTestTrait;
+
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['language'];
+  protected static $modules = ['language'];
 
   /**
    * The EntityTestMulRev entity type storage.
@@ -35,9 +38,23 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
   protected $rev;
 
   /**
+   * The entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * The entity definition update manager.
+   *
+   * @var \Drupal\Core\Entity\EntityDefinitionUpdateManagerInterface
+   */
+  protected $entityDefinitionUpdateManager;
+
+  /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Enable an additional language.
@@ -45,8 +62,8 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
 
     $this->installEntitySchema('entity_test_mulrev');
     $this->installEntitySchema('entity_test_rev');
-    $this->mulRev = $this->entityManager->getStorage('entity_test_mulrev');
-    $this->rev = $this->entityManager->getStorage('entity_test_rev');
+    $this->mulRev = $this->entityTypeManager->getStorage('entity_test_mulrev');
+    $this->rev = $this->entityTypeManager->getStorage('entity_test_rev');
   }
 
   /**
@@ -98,6 +115,7 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
       1 => 1,
     ];
     $revision_ids = $this->mulRev->getQuery()
+      ->accessCheck(FALSE)
       ->allRevisions()
       ->sort('revision_id', 'DESC')
       ->execute();
@@ -108,6 +126,7 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
       1 => 1,
     ];
     $non_rev_field_revision_ids = $this->mulRev->getQuery()
+      ->accessCheck(FALSE)
       ->allRevisions()
       ->condition('non_rev_field', 'Huron')
       ->sort('revision_id', 'DESC')
@@ -157,6 +176,7 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
       1 => 1,
     ];
     $revision_ids = $this->rev->getQuery()
+      ->accessCheck(FALSE)
       ->allRevisions()
       ->sort('revision_id', 'DESC')
       ->execute();
@@ -167,6 +187,7 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
       1 => 1,
     ];
     $non_rev_field_revision_ids = $this->rev->getQuery()
+      ->accessCheck(FALSE)
       ->allRevisions()
       ->condition('non_rev_field', 'Superior')
       ->sort('revision_id', 'DESC')
@@ -179,9 +200,9 @@ class ContentEntityNonRevisionableFieldTest extends EntityKernelTestBase {
    */
   public function testMultiColumnNonRevisionableBaseField() {
     \Drupal::state()->set('entity_test.multi_column', TRUE);
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
+    $this->applyEntityUpdates('entity_test_mulrev');
     // Refresh the storage.
-    $this->mulRev = $this->entityManager->getStorage('entity_test_mulrev');
+    $this->mulRev = $this->entityTypeManager->getStorage('entity_test_mulrev');
     $user1 = $this->createUser();
 
     // Create a test entity.

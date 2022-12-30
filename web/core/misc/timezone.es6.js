@@ -11,8 +11,18 @@
    */
   Drupal.behaviors.setTimezone = {
     attach(context, settings) {
-      const $timezone = $(context).find('.timezone-detect').once('timezone');
-      if ($timezone.length) {
+      const timezone = once('timezone', '.timezone-detect', context);
+      if (timezone.length) {
+        const tz = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+        // Ensure that the timezone value returned by the browser is supported
+        // by the server.
+        if (tz && $(timezone).find(`option[value="${tz}"]`).length) {
+          timezone.forEach((item) => {
+            item.value = tz;
+          });
+          return;
+        }
+
         const dateString = Date();
         // In some client environments, date strings include a time zone
         // abbreviation, between 3 and 5 letters enclosed in parentheses,
@@ -62,11 +72,13 @@
           dataType: 'json',
           success(data) {
             if (data) {
-              $timezone.val(data);
+              document.querySelectorAll('.timezone-detect').forEach((item) => {
+                item.value = data;
+              });
             }
           },
         });
       }
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

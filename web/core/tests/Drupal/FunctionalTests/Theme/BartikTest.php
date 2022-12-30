@@ -14,18 +14,10 @@ class BartikTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
-    parent::setUp();
-
-    $this->assertTrue($this->container->get('theme_installer')->install(['bartik']));
-    $this->container->get('config.factory')
-      ->getEditable('system.theme')
-      ->set('default', 'bartik')
-      ->save();
-  }
+  protected $defaultTheme = 'bartik';
 
   /**
-   * Tests that the Bartik theme always adds its message CSS and Classy's.
+   * Tests that the Bartik theme always adds its message CSS files.
    *
    * @see bartik.libraries.yml
    * @see classy.info.yml
@@ -34,7 +26,7 @@ class BartikTest extends BrowserTestBase {
     $this->drupalGet('');
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->responseContains('bartik/css/components/messages.css');
-    $this->assertSession()->responseContains('classy/css/components/messages.css');
+    $this->assertSession()->responseContains('bartik/css/classy/components/messages.css');
   }
 
 }

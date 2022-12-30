@@ -2,246 +2,38 @@
 
 namespace Embed;
 
+use DOMDocument;
+use DOMElement;
+use DOMNodeList;
+use DOMXPath;
+
 /**
  * Some helpers methods used across the library.
  */
 class Utils
 {
-    /**
-     * Extract all meta elements from html.
-     *
-     * @param \DOMDocument $html
-     *
-     * @return array with subarrays [name, value, element]
-     */
-    public static function getMetas(\DOMDocument $html)
-    {
-        $metas = [];
-
-        foreach ($html->getElementsByTagName('meta') as $meta) {
-            $name = trim(strtolower($meta->getAttribute('property') ?: $meta->getAttribute('name')));
-            $value = $meta->getAttribute('content') ?: $meta->getAttribute('value');
-            $metas[] = [$name, $value, $meta];
-        }
-
-        return $metas;
-    }
-
-    /**
-     * Extract all link elements from html.
-     *
-     * @param \DOMDocument $html
-     * @param string       $tagName
-     *
-     * @return array with subarrays [rel, href, element]
-     */
-    public static function getLinks(\DOMDocument $html, $tagName = 'link')
-    {
-        $links = [];
-
-        foreach ($html->getElementsByTagName($tagName) as $link) {
-            if ($link->hasAttribute('rel') && $link->hasAttribute('href')) {
-                $rel = trim(strtolower($link->getAttribute('rel')));
-                $href = $link->getAttribute('href');
-
-                $links[] = [$rel, $href, $link];
-            }
-        }
-
-        return $links;
-    }
-
-    /**
-     * Search and returns all data retrieved by the providers.
-     *
-     * @param null|array $providers The providers used to retrieve the data
-     * @param string     $name      The data name (title, description, image, etc)
-     * @param Url        $url       The base url used to resolve relative urls
-     *
-     * @return array
-     */
-    public static function getData(array $providers, $name, Url $url = null)
-    {
-        $method = 'get'.$name;
-        $values = [];
-
-        foreach ($providers as $key => $provider) {
-            $value = $provider->$method();
-            if (empty($value)) {
-                continue;
-            }
-
-            if (!is_array($value)) {
-                $value = [$value];
-            }
-
-            foreach ($value as $v) {
-                if ($url) {
-                    $v = $url->getAbsolute($v);
-                }
-
-                if (!isset($values[$v])) {
-                    $values[$v] = [
-                        'value' => $v,
-                        'providers' => [$key],
-                    ];
-                } elseif (!in_array($key, $values[$v]['providers'], true)) {
-                    $values[$v]['providers'][] = $key;
-                }
-            }
-        }
-
-        return array_values($values);
-    }
-
-    /**
-     * Order the data by provider.
-     *
-     * @param array $values The array provided by self::getData()
-     *
-     * @return array
-     */
-    public static function sortByProviders(array $values)
-    {
-        $sorted = [];
-
-        foreach ($values as $value) {
-            foreach ($value['providers'] as $provider) {
-                if (!isset($sorted[$provider])) {
-                    $sorted[$provider] = [$value];
-                } else {
-                    $sorted[$provider][] = $value;
-                }
-            }
-        }
-
-        return $sorted;
-    }
-
-    /**
-     * Unshifts a new value if it does not exists.
-     *
-     * @param array $values The array provided by self::getData()
-     * @param array $value  The value to insert
-     */
-    public static function unshiftValue(array &$values, $value)
-    {
-        $key = self::searchValue($values, $value['value'], true);
-
-        if ($key === false) {
-            return array_unshift($values, $value);
-        }
-
-        $value = array_merge($values[$key], $value);
-
-        array_splice($values, $key, 1);
-
-        return array_unshift($values, $value);
-    }
-
-    /**
-     * Search by a value and returns its key.
-     *
-     * @param array  $values    The array provided by self::getData()
-     * @param string $value     The value to search
-     * @param bool   $returnKey Whether or not return the key instead the value
-     *
-     * @return array|false
-     */
-    public static function searchValue(array $values, $value, $returnKey = false)
-    {
-        foreach ($values as $k => $each) {
-            if ($each['value'] === $value) {
-                return $returnKey ? $k : $each;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Returns the first value if exists.
-     *
-     * @param array $values    The array provided by self::getData()
-     * @param bool  $returnKey Whether or not return the key instead the value
-     *
-     * @return string|null
-     */
-    public static function getFirstValue(array $values, $returnKey = false)
-    {
-        $first = reset($values);
-
-        if (is_array($first)) {
-            return $returnKey ? key($values) : $first['value'];
-        }
-    }
-
-    /**
-     * Returns values as array.
-     *
-     * @param array $values    The array provided by self::getData()
-     * @param bool  $returnKey Whether or not return the key instead the value
-     *
-     * @return array
-     */
-    public static function getAllValues(array $values, $returnKey = false)
-    {
-        if ($returnKey) {
-            return array_keys($values);
-        }
-        $return_value = [];
-        foreach ($values as $value) {
-            $return_value[] = $value['value'];
-        }
-
-        return $return_value;
-    }
-
-    /**
-     * Returns the most popular value in an array.
-     *
-     * @param array $values    The array provided by self::getData()
-     * @param bool  $returnKey Whether or not return the key instead the value
-     *
-     * @return mixed
-     */
-    public static function getMostPopularValue(array $values, $returnKey = false)
-    {
-        $mostPopular = null;
-
-        foreach ($values as $k => $value) {
-            if ($mostPopular === null || count($value['providers']) > count($values[$mostPopular]['providers'])) {
-                $mostPopular = $k;
-            }
-        }
-
-        if (isset($mostPopular)) {
-            return $returnKey ? $mostPopular : $values[$mostPopular]['value'];
-        }
-    }
-
-    /**
-     * Returns the bigger value.
-     *
-     * @param array $values    The array provided by self::getData()
-     * @param bool  $returnKey Whether or not return the key instead the value
-     *
-     * @return null|string
-     */
-    public static function getBiggerValue(array $values, $returnKey = false)
-    {
-        $bigger = null;
-
-        foreach ($values as $k => $value) {
-            if ($bigger === null || $value['size'] > $values[$bigger]['size']) {
-                $bigger = $k;
-            }
-        }
-
-        if ($bigger !== null) {
-            return $returnKey ? $bigger : $values[$bigger]['value'];
-        }
-    }
+    private static $encodings = [
+        'ASCII'        => 'ascii',
+        'UTF-8'        => 'utf-8',
+        'SJIS'         => 'shift_jis',
+        'Windows-1251' => 'windows-1251',
+        'Windows-1252' => 'windows-1252',
+        'Windows-1254' => 'windows-1254',
+        'ISO-8859-1'   => 'iso-8859-1',
+        'ISO-8859-2'   => 'iso-8859-2',
+        'ISO-8859-3'   => 'iso-8859-3',
+        'ISO-8859-4'   => 'iso-8859-4',
+        'ISO-8859-5'   => 'iso-8859-5',
+        'ISO-8859-6'   => 'iso-8859-6',
+        'ISO-8859-7'   => 'iso-8859-7',
+        'ISO-8859-8'   => 'iso-8859-8',
+        'ISO-8859-9'   => 'iso-8859-9',
+        'ISO-8859-10'  => 'iso-8859-10',
+        'ISO-8859-13'  => 'iso-8859-13',
+        'ISO-8859-14'  => 'iso-8859-14',
+        'ISO-8859-15'  => 'iso-8859-15',
+        'ISO-8859-16'  => 'iso-8859-16',
+    ];
 
     /**
      * Creates a <video> element.
@@ -359,7 +151,7 @@ class Utils
      */
     public static function google($src)
     {
-        return self::iframe('http://docs.google.com/viewer?'.http_build_query([
+        return self::iframe('https://docs.google.com/viewer?'.http_build_query([
             'url' => $src,
             'embedded' => 'true',
         ]), 600, 600);
@@ -422,5 +214,106 @@ class Utils
         }
 
         return "$str>";
+    }
+
+    /**
+     * Convert a string to utf-8.
+     *
+     * @param string $content The content to convert
+     * @param string $charset The original charset
+     *
+     * @return string
+     */
+    public static function toUtf8($content, $charset)
+    {
+        $charset = strtoupper($charset);
+
+        if (empty($charset) || $charset === 'UTF-8') {
+            return $content;
+        }
+
+        $encodings = array_map('strtoupper', mb_list_encodings());
+
+        if (in_array($charset, $encodings, true)) {
+            return mb_convert_encoding($content, 'UTF-8', $charset);
+        }
+
+        if (function_exists('iconv')) {
+            return iconv($charset, 'UTF-8//TRANSLIT//IGNORE', $content);
+        }
+
+        return $content;
+    }
+
+    /**
+     * Search and return the first element matching with a xpath
+     *
+     * @param DOMDocument $document
+     * @param string      $query
+     * @param bool        $returnFirst
+     *
+     * @return DOMElement|DOMNodeList|null
+     */
+    public static function xpathQuery(DOMDocument $document, $query, $returnFirst = true)
+    {
+        $xpath = new DOMXPath($document);
+        $entries = $xpath->query($query);
+
+        if ($entries->length) {
+            return $returnFirst ? $entries->item(0) : $entries;
+        }
+    }
+
+    /**
+     * Parse a string as html code
+     *
+     * @param string $html
+     *
+     * @return DOMDocument
+     */
+    public static function parse($html)
+    {
+        $errors = libxml_use_internal_errors(true);
+
+        // PHP 8 deprecates libxml_disable_entity_loader() as it is no longer needed
+        if (\PHP_VERSION_ID < 80000) {
+            $entities = libxml_disable_entity_loader(true);
+        }
+
+        $html = trim(self::normalize($html));
+
+        $document = new DOMDocument();
+        $document->loadHTML($html);
+
+        libxml_use_internal_errors($errors);
+
+        if (\PHP_VERSION_ID < 80000) {
+            libxml_disable_entity_loader($entities);
+        }
+
+        return $document;
+    }
+
+    /**
+     * Normalize the encoding of a html code before parse
+     * 
+     * @param string $string
+     * 
+     * @return string
+     */
+    private static function normalize($string)
+    {
+        $detected = mb_detect_encoding($string, implode(',', array_keys(self::$encodings)), true);
+        
+        if ($detected && isset(self::$encodings[$detected])) {
+            $string = mb_convert_encoding($string, 'HTML-ENTITIES', $detected);
+            $string = preg_replace(
+                '/<head[^>]*>/',
+                '<head><META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset='.self::$encodings[$detected].'">',
+                $string
+            );
+        }
+
+        return $string;
     }
 }

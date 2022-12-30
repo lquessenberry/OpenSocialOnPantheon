@@ -2,7 +2,6 @@
 
 namespace Drupal\options\Plugin\views\argument;
 
-use Drupal\Core\Field\AllowedTagsXssTrait;
 use Drupal\Core\Field\FieldFilteredMarkup;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\views\FieldAPIHandlerTrait;
@@ -11,8 +10,7 @@ use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\Plugin\views\argument\NumericArgument;
 
 /**
- * Argument handler for list field to show the human readable name in the
- * summary.
+ * Argument handler for list field to show human readable name in the summary.
  *
  * @ingroup views_argument_handlers
  *
@@ -20,7 +18,6 @@ use Drupal\views\Plugin\views\argument\NumericArgument;
  */
 class NumberListField extends NumericArgument {
 
-  use AllowedTagsXssTrait;
   use FieldAPIHandlerTrait;
 
   /**

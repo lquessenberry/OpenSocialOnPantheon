@@ -1,6 +1,10 @@
 <?php
 // @codingStandardsIgnoreFile
 
+namespace Drupal\social\Behat;
+
+use Behat\Mink\Element\NodeElement;
+use Behat\Mink\Exception\ElementNotFoundException;
 use Drupal\DrupalExtension\Context\MinkContext;
 use Behat\Behat\Context\Context;
 use Behat\Behat\Context\SnippetAcceptingContext;
@@ -8,7 +12,7 @@ use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Drupal\DrupalExtension\Context\DrupalContext;
 use Behat\MinkExtension\Context\RawMinkContext;
-use PHPUnit_Framework_Assert as PHPUnit;
+use PHPUnit\Framework\Assert as PHPUnit;
 use Drupal\DrupalExtension\Hook\Scope\EntityScope;
 use Behat\Mink\Driver\Selenium2Driver;
 use Behat\Behat\Hook\Scope\AfterStepScope;
@@ -76,6 +80,64 @@ class SocialMinkContext extends MinkContext {
     }
   }
 
+  /**
+   * @When /^(?:|I )fill in select2 input "(?P<field>(?:[^"]|\\")*)" with "(?P<value>(?:[^"]|\\")*)" and select "(?P<entry>(?:[^"]|\\")*)"$/
+   */
+  public function iFillInSelectInputWithAndSelect($field, $value, $entry) {
+    $page = $this->getSession()->getPage();
+
+    $inputField = $page->find('css', $field);
+    if (!$inputField) {
+      throw new \Exception('No field found');
+    }
+
+    $this->getSession()->wait(1000);
+
+    $choice = $inputField->getParent()->find('css', '.select2-selection');
+    if (!$choice) {
+      throw new \Exception('No select2 choice found');
+    }
+    $choice->press();
+
+    $select2Input = $page->find('css', '.select2-search__field');
+    if (!$select2Input) {
+      throw new \Exception('No input found');
+    }
+    $select2Input->setValue($value);
+
+    $this->getSession()->wait(1000);
+
+    $chosenResults = $page->findAll('css', '.select2-results li');
+    foreach ($chosenResults as $result) {
+      if ($result->getText() == $entry) {
+        $result->click();
+        break;
+      }
+    }
+  }
+
+
+  /**
+   * @When /^I clear group field$/
+   */
+  public function iClearGroupSelect2Input() {
+    $page = $this->getSession()->getPage();
+
+    $inputField = $page->find('css', '.field--name-groups .select2');
+    if (!$inputField) {
+      throw new \Exception('No field found');
+    }
+
+    $this->getSession()->wait(1000);
+
+    $clearButton = $inputField->find('css', '.select2-selection__clear');
+    if (!$clearButton) {
+      throw new \Exception('No clear button found');
+    }
+
+    $clearButton->click();
+  }
+
 
   /**
    * @AfterStep
@@ -110,8 +172,9 @@ class SocialMinkContext extends MinkContext {
    */
   public function attachFileToHiddenField($field, $path) {
     $field = $this->fixStepArgument($field);
+    $id = $this->getSession()->getPage()->findField($field)->getAttribute('id');
 
-    $javascript = "jQuery('#".$field."').parent().removeClass('hidden')";
+    $javascript = "jQuery('#$id').parent().removeClass('hidden')";
     $this->getSession()->executeScript($javascript);
 
     $this->attachFileToField($field, $path);
@@ -152,42 +215,23 @@ class SocialMinkContext extends MinkContext {
       }
     }
   }
-  
-  
+
   /**
-   * Wait for AJAX to finish.
+   * Set alias field as specified value
+   * Example: When I set alias as: "bwayne"
    *
-   * Overwrites the default iWaitForAjaxToFinish step to increase the time-out to 
-   * allow tests to pass with longer running ajax requests.
-   *
-   * @see \Drupal\FunctionalJavascriptTests\JSWebAssert::assertWaitOnAjaxRequest()
-   * @see \Drupal\DrupalExtension\Context\MinkContext::iWaitForAjaxToFinish()
-   *
-   * This overrides "Given I wait for AJAX to finish"
+   * @When /^(?:|I )set alias as "(?P<value>(?:[^"]|\\")*)"$/
    */
-  public function iWaitForAjaxToFinish() {
-    $condition = <<<JS
-    (function() {
-      function isAjaxing(instance) {
-        return instance && instance.ajaxing === true;
-      }
-      var d7_not_ajaxing = true;
-      if (typeof Drupal !== 'undefined' && typeof Drupal.ajax !== 'undefined' && typeof Drupal.ajax.instances === 'undefined') {
-        for(var i in Drupal.ajax) { if (isAjaxing(Drupal.ajax[i])) { d7_not_ajaxing = false; } }
-      }
-      var d8_not_ajaxing = (typeof Drupal === 'undefined' || typeof Drupal.ajax === 'undefined' || typeof Drupal.ajax.instances === 'undefined' || !Drupal.ajax.instances.some(isAjaxing))
-      return (
-        // Assert no AJAX request is running (via jQuery or Drupal) and no
-        // animation is running.
-        (typeof jQuery === 'undefined' || (jQuery.active === 0 && jQuery(':animated').length === 0)) &&
-        d7_not_ajaxing && d8_not_ajaxing
-      );
-    }());
-JS;
-    $result = $this->getSession()->wait(20000, $condition);
-    if (!$result) {
-      throw new \RuntimeException('Unable to complete AJAX request.');
+  public function iSetAlias($value) {
+    // Uncheck "Generate automatic URL alias" if social_path_manager is enabled.
+    if (\Drupal::service('module_handler')->moduleExists('social_path_manager')) {
+      $option = $this->fixStepArgument('Generate automatic URL alias');
+      $this->getSession()->getPage()->uncheckField($option);
     }
+    // Fill in "URL alias" field with given value
+    $field = $this->fixStepArgument('path[0][alias]');
+    $value = $this->fixStepArgument($value);
+    $this->getSession()->getPage()->fillField($field, $value);
   }
 
 }

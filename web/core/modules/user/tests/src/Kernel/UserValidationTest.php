@@ -8,6 +8,7 @@ use Drupal\Core\Render\Element\Email;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\user\Entity\Role;
 use Drupal\user\Entity\User;
+use Drupal\user\UserInterface;
 
 /**
  * Verify that user validity checks behave as designed.
@@ -21,12 +22,12 @@ class UserValidationTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['field', 'user', 'system'];
+  protected static $modules = ['field', 'user', 'system'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('user');
     $this->installSchema('system', ['sequences']);
@@ -40,6 +41,7 @@ class UserValidationTest extends KernelTestBase {
    * Tests user name validation.
    */
   public function testUsernames() {
+    // cSpell:disable
     $test_cases = [
       // '<username>' => ['<description>', 'assert<testName>'].
       'foo'                    => ['Valid username', 'assertNull'],
@@ -63,10 +65,11 @@ class UserValidationTest extends KernelTestBase {
       'foo' . chr(0) . 'bar'   => ['Invalid username containing chr(0)', 'assertNotNull'],
       // CR.
       'foo' . chr(13) . 'bar'  => ['Invalid username containing chr(13)', 'assertNotNull'],
-      str_repeat('x', USERNAME_MAX_LENGTH + 1) => ['Invalid excessively long username', 'assertNotNull'],
+      str_repeat('x', UserInterface::USERNAME_MAX_LENGTH + 1) => ['Invalid excessively long username', 'assertNotNull'],
     ];
+    // cSpell:enable
     foreach ($test_cases as $name => $test_case) {
-      list($description, $test) = $test_case;
+      [$description, $test] = $test_case;
       $result = user_validate_name($name);
       $this->$test($result, $description . ' (' . $name . ')');
     }
@@ -81,16 +84,16 @@ class UserValidationTest extends KernelTestBase {
       'mail' => 'test@example.com',
     ]);
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 0, 'No violations when validating a default user.');
+    $this->assertCount(0, $violations, 'No violations when validating a default user.');
 
     // Only test one example invalid name here, the rest is already covered in
     // the testUsernames() method in this class.
     $name = $this->randomMachineName(61);
     $user->set('name', $name);
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found when name is too long.');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'name');
-    $this->assertEqual($violations[0]->getMessage(), t('The username %name is too long: it must be %max characters or less.', ['%name' => $name, '%max' => 60]));
+    $this->assertCount(1, $violations, 'Violation found when name is too long.');
+    $this->assertEquals('name', $violations[0]->getPropertyPath());
+    $this->assertEquals(t('The username %name is too long: it must be %max characters or less.', ['%name' => $name, '%max' => 60]), $violations[0]->getMessage());
 
     // Create a second test user to provoke a name collision.
     $user2 = User::create([
@@ -100,18 +103,18 @@ class UserValidationTest extends KernelTestBase {
     $user2->save();
     $user->set('name', 'existing');
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found on name collision.');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'name');
-    $this->assertEqual($violations[0]->getMessage(), t('The username %name is already taken.', ['%name' => 'existing']));
+    $this->assertCount(1, $violations, 'Violation found on name collision.');
+    $this->assertEquals('name', $violations[0]->getPropertyPath());
+    $this->assertEquals(t('The username %name is already taken.', ['%name' => 'existing']), $violations[0]->getMessage());
 
     // Make the name valid.
     $user->set('name', $this->randomMachineName());
 
     $user->set('mail', 'invalid');
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found when email is invalid');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'mail.0.value');
-    $this->assertEqual($violations[0]->getMessage(), t('This value is not a valid email address.'));
+    $this->assertCount(1, $violations, 'Violation found when email is invalid');
+    $this->assertEquals('mail.0.value', $violations[0]->getPropertyPath());
+    $this->assertEquals('This value is not a valid email address.', $violations[0]->getMessage());
 
     $mail = $this->randomMachineName(Email::EMAIL_MAX_LENGTH - 11) . '@example.com';
     $user->set('mail', $mail);
@@ -120,23 +123,23 @@ class UserValidationTest extends KernelTestBase {
     //   overlaps with the implicit constraint of the 'email' property type used
     //   in EmailItem::propertyDefinitions(). Resolve this in
     //   https://www.drupal.org/node/2023465.
-    $this->assertEqual(count($violations), 2, 'Violations found when email is too long');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'mail.0.value');
-    $this->assertEqual($violations[0]->getMessage(), t('%name: the email address can not be longer than @max characters.', ['%name' => $user->get('mail')->getFieldDefinition()->getLabel(), '@max' => Email::EMAIL_MAX_LENGTH]));
-    $this->assertEqual($violations[1]->getPropertyPath(), 'mail.0.value');
-    $this->assertEqual($violations[1]->getMessage(), t('This value is not a valid email address.'));
+    $this->assertCount(2, $violations, 'Violations found when email is too long');
+    $this->assertEquals('mail.0.value', $violations[0]->getPropertyPath());
+    $this->assertEquals(t('%name: the email address can not be longer than @max characters.', ['%name' => $user->get('mail')->getFieldDefinition()->getLabel(), '@max' => Email::EMAIL_MAX_LENGTH]), $violations[0]->getMessage());
+    $this->assertEquals('mail.0.value', $violations[1]->getPropertyPath());
+    $this->assertEquals('This value is not a valid email address.', $violations[1]->getMessage());
 
     // Provoke an email collision with an existing user.
     $user->set('mail', 'existing@example.com');
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found when email already exists.');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'mail');
-    $this->assertEqual($violations[0]->getMessage(), t('The email address %mail is already taken.', ['%mail' => 'existing@example.com']));
+    $this->assertCount(1, $violations, 'Violation found when email already exists.');
+    $this->assertEquals('mail', $violations[0]->getPropertyPath());
+    $this->assertEquals(t('The email address %mail is already taken.', ['%mail' => 'existing@example.com']), $violations[0]->getMessage());
     $user->set('mail', NULL);
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Email addresses may not be removed');
-    $this->assertEqual($violations[0]->getPropertyPath(), 'mail');
-    $this->assertEqual($violations[0]->getMessage(), t('@name field is required.', ['@name' => $user->getFieldDefinition('mail')->getLabel()]));
+    $this->assertCount(1, $violations, 'Email addresses may not be removed');
+    $this->assertEquals('mail', $violations[0]->getPropertyPath());
+    $this->assertEquals(t('@name field is required.', ['@name' => $user->getFieldDefinition('mail')->getLabel()]), $violations[0]->getMessage());
     $user->set('mail', 'someone@example.com');
 
     $user->set('timezone', $this->randomString(33));
@@ -147,7 +150,7 @@ class UserValidationTest extends KernelTestBase {
 
     $user->set('init', 'invalid');
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1, 'Violation found when init email is invalid');
+    $this->assertCount(1, $violations, 'Violation found when init email is invalid');
     $user->set('init', NULL);
 
     $user->set('langcode', 'invalid');
@@ -163,8 +166,8 @@ class UserValidationTest extends KernelTestBase {
     $this->assertAllowedValuesViolation($user, 'preferred_admin_langcode');
     $user->set('preferred_admin_langcode', NULL);
 
-    Role::create(['id' => 'role1'])->save();
-    Role::create(['id' => 'role2'])->save();
+    Role::create(['id' => 'role1', 'label' => 'Role 1'])->save();
+    Role::create(['id' => 'role2', 'label' => 'Role 2'])->save();
 
     // Test cardinality of user roles.
     $user = User::create([
@@ -173,19 +176,19 @@ class UserValidationTest extends KernelTestBase {
       'roles' => ['role1', 'role2'],
     ]);
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 0);
+    $this->assertCount(0, $violations);
 
     $user->roles[1]->target_id = 'unknown_role';
     $violations = $user->validate();
-    $this->assertEqual(count($violations), 1);
-    $this->assertEqual($violations[0]->getPropertyPath(), 'roles.1.target_id');
-    $this->assertEqual($violations[0]->getMessage(), t('The referenced entity (%entity_type: %name) does not exist.', ['%entity_type' => 'user_role', '%name' => 'unknown_role']));
+    $this->assertCount(1, $violations);
+    $this->assertEquals('roles.1.target_id', $violations[0]->getPropertyPath());
+    $this->assertEquals(t('The referenced entity (%entity_type: %name) does not exist.', ['%entity_type' => 'user_role', '%name' => 'unknown_role']), $violations[0]->getMessage());
   }
 
   /**
    * Verifies that a length violation exists for the given field.
    *
-   * @param \Drupal\core\Entity\EntityInterface $entity
+   * @param \Drupal\Core\Entity\EntityInterface $entity
    *   The entity object to validate.
    * @param string $field_name
    *   The field that violates the maximum length.
@@ -195,28 +198,32 @@ class UserValidationTest extends KernelTestBase {
    *   (optional) The number of expected violations. Defaults to 1.
    * @param int $expected_index
    *   (optional) The index at which to expect the violation. Defaults to 0.
+   *
+   * @internal
    */
-  protected function assertLengthViolation(EntityInterface $entity, $field_name, $length, $count = 1, $expected_index = 0) {
+  protected function assertLengthViolation(EntityInterface $entity, string $field_name, int $length, int $count = 1, int $expected_index = 0): void {
     $violations = $entity->validate();
-    $this->assertEqual(count($violations), $count, "Violation found when $field_name is too long.");
-    $this->assertEqual($violations[$expected_index]->getPropertyPath(), "$field_name.0.value");
+    $this->assertCount($count, $violations, "Violation found when $field_name is too long.");
+    $this->assertEquals("{$field_name}.0.value", $violations[$expected_index]->getPropertyPath());
     $field_label = $entity->get($field_name)->getFieldDefinition()->getLabel();
-    $this->assertEqual($violations[$expected_index]->getMessage(), t('%name: may not be longer than @max characters.', ['%name' => $field_label, '@max' => $length]));
+    $this->assertEquals(t('%name: may not be longer than @max characters.', ['%name' => $field_label, '@max' => $length]), $violations[$expected_index]->getMessage());
   }
 
   /**
-   * Verifies that a AllowedValues violation exists for the given field.
+   * Verifies that an AllowedValues violation exists for the given field.
    *
-   * @param \Drupal\core\Entity\EntityInterface $entity
+   * @param \Drupal\Core\Entity\EntityInterface $entity
    *   The entity object to validate.
    * @param string $field_name
    *   The name of the field to verify.
+   *
+   * @internal
    */
-  protected function assertAllowedValuesViolation(EntityInterface $entity, $field_name) {
+  protected function assertAllowedValuesViolation(EntityInterface $entity, string $field_name): void {
     $violations = $entity->validate();
-    $this->assertEqual(count($violations), 1, "Allowed values violation for $field_name found.");
-    $this->assertEqual($violations[0]->getPropertyPath(), "$field_name.0.value");
-    $this->assertEqual($violations[0]->getMessage(), t('The value you selected is not a valid choice.'));
+    $this->assertCount(1, $violations, "Allowed values violation for $field_name found.");
+    $this->assertEquals($field_name === 'langcode' ? "{$field_name}.0" : "{$field_name}.0.value", $violations[0]->getPropertyPath());
+    $this->assertEquals('The value you selected is not a valid choice.', $violations[0]->getMessage());
   }
 
 }

@@ -3,8 +3,12 @@
   "type": "drupal-module",
   "description": "Provides configurable user profiles.",
   "homepage": "http://drupal.org/project/profile",
-  "license": "GPL-2.0+",
+  "license": "GPL-2.0-or-later",
   "require": {
-    "drupal/core": "~8.1"
+    "drupal/core": "^8.9 || ^9 || ^10",
+    "drupal/entity": "^1.0-rc2"
+  },
+  "require-dev": {
+    "drupal/token": "^1.7"
   }
 }

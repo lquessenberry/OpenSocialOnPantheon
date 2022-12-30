@@ -2,6 +2,7 @@
 
 namespace Drupal\editor;
 
+use Drupal\Core\Security\TrustedCallbackInterface;
 use Drupal\editor\Entity\Editor;
 use Drupal\filter\Entity\FilterFormat;
 use Drupal\Component\Plugin\PluginManagerInterface;
@@ -10,7 +11,7 @@ use Drupal\Core\Render\BubbleableMetadata;
 /**
  * Defines a service for Text Editor's render elements.
  */
-class Element {
+class Element implements TrustedCallbackInterface {
 
   /**
    * The Text Editor plugin manager service.
@@ -30,6 +31,13 @@ class Element {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public static function trustedCallbacks() {
+    return ['preRenderTextFormat'];
+  }
+
+  /**
    * Additional #pre_render callback for 'text_format' elements.
    */
   public function preRenderTextFormat(array $element) {
@@ -39,9 +47,9 @@ class Element {
       return $element;
     }
 
-    // filter_process_format() copies properties to the expanded 'value' child
-    // element, including the #pre_render property. Skip this text format
-    // widget, if it contains no 'format'.
+    // \Drupal\filter\Element\TextFormat::processFormat() copies properties to
+    // the expanded 'value' to the child element, including the #pre_render
+    // property. Skip this text format widget, if it contains no 'format'.
     if (!isset($element['format'])) {
       return $element;
     }

@@ -1,8 +1,7 @@
 {
   "name":         "egulias/email-validator",
-  "description":  "A library for validating emails",
+  "description":  "A library for validating emails against several RFCs",
   "homepage":     "https://github.com/egulias/EmailValidator",
-  "type":         "Library",
   "keywords":     ["email", "validation", "validator", "emailvalidation", "emailvalidator"],
   "license":      "MIT",
   "authors": [
@@ -10,19 +9,30 @@
   ],
   "extra": {
     "branch-alias": {
-      "dev-master": "2.0.x-dev"
+      "dev-master": "3.0.x-dev"
     }
   },
-  "require":      {
-    "php": ">= 5.3.3",
-    "doctrine/lexer": "^1.0.1"
+  "require": {
+    "php": ">=7.2",
+    "doctrine/lexer": "^1.2|^2",
+    "symfony/polyfill-intl-idn": "^1.15"
   },
-  "require-dev" :   {
-    "phpunit/phpunit": "^4.8.24"
+  "require-dev": {
+    "php-coveralls/php-coveralls": "^2.2",
+    "phpunit/phpunit": "^8.5.8|^9.3.3",
+    "vimeo/psalm": "^4"
+  },
+  "suggest": {
+    "ext-intl": "PHP Internationalization Libraries are required to use the SpoofChecking validation"
   },
   "autoload": {
-    "psr-0": {
-      "Egulias\\": "src/"
+    "psr-4": {
+      "Egulias\\EmailValidator\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Egulias\\EmailValidator\\Tests\\": "tests"
     }
   }
 }

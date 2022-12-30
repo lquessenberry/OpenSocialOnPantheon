@@ -2,8 +2,8 @@
 
 namespace Drupal\address\Event;
 
+use Drupal\Component\EventDispatcher\Event;
 use Drupal\Core\Field\FieldDefinitionInterface;
-use Symfony\Component\EventDispatcher\Event;
 
 /**
  * Defines the available countries event.

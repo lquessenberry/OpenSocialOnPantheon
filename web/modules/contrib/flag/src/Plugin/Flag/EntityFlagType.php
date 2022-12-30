@@ -9,11 +9,11 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\flag\FlagType\FlagTypeBase;
 use Drupal\flag\FlagInterface;
 use Drupal\user\EntityOwnerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-
 
 /**
  * Provides a flag type for all entity types.
@@ -31,7 +31,7 @@ class EntityFlagType extends FlagTypeBase {
   use StringTranslationTrait;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
@@ -47,10 +47,10 @@ class EntityFlagType extends FlagTypeBase {
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ModuleHandlerInterface $module_handler, EntityTypeManagerInterface $entity_type_manager) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ModuleHandlerInterface $module_handler, EntityTypeManagerInterface $entity_type_manager, TranslationInterface $string_translation) {
     $this->entityType = $plugin_definition['entity_type'];
     $this->entityTypeManager = $entity_type_manager;
-    parent::__construct($configuration, $plugin_id, $plugin_definition, $module_handler);
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $module_handler, $string_translation);
   }
 
   /**
@@ -62,7 +62,8 @@ class EntityFlagType extends FlagTypeBase {
       $plugin_id,
       $plugin_definition,
       $container->get('module_handler'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('string_translation')
     );
   }
 
@@ -73,7 +74,7 @@ class EntityFlagType extends FlagTypeBase {
     $options = parent::defaultConfiguration();
     $options += [
       // Output the flag in the entity links.
-      // This is empty for now and will get overriden for different
+      // This is empty for now and will get overridden for different
       // entities.
       // @see hook_entity_view().
       'show_in_links' => [],
@@ -134,7 +135,7 @@ class EntityFlagType extends FlagTypeBase {
         user has access to contextual links and to this flag. This means that
         those users will get no cache hits for render elements rendering flaggable
         entities with contextual links."),
-      '#access' => \Drupal::moduleHandler()->moduleExists('contextual'),
+      '#access' => $this->moduleHandler->moduleExists('contextual'),
       '#weight' => 10,
     ];
 
@@ -191,7 +192,7 @@ class EntityFlagType extends FlagTypeBase {
    * @param string $name
    *   The name of the view mode.
    *
-   * @return boolean
+   * @return bool
    *   TRUE if the flag should appear in the entity links for the view mode.
    */
   public function showInLinks($name) {
@@ -313,7 +314,7 @@ class EntityFlagType extends FlagTypeBase {
   public function actionAccess($action, FlagInterface $flag, AccountInterface $account, EntityInterface $flaggable = NULL) {
     $access = parent::actionAccess($action, $flag, $account, $flaggable);
 
-    if (($flaggable instanceOf EntityOwnerInterface) && ($this->hasExtraPermission('owner'))) {
+    if (($flaggable instanceof EntityOwnerInterface) && ($this->hasExtraPermission('owner'))) {
       // Own items.
       $permission = $action . ' ' . $flag->id() . ' own items';
       $own_permission_access = AccessResult::allowedIfHasPermission($account, $permission)
@@ -346,7 +347,7 @@ class EntityFlagType extends FlagTypeBase {
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
 
     // Only if the flaggable entities can be owned.
-    if ($entity_type->isSubclassOf(EntityOwnerInterface::class)) {
+    if ($entity_type->entityClassImplements(EntityOwnerInterface::class)) {
       return TRUE;
     }
 

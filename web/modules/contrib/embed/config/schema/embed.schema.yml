@@ -26,9 +26,19 @@ embed.button.*:
       label: 'Embed type plugin ID'
     type_settings:
       type: embed.embed_type_settings.[%parent.type_id]
+    icon:
+      type: mapping
+      label: 'Image icon data'
+      mapping:
+        uri:
+          type: string
+          label: 'Image file URI'
+        data:
+          type: string
+          label: 'Base-64 encoded image contents'
     icon_uuid:
       type: string
-      label: 'Button icon UUID'
+      label: 'Deprecated icon image file entity UUID'
 
 embed.embed_type_settings.*:
   type: mapping

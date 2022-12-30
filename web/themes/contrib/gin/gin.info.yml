@@ -1,0 +1,246 @@
+name: Gin
+type: theme
+base theme: claro
+description: 'Admin theme with a strong focus on improving the Editorial Experience'
+core_version_requirement: ^8.9 || ^9 || ^10
+
+# These dependencies will not allow the installation of Gin at all if gin_toolbar is not activated.
+# A bit harsh, so we'll continue to just rely on the composer requirement for now.
+# dependencies:
+#   - drupal:gin_toolbar
+#   - drupal:link
+
+libraries:
+  - claro/global-styling
+  - gin/gin
+
+libraries-override:
+  system/base:
+    css:
+      component:
+        /core/themes/stable/css/system/components/ajax-progress.module.css: /core/themes/claro/css/components/ajax-progress.module.css
+        /core/themes/stable/css/system/components/autocomplete-loading.module.css: /core/themes/claro/css/components/autocomplete-loading.module.css
+        /core/themes/stable/css/system/components/system-status-counter.css: /core/themes/claro/css/components/system-status-counter.css
+        /core/themes/stable/css/system/components/system-status-report-counters.css: /core/themes/claro/css/components/system-status-report-counters.css
+        /core/themes/stable/css/system/components/system-status-report-general-info.css: /core/themes/claro/css/components/system-status-report-general-info.css
+        /core/themes/stable/css/system/components/tabledrag.module.css: /core/themes/claro/css/components/tabledrag.css
+
+  system/admin:
+    css:
+      theme:
+        /core/themes/stable/css/system/system.admin.css: false
+
+  core/drupal.dropbutton:
+    css:
+      component:
+        /core/themes/stable/css/core/dropbutton/dropbutton.css: /core/themes/claro/css/components/dropbutton.css
+
+  core/drupal.vertical-tabs:
+    css:
+      component:
+        /core/themes/stable/css/core/vertical-tabs.css: false
+    js:
+      misc/vertical-tabs.js: /core/themes/claro/js/vertical-tabs.js
+
+  classy/dialog: claro/claro.drupal.dialog
+
+  # needed override to overcome dialog styling issues
+  claro/claro.drupal.dialog:
+    css:
+      theme:
+        css/components/dialog.css: false
+
+  classy/base:
+    css:
+      component:
+        css/components/action-links.css: false
+        css/components/breadcrumb.css: false
+        css/components/button.css: false
+        css/components/collapse-processed.css: false
+        css/components/container-inline.css: /core/themes/claro/css/classy/components/container-inline.css
+        css/components/details.css: false
+        css/components/dropbutton.css: false
+        css/components/exposed-filters.css: /core/themes/claro/css/classy/components/exposed-filters.css
+        css/components/field.css: /core/themes/claro/css/classy/components/field.css
+        css/components/form.css: false
+        css/components/icons.css: /core/themes/claro/css/classy/components/icons.css
+        css/components/inline-form.css: /core/themes/claro/css/classy/components/inline-form.css
+        css/components/item-list.css: /core/themes/claro/css/classy/components/item-list.css
+        css/components/link.css: /core/themes/claro/css/classy/components/link.css
+        css/components/links.css: /core/themes/claro/css/classy/components/links.css
+        css/components/menu.css: /core/themes/claro/css/classy/components/menu.css
+        css/components/more-link.css: /core/themes/claro/css/classy/components/more-link.css
+        css/components/pager.css: false
+        css/components/tabledrag.css: false
+        css/components/tableselect.css: /core/themes/claro/css/components/tableselect.css
+        css/components/tablesort.css: /core/themes/claro/css/classy/components/tablesort.css
+        css/components/tabs.css: false
+        css/components/textarea.css: /core/themes/claro/css/classy/components/textarea.css
+        css/components/ui-dialog.css: /core/themes/claro/css/classy/components/ui-dialog.css
+
+  classy/dropbutton:
+    css:
+      component:
+        css/components/dropbutton.css: false
+
+  classy/messages:
+    css:
+      component:
+        css/components/messages.css: false
+
+  classy/user: false
+
+  field_ui/drupal.field_ui:
+    css:
+      theme:
+        /core/themes/stable/css/field_ui/field_ui.admin.css: /core/themes/claro/css/theme/field-ui.admin.css
+
+  filter/drupal.filter.admin:
+    css:
+      theme:
+        /core/themes/stable/css/filter/filter.admin.css: /core/themes/claro/css/theme/filter.theme.css
+
+  filter/drupal.filter:
+    css:
+      theme:
+        /core/themes/stable/css/filter/filter.admin.css: /core/themes/claro/css/theme/filter.theme.css
+
+  views_ui/admin.styling:
+    css:
+      theme:
+        /core/themes/stable/css/views_ui/views_ui.admin.theme.css: /core/themes/claro/css/theme/views_ui.admin.theme.css
+
+  # Drupal throws an IncompleteLibraryDefinitionException if a base theme
+  # defined library is set to false in a subtheme's libraries-override. We use
+  # 'claro/empty' for working around this behavior.
+  # @see https://www.drupal.org/node/3098375
+  # classy/media_library: claro/empty
+
+  # Custom Gin overrides
+  core/drupal.tableselect:
+    js:
+      misc/tableselect.js: js/overrides/tableselect.js
+
+  core/drupal.tableheader:
+    js:
+      misc/tableheader.js: js/overrides/tableheader.js
+
+  media_library/view:
+    js:
+      js/media_library.view.js: js/overrides/media_library.view.js
+
+  core/drupal.tabledrag:
+    js:
+      /core/themes/claro/js/tabledrag.js: false
+
+  # Gin overrides
+  core/drupal.dialog.off_canvas:
+    css:
+      base:
+        misc/dialog/off-canvas.base.css: false
+        misc/dialog/off-canvas.css: false
+        misc/dialog/off-canvas.theme.css: false
+        /core/themes/stable/css/core/dialog/off-canvas.theme.css: false
+        /core/themes/stable/css/core/dialog/off-canvas.base.css: false
+
+  paragraphs_ee/paragraphs_ee.off_canvas:
+    css:
+      theme:
+        css/paragraphs_ee.off_canvas.css: false
+
+  claro/global-styling:
+    css:
+      layout:
+        css/layout/local-actions.css: false
+
+libraries-extend:
+  core/drupal.autocomplete:
+    - gin/autocomplete
+  core/ckeditor:
+    - gin/ckeditor
+  core/drupal.dialog:
+    - seven/seven.drupal.dialog
+    - gin/dialog
+  core/drupal.ajax:
+    - gin/ajax
+  media/media_embed_ckeditor_theme:
+    - gin/gin_media_embed_ckeditor_theme
+  media_library/view:
+    - gin/media_library
+  media_library/widget:
+    - gin/media_library
+  core/drupal.tabledrag:
+    - gin/gin_tabledrag
+  contextual/drupal.contextual-links:
+    - gin/contextual_links
+  autosave_form/drupal.autosave_form:
+    - gin/autosave
+  chosen/drupal.chosen:
+    - gin/chosen
+  dropzonejs/widget:
+    - gin/dropzonejs
+  entity_browser/entity_browser:
+    - gin/entity_browser
+  entity_browser/tabs:
+    - gin/entity_browser
+  entity_browser/entity_list:
+    - gin/entity_browser
+  entity_browser/entity_reference:
+    - gin/entity_browser
+  linkit/linkit.admin:
+    - gin/linkit
+  module_filter/modules.tabs:
+    - gin/module_filter
+  module_filter/update.status:
+    - gin/module_filter
+  module_filter/modules:
+    - gin/module_filter
+  upgrade_status/upgrade_status.admin:
+    - gin/upgrade_status
+  webform/webform.filter:
+    - gin/webform
+  webform_ui/webform_ui:
+    - gin/webform
+  webform/webform.element.help:
+    - gin/webform
+  webform/webform.element.details.toggle:
+    - gin/webform
+  webform/webform.form.tabs:
+    - gin/webform
+  workbench/workbench.toolbar:
+   - gin/workbench
+  paragraphs/drupal.paragraphs.widget:
+    - gin/paragraphs
+  paragraphs_ee/paragraphs_ee.paragraphs:
+    - gin/paragraphs_ee
+  entity_reference_layout/erl_widget:
+    - gin/entity_reference_layout
+    - gin/layout_paragraphs
+  layout_paragraphs/layout_paragraphs_widget:
+    - gin/layout_paragraphs
+  responsive_preview/drupal.responsive-preview:
+    - gin/responsive_preview
+
+ckeditor_stylesheets:
+  - dist/css/theme/accent.css
+  - dist/css/theme/variables.css
+  - dist/css/theme/ckeditor.css
+
+# Regions
+regions:
+  header: 'Header'
+  pre_content: 'Pre-content'
+  breadcrumb: Breadcrumb
+  highlighted: Highlighted
+  help: Help
+  content: Content
+  page_top: 'Page top'
+  page_bottom: 'Page bottom'
+  sidebar_first: 'First sidebar'
+regions_hidden:
+  - sidebar_first
+
+# Information added by Drupal.org packaging script on 2022-05-25
+version: '8.x-3.0-beta3'
+project: 'gin'
+datestamp: 1653469873

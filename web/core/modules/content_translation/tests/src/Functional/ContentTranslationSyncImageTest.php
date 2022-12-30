@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\content_translation\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
@@ -18,6 +19,11 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
   use TestFileCreationTrait {
     getTestFiles as drupalGetTestFiles;
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * The cardinality of the image field.
@@ -38,9 +44,15 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
    *
    * @var array
    */
-  public static $modules = ['language', 'content_translation', 'entity_test', 'image', 'field_ui'];
+  protected static $modules = [
+    'language',
+    'content_translation',
+    'entity_test',
+    'image',
+    'field_ui',
+  ];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->files = $this->drupalGetTestFiles('image');
   }
@@ -85,35 +97,35 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
   }
 
   /**
-   * Tests image field field synchronization.
+   * Tests image field synchronization.
    */
   public function testImageFieldSync() {
     // Check that the alt and title fields are enabled for the image field.
     $this->drupalLogin($this->editor);
     $this->drupalGet('entity_test_mul/structure/' . $this->entityTypeId . '/fields/' . $this->entityTypeId . '.' . $this->entityTypeId . '.' . $this->fieldName);
-    $this->assertFieldChecked('edit-third-party-settings-content-translation-translation-sync-alt');
-    $this->assertFieldChecked('edit-third-party-settings-content-translation-translation-sync-title');
+    $this->assertSession()->checkboxChecked('edit-third-party-settings-content-translation-translation-sync-alt');
+    $this->assertSession()->checkboxChecked('edit-third-party-settings-content-translation-translation-sync-title');
     $edit = [
       'third_party_settings[content_translation][translation_sync][alt]' => FALSE,
       'third_party_settings[content_translation][translation_sync][title]' => FALSE,
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save settings'));
+    $this->submitForm($edit, 'Save settings');
 
     // Check that the content translation settings page reflects the changes
     // performed in the field edit page.
     $this->drupalGet('admin/config/regional/content-language');
-    $this->assertNoFieldChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-alt');
-    $this->assertNoFieldChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-title');
+    $this->assertSession()->checkboxNotChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-alt');
+    $this->assertSession()->checkboxNotChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-title');
     $edit = [
       'settings[entity_test_mul][entity_test_mul][fields][field_test_et_ui_image]' => TRUE,
       'settings[entity_test_mul][entity_test_mul][columns][field_test_et_ui_image][alt]' => TRUE,
       'settings[entity_test_mul][entity_test_mul][columns][field_test_et_ui_image][title]' => TRUE,
     ];
-    $this->drupalPostForm('admin/config/regional/content-language', $edit, t('Save configuration'));
-    $errors = $this->xpath('//div[contains(@class, "messages--error")]');
-    $this->assertFalse($errors, 'Settings correctly stored.');
-    $this->assertFieldChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-alt');
-    $this->assertFieldChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-title');
+    $this->drupalGet('admin/config/regional/content-language');
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->statusMessageNotExists('error');
+    $this->assertSession()->checkboxChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-alt');
+    $this->assertSession()->checkboxChecked('edit-settings-entity-test-mul-entity-test-mul-columns-field-test-et-ui-image-title');
     $this->drupalLogin($this->translator);
 
     $default_langcode = $this->langcodes[0];
@@ -125,7 +137,9 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
       'user_id' => mt_rand(1, 128),
       'langcode' => $default_langcode,
     ];
-    $entity = entity_create($this->entityTypeId, $values);
+    $entity = \Drupal::entityTypeManager()
+      ->getStorage($this->entityTypeId)
+      ->create($values);
 
     // Create some file entities from the generated test files and store them.
     $values = [];
@@ -138,9 +152,9 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
       $field_values = [
         'uri' => $this->files[$index]->uri,
         'uid' => \Drupal::currentUser()->id(),
-        'status' => FILE_STATUS_PERMANENT,
       ];
       $file = File::create($field_values);
+      $file->setPermanent();
       $file->save();
       $fid = $file->id();
       $this->files[$index]->fid = $fid;
@@ -201,13 +215,13 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
       $value = $values[$default_langcode][$item->target_id];
       $source_item = $translation->{$this->fieldName}->get($delta);
       $assert = $item->target_id == $source_item->target_id && $item->alt == $value['alt'] && $item->title == $value['title'];
-      $this->assertTrue($assert, format_string('Field item @fid has been successfully synchronized.', ['@fid' => $item->target_id]));
+      $this->assertTrue($assert, new FormattableMarkup('Field item @fid has been successfully synchronized.', ['@fid' => $item->target_id]));
       $fids[$item->target_id] = TRUE;
     }
 
     // Check that the dropped value is the right one.
     $removed_fid = $this->files[0]->fid;
-    $this->assertTrue(!isset($fids[$removed_fid]), format_string('Field item @fid has been correctly removed.', ['@fid' => $removed_fid]));
+    $this->assertTrue(!isset($fids[$removed_fid]), new FormattableMarkup('Field item @fid has been correctly removed.', ['@fid' => $removed_fid]));
 
     // Add back an item for the dropped value and perform synchronization again.
     $values[$langcode][$removed_fid] = [
@@ -231,7 +245,7 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
       $value = $values[$fid_langcode][$item->target_id];
       $source_item = $translation->{$this->fieldName}->get($delta);
       $assert = $item->target_id == $source_item->target_id && $item->alt == $value['alt'] && $item->title == $value['title'];
-      $this->assertTrue($assert, format_string('Field item @fid has been successfully synchronized.', ['@fid' => $item->target_id]));
+      $this->assertTrue($assert, new FormattableMarkup('Field item @fid has been successfully synchronized.', ['@fid' => $item->target_id]));
     }
   }
 
@@ -246,7 +260,7 @@ class ContentTranslationSyncImageTest extends ContentTranslationTestBase {
    */
   protected function saveEntity(EntityInterface $entity) {
     $entity->save();
-    $entity = entity_test_mul_load($entity->id(), TRUE);
+    $entity = \Drupal::entityTypeManager()->getStorage('entity_test_mul')->loadUnchanged($entity->id());
     return $entity;
   }
 

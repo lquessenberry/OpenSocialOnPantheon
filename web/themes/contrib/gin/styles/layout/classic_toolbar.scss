@@ -1,0 +1,199 @@
+// Toolbar Variables
+:root {
+  --ginToolbarSecondaryHeight: 0px; // Needs px to work in calc() functions.
+  --ginToolbarHeight: 39px;
+  --ginScrollOffset: 72px;
+  --ginHorizontalToolbarOffset: var(--ginToolbarHeight);
+  --ginVerticalToolbarOffset: 0px; // Needs px to work in calc() functions.
+  --ginStickyOffset: 0px; // Needs px to work in calc() functions.
+
+  @include mq($breakpointLarge) {
+    --iconGinToolbar: 16px;
+    --ginScrollOffset: 200px;
+  }
+}
+
+.toolbar-fixed.toolbar-tray-open {
+  @include mq($breakpointMedium) {
+    --ginHorizontalToolbarOffset: 78px;
+  }
+}
+
+.region-breadcrumb {
+  margin-top: 1rem;
+}
+
+// Toolbar
+.toolbar {
+  .toolbar-bar {
+    background: #100f10;
+    box-shadow: none;
+  }
+}
+
+.toolbar .toolbar-menu,
+.toolbar-horizontal .toolbar-tray .menu-item--expanded,
+.toolbar .toolbar-tray {
+  background-color: var(--colorGinLayerBackground);
+}
+
+.toolbar-horizontal .toolbar-tray .toolbar-toggle-orientation {
+  border-left: 1px solid var(--colorGinBorder);
+}
+
+.toolbar-tray-horizontal {
+  ul {
+    li {
+      &.menu-item {
+        .menu-item {
+          border-bottom: 1px solid var(--colorGinBorder);
+        }
+      }
+    }
+  }
+}
+
+.toolbar-tray a,
+.toolbar-tray span,
+.toolbar .toolbar-menu .toolbar-menu a,
+.toolbar .toolbar-menu .toolbar-menu span {
+  color: var(--colorGinText);
+
+  &:hover {
+    color: var(--colorGinTitle);
+  }
+}
+
+.toolbar .toolbar-tray .menu-item--active-trail > .toolbar-box a,
+.toolbar .toolbar-tray .menu-item > .toolbar-icon.is-active,
+.toolbar .toolbar-tray .menu-item > .toolbar-box > .toolbar-icon.is-active,
+.toolbar .toolbar-tray a.is-active {
+  color: var(--colorGinPrimary);
+  font-weight: 500;
+
+  &::before {
+    background: var(--colorGinPrimary);
+  }
+}
+
+.toolbar .toolbar-tray .menu-item:hover > .toolbar-icon {
+  color: var(--colorGinPrimaryHover);
+  background-color: var(--colorGinItemHover);
+
+  &::before {
+    background: var(--colorGinPrimary);
+  }
+}
+
+// Inline Edit toggle
+#toolbar-bar.toolbar-bar.js-settings-tray-edit-mode {
+  background: #100f10;
+
+  .toolbar-icon.toolbar-icon-edit.toolbar-item {
+    &,
+    &.is-active,
+    &:focus {
+      background: var(--colorGinPrimary);
+    }
+
+    &:hover,
+    &.is-active:hover {
+      background: var(--colorGinPrimaryHover);
+
+      &::before {
+        background: #fff;
+      }
+    }
+  }
+}
+
+.toolbar-tray-horizontal a:focus,
+.toolbar-box a:focus,
+.toolbar .toolbar-icon.toolbar-handle:focus {
+  background-color: var(--colorGinLayer2Background);
+}
+
+.toolbar-tray-horizontal .menu-item:hover {
+  background-color: transparent;
+}
+
+.toolbar-menu__trigger,
+.toolbar .menu-item-title,
+.menu-item-sub-title {
+  display: none !important;
+}
+
+.toolbar .level-2 > ul,
+.gin--dark-mode .toolbar .toolbar-toggle-orientation {
+  background-color: var(--colorGinLayer2Background);
+}
+
+.toolbar .level-3 > ul {
+  background-color: var(--colorGinAppBackground);
+}
+
+.gin--classic-toolbar {
+  .page-wrapper__node-edit-form .layout-region-node-secondary {
+    padding-top: var(--ginHorizontalToolbarOffset); // 39px;
+  }
+
+  table.sticky-header {
+    @include mq($breakpointLarge) {
+      margin-top: 0;
+    }
+  }
+}
+
+.toolbar-menu .menu-item > span {
+  padding-left: 2.75em;
+}
+
+// Home icon
+.toolbar .toolbar-bar .toolbar-icon-admin-toolbar-tools-help {
+  width: auto;
+  height: 100%;
+  text-indent: -999em;
+
+  &:before {
+    mask-size: 20px 20px;
+  }
+
+  @include mq($breakpointMedium) {
+    &:before {
+      left: 1rem;
+    }
+  }
+}
+
+#toolbar-item-administration-tray {
+  box-shadow: 0 0 4px rgba(0,0,0,0.1);
+
+  .toolbar-logo {
+    img {
+      @include mq($breakpointLarge) {
+        max-height: 21px;
+      }
+    }
+  }
+}
+
+.toolbar-tray-horizontal ul li.menu-item--expanded ul li.menu-item--expanded,
+.toolbar-tray-horizontal .toolbar-menu:not(:first-child) li.menu-item--expanded > a:focus {
+  position: relative;
+
+  &:before {
+    top: .75rem;
+    right: .75rem;
+  }
+}
+
+#admin-toolbar-search-tab .form-item {
+  &::before {
+    top: 6px;
+    left: 26px;
+  }
+}
+
+#admin-toolbar-search-input {
+  padding-left: 2rem;
+}

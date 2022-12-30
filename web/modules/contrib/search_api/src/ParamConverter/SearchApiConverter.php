@@ -2,13 +2,16 @@
 
 namespace Drupal\search_api\ParamConverter;
 
+use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Core\Config\Entity\ConfigEntityStorageInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\ParamConverter\EntityConverter;
 use Drupal\Core\ParamConverter\ParamConverterInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\TempStore\SharedTempStoreFactory;
 use Drupal\search_api\UnsavedIndexConfiguration;
-use Drupal\user\SharedTempStoreFactory;
 use Symfony\Component\Routing\Route;
 
 /**
@@ -24,7 +27,7 @@ class SearchApiConverter extends EntityConverter implements ParamConverterInterf
   /**
    * The shared temporary storage factory.
    *
-   * @var \Drupal\user\SharedTempStoreFactory
+   * @var \Drupal\Core\TempStore\SharedTempStoreFactory
    */
   protected $tempStoreFactory;
 
@@ -35,29 +38,64 @@ class SearchApiConverter extends EntityConverter implements ParamConverterInterf
    */
   protected $currentUser;
 
+  // phpcs:disable Drupal.Commenting.FunctionComment.TypeHintMissing
+
   /**
    * Constructs a new SearchApiConverter.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
-   * @param \Drupal\user\SharedTempStoreFactory $temp_store_factory
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
+   * @param \Drupal\Core\TempStore\SharedTempStoreFactory $temp_store_factory
    *   The factory for the temp store object.
    * @param \Drupal\Core\Session\AccountInterface $user
    *   The current user.
    */
-  public function __construct(EntityManagerInterface $entity_manager, SharedTempStoreFactory $temp_store_factory, AccountInterface $user) {
-    parent::__construct($entity_manager);
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, $entity_repository, $temp_store_factory, $user = NULL) {
+    // For backwards-compatibility, we still support passing just
+    // ($entity_manager, $temp_store_factory, $user).
+    if (!$user) {
+      @trigger_error('Constructing \Drupal\search_api\ParamConverter\SearchApiConverter with ($entity_manager, $temp_store_factory, $user) is deprecated in search_api 8.x-1.18 and will stop working in 2.0.0. Pass ($entity_type_manager, $entity_repository, $temp_store_factory, $user) instead. See https://www.drupal.org/node/3164248', E_USER_DEPRECATED);
+      $user = $temp_store_factory;
+      $temp_store_factory = $entity_repository;
+      $entity_repository = \Drupal::getContainer()->get('entity.repository');
+    }
+    $type_checks = [
+      2 => [$entity_repository, EntityRepositoryInterface::class],
+      3 => [$temp_store_factory, SharedTempStoreFactory::class],
+      4 => [$user, AccountInterface::class],
+    ];
+    foreach ($type_checks as $i => list($object, $expected)) {
+      if (!($object instanceof $expected)) {
+        $actual = get_class($object);
+        throw new \TypeError("Argument $i passed to Drupal\search_api\ParamConverter\SearchApiConverter::__construct() must implement interface $expected, instance of $actual given");
+      }
+    }
+
+    parent::__construct($entity_type_manager, $entity_repository);
 
     $this->tempStoreFactory = $temp_store_factory;
     $this->currentUser = $user;
   }
+
+  // phpcs:enable Drupal.Commenting.FunctionComment.TypeHintMissing
 
   /**
    * {@inheritdoc}
    */
   public function convert($value, $definition, $name, array $defaults) {
     /** @var \Drupal\search_api\IndexInterface $entity */
-    $storage = $this->entityManager->getStorage('search_api_index');
+    try {
+      $storage = $this->entityTypeManager->getStorage('search_api_index');
+    }
+    // @todo Use a multi-catch once we depend on PHP 7.1+.
+    catch (InvalidPluginDefinitionException $e) {
+      return NULL;
+    }
+    catch (PluginNotFoundException $e) {
+      return NULL;
+    }
     if (!($storage instanceof ConfigEntityStorageInterface)) {
       return NULL;
     }
@@ -71,10 +109,11 @@ class SearchApiConverter extends EntityConverter implements ParamConverterInterf
     $store = $this->tempStoreFactory->get('search_api_index');
     $current_user_id = $this->currentUser->id() ?: session_id();
     /** @var \Drupal\search_api\IndexInterface|\Drupal\search_api\UnsavedIndexConfiguration $index */
-    if ($index = $store->get($value)) {
+    $index = $store->get($value);
+    if ($index) {
       $index = new UnsavedIndexConfiguration($index, $store, $current_user_id);
       $index->setLockInformation($store->getMetadata($value));
-      $index->setEntityTypeManager($this->entityManager);
+      $index->setEntityTypeManager($this->entityTypeManager);
     }
     // Otherwise, create a new temporary copy of the search index.
     else {

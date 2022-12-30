@@ -7,6 +7,7 @@ use Drupal\Core\Ajax\AlertCommand;
 use Drupal\Core\Ajax\InsertCommand;
 use Drupal\Core\Ajax\PrependCommand;
 use Drupal\Core\Render\ElementInfoManagerInterface;
+use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -16,13 +17,6 @@ use Symfony\Component\HttpFoundation\Request;
 class AjaxRenderer implements MainContentRendererInterface {
 
   /**
-   * The controller resolver.
-   *
-   * @var \Drupal\Core\Controller\ControllerResolverInterface
-   */
-  protected $controllerResolver;
-
-  /**
    * The element info manager.
    *
    * @var \Drupal\Core\Render\ElementInfoManagerInterface
@@ -30,13 +24,23 @@ class AjaxRenderer implements MainContentRendererInterface {
   protected $elementInfoManager;
 
   /**
+   * The renderer.
+   *
+   * @var \Drupal\Core\Render\RendererInterface
+   */
+  protected $renderer;
+
+  /**
    * Constructs a new AjaxRenderer instance.
    *
    * @param \Drupal\Core\Render\ElementInfoManagerInterface $element_info_manager
    *   The element info manager.
+   * @param \Drupal\Core\Render\RendererInterface $renderer
+   *   The renderer.
    */
-  public function __construct(ElementInfoManagerInterface $element_info_manager) {
+  public function __construct(ElementInfoManagerInterface $element_info_manager, RendererInterface $renderer) {
     $this->elementInfoManager = $element_info_manager;
+    $this->renderer = $renderer;
   }
 
   /**
@@ -59,7 +63,7 @@ class AjaxRenderer implements MainContentRendererInterface {
       }
     }
 
-    $html = $this->drupalRenderRoot($main_content);
+    $html = $this->renderer->renderRoot($main_content);
     $response->setAttachments($main_content['#attached']);
 
     // The selector for the insert command is NULL as the new content will
@@ -67,20 +71,11 @@ class AjaxRenderer implements MainContentRendererInterface {
     // behavior can be changed with #ajax['method'].
     $response->addCommand(new InsertCommand(NULL, $html));
     $status_messages = ['#type' => 'status_messages'];
-    $output = $this->drupalRenderRoot($status_messages);
+    $output = $this->renderer->renderRoot($status_messages);
     if (!empty($output)) {
       $response->addCommand(new PrependCommand(NULL, $output));
     }
     return $response;
-  }
-
-  /**
-   * Wraps drupal_render_root().
-   *
-   * @todo Remove as part of https://www.drupal.org/node/2182149.
-   */
-  protected function drupalRenderRoot(&$elements) {
-    return drupal_render_root($elements);
   }
 
 }

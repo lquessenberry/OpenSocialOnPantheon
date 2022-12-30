@@ -1,0 +1,6 @@
+ultimate_cron.job_add:
+  route_name: ultimate_cron.discover_jobs
+  title: 'Discover jobs'
+  weight: 1
+  appears_on:
+    - entity.ultimate_cron_job.collection

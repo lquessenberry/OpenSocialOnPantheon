@@ -2,13 +2,11 @@ drupal.filter.admin:
   version: VERSION
   js:
     filter.admin.js: {}
-  css:
-    theme:
-      css/filter.admin.css: {}
   dependencies:
     - core/jquery
     - core/drupal
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
     - core/drupal.form
 
 drupal.filter.filter_html.admin:
@@ -17,21 +15,19 @@ drupal.filter.filter_html.admin:
     filter.filter_html.admin.js: {}
   dependencies:
     - core/jquery
-    - core/jquery.once
-    - core/underscore
+    - core/once
+    - core/jquery.once.bc
+    - core/drupal.array.includes
 
 drupal.filter:
   version: VERSION
   js:
     filter.js: {}
-  css:
-    theme:
-      # @todo Misnomer: Does not contain administrative styles.
-      css/filter.admin.css: {}
   dependencies:
     - core/jquery
     - core/drupal
-    - core/jquery.once
+    - core/once
+    - core/jquery.once.bc
 
 caption:
   version: VERSION

@@ -2,7 +2,6 @@
 
 namespace Drupal\FunctionalTests\Installer;
 
-use Drupal\Core\Site\Settings;
 use Drupal\Core\Database\Database;
 use Drupal\Core\DrupalKernel;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +15,11 @@ class InstallerExistingSettingsTest extends InstallerTestBase {
 
   /**
    * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
    *
    * Fully configures a preexisting settings.php file before invoking the
    * interactive installer.
@@ -26,13 +30,6 @@ class InstallerExistingSettingsTest extends InstallerTestBase {
     // Any string is valid, so simply use the class name of this test.
     $this->settings['settings']['hash_salt'] = (object) [
       'value' => __CLASS__,
-      'required' => TRUE,
-    ];
-
-    // During interactive install we'll change this to a different profile and
-    // this test will ensure that the new value is written to settings.php.
-    $this->settings['settings']['install_profile'] = (object) [
-      'value' => 'minimal',
       'required' => TRUE,
     ];
 
@@ -50,13 +47,22 @@ class InstallerExistingSettingsTest extends InstallerTestBase {
     // not be available at this point in the install process.
     $site_path = DrupalKernel::findSitePath(Request::createFromGlobals());
     // Pre-configure config directories.
-    $this->settings['config_directories'] = [
-      CONFIG_SYNC_DIRECTORY => (object) [
-        'value' => $site_path . '/files/config_sync',
-        'required' => TRUE,
-      ],
+    $this->settings['settings']['config_sync_directory'] = (object) [
+      'value' => $site_path . '/files/config_sync',
+      'required' => TRUE,
     ];
-    mkdir($this->settings['config_directories'][CONFIG_SYNC_DIRECTORY]->value, 0777, TRUE);
+    mkdir($this->settings['settings']['config_sync_directory']->value, 0777, TRUE);
+  }
+
+  /**
+   * Visits the interactive installer.
+   */
+  protected function visitInstaller() {
+    // Should redirect to the installer.
+    $this->drupalGet($GLOBALS['base_url']);
+    // Ensure no database tables have been created yet.
+    $this->assertSame([], Database::getConnection()->schema()->findTables('%'));
+    $this->assertSession()->addressEquals($GLOBALS['base_url'] . '/core/install.php');
   }
 
   /**
@@ -71,10 +77,9 @@ class InstallerExistingSettingsTest extends InstallerTestBase {
    * Verifies that installation succeeded.
    */
   public function testInstaller() {
-    $this->assertUrl('user/1');
-    $this->assertResponse(200);
-    $this->assertEqual('testing', \Drupal::installProfile(), 'Profile was changed from minimal to testing during interactive install.');
-    $this->assertEqual('testing', Settings::get('install_profile'), 'Profile was correctly changed to testing in Settings.php');
+    $this->assertSession()->addressEquals('user/1');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertEquals('testing', \Drupal::installProfile());
   }
 
 }

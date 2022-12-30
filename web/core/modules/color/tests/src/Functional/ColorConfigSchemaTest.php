@@ -8,6 +8,7 @@ use Drupal\Tests\BrowserTestBase;
  * Ensures the color config schema is correct.
  *
  * @group color
+ * @group legacy
  */
 class ColorConfigSchemaTest extends BrowserTestBase {
 
@@ -16,7 +17,12 @@ class ColorConfigSchemaTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['color'];
+  protected static $modules = ['color'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with administrative permissions.
@@ -28,9 +34,9 @@ class ColorConfigSchemaTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-    \Drupal::service('theme_handler')->install(['bartik']);
+    \Drupal::service('theme_installer')->install(['bartik']);
 
     // Create user.
     $this->adminUser = $this->drupalCreateUser(['administer themes']);
@@ -44,7 +50,8 @@ class ColorConfigSchemaTest extends BrowserTestBase {
     $settings_path = 'admin/appearance/settings/bartik';
     $edit['scheme'] = '';
     $edit['palette[bg]'] = '#123456';
-    $this->drupalPostForm($settings_path, $edit, t('Save configuration'));
+    $this->drupalGet($settings_path);
+    $this->submitForm($edit, 'Save configuration');
   }
 
 }

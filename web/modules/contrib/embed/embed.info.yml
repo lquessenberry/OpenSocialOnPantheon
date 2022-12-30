@@ -1,11 +1,11 @@
 name: Embed
 type: module
 description: 'Provides a framework for different types of embeds in text editors.'
-# core: 8.x
+core_version_requirement: ^9.3 | ^10
+package: Filters
 configure: entity.embed_button.collection
 
-# Information added by Drupal.org packaging script on 2017-03-29
-version: '8.x-1.0'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-08-23
+version: '8.x-1.6'
 project: 'embed'
-datestamp: 1490755690
+datestamp: 1661298151

@@ -1,0 +1,5 @@
+services:
+  typed_data.commands:
+    class: \Drupal\typed_data\Commands\TypedDataCommands
+    tags:
+      - { name: drush.command }

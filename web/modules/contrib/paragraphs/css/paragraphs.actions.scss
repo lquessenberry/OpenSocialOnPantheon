@@ -105,9 +105,11 @@
           outline: none;
         }
 
-        // Override seven button.css top margin.
         .form-wrapper & {
+          // Override Seven's button.css top margin.
           margin-top: 0;
+          // Override Claro's bottom margin.
+          margin-bottom: 0;
 
           @media (max-width: map-get($grid-breakpoints, 'md')) {
             // Bigger touch area for small screens.

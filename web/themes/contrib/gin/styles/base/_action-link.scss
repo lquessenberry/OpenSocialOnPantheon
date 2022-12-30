@@ -1,0 +1,100 @@
+.action-link {
+  color: var(--colorGinPrimary);
+  background-color: transparent;
+  border-radius: var(--ginBorderSmall);
+
+  &:hover {
+    color: var(--colorGinPrimaryHover);
+    background-color: var(--colorGinPrimaryLight);
+  }
+
+  &:focus {
+    color: var(--colorGinPrimaryActive);
+    background-color: var(--colorGinPrimaryLightHover);
+  }
+
+  &:before {
+    background-image: none;
+    background-color: var(--colorGinPrimary);
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+  }
+
+  &--icon-ex:hover::before,
+  &--icon-checkmark:hover:before,
+  &--icon-show:hover::before,
+  &--icon-cog:hover::before,
+  &--icon-hide:hover::before,
+  &--icon-show:before,
+  &--icon-hide:before {
+    background-image: none;
+    background-color: var(--colorGinPrimary);
+  }
+
+  &--icon-checkmark:before {
+    mask-image: icon('checkmark');
+  }
+
+  &--icon-show:before {
+    mask-image: icon('show');
+  }
+
+  &--icon-hide:before {
+    mask-image: icon('hide');
+  }
+
+  &--icon-cog::before {
+    mask-image: icon('config');
+  }
+
+  &--icon-ex::before {
+    mask-image: icon('remove');
+  }
+
+  &--icon-key::before {
+    mask-image: icon('devel');
+  }
+
+  &--icon-questionmark::before {
+    mask-image: icon('help');
+  }
+}
+
+.action-link--icon-trash.action-link--danger,
+.button.button--danger,
+a.button.button--danger {
+  color: var(--colorGinDanger);
+  box-shadow: 0 1px 2px var(--colorGinDangerLightest);
+
+  &,
+  &:hover,
+  &:focus,
+  &:active {
+    // border-color: transparent !important;
+    border-color: var(--colorGinDanger) !important;
+
+    &:before {
+      background-image: none;
+      background-color: var(--colorGinDanger);
+      mask-image: icon('trash');
+    }
+  }
+
+  &:hover,
+  &:focus,
+  &:active {
+    color: var(--colorGinLayerBackground);
+    background-color: var(--colorGinDanger);
+
+    &:before {
+      background-color: var(--colorGinLayerBackground);
+    }
+  }
+}
+
+// Primary danger button
+.button--primary.button--danger {
+  color: var(--colorGinLayerBackground);
+  background-color: var(--colorGinDanger);
+}

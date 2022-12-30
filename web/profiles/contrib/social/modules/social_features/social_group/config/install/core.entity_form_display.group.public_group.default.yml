@@ -23,7 +23,7 @@ third_party_settings:
         - field_group_image
       parent_name: ''
       weight: 0
-      label: Content
+      label: 'Basic information'
       format_type: fieldset
       format_settings:
         description: ''
@@ -43,6 +43,20 @@ third_party_settings:
         classes: ''
         id: ''
         required_fields: true
+    group_settings:
+      children:
+        - path
+      parent_name: ''
+      weight: 10
+      format_type: details
+      format_settings:
+        id: ''
+        classes: 'social-collapsible-fieldset'
+        open: false
+        description: ''
+        required_fields: true
+      label: Settings
+      region: content
 id: group.public_group.default
 targetEntityType: group
 bundle: public_group
@@ -50,8 +64,7 @@ mode: default
 content:
   field_group_address:
     weight: 33
-    settings:
-      default_country: null
+    settings: {  }
     third_party_settings: {  }
     type: address_default
     region: content
@@ -68,12 +81,15 @@ content:
     settings:
       show_crop_area: true
       show_default_crop: true
+      warn_multiple_usages: true
       preview_image_style: social_x_large
       crop_preview_image_style: crop_thumbnail
+      progress_indicator: throbber
       crop_list:
         - hero
+        - hero_small
         - teaser
-      progress_indicator: throbber
+      crop_types_required: {  }
     third_party_settings: {  }
     type: image_widget_crop
     region: content

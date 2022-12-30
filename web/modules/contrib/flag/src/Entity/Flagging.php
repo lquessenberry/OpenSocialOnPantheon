@@ -10,6 +10,7 @@ use Drupal\flag\Event\UnflaggingEvent;
 use Drupal\flag\FlaggingInterface;
 use Drupal\flag\Event\FlagEvents;
 use Drupal\flag\Event\FlaggingEvent;
+use Drupal\flag\Plugin\Field\FlaggedEntityFieldItemList;
 use Drupal\user\UserInterface;
 
 /**
@@ -24,7 +25,8 @@ use Drupal\user\UserInterface;
  *    singular = "@count flagging",
  *    plural = "@count flaggings",
  *  ),
- *  bundle_label = @Translation("Flagging"),
+ *  bundle_label = @Translation("Flag"),
+ *  admin_permission = "administer flaggings",
  *  handlers = {
  *    "storage" = "Drupal\flag\Entity\Storage\FlaggingStorage",
  *    "storage_schema" = "Drupal\flag\Entity\Storage\FlaggingStorageSchema",
@@ -57,7 +59,7 @@ class Flagging extends ContentEntityBase implements FlaggingInterface {
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $values, $entity_type, $bundle = FALSE, $translations = array()) {
+  public function __construct(array $values, $entity_type, $bundle = FALSE, $translations = []) {
     if (isset($values['entity_id'])) {
       $values['flagged_entity'] = $values['entity_id'];
     }
@@ -125,7 +127,8 @@ class Flagging extends ContentEntityBase implements FlaggingInterface {
     $fields['flagged_entity'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(t('Entity'))
       ->setDescription(t('The flagged entity.'))
-      ->setComputed(TRUE);
+      ->setComputed(TRUE)
+      ->setClass(FlaggedEntityFieldItemList::class);
 
     // Also duplicates data on flag entity for querying purposes.
     $fields['global'] = BaseFieldDefinition::create('boolean')
@@ -184,7 +187,7 @@ class Flagging extends ContentEntityBase implements FlaggingInterface {
     parent::postSave($storage, $update);
 
     if (!$update) {
-      \Drupal::service('event_dispatcher')->dispatch(FlagEvents::ENTITY_FLAGGED, new FlaggingEvent($this));
+      \Drupal::service('event_dispatcher')->dispatch(new FlaggingEvent($this), FlagEvents::ENTITY_FLAGGED);
     }
   }
 
@@ -195,7 +198,7 @@ class Flagging extends ContentEntityBase implements FlaggingInterface {
     parent::preDelete($storage, $entities);
 
     $event = new UnflaggingEvent($entities);
-    \Drupal::service('event_dispatcher')->dispatch(FlagEvents::ENTITY_UNFLAGGED, $event);
+    \Drupal::service('event_dispatcher')->dispatch($event, FlagEvents::ENTITY_UNFLAGGED);
   }
 
   /**

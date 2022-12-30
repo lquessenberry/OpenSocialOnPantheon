@@ -1,28 +1,26 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace DrupalCodeGenerator\Twig;
 
-use Twig_TokenParser;
-use Twig_Token;
+use Twig\Token;
+use Twig\TokenParser\AbstractTokenParser;
 
 /**
  * A class that defines the Twig 'sort' token parser.
  */
-class TwigSortTokenParser extends Twig_TokenParser {
+final class TwigSortTokenParser extends AbstractTokenParser {
 
   /**
    * {@inheritdoc}
    */
-  public function parse(Twig_Token $token) {
+  public function parse(Token $token): TwigSortSetNode {
 
-    $this->parser->getStream()->expect(Twig_Token::BLOCK_END_TYPE);
+    $this->parser->getStream()->expect(Token::BLOCK_END_TYPE);
     $body = $this->parser->subparse(
-      function (Twig_Token $token) {
-        return $token->test('endsort');
-      },
-      TRUE
+      static fn (Token $token): bool => $token->test('endsort'),
+      TRUE,
     );
-    $this->parser->getStream()->expect(Twig_Token::BLOCK_END_TYPE);
+    $this->parser->getStream()->expect(Token::BLOCK_END_TYPE);
 
     return new TwigSortSetNode(['body' => $body], [], $token->getLine(), $this->getTag());
   }
@@ -30,7 +28,7 @@ class TwigSortTokenParser extends Twig_TokenParser {
   /**
    * {@inheritdoc}
    */
-  public function getTag() {
+  public function getTag(): string {
     return 'sort';
   }
 

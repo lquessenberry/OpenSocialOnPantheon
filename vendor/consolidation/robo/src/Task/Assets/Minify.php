@@ -1,29 +1,30 @@
 <?php
+
 namespace Robo\Task\Assets;
 
 use Robo\Result;
 use Robo\Task\BaseTask;
 
 /**
- * Minifies asset file (CSS or JS).
+ * Minifies an asset file (CSS or JS).
  *
  * ``` php
  * <?php
- * $this->taskMinify( 'web/assets/theme.css' )
+ * $this->taskMinify('web/assets/theme.css')
  *      ->run()
  * ?>
  * ```
- * Please install additional dependencies to use:
+ * Please install additional packages to use this task:
  *
  * ```
- * "patchwork/jsqueeze": "~1.0",
- * "natxet/CssMin": "~3.0"
+ * composer require patchwork/jsqueeze:^2.0
+ * composer require natxet/cssmin:^3.0
  * ```
  */
 class Minify extends BaseTask
 {
     /**
-     * @var array
+     * @var string[]
      */
     protected $types = ['css', 'js'];
 
@@ -43,7 +44,7 @@ class Minify extends BaseTask
     protected $type;
 
     /**
-     * @var array
+     * @var bool[]
      */
     protected $squeezeOptions = [
         'singleLine' => true,
@@ -87,7 +88,8 @@ class Minify extends BaseTask
     /**
      * Sets type with validation.
      *
-     * @param string $type css|js
+     * @param string $type
+     *   Allowed values: "css", "js".
      *
      * @return $this
      */
@@ -161,7 +163,7 @@ class Minify extends BaseTask
         switch ($this->type) {
             case 'css':
                 if (!class_exists('\CssMin')) {
-                    return Result::errorMissingPackage($this, 'CssMin', 'natxet/CssMin');
+                    return Result::errorMissingPackage($this, 'CssMin', 'natxet/cssmin');
                 }
 
                 return \CssMin::minify($this->text);
@@ -217,11 +219,11 @@ class Minify extends BaseTask
     }
 
     /**
-     * specialVarRx option for the JS minimisation.
+     * Set specialVarRx option for the JS minimisation.
      *
      * @param bool $specialVarRx
      *
-     * @return $this ;
+     * @return $this
      */
     public function specialVarRx($specialVarRx)
     {

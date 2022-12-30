@@ -1,0 +1,221 @@
+.erl-field {
+  // Overlay
+  .layout-radio-item.active {
+    background: transparent;
+  }
+}
+
+// Disabled
+.erl-field .erl-disabled-items,
+.erl-field .erl-disabled-items.form-item.form-wrapper {
+  padding: 1rem;
+  margin-bottom: -6rem;
+  background: #f1f1f3;
+  border-radius: var(--ginBorderDefault);
+
+  .gin--dark-mode & {
+    background: var(--colorGinLayer2Background);
+  }
+
+  &, &:hover, &:active {
+    border: 0 none;
+  }
+
+  .fieldset__label {
+    padding: 16px 0 24px;
+  }
+
+  &__description {
+    font-size: 0.875rem;
+    color: #999;
+  }
+}
+
+// Disabled items wrapper
+.erl-disabled-items > .fieldset__wrapper {
+  margin: 0;
+}
+
+// Add content
+.erl-field .erl-add-content {
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+// Edit / Remove
+.erl-field .erl-actions .erl-edit,
+.erl-field .erl-actions .erl-remove {
+  &, &:hover {
+    box-shadow: none;
+    border-color: transparent !important;
+    border-radius: 50%;
+  }
+}
+
+// Add section button
+.erl-field .erl-add-section,
+.erl-field .erl-add-content--single button {
+  position: static;
+  display: block;
+  width: 100%;
+  color: var(--colorGinPrimary);
+  line-height: 1.3;
+  background: var(--colorGinItemHover);
+  padding: 16px 16px 34px 16px;
+  border: 1px dashed var(--colorGinPrimary);
+  border-radius: var(--ginBorderDefault);
+  transform: none;
+
+  &,
+  &:hover,
+  &:active {
+    text-decoration: none;
+  }
+
+  &:hover,
+  &:active {
+    color: var(--colorGinPrimaryHover);
+    background: var(--colorGinPrimaryLight);
+  }
+}
+
+.erl-field {
+  .erl-item:last-of-type > .erl-add-content--single {
+    opacity: 1;
+  }
+
+  .erl-add-content--single {
+    button {
+      .icon {
+        margin-right: .5rem;
+      }
+    }
+  }
+
+  .layout-radio-item {
+    > div {
+      display: flex;
+      align-items: center;
+    }
+
+    .form-item {
+      margin-left: 8px;
+    }
+
+    &.active {
+      outline: 4px solid var(--colorGinFocus);
+    }
+  }
+}
+
+.erl-layout-region:hover button.erl-add-content__toggle {
+  opacity: 1;
+}
+
+// ERL overlay
+.erl-overlay {
+  .erl-form {
+    overflow-x: hidden;
+    overflow-y: visible;
+    max-height: 85vh !important;
+  }
+}
+
+// ERL overlay loader
+.erl-overlay.erl-loading div.loading {
+  border-radius: 6px;
+
+  .gin--dark-mode & {
+    background: rgba(0, 0, 0, .3);
+  }
+}
+
+// Disabled item
+.erl-disabled-wrapper .erl-item {
+  border-color: #fff;
+
+  &:not(:last-of-type) {
+    margin-bottom: 1rem;
+  }
+}
+
+// Disabled description position
+.erl-disabled-wrapper .erl-disabled-items__description {
+  top: 16px;
+}
+
+// Basic item styles
+.erl-item {
+  label.paragraph-type-label,
+  label.paragraph-type--label {
+    margin: -1px;
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translate(-50%);
+    border: 0 none;
+    font-style: normal;
+    color: var(--colorGinTextLight);
+    opacity: .75;
+  }
+
+  .layout-controls {
+    opacity: 1;
+    position: absolute;
+    left: 4px;
+    top: 8px;
+  }
+
+  .paragraph {
+    .field {
+      line-height: 1.5;
+      margin: .5em 0;
+    }
+
+    .field--name-field-title {
+      font-weight: bold;
+    }
+
+    .field--type-image {
+      max-height: 400px;
+      overflow: hidden;
+    }
+
+    .field--name-field-paragraphs {
+      display: flex;
+      flex-wrap: wrap;
+
+      .field__item {
+        flex-basis: 100%;
+        margin-right: .5rem;
+      }
+    }
+  }
+}
+
+// Actions
+.erl-item .erl-actions {
+  visibility: visible;
+  position: absolute;
+  right: 4px;
+  top: 8px;
+}
+
+// Form wrapper
+.erl-layout.erl-item.form-wrapper {
+  &:hover > button.erl-add-content__toggle,
+  &:hover > button.layout-paragraphs-add-content__toggle {
+    opacity: 1;
+  }
+
+  .erl-actions input.erl-edit,
+  .erl-actions input.erl-remove {
+    opacity: .75;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}

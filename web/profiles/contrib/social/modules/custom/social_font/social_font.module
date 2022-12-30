@@ -39,7 +39,7 @@ function social_font_render($font_id = NULL) {
 
   if ($font_id == NULL) {
     $system_theme_settings = \Drupal::configFactory()->get('system.theme')->get('default');
-    if (array_key_exists('socialbase', \Drupal::service('theme.manager')->getActiveTheme()->getBaseThemes())) {
+    if (array_key_exists('socialbase', \Drupal::service('theme.manager')->getActiveTheme()->getBaseThemeExtensions())) {
       $config = \Drupal::config($system_theme_settings . '.settings');
       $font_id = $config->get('font_primary');
     }
@@ -73,12 +73,16 @@ function social_font_render($font_id = NULL) {
       foreach ($font->get('field_fonts')->getValue() as $files) {
         /** @var \Drupal\file\Entity\File $file */
         if ($file = File::load($files['target_id'])) {
-          $url = file_create_url($file->get('uri')->value);
+          $url = \Drupal::service('file_url_generator')->generateAbsoluteString($file->get('uri')->value);
           $fonts[] = $url;
         }
       }
       $css .= social_font_fontfiles_render($fonts);
-      $css .= "} body { font-family: '" . $fontname . "', " . $fallback . " !important; }";
+      $css .= "} body { font-family: '" . $fontname . "', " . $fallback . " !important; } ";
+      // font-weight is reset because uploaded fonts don't yet support
+      // multiple font-weights which breaks strong tags.
+      // @todo See issue #3045765.
+      $css .= "strong { font-weight: initial !important; }";
     }
   }
 

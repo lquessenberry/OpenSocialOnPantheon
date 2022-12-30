@@ -15,7 +15,7 @@ use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
  *   field_types = {
  *     "datetime"
  *   }
- *)
+ * )
  */
 class DateTimePlainFormatter extends DateTimeFormatterBase {
 
@@ -42,7 +42,7 @@ class DateTimePlainFormatter extends DateTimeFormatterBase {
    */
   protected function formatDate($date) {
     $format = $this->getFieldSetting('datetime_type') == DateTimeItem::DATETIME_TYPE_DATE ? DateTimeItemInterface::DATE_STORAGE_FORMAT : DateTimeItemInterface::DATETIME_STORAGE_FORMAT;
-    $timezone = $this->getSetting('timezone_override');
+    $timezone = $this->getSetting('timezone_override') ?: $date->getTimezone()->getName();
     return $this->dateFormatter->format($date->getTimestamp(), 'custom', $format, $timezone != '' ? $timezone : NULL);
   }
 

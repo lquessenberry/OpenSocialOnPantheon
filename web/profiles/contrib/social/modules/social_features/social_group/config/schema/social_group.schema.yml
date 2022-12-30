@@ -2,6 +2,52 @@ social_group.settings:
   type: config_object
   label: 'Social Group Settings'
   mapping:
+    allow_group_create:
+      type: boolean
+      label: 'Allow regular users to create new groups'
     allow_group_selection_in_node:
       type: boolean
-      label: 'Allow logged-in users to change or remove a group when editing content.'
+      label: 'Allow regular users to change the group their content belong to'
+    address_visibility_settings:
+      type: boolean
+      label: 'Only show the group address to the group members'
+    social_group_type_required:
+      type: boolean
+      label: 'Enable and require a group type'
+
+views.access.group_managers_only:
+  type: mapping
+  label: 'Access for group managers only'
+  mapping:
+    group_managers_only:
+      type: string
+      label: 'Group managers only'
+
+views.field.social_views_bulk_operations_bulk_form_group:
+  type: views_field
+  label: 'Views Bulk Operations From Group'
+  mapping:
+    batch:
+      type: boolean
+      label: 'Process selected entities in a batch operation'
+    batch_size:
+      type: integer
+      label: 'Size of the processing batch'
+    form_step:
+      type: boolean
+      label: 'Display configuration form on a separate page'
+    buttons:
+      type: boolean
+      label: 'Display action options as buttons'
+    action_title:
+      type: string
+      label: 'Title of the action selector form element'
+    selected_actions:
+      type: ignore
+      label: 'Selected actions array'
+    preconfiguration:
+      type: ignore
+      label: 'Preliminary configuration array'
+    clear_on_exposed:
+      type: boolean
+      label: 'Clear selection when exposed filters change'

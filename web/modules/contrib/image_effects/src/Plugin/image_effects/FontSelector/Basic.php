@@ -2,10 +2,13 @@
 
 namespace Drupal\image_effects\Plugin\image_effects\FontSelector;
 
-use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\file_mdm\FileMetadataManagerInterface;
 use Drupal\image_effects\Plugin\ImageEffectsFontSelectorPluginInterface;
 use Drupal\image_effects\Plugin\ImageEffectsPluginBase;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Basic font selector plugin.
@@ -20,6 +23,48 @@ use Drupal\image_effects\Plugin\ImageEffectsPluginBase;
  * )
  */
 class Basic extends ImageEffectsPluginBase implements ImageEffectsFontSelectorPluginInterface {
+
+  /**
+   * The file metadata manager service.
+   *
+   * @var \Drupal\file_mdm\FileMetadataManagerInterface
+   */
+  protected $fileMetadataManager;
+
+  /**
+   * Constructs a ImageEffectsPluginBase object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The configuration factory.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The image_effects logger.
+   * @param \Drupal\file_mdm\FileMetadataManagerInterface $file_metadata_manager
+   *   The file metadata manager service.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory, LoggerInterface $logger, FileMetadataManagerInterface $file_metadata_manager) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $config_factory, $logger);
+    $this->fileMetadataManager = $file_metadata_manager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('config.factory'),
+      $container->get('logger.channel.image_effects'),
+      $container->get('file_metadata_manager')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -49,114 +94,7 @@ class Basic extends ImageEffectsPluginBase implements ImageEffectsFontSelectorPl
    * {@inheritdoc}
    */
   public function getDescription($uri) {
-    return $this->getData($uri)['name'];
-  }
-
-  /**
-   * Return the font information.
-   *
-   * Scans the font file to return tags information.
-   *
-   * @param string $uri
-   *   the URI of the font file.
-   *
-   * @return array
-   *   an associative array with the following keys:
-   *   'copyright' => Copyright information
-   *   'family' => Font family
-   *   'subfamily' => Font subfamily
-   *   'name' => Font name
-   *   'file' => Font file URI
-   */
-  protected function getData($uri) {
-    $realpath = drupal_realpath($uri);
-    $fd = fopen($realpath, "r");
-    $text = fread($fd, filesize($realpath));
-    fclose($fd);
-
-    $number_of_tabs = $this->dec2hex(ord($text[4])) . $this->dec2hex(ord($text[5]));
-    for ($i = 0; $i < hexdec($number_of_tabs); $i++) {
-      $tag = $text[12 + $i * 16] . $text[12 + $i * 16 + 1] . $text[12 + $i * 16 + 2] . $text[12 + $i * 16 + 3];
-      if ($tag == "name") {
-        $offset_name_table_hex = $this->dec2hex(ord($text[12 + $i * 16 + 8])) . $this->dec2hex(ord($text[12 + $i * 16 + 8 + 1])) . $this->dec2hex(ord($text[12 + $i * 16 + 8 + 2])) . $this->dec2hex(ord($text[12 + $i * 16 + 8 + 3]));
-        $offset_name_table_dec = hexdec($offset_name_table_hex);
-        $offset_storage_hex = $this->dec2hex(ord($text[$offset_name_table_dec + 4])) . $this->dec2hex(ord($text[$offset_name_table_dec + 5]));
-        $offset_storage_dec = hexdec($offset_storage_hex);
-        $number_name_records_hex = $this->dec2hex(ord($text[$offset_name_table_dec + 2])) . $this->dec2hex(ord($text[$offset_name_table_dec + 3]));
-        $number_name_records_dec = hexdec($number_name_records_hex);
-        break;
-      }
-    }
-
-    $storage_dec = $offset_storage_dec + $offset_name_table_dec;
-    $font = [
-      'copyright' => '',
-      'family' => '',
-      'subfamily' => '',
-      'name' => '',
-      'file' => $uri,
-    ];
-
-    for ($j = 0; $j < $number_name_records_dec; $j++) {
-      $name_id_hex = $this->dec2hex(ord($text[$offset_name_table_dec + 6 + $j * 12 + 6])) . $this->dec2hex(ord($text[$offset_name_table_dec + 6 + $j * 12 + 7]));
-      $name_id_dec = hexdec($name_id_hex);
-      $string_length_hex = $this->dec2hex(ord($text[$offset_name_table_dec + 6 + $j * 12 + 8])) . $this->dec2hex(ord($text[$offset_name_table_dec + 6 + $j * 12 + 9]));
-      $string_length_dec = hexdec($string_length_hex);
-      $string_offset_hex = $this->dec2hex(ord($text[$offset_name_table_dec + 6 + $j * 12 + 10])) . $this->dec2hex(ord($text[$offset_name_table_dec + 6 + $j * 12 + 11]));
-      $string_offset_dec = hexdec($string_offset_hex);
-
-      if ($name_id_dec == 0 && empty($font['copyright'])) {
-        for ($l = 0; $l < $string_length_dec; $l++) {
-          if (ord($text[$storage_dec + $string_offset_dec + $l]) >= 32) {
-            $font['copyright'] .= $text[$storage_dec + $string_offset_dec + $l];
-          }
-        }
-      }
-
-      if ($name_id_dec == 1 && empty($font['family'])) {
-        for ($l = 0; $l < $string_length_dec; $l++) {
-          if (ord($text[$storage_dec + $string_offset_dec + $l]) >= 32) {
-            $font['family'] .= $text[$storage_dec + $string_offset_dec + $l];
-          }
-        }
-      }
-
-      if ($name_id_dec == 2 && empty($font['subfamily'])) {
-        for ($l = 0; $l < $string_length_dec; $l++) {
-          if (ord($text[$storage_dec + $string_offset_dec + $l]) >= 32) {
-            $font['subfamily'] .= $text[$storage_dec + $string_offset_dec + $l];
-          }
-        }
-      }
-
-      if ($name_id_dec == 4 && empty($font['name'])) {
-        for ($l = 0; $l < $string_length_dec; $l++) {
-          if (ord($text[$storage_dec + $string_offset_dec + $l]) >= 32) {
-            $font['name'] .= $text[$storage_dec + $string_offset_dec + $l];
-          }
-        }
-      }
-
-      if ($font['copyright'] != "" && $font['family'] != "" && $font['subfamily'] != "" && $font['name'] != "") {
-        break;
-      }
-    }
-
-    return $font;
-  }
-
-  /**
-   * Convert a dec to a hex.
-   *
-   * @param int $dec
-   *   An integer number.
-   *
-   * @return string
-   *   the number represented as hex
-   */
-  protected function dec2hex($dec) {
-    $hex = dechex($dec);
-    return str_repeat("0", 2 - Unicode::strlen($hex)) . Unicode::strtoupper($hex);
+    return $this->fileMetadataManager->uri($uri)->getMetadata('font', 'FullName');
   }
 
 }

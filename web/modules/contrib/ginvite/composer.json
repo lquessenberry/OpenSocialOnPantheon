@@ -1,0 +1,16 @@
+{
+    "name": "drupal/ginvite",
+    "description": "Allows group managers to invite people into their group",
+    "type": "drupal-module",
+    "homepage": "http://drupal.org/project/ginvite",
+    "support": {
+        "issues": "https://drupal.org/project/issues/ginvite",
+        "source": "https://git.drupalcode.org/project/ginvite"
+    },
+    "license": "GPL-2.0-or-later",
+    "minimum-stability": "dev",
+    "require": {
+        "drupal/core": "^8.9 || ^9",
+        "drupal/group": "^1.3"
+    }
+}

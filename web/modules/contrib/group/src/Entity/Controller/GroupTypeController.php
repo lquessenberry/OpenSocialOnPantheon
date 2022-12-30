@@ -84,7 +84,40 @@ class GroupTypeController extends ControllerBase {
   public function content(GroupTypeInterface $group_type) {
     $this->groupType = $group_type;
 
-    // Render the table of available content enablers.
+    $rows['installed'] = $rows['available'] = [];
+    $installed_ids = $this->pluginManager->getInstalledIds($group_type);
+    foreach ($this->pluginManager->getAll() as $plugin_id => $plugin) {
+      $is_installed = FALSE;
+
+      // If the plugin is installed on the group type, use that one instead of
+      // an 'empty' version so that we may use methods on it which expect to
+      // have a group type configured.
+      if (in_array($plugin_id, $installed_ids)) {
+        $plugin = $this->groupType->getContentPlugin($plugin_id);
+        $is_installed = TRUE;
+      }
+
+      $status = $is_installed ? 'installed' : 'available';
+      $rows[$status][$plugin_id] = $this->buildRow($plugin, $is_installed);
+    }
+
+    $page['information'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Information about content plugins'),
+    ];
+
+    $page['information']['intro']['#markup'] = $this->t('<p>In order to be able to add entities as content to groups of this group type, a so-called content plugin needs to be installed. This plugin informs the Group module on how the entity type can be added to a group, what rules apply and whether it should control access over said entity type. When a plugin is installed, you should check out its configuration form to see what options are available to further customize the plugin behavior.</p>');
+    $page['information']['fields']['#markup'] = $this->t('<p>Should you choose to show the relationship entities that track which entity belongs to which group or should the module that provided the module enforce this, you can control which fields are available on that relation entity and how they are presented in the front-end.</p>');
+    $page['information']['install_types'] = [
+      '#theme' => 'item_list',
+      '#items' => [
+        $this->t('<strong>Manual</strong> content plugins can be (un)installed freely by the user'),
+        $this->t('<strong>Code-only</strong> content plugins can only be (un)installed through code, this is often done when certain conditions are met in the module that provided the plugin'),
+        $this->t('<strong>Enforced</strong> content plugins are always enabled and cannot be uninstalled'),
+      ],
+      '#prefix' => $this->t('<p>The following installation types are available:</p>'),
+    ];
+
     $page['system_compact_link'] = [
       '#id' => FALSE,
       '#type' => 'system_compact_link',
@@ -97,21 +130,12 @@ class GroupTypeController extends ControllerBase {
         'provider' => $this->t('Provided by'),
         'entity_type_id' => $this->t('Applies to'),
         'status' => $this->t('Status'),
+        'install_type' => $this->t('Installation type'),
         'operations' => $this->t('Operations'),
       ],
-      '#suffix' =>  $this->t('<em>* These plugins are set to be always on by their providing module.</em>'),
     ];
-
-    $installed = $this->pluginManager->getInstalledIds($group_type);
-    foreach ($this->pluginManager->getAll() as $plugin_id => $plugin) {
-      // If the plugin is installed on the group type, use that one instead of
-      // an 'empty' version so that we may use methods on it which expect to
-      // have a group type configured.
-      if (in_array($plugin_id, $installed)) {
-        $plugin = $this->groupType->getContentPlugin($plugin_id);
-      }
-      $page['content'][$plugin_id] = $this->buildRow($plugin);
-    }
+    $page['content'] += $rows['installed'];
+    $page['content'] += $rows['available'];
 
     return $page;
   }
@@ -121,24 +145,21 @@ class GroupTypeController extends ControllerBase {
    *
    * @param \Drupal\group\Plugin\GroupContentEnablerInterface $plugin
    *   The content enabler plugin to build operation links for.
+   * @param bool $is_installed
+   *   Whether the plugin is installed.
    *
    * @return array
    *   A render array to use as a table row.
    */
-  public function buildRow(GroupContentEnablerInterface $plugin) {
-    $installed = $this->pluginManager->getInstalledIds($this->groupType);
+  public function buildRow(GroupContentEnablerInterface $plugin, $is_installed) {
+    $status = $is_installed ? $this->t('Installed') : $this->t('Available');
 
-    // Get the plugin status.
-    if (in_array($plugin->getPluginId(), $installed)) {
-      $status = $this->t('Installed');
-
-      // Mark enforced plugins with an asterisk.
-      if ($plugin->isEnforced()) {
-        $status .= '*';
-      }
+    $install_type = $this->t('Manual');
+    if ($plugin->isEnforced()) {
+      $install_type = $this->t('Enforced');
     }
-    else {
-      $status = $this->t('Not installed');
+    elseif ($plugin->isCodeOnly()) {
+      $install_type = $this->t('Code-only');
     }
 
     $row = [
@@ -156,7 +177,8 @@ class GroupTypeController extends ControllerBase {
         '#markup' => $this->entityTypeManager->getDefinition($plugin->getEntityTypeId())->getLabel()
       ],
       'status' => ['#markup' => $status],
-      'operations' => $this->buildOperations($plugin),
+      'install_type' => ['#markup' => $install_type],
+      'operations' => $this->buildOperations($plugin, $is_installed),
     ];
 
     // Show the content enabler description if toggled on.
@@ -172,6 +194,8 @@ class GroupTypeController extends ControllerBase {
    *
    * @param \Drupal\group\Plugin\GroupContentEnablerInterface $plugin
    *   The content enabler plugin to build operation links for.
+   * @param bool $is_installed
+   *   Whether the plugin is installed.
    *
    * @return array
    *   An associative array of operation links for the group type's content
@@ -180,8 +204,8 @@ class GroupTypeController extends ControllerBase {
    *   - url: An instance of \Drupal\Core\Url for the operation URL.
    *   - weight: The weight of this operation.
    */
-  public function getOperations($plugin) {
-    return $plugin->getOperations() + $this->getDefaultOperations($plugin);
+  public function getOperations($plugin, $is_installed) {
+    return $plugin->getOperations() + $this->getDefaultOperations($plugin, $is_installed);
   }
 
   /**
@@ -189,18 +213,20 @@ class GroupTypeController extends ControllerBase {
    *
    * @param \Drupal\group\Plugin\GroupContentEnablerInterface $plugin
    *   The content enabler plugin to build operation links for.
+   * @param bool $is_installed
+   *   Whether the plugin is installed.
    *
    * @return array
    *   The array structure is identical to the return value of
    *   self::getOperations().
    */
-  protected function getDefaultOperations($plugin) {
+  protected function getDefaultOperations($plugin, $is_installed) {
     $operations = [];
 
     $plugin_id = $plugin->getPluginId();
-    $installed = $this->pluginManager->getInstalledIds($this->groupType);
+    $ui_allowed = !$plugin->isEnforced() && !$plugin->isCodeOnly();
 
-    if (in_array($plugin_id, $installed)) {
+    if ($is_installed) {
       /** @var \Drupal\group\Entity\GroupContentTypeInterface $group_content_type */
       $group_content_type_id = $plugin->getContentTypeConfigId();
       $group_content_type = GroupContentType::load($group_content_type_id);
@@ -214,7 +240,7 @@ class GroupTypeController extends ControllerBase {
         'url' => new Url('entity.group_content_type.edit_form', $route_params),
       ];
 
-      if (!$plugin->isEnforced()) {
+      if ($ui_allowed) {
         $operations['uninstall'] = [
           'title' => $this->t('Uninstall'),
           'weight' => 99,
@@ -226,7 +252,7 @@ class GroupTypeController extends ControllerBase {
         $operations += field_ui_entity_operation($group_content_type);
       }
     }
-    elseif (!$plugin->isEnforced()) {
+    elseif ($ui_allowed) {
       $operations['install'] = [
         'title' => $this->t('Install'),
         'url' => new Url('entity.group_content_type.add_form', ['group_type' => $this->groupType->id(), 'plugin_id' => $plugin_id]),
@@ -241,16 +267,18 @@ class GroupTypeController extends ControllerBase {
    *
    * @param \Drupal\group\Plugin\GroupContentEnablerInterface $plugin
    *   The content enabler plugin to build operation links for.
+   * @param bool $is_installed
+   *   Whether the plugin is installed.
    *
    * @return array
    *   A render array of operation links.
    */
-  public function buildOperations($plugin) {
+  public function buildOperations($plugin, $is_installed) {
     $build = [
       '#type' => 'operations',
-      '#links' => $this->getOperations($plugin),
+      '#links' => $this->getOperations($plugin, $is_installed),
     ];
-
+    uasort($build['#links'], '\Drupal\Component\Utility\SortArray::sortByWeightElement');
     return $build;
   }
 

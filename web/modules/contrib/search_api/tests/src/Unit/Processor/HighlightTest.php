@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\search_api\Unit\Processor;
 
+use Drupal\Core\TypedData\ComplexDataInterface;
 use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\TypedData\TypedDataInterface;
 use Drupal\search_api\Datasource\DatasourceInterface;
@@ -14,7 +15,6 @@ use Drupal\search_api\Processor\ProcessorProperty;
 use Drupal\search_api\Query\QueryInterface;
 use Drupal\search_api\Query\ResultSet;
 use Drupal\search_api\Utility\Utility;
-use Drupal\Tests\search_api\Unit\TestComplexDataInterface;
 use Drupal\Tests\UnitTestCase;
 
 /**
@@ -38,21 +38,21 @@ class HighlightTest extends UnitTestCase {
   /**
    * The index mock used for the tests.
    *
-   * @var \PHPUnit_Framework_MockObject_MockObject|\Drupal\search_api\IndexInterface
+   * @var \PHPUnit\Framework\MockObject\MockObject|\Drupal\search_api\IndexInterface
    */
   protected $index;
 
   /**
    * Creates a new processor object for use in the tests.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->setUpMockContainer();
 
     $this->processor = new Highlight([], 'highlight', []);
 
-    $this->index = $this->getMock(IndexInterface::class);
+    $this->index = $this->createMock(IndexInterface::class);
     $this->index->expects($this->any())
       ->method('getFulltextFields')
       ->willReturn(['body', 'title']);
@@ -86,18 +86,19 @@ class HighlightTest extends UnitTestCase {
    * Tests postprocessing with an empty result set.
    */
   public function testPostprocessSearchResultsWithEmptyResult() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
 
     $results = $this->getMockBuilder(ResultSet::class)
-      ->setMethods(['getResultCount'])
+      ->onlyMethods(['getResultCount', 'getQuery', 'getResultItems'])
       ->setConstructorArgs([$query])
       ->getMock();
 
     $results->expects($this->once())
       ->method('getResultCount')
       ->will($this->returnValue(0));
-    $results->expects($this->never())
-      ->method('getQuery');
+    $results->expects($this->once())
+      ->method('getQuery')
+      ->willReturn(NULL);
     $results->expects($this->never())
       ->method('getResultItems');
     /** @var \Drupal\search_api\Query\ResultSet $results */
@@ -109,13 +110,13 @@ class HighlightTest extends UnitTestCase {
    * Makes sure that queries with "basic" processing set are ignored.
    */
   public function testPostprocessBasicQuery() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_BASIC);
 
     $results = $this->getMockBuilder(ResultSet::class)
-      ->setMethods(['getResultCount', 'getQuery'])
+      ->onlyMethods(['getResultCount', 'getQuery', 'getResultItems'])
       ->setConstructorArgs([$query])
       ->getMock();
 
@@ -136,13 +137,13 @@ class HighlightTest extends UnitTestCase {
    * Tests postprocessing on a query without keywords.
    */
   public function testPostprocessSearchResultsWithoutKeywords() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
 
     $results = $this->getMockBuilder(ResultSet::class)
-      ->setMethods(['getResultCount', 'getQuery'])
+      ->onlyMethods(['getResultCount', 'getQuery', 'getResultItems'])
       ->setConstructorArgs([$query])
       ->getMock();
 
@@ -167,7 +168,7 @@ class HighlightTest extends UnitTestCase {
    * Tests field highlighting with a normal result set.
    */
   public function testPostprocessSearchResultsWithResults() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -213,7 +214,7 @@ class HighlightTest extends UnitTestCase {
       'suffix' => '</em>',
     ]);
 
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -256,7 +257,7 @@ class HighlightTest extends UnitTestCase {
   public function testPostprocessSearchResultsWithoutHighlight() {
     $this->processor->setConfiguration(['highlight' => 'never']);
 
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -295,17 +296,26 @@ class HighlightTest extends UnitTestCase {
 
   /**
    * Tests highlighting of partial matches.
+   *
+   * @param string $text
+   *   The text that should be highlighted.
+   * @param string $keywords
+   *   The search keywords.
+   * @param string $highlighted
+   *   The expected highlighted text.
+   *
+   * @dataProvider postprocessSearchResultsHighlightPartialDataProvider
    */
-  public function testPostprocessSearchResultsHighlightPartial() {
+  public function testPostprocessSearchResultsHighlightPartial($text, $keywords, $highlighted) {
     $this->processor->setConfiguration(['highlight_partial' => TRUE]);
 
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
     $query->expects($this->atLeastOnce())
       ->method('getOriginalKeys')
-      ->will($this->returnValue(['#conjunction' => 'AND', 'partial']));
+      ->will($this->returnValue(['#conjunction' => 'AND', $keywords]));
     /** @var \Drupal\search_api\Query\QueryInterface $query */
 
     $field = $this->createTestField('body', 'entity:node/body');
@@ -316,11 +326,10 @@ class HighlightTest extends UnitTestCase {
 
     $this->processor->setIndex($this->index);
 
-    $body_values = ['Some longwordtoshowpartialmatching value'];
     $fields = [
       'entity:node/body' => [
         'type' => 'text',
-        'values' => $body_values,
+        'values' => [$text],
       ],
     ];
 
@@ -333,14 +342,48 @@ class HighlightTest extends UnitTestCase {
     $this->processor->postprocessSearchResults($results);
 
     $fields = $items[$this->itemIds[0]]->getExtraData('highlighted_fields');
-    $this->assertEquals('Some longwordtoshow<strong>partial</strong>matching value', $fields['body'][0], 'Highlighting is correctly applied to a partial match.');
+    $this->assertEquals($highlighted, $fields['body'][0], 'Highlighting is correctly applied to a partial match.');
+    $excerpt = $items[$this->itemIds[0]]->getExcerpt();
+    $this->assertEquals("… $highlighted …", $excerpt, 'Highlighting is correctly applied to a partial match.');
+  }
+
+  /**
+   * Provides test data sets for testPostprocessSearchResultsHighlightPartial().
+   *
+   * @return array[]
+   *   An array of argument arrays for
+   *   testPostprocessSearchResultsHighlightPartial().
+   *
+   * @see \Drupal\Tests\search_api\Unit\Processor\HighlightTest::testPostprocessSearchResultsHighlightPartial()
+   */
+  public function postprocessSearchResultsHighlightPartialDataProvider() {
+    $data_sets = [
+      'normal' => [
+        'Some longwordtoshowpartialmatching value',
+        'partial',
+        'Some longwordtoshow<strong>partial</strong>matching value',
+      ],
+    ];
+
+    // Test multi-byte support only if this PHP installation actually contains
+    // the necessary function. Otherwise, we can't really be blamed for not
+    // supporting them.
+    if (function_exists('mb_stripos')) {
+      $data_sets['multi-byte'] = [
+        'Alle Angaben ohne Gewähr.',
+        'Ähr',
+        'Alle Angaben ohne Gew<strong>ähr</strong>.',
+      ];
+    }
+
+    return $data_sets;
   }
 
   /**
    * Tests field highlighting when previous highlighting is present.
    */
   public function testPostprocessSearchResultsWithPreviousHighlighting() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -386,7 +429,7 @@ class HighlightTest extends UnitTestCase {
    * Tests whether highlighting works on a longer text.
    */
   public function testPostprocessSearchResultsExcerpt() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -426,10 +469,64 @@ class HighlightTest extends UnitTestCase {
   }
 
   /**
+   * Tests whether excerpt creation correctly handles HTML tags.
+   */
+  public function testPostprocessSearchResultsExcerptStripTags() {
+    $query = $this->createMock(QueryInterface::class);
+    $query->expects($this->once())
+      ->method('getProcessingLevel')
+      ->willReturn(QueryInterface::PROCESSING_FULL);
+    $query->expects($this->atLeastOnce())
+      ->method('getOriginalKeys')
+      ->will($this->returnValue(['#conjunction' => 'AND', 'foo']));
+    /** @var \Drupal\search_api\Query\QueryInterface $query */
+
+    $field = $this->createTestField('body', 'entity:node/body');
+
+    $this->index->expects($this->atLeastOnce())
+      ->method('getFields')
+      ->will($this->returnValue(['body' => $field]));
+
+    $this->processor->setIndex($this->index);
+
+    $body_value = <<<'END'
+Sentence with foo keyword.
+<script>
+var foo = 1;
+</script>
+<style>
+a.foo {
+  font-weight: bold;
+}
+</style>
+And another foo!
+END;
+    $fields = [
+      'entity:node/body' => [
+        'type' => 'text',
+        'values' => [$body_value],
+      ],
+    ];
+
+    $items = $this->createItems($this->index, 1, $fields);
+
+    $results = new ResultSet($query);
+    $results->setResultItems($items);
+    $results->setResultCount(1);
+
+    $this->processor->postprocessSearchResults($results);
+
+    $output = $results->getResultItems();
+    $excerpt = $output[$this->itemIds[0]]->getExcerpt();
+    $correct_output = '… Sentence with <strong>foo</strong> keyword. And another <strong>foo</strong>! …';
+    $this->assertEquals($correct_output, $excerpt, 'Excerpt was added.');
+  }
+
+  /**
    * Tests whether highlighting works on a longer text matching near the end.
    */
   public function testPostprocessSearchResultsExerptMatchNearEnd() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -474,7 +571,7 @@ class HighlightTest extends UnitTestCase {
   public function testPostprocessSearchResultsWithChangedExcerptLength() {
     $this->processor->setConfiguration(['excerpt_length' => 64]);
 
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -519,7 +616,7 @@ class HighlightTest extends UnitTestCase {
   public function testPostprocessSearchResultsWithoutExcerpt() {
     $this->processor->setConfiguration(['excerpt' => FALSE]);
 
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -558,6 +655,50 @@ class HighlightTest extends UnitTestCase {
   }
 
   /**
+   * Tests whether excerpt creation uses the "highlighted_keys" extra data.
+   */
+  public function testPostprocessSearchResultsExcerptWithKeysFromBackend() {
+    $query = $this->createMock(QueryInterface::class);
+    $query->expects($this->once())
+      ->method('getProcessingLevel')
+      ->willReturn(QueryInterface::PROCESSING_FULL);
+    $query->expects($this->atLeastOnce())
+      ->method('getOriginalKeys')
+      ->will($this->returnValue(['#conjunction' => 'AND', 'congues']));
+    /** @var \Drupal\search_api\Query\QueryInterface $query */
+
+    $field = $this->createTestField('body', 'entity:node/body');
+
+    $this->index->expects($this->atLeastOnce())
+      ->method('getFields')
+      ->will($this->returnValue(['body' => $field]));
+
+    $this->processor->setIndex($this->index);
+
+    $body_values = [$this->getFieldBody()];
+    $fields = [
+      'entity:node/body' => [
+        'type' => 'text',
+        'values' => $body_values,
+      ],
+    ];
+
+    $items = $this->createItems($this->index, 1, $fields);
+    $items[$this->itemIds[0]]->setExtraData('highlighted_keys', ['congue']);
+
+    $results = new ResultSet($query);
+    $results->setResultItems($items);
+    $results->setResultCount(1);
+
+    $this->processor->postprocessSearchResults($results);
+
+    $output = $results->getResultItems();
+    $excerpt = $output[$this->itemIds[0]]->getExcerpt();
+    $correct_output = '… tristique, ligula sit amet condimentum dapibus, lorem nunc <strong>congue</strong> velit, et dictum augue leo sodales augue. Maecenas …';
+    $this->assertEquals($correct_output, $excerpt, 'Excerpt was added.');
+  }
+
+  /**
    * Tests whether highlighting works on a longer text.
    */
   public function testPostprocessSearchResultsWithComplexKeys() {
@@ -576,7 +717,7 @@ class HighlightTest extends UnitTestCase {
         'will',
       ],
     ];
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -621,7 +762,7 @@ class HighlightTest extends UnitTestCase {
    * Tests field highlighting and excerpts for two fields.
    */
   public function testPostprocessSearchResultsWithTwoFields() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -669,9 +810,9 @@ class HighlightTest extends UnitTestCase {
     $this->assertEquals('Title <strong>foo</strong>', $fields['title'][0], 'Highlighting is correctly applied to title field.');
 
     $excerpt = $items[$this->itemIds[0]]->getExcerpt();
-    $this->assertContains('Some <strong>foo</strong> value', $excerpt);
-    $this->assertContains('<strong>foo</strong> bar', $excerpt);
-    $this->assertContains('Title <strong>foo</strong>', $excerpt);
+    $this->assertStringContainsString('Some <strong>foo</strong> value', $excerpt);
+    $this->assertStringContainsString('<strong>foo</strong> bar', $excerpt);
+    $this->assertStringContainsString('Title <strong>foo</strong>', $excerpt);
     $this->assertEquals(4, substr_count($excerpt, '…'));
   }
 
@@ -679,7 +820,7 @@ class HighlightTest extends UnitTestCase {
    * Tests field highlighting and excerpts with two items.
    */
   public function testPostprocessSearchResultsWithTwoItems() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -732,7 +873,7 @@ class HighlightTest extends UnitTestCase {
    * Tests excerpts with some fields excluded.
    */
   public function testExcerptExcludeFields() {
-    $query = $this->getMock(QueryInterface::class);
+    $query = $this->createMock(QueryInterface::class);
     $query->expects($this->once())
       ->method('getProcessingLevel')
       ->willReturn(QueryInterface::PROCESSING_FULL);
@@ -791,14 +932,14 @@ class HighlightTest extends UnitTestCase {
    * Tests that field extraction in the processor works correctly.
    */
   public function testFieldExtraction() {
-    /** @var \Drupal\Tests\search_api\Unit\TestComplexDataInterface|\PHPUnit_Framework_MockObject_MockObject $object */
-    $object = $this->getMock(TestComplexDataInterface::class);
-    $bar_foo_property = $this->getMock(TypedDataInterface::class);
+    /** @var \Drupal\Core\TypedData\ComplexDataInterface|\PHPUnit\Framework\MockObject\MockObject $object */
+    $object = $this->createMock(ComplexDataInterface::class);
+    $bar_foo_property = $this->createMock(TypedDataInterface::class);
     $bar_foo_property->method('getValue')
       ->willReturn('value3 foo');
     $bar_foo_property->method('getDataDefinition')
       ->willReturn(new DataDefinition());
-    $bar_property = $this->getMock(TestComplexDataInterface::class);
+    $bar_property = $this->createMock(ComplexDataInterface::class);
     $bar_property->method('get')
       ->willReturnMap([
         ['foo', $bar_foo_property],
@@ -807,7 +948,7 @@ class HighlightTest extends UnitTestCase {
       ->willReturn([
         'foo' => TRUE,
       ]);
-    $foobar_property = $this->getMock(TypedDataInterface::class);
+    $foobar_property = $this->createMock(TypedDataInterface::class);
     $foobar_property->method('getValue')
       ->willReturn('wrong_value2 foo');
     $foobar_property->method('getDataDefinition')
@@ -849,7 +990,7 @@ class HighlightTest extends UnitTestCase {
           ],
         ],
       ]);
-    $processor_mock = $this->getMock(ProcessorInterface::class);
+    $processor_mock = $this->createMock(ProcessorInterface::class);
     $processor_mock->method('addFieldValues')
       ->willReturnCallback(function (ItemInterface $item) {
         foreach ($item->getFields(FALSE) as $field) {
@@ -871,8 +1012,8 @@ class HighlightTest extends UnitTestCase {
       ]);
     $this->processor->setIndex($this->index);
 
-    /** @var \Drupal\search_api\Datasource\DatasourceInterface|\PHPUnit_Framework_MockObject_MockObject $datasource */
-    $datasource = $this->getMock(DatasourceInterface::class);
+    /** @var \Drupal\search_api\Datasource\DatasourceInterface|\PHPUnit\Framework\MockObject\MockObject $datasource */
+    $datasource = $this->createMock(DatasourceInterface::class);
     $datasource->method('getPluginId')
       ->willReturn('entity:test1');
 
@@ -889,8 +1030,8 @@ class HighlightTest extends UnitTestCase {
     $item->setField('field5', $field);
 
     $this->processor->setConfiguration(['excerpt' => FALSE]);
-    /** @var \Drupal\search_api\Query\QueryInterface|\PHPUnit_Framework_MockObject_MockObject $query */
-    $query = $this->getMock(QueryInterface::class);
+    /** @var \Drupal\search_api\Query\QueryInterface|\PHPUnit\Framework\MockObject\MockObject $query */
+    $query = $this->createMock(QueryInterface::class);
     $query->method('getOriginalKeys')
       ->willReturn('foo');
     $query->expects($this->once())
@@ -919,6 +1060,158 @@ class HighlightTest extends UnitTestCase {
   }
 
   /**
+   * Provides a regression test for bug #3022724.
+   *
+   * Before the bug was fixed, certain combinations of text field values and
+   * keywords could lead to an infinite loop, or at least to the excerpt only
+   * containing the first snippet.
+   *
+   * @param string $text
+   *   The input text.
+   * @param string[] $keys
+   *   The keys that should be highlighted.
+   * @param string $expected
+   *   The expected result containing the highlighted strings.
+   *
+   * @see https://www.drupal.org/node/3022724
+   *
+   * @dataProvider regressionBug3022724DataProvider
+   */
+  public function testRegressionBug3022724($text, array $keys, $expected) {
+    $method = new \ReflectionMethod($this->processor, 'createExcerpt');
+    $method->setAccessible(TRUE);
+    $excerpt = $method->invoke($this->processor, $text, $keys);
+    $this->assertEquals($expected, $excerpt);
+  }
+
+  /**
+   * Provides test data for testRegressionBug3022724().
+   *
+   * @return array
+   *   An array of argument arrays for testRegressionBug3022724().
+   */
+  public function regressionBug3022724DataProvider() {
+    return [
+      'multiple snippets' => [
+        'text' => 'field value 1 … field value 2 … field value with first foo match … then long text of no matches, interspersed with some Hungarian: Jó napot kívánok! Hogy vagy? … then a field value with a second foo match – will it get highlighted?',
+        'keys' => ['foo'],
+        'expected' => '… field value 1 … field value 2 … field value with first <strong>foo</strong> match … then long text of no matches, interspersed with … kívánok! Hogy vagy? … then a field value with a second <strong>foo</strong> match – will it get highlighted? …',
+      ],
+      'overlong word in prefix' => [
+        'text' => 'field value 1 … field value 2 … this is someVeryLongTextWhichHasNoSpacesInItWhichCanLeadToProblemsGettingAContextForHighlightingThis.Foo.Match',
+        'keys' => ['foo'],
+        'expected' => '… nItWhichCanLeadToProblemsGettingAContextForHighlightingThis.<strong>Foo</strong>.Match …',
+      ],
+    ];
+  }
+
+  /**
+   * Tests field highlighting with a result set that has some highlighting data.
+   */
+  public function testPostprocessSearchResultsWithExistingHighlighting() {
+    $query = $this->createMock(QueryInterface::class);
+    $query->expects($this->once())
+      ->method('getProcessingLevel')
+      ->willReturn(QueryInterface::PROCESSING_FULL);
+    $query->expects($this->atLeastOnce())
+      ->method('getOriginalKeys')
+      ->will($this->returnValue('foo'));
+    /** @var \Drupal\search_api\Query\QueryInterface $query */
+
+    $body = $this->createTestField('body', 'entity:node/body');
+    $title = $this->createTestField('title', 'entity:node/title');
+
+    $this->index->expects($this->atLeastOnce())
+      ->method('getFields')
+      ->will($this->returnValue(['body' => $body, 'title' => $title]));
+
+    $this->processor->setIndex($this->index);
+
+    $body_values = ['Some foo value'];
+    $title_values = ['The foo title'];
+    $fields = [
+      'entity:node/body' => [
+        'type' => 'text',
+        'values' => $body_values,
+      ],
+      'entity:node/title' => [
+        'type' => 'text',
+        'values' => $title_values,
+      ],
+    ];
+
+    $items = $this->createItems($this->index, 2, $fields);
+    $items[$this->itemIds[0]]->setExtraData('highlighted_fields', [
+      'title' => ['The <em>foo</em> title'],
+    ]);
+    $items[$this->itemIds[1]]->setExtraData('highlighted_fields', [
+      'body' => ['Some <em>foo</em> value'],
+    ]);
+
+    $results = new ResultSet($query);
+    $results->setResultItems($items);
+    $results->setResultCount(1);
+
+    $this->processor->postprocessSearchResults($results);
+
+    $fields = $items[$this->itemIds[0]]->getExtraData('highlighted_fields');
+    $this->assertEquals('The <em>foo</em> title', $fields['title'][0], 'Existing highlighting data for title was correctly kept.');
+    $this->assertEquals('Some <strong>foo</strong> value', $fields['body'][0], 'Highlighting is correctly applied to body field.');
+    $fields = $items[$this->itemIds[1]]->getExtraData('highlighted_fields');
+    $this->assertEquals('The <strong>foo</strong> title', $fields['title'][0], 'Highlighting is correctly applied to title field.');
+    $this->assertEquals('Some <em>foo</em> value', $fields['body'][0], 'Existing highlighting data for body was correctly kept.');
+  }
+
+  /**
+   * Tests that the "excerpt_always" option works correctly.
+   */
+  public function testNoKeysExcerpt(): void {
+    $this->processor->setConfiguration([
+      'highlight' => 'never',
+      'excerpt_always' => TRUE,
+      'excerpt_length' => 45,
+    ]);
+
+    $query = $this->createMock(QueryInterface::class);
+    $query->expects($this->once())
+      ->method('getProcessingLevel')
+      ->willReturn(QueryInterface::PROCESSING_FULL);
+    $query->expects($this->atLeastOnce())
+      ->method('getOriginalKeys')
+      ->willReturn(NULL);
+    /** @var \Drupal\search_api\Query\QueryInterface $query */
+
+    $field = $this->createTestField('body', 'entity:node/body');
+
+    $this->index->expects($this->atLeastOnce())
+      ->method('getFields')
+      ->will($this->returnValue(['body' => $field]));
+
+    $this->processor->setIndex($this->index);
+
+    $fields = [
+      'entity:node/body' => [
+        'type' => 'text',
+        'values' => [$this->getFieldBody()],
+      ],
+    ];
+
+    $items = $this->createItems($this->index, 1, $fields);
+
+    $results = new ResultSet($query);
+    $results->setResultItems($items);
+    $results->setResultCount(1);
+
+    $this->processor->postprocessSearchResults($results);
+
+    $fields = $items[$this->itemIds[0]]->getExtraData('highlighted_fields');
+    $this->assertEmpty($fields);
+    $excerpt = $items[$this->itemIds[0]]->getExcerpt();
+    $expected = 'Lorem ipsum dolor sit amet, consectetur …';
+    $this->assertEquals($expected, $excerpt, 'Highlighting is correctly applied to a partial match.');
+  }
+
+  /**
    * Creates a field object for testing.
    *
    * @param string $id
@@ -933,7 +1226,7 @@ class HighlightTest extends UnitTestCase {
    */
   protected function createTestField($id, $combined_property_path, $text = TRUE) {
     $field = new Field($this->index, $id);
-    list ($datasource_id, $property_path) = Utility::splitCombinedId($combined_property_path);
+    [$datasource_id, $property_path] = Utility::splitCombinedId($combined_property_path);
     $field->setDatasourceId($datasource_id);
     $field->setPropertyPath($property_path);
     $field->setType($text ? 'text' : 'string');

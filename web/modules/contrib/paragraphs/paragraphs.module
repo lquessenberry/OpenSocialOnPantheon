@@ -5,12 +5,14 @@
  * Contains paragraphs.module
  */
 
-use Drupal\Core\Field\FieldConfigInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\field\FieldStorageConfigInterface;
 use Drupal\paragraphs\Entity\ParagraphsType;
+use Drupal\paragraphs\MigrationPluginsAlterer;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Entity\EntityTypeInterface;
 
 /**
  * Implements hook_help().
@@ -73,6 +75,10 @@ function paragraphs_theme() {
       'render element' => 'element',
       'template' => 'paragraphs-actions',
     ],
+    'paragraphs_summary' => [
+      'render element' => 'element',
+      'template' => 'paragraphs-summary',
+    ],
   );
 }
 
@@ -94,7 +100,7 @@ function paragraphs_theme_suggestions_paragraph(array $variables) {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function paragraphs_form_entity_form_display_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+function paragraphs_form_entity_form_display_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   $field_definitions = \Drupal::service('entity_field.manager')->getFieldDefinitions($form['#entity_type'], $form['#bundle']);
   // Loop over ERR field's display options with paragraph target type.
   foreach (array_keys($field_definitions) as $field_name) {
@@ -111,7 +117,7 @@ function paragraphs_form_entity_form_display_edit_form_alter(&$form, \Drupal\Cor
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function paragraphs_form_field_storage_config_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+function paragraphs_form_field_storage_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   if ($form_state->getFormObject()->getEntity()->getType() == 'entity_reference') {
     // Entity Reference fields are no longer supported to reference Paragraphs.
     unset($form['settings']['target_type']['#options'][(string) t('Content')]['paragraph']);
@@ -123,7 +129,7 @@ function paragraphs_form_field_storage_config_edit_form_alter(&$form, \Drupal\Co
  *
  * Indicate unsupported multilingual paragraphs field configuration.
  */
-function paragraphs_form_field_config_edit_form_alter(&$form,  \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+function paragraphs_form_field_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   $field = $form_state->getFormObject()->getEntity();
 
   if (!\Drupal::hasService('content_translation.manager')) {
@@ -186,7 +192,7 @@ function paragraphs_module_implements_alter(&$implementations, $hook) {
  * Add a warning that paragraph fields can not be translated.
  * Switch to error if a paragraph field is marked as translatable.
  */
-function paragraphs_form_language_content_settings_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+function paragraphs_form_language_content_settings_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   // Without it Paragraphs message are meaningless.
   if (!\Drupal::hasService('content_translation.manager')) {
     return;
@@ -235,6 +241,17 @@ function paragraphs_form_language_content_settings_form_alter(&$form, \Drupal\Co
       }
     }
   }
+
+  // Update the description on the hide untranslatable fields checkbox.
+  if (isset($form['settings']['paragraph'])) {
+    $paragraph_untranslatable_hide_description = t('Paragraph types that are used in moderated content requires non-translatable fields to be edited in the original language form and this must be checked.');
+    foreach (Element::children($form['settings']['paragraph']) as $bundle) {
+      if (!empty($form['settings']['paragraph'][$bundle]['settings']['content_translation']['untranslatable_fields_hide'])) {
+        $form['settings']['paragraph'][$bundle]['settings']['content_translation']['untranslatable_fields_hide']['#description'] = $paragraph_untranslatable_hide_description;
+      }
+    }
+  }
+
   $form['settings']['paragraphs_message'] = array(
     '#type' => 'container',
     '#markup' => $message_text,
@@ -271,7 +288,7 @@ function template_preprocess_paragraph(&$variables) {
   }
 
   $paragraph_type = $variables['elements']['#paragraph']->getParagraphType();
-  foreach ($paragraph_type->getEnabledBehaviorPlugins() as $plugin_id => $plugin_value) {
+  foreach ($paragraph_type->getEnabledBehaviorPlugins() as $plugin_value) {
     $plugin_value->preprocess($variables);
   }
 
@@ -293,6 +310,10 @@ function template_preprocess_paragraphs_add_dialog(&$variables) {
     if ($key == 'add_modal_form_area') {
       // $add variable for the add button.
       $variables['add'] = $variables['element'][$key];
+    }
+    elseif ($key == 'add_more_delta') {
+      // Add the delta to the add wrapper.
+      $variables['add'][$key] = $variables['element'][$key];
     }
     else {
       // Buttons for the paragraph types in the modal form.
@@ -330,95 +351,126 @@ function template_preprocess_paragraphs_actions(&$variables) {
  * Implements hook_preprocess_HOOK() for field_multiple_value_form().
  */
 function paragraphs_preprocess_field_multiple_value_form(&$variables) {
-  if (count($variables['element']['#field_parents']) === 0 && isset($variables['table']['#rows'])) {
+  if (!empty($variables['table']['#header']) && isset($variables['table']['#rows'][0])) {
     // Find paragraph_actions and move to header.
     // @see template_preprocess_field_multiple_value_form()
-    if (!empty($variables['table']['#rows'][0]['data'][1]['data']['#paragraphs_header'])) {
+    if (is_array($variables['table']['#rows'][0]['data'][1]) && !empty($variables['table']['#rows'][0]['data'][1]['data']['#paragraphs_header'])) {
       $variables['table']['#header'][0]['data'] = [
         'title' => $variables['table']['#header'][0]['data'],
         'button' => $variables['table']['#rows'][0]['data'][1]['data'],
       ];
       unset($variables['table']['#rows'][0]);
     }
-  }
-}
 
-/**
- * Implements hook_libraries_info().
- */
-function paragraphs_libraries_info() {
-  $libraries = [
-    'Sortable' => [
-      'name' => 'Sortable',
-      'vendor url' => 'https://github.com/RubaXa/Sortable',
-      'download url' => 'https://github.com/RubaXa/Sortable/releases',
-      'files' => [
-        'js' => [
-          'Sortable.min.js' => [],
-        ],
-      ],
-      'version arguments' => [
-        // The version is at the end of the file, which is currently about 15k
-        // characters long.
-        'file' => 'Sortable.min.js',
-        'pattern' => '/\.version="(.*?)"/',
-        'lines' => 2,
-        'cols' => 20000
-      ]
-    ],
-  ];
-  return $libraries;
-}
-
-/**
- * Implements hook_library_info_alter().
- */
-function paragraphs_library_info_alter(&$libraries, $extension) {
-  if ($extension != 'paragraphs') {
-    return;
-  }
-
-  if (\Drupal::moduleHandler()->moduleExists('libraries')) {
-    $info = libraries_detect('Sortable');
-  }
-  else {
-    // If the library module is not installed, hardcode the path and fetch
-    // the required information ourself.
-    $library_path = 'libraries/Sortable';
-    $file = 'Sortable.min.js';
-    $path = DRUPAL_ROOT . '/' . $library_path . '/' . $file;
-    if (file_exists($path)) {
-      if (preg_match('/\.version="(.*?)"/', file_get_contents($path), $version)) {
-        $info = [
-          'installed' => TRUE,
-          'version' => $version[1],
-          'library path' => $library_path,
-          'files' => [
-            'js' => [
-              $file => [],
-            ],
-          ],
-        ];
+    // Add the paragraph type as a class to every row.
+    if (isset($variables['element']['#paragraphs_widget'])) {
+      foreach ($variables['table']['#rows'] as $key => $row) {
+        if (isset($row['data'][1]['data']['#paragraph_type'])) {
+          $variables['table']['#rows'][$key]['class'][] = 'paragraph-type--' . str_replace('_', '-', $row['data'][1]['data']['#paragraph_type']);
+        }
       }
     }
   }
 
-  if (!empty($info['installed'])) {
-    $libraries['sortable'] += [
-      'version' => $info['version'],
-    ];
-    // Self hosted player, use files from library definition.
-    if (!empty($info['files']['js'])) {
-      foreach ($info['files']['js'] as $filename => $options) {
-        $libraries['sortable']['js']["/{$info['library path']}/{$filename}"] = $options;
+  // Remove the drag handler if we are translating, if the field's cardinality
+  // is 1 or if there are no paragraphs added. Passing through this will not
+  // only remove the drag handler but also the order column that is empty when
+  // no paragraphs are added and when the field is single value.
+  if ((isset($variables['element']['#allow_reference_changes']) && !$variables['element']['#allow_reference_changes']) || (isset($variables['element']['#cardinality']) && $variables['element']['#cardinality'] == 1) || (isset($variables['table']['#rows']) && count($variables['table']['#rows']) == 0)) {
+    if (isset($variables['table']['#tabledrag'])) {
+      // Remove the tabledrag.
+      unset($variables['table']['#tabledrag']);
+      unset($variables['table']['#header'][1]);
+      foreach ($variables['table']['#rows'] as $key => $value) {
+        $variables['table']['#rows'][$key]['data'][0]['class'][] = 'paragraph-bullet';
+        // Restore the removed weight and give access FALSE.
+        if (isset($value['data'][2])) {
+          $variables['table']['#rows'][$key]['data'][1]['data']['_weight'] = $value['data'][2]['data'];
+          unset($variables['table']['#rows'][$key]['data'][2]);
+          $variables['table']['#rows'][$key]['data'][1]['data']['_weight']['#access'] = FALSE;
+        }
       }
     }
   }
-  else {
-    // Unset the libraries if we failed to detect them.
-    unset($libraries['sortable']);
-    unset($libraries['paragraphs-dragdrop']);
-  }
+}
 
-  return $libraries;
+/**
+ * Implements hook_migration_plugins_alter().
+ *
+ * @todo refactor/rethink this when
+ * https://www.drupal.org/project/drupal/issues/2904765 is resolved
+ */
+function paragraphs_migration_plugins_alter(array &$migrations) {
+  $migration_plugins_alterer = \Drupal::service('paragraphs.migration_plugins_alterer');
+  assert($migration_plugins_alterer instanceof MigrationPluginsAlterer);
+  $migration_plugins_alterer->alterMigrationPlugins($migrations);
+}
+
+/**
+ * Implements hook_entity_type_alter().
+ */
+function paragraphs_entity_type_alter(array &$entity_types) {
+  /** @var $entity_types \Drupal\Core\Entity\EntityTypeInterface[] */
+  // Remove the handler class for moderation as it is managed by the host.
+  $entity_types['paragraph']->setHandlerClass('moderation', '');
+}
+
+/**
+ * Implements hook_entity_base_field_info_alter().
+ */
+function paragraphs_entity_base_field_info_alter(&$fields, EntityTypeInterface $entity_type) {
+  // Since the paragraph entity doesn't have uid fields anymore, remove the
+  // content_translation_uid from the field definitions.
+  if ($entity_type->id() == 'paragraph' && isset($fields['content_translation_uid'])) {
+    unset($fields['content_translation_uid']);
+  }
+}
+
+/**
+ * Remove 'field_' prefix from field collection bundles.
+ *
+ * @param array $migration
+ *   The migration configuration to process.
+ *
+ * @deprecated in paragraphs:8.x-1.13 and is removed from paragraphs:8.x-2.0.
+ *   Use \Drupal\paragraphs\MigrationPluginsAlterer::paragraphsMigrationBundleAdjust().
+ * @see https://www.drupal.org/project/paragraphs/issues/2911244
+ */
+function _paragraphs_migration_bundle_adjust(array &$migration) {
+  $migration_plugins_alterer = \Drupal::service('paragraphs.migration_plugins_alterer');
+  assert($migration_plugins_alterer instanceof MigrationPluginsAlterer);
+  $migration_plugins_alterer->paragraphsMigrationBundleAdjust($migration);
+}
+
+/**
+ * Map field_collection_item and 'paragraphs_item' fields to 'paragraph'.
+ *
+ * @param array $migration
+ *   The migration to process.
+ * @param string $destination
+ *   The process destination.
+ *
+ * @deprecated in paragraphs:8.x-1.13 and is removed from paragraphs:8.x-2.0.
+ *   Use \Drupal\paragraphs\MigrationPluginsAlterer::paragraphsMigrationEntityTypeAdjust().
+ * @see https://www.drupal.org/project/paragraphs/issues/2911244
+ */
+function _paragraphs_migration_entity_type_adjust(array &$migration, $destination = 'entity_type') {
+  $migration_plugins_alterer = \Drupal::service('paragraphs.migration_plugins_alterer');
+  assert($migration_plugins_alterer instanceof MigrationPluginsAlterer);
+  $migration_plugins_alterer->paragraphsMigrationEntityTypeAdjust($migration, $destination);
+}
+
+/**
+ * Prepares variables for.
+ *
+ * Default template: paragraphs-summary.html.twig
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - buttons: An array of buttons to display in the modal form.
+ */
+function template_preprocess_paragraphs_summary(&$variables) {
+  $variables['content'] = $variables['element']['#summary']['content'];
+  $variables['behaviors'] = $variables['element']['#summary']['behaviors'];
+  $variables['expanded'] = !empty($variables['element']['#expanded']);
 }

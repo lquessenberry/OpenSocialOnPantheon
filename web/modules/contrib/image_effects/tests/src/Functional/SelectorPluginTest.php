@@ -5,15 +5,21 @@ namespace Drupal\Tests\image_effects\Functional;
 /**
  * Selector plugins test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class SelectorPluginTest extends ImageEffectsTestBase {
 
-  public static $modules = [
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
     'image',
     'image_effects',
-    'simpletest',
     'image_effects_module_test',
+    'file_test',
+    'file_mdm',
+    'file_mdm_font',
+    'vendor_stream_wrapper',
   ];
 
   /**
@@ -34,7 +40,7 @@ class SelectorPluginTest extends ImageEffectsTestBase {
     $uuid = $this->addEffectToTestStyle($effect);
 
     // Check that the full image URI is in the effect summary.
-    $this->assertText($image_path . '/' . $image_file);
+    $this->assertSession()->pageTextContains($image_path . '/' . $image_file);
 
     // Test the Dropdown plugin.
     // Remove the effect.
@@ -57,14 +63,14 @@ class SelectorPluginTest extends ImageEffectsTestBase {
     $this->addEffectToTestStyle($effect);
 
     // Check that the full image URI is in the effect summary.
-    $this->assertText($image_path . '/' . $image_file);
+    $this->assertSession()->pageTextContains($image_path . '/' . $image_file);
   }
 
   /**
    * Image selector test.
    */
   public function testFontSelector() {
-    $font_path = drupal_get_path('module', 'image_effects') . '/tests/fonts/LinLibertineTTF_5.3.0_2012_07_02';
+    $font_path = 'vendor://fileeye/linuxlibertine-fonts/';
     $font_file = 'LinLibertine_Rah.ttf';
     $font_name = 'Linux Libertine';
 
@@ -73,13 +79,13 @@ class SelectorPluginTest extends ImageEffectsTestBase {
     $effect = [
       'id' => 'image_effects_module_test_font_selection',
       'data' => [
-        'font_uri' => $font_path . '/' . $font_file,
+        'font_uri' => $font_path . $font_file,
       ],
     ];
     $uuid = $this->addEffectToTestStyle($effect);
 
     // Check that the font name is in the effect summary.
-    $this->assertText($font_name);
+    $this->assertSession()->pageTextContains($font_name);
 
     // Test the Dropdown plugin.
     // Remove the effect.
@@ -102,7 +108,7 @@ class SelectorPluginTest extends ImageEffectsTestBase {
     $this->addEffectToTestStyle($effect);
 
     // Check that the font name is in the effect summary.
-    $this->assertText($font_name);
+    $this->assertSession()->pageTextContains($font_name);
   }
 
 }

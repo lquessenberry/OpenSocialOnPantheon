@@ -76,3 +76,34 @@ function search_api_db_update_8102() {
 
   return t('Primary keys added to all denormalized index tables.');
 }
+
+/**
+ * Converts the old "partial_matches" option to the new "matching" option.
+ */
+function search_api_db_update_8103() {
+  // @see https://www.drupal.org/node/2971033
+
+  $config_factory = \Drupal::configFactory();
+  $count = 0;
+  foreach ($config_factory->listAll('search_api.server.') as $server_id) {
+    $server = $config_factory->getEditable($server_id);
+    if ($server->get('backend') !== 'search_api_db') {
+      continue;
+    }
+
+    ++$count;
+    $config = $server->get('backend_config') ?: [];
+    $config['matching'] = empty($config['partial_matches']) ? 'words' : 'partial';
+    unset($config['partial_matches']);
+    $server->set('backend_config', $config);
+    // Mark the resulting configuration as trusted data. This avoids issues
+    // with future schema changes.
+    $server->save(TRUE);
+  }
+
+  if ($count) {
+    return \Drupal::translation()
+      ->formatPlural($count, 'Updated 1 server.', 'Updated @count servers.');
+  }
+  return NULL;
+}

@@ -3,18 +3,22 @@
 namespace Drupal\r4032login\EventSubscriber;
 
 use Drupal\Component\Utility\UrlHelper;
+use Drupal\Component\Utility\Xss;
+use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\Cache\CacheableRedirectResponse;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\EventSubscriber\HttpExceptionSubscriberBase;
+use Drupal\Core\Http\Exception\CacheableNotFoundHttpException;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Path\PathMatcherInterface;
+use Drupal\Core\Render\Markup;
+use Drupal\Core\Routing\RedirectDestinationInterface;
 use Drupal\Core\Routing\TrustedRedirectResponse;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\Core\Routing\RedirectDestinationInterface;
 use Drupal\Core\Url;
 use Drupal\r4032login\Event\RedirectEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Drupal\Component\Utility\Xss;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 
 /**
  * Redirect 403 to User Login event subscriber.
@@ -36,13 +40,6 @@ class R4032LoginSubscriber extends HttpExceptionSubscriberBase {
   protected $currentUser;
 
   /**
-   * The redirect destination service.
-   *
-   * @var \Drupal\Core\Routing\RedirectDestinationInterface
-   */
-  protected $redirectDestination;
-
-  /**
    * The path matcher.
    *
    * @var \Drupal\Core\Path\PathMatcherInterface
@@ -57,25 +54,42 @@ class R4032LoginSubscriber extends HttpExceptionSubscriberBase {
   protected $eventDispatcher;
 
   /**
+   * The messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
+   * The redirect destination service.
+   *
+   * @var \Drupal\Core\Routing\RedirectDestinationInterface
+   */
+  protected $redirectDestination;
+
+  /**
    * Constructs a new R4032LoginSubscriber.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
    * @param \Drupal\Core\Session\AccountInterface $current_user
    *   The current user.
-   * @param \Drupal\Core\Routing\RedirectDestinationInterface $redirect_destination
-   *   The redirect destination service.
    * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
    *   The path matcher.
    * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   The event dispatcher.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
+   * @param \Drupal\Core\Routing\RedirectDestinationInterface $redirect_destination
+   *   The redirect destination service.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, AccountInterface $current_user, RedirectDestinationInterface $redirect_destination, PathMatcherInterface $path_matcher, EventDispatcherInterface $event_dispatcher) {
+  public function __construct(ConfigFactoryInterface $config_factory, AccountInterface $current_user, PathMatcherInterface $path_matcher, EventDispatcherInterface $event_dispatcher, MessengerInterface $messenger, RedirectDestinationInterface $redirect_destination) {
     $this->configFactory = $config_factory;
     $this->currentUser = $current_user;
-    $this->redirectDestination = $redirect_destination;
     $this->pathMatcher = $path_matcher;
     $this->eventDispatcher = $event_dispatcher;
+    $this->messenger = $messenger;
+    $this->redirectDestination = $redirect_destination;
   }
 
   /**
@@ -88,32 +102,32 @@ class R4032LoginSubscriber extends HttpExceptionSubscriberBase {
   /**
    * Redirects on 403 Access Denied kernel exceptions.
    *
-   * @param \Symfony\Component\HttpKernel\Event\GetResponseEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ExceptionEvent $event
    *   The Event to process.
    */
-  public function on403(GetResponseEvent $event) {
+  public function on403(ExceptionEvent $event) {
     $config = $this->configFactory->get('r4032login.settings');
 
+    $request = $event->getRequest();
+    $currentPath = $request->getPathInfo();
+
     // Check if the path should be ignored.
-    $noRedirectPages = trim($config->get('match_noredirect_pages'));
-    if ($noRedirectPages !== '') {
-      $pathToMatch = $this->redirectDestination->get();
-
-      try {
-        // Clean up path from possible language prefix, GET arguments, etc.
-        $pathToMatch = '/' . Url::fromUserInput($pathToMatch)->getInternalPath();
-      }
-      catch (\Exception $e) {
-      }
-
-      if ($this->pathMatcher->matchPath($pathToMatch, $noRedirectPages)) {
-        return;
-      }
+    if (($noRedirectPages = trim($config->get('match_noredirect_pages')))
+      && (($this->pathMatcher->matchPath($currentPath, $noRedirectPages) && !$config->get('match_noredirect_negate'))
+      || (!$this->pathMatcher->matchPath($currentPath, $noRedirectPages) && $config->get('match_noredirect_negate')))
+    ) {
+      return;
     }
 
     // Retrieve the redirect path depending if the user is logged or not.
     if ($this->currentUser->isAnonymous()) {
       $redirectPath = $config->get('user_login_path');
+    }
+    elseif ($config->get('throw_authenticated_404')) {
+      // Inherit cacheable metadata from the original throwable object.
+      $originalCacheableMetadata = new CacheableMetadata();
+      $originalCacheableMetadata->addCacheableDependency($event->getThrowable());
+      $event->setThrowable(new CacheableNotFoundHttpException($originalCacheableMetadata));
     }
     else {
       $redirectPath = $config->get('redirect_authenticated_users_to');
@@ -123,9 +137,6 @@ class R4032LoginSubscriber extends HttpExceptionSubscriberBase {
       // Determine if the redirect path is external.
       $externalRedirect = UrlHelper::isExternal($redirectPath);
 
-      // Determine the HTTP redirect code.
-      $code = $config->get('default_redirect_code');
-
       // Determine the url options.
       $options = [
         'absolute' => TRUE,
@@ -134,12 +145,17 @@ class R4032LoginSubscriber extends HttpExceptionSubscriberBase {
       // Determine the destination parameter
       // and add it as options for the url build.
       if ($config->get('redirect_to_destination')) {
-        $destination = $this->redirectDestination->get();
-
         if ($externalRedirect) {
-          $destination = Url::fromUserInput($destination, [
+          $destination = Url::fromUserInput($currentPath, [
             'absolute' => TRUE,
           ])->toString();
+
+          if ($queryString = $request->getQueryString()) {
+            $destination .= '?' . $queryString;
+          }
+        }
+        else {
+          $destination = $this->redirectDestination->get();
         }
 
         if (empty($config->get('destination_parameter_override'))) {
@@ -150,34 +166,69 @@ class R4032LoginSubscriber extends HttpExceptionSubscriberBase {
         }
       }
 
+      // Remove the destination parameter to allow redirection.
+      $request->query->remove('destination');
+
       // Allow to alter the url or options before to redirect.
       $redirectEvent = new RedirectEvent($redirectPath, $options);
-      $this->eventDispatcher->dispatch(RedirectEvent::EVENT_NAME, $redirectEvent);
+      $this->eventDispatcher->dispatch($redirectEvent, RedirectEvent::EVENT_NAME);
       $redirectPath = $redirectEvent->getUrl();
       $options = $redirectEvent->getOptions();
+
+      $code = $config->get('default_redirect_code');
+
+      $headers = [];
+      if ($config->get('add_noindex_header')) {
+        $headers['X-Robots-Tag'] = 'noindex';
+      }
 
       // Perform the redirection.
       if ($externalRedirect) {
         $url = Url::fromUri($redirectPath, $options)->toString();
-        $response = new TrustedRedirectResponse($url);
+        $response = new TrustedRedirectResponse($url, $code, $headers);
       }
       else {
         // Show custom access denied message if set.
         if ($this->currentUser->isAnonymous() && $config->get('display_denied_message')) {
           $message = $config->get('access_denied_message');
           $messageType = $config->get('access_denied_message_type');
-          drupal_set_message(Xss::filterAdmin($message), $messageType);
+          $this->messenger->addMessage(Markup::create(Xss::filterAdmin($message)), $messageType);
+        }
+        if ($this->currentUser->isAuthenticated()) {
+          // If user is authenticated, remove destination to prevent looping.
+          if (!empty($options['query']) && !empty($options['query']['destination'])) {
+            unset($options['query']);
+          }
+          // Show custom access denied message for authenticated users if set.
+          if ($config->get('display_auth_denied_message')) {
+            $message = $config->get('access_denied_auth_message');
+            $messageType = $config->get('access_denied_auth_message_type');
+            $this->messenger->addMessage(Markup::create(Xss::filterAdmin($message)), $messageType);
+          }
         }
 
         if ($redirectPath === '<front>') {
-          $url = \Drupal::urlGenerator()->generate('<front>');
+          $url = Url::fromRoute('<front>', [], $options)->toString();
         }
         else {
           $url = Url::fromUserInput($redirectPath, $options)->toString();
         }
 
-        $response = new RedirectResponse($url, $code);
+        $response = new CacheableRedirectResponse($url, $code, $headers);
       }
+
+      // Add caching dependencies so the cache of the redirection will be
+      // updated when necessary.
+      $cacheableMetadata = new CacheableMetadata();
+      // Add original 403 response cache metadata.
+      $cacheableMetadata->addCacheableDependency($event->getThrowable());
+      // We still need to add the client error tag manually since the core
+      // wil not recognize our redirection as an error.
+      $cacheableMetadata->addCacheTags(['4xx-response']);
+      // Add our config cache metadata.
+      $cacheableMetadata->addCacheableDependency($config);
+      // Attach cache metadata to the response.
+      $response->addCacheableDependency($cacheableMetadata);
 
       $event->setResponse($response);
     }

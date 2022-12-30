@@ -3,6 +3,7 @@
 namespace Drupal\group\Plugin;
 
 use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\group\Access\GroupAccessResult;
 use Drupal\group\Entity\GroupType;
 use Drupal\group\Entity\GroupInterface;
@@ -29,6 +30,13 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
    * @var string
    */
   protected $groupTypeId;
+
+  /**
+   * Backwards compatible permission array.
+   *
+   * @var array
+   */
+  private $_permissions;
 
   /**
    * {@inheritdoc}
@@ -144,6 +152,13 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
   /**
    * {@inheritdoc}
    */
+  public function isCodeOnly() {
+    return $this->pluginDefinition['code_only'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getContentLabel(GroupContentInterface $group_content) {
     return $group_content->getEntity()->label();
   }
@@ -187,6 +202,13 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
   /**
    * {@inheritdoc}
    */
+  public function getGroupOperationsCacheableMetadata() {
+    return new CacheableMetadata();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getOperations() {
     return [];
   }
@@ -198,47 +220,11 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
    *   An array of group permissions, see ::getPermissions for more info.
    *
    * @see GroupContentEnablerInterface::getPermissions()
+   *
+   * @deprecated in Group 1.0, will be removed before Group 2.0.
    */
   protected function getGroupContentPermissions() {
-    $plugin_id = $this->getPluginId();
-
-    // Allow permissions here and in child classes to easily use the plugin name
-    // and target entity type name in their titles and descriptions.
-    $t_args = [
-      '%plugin_name' => $this->getLabel(),
-      '%entity_type' => $this->getEntityType()->getLowercaseLabel(),
-    ];
-    $defaults = ['title_args' => $t_args, 'description_args' => $t_args];
-
-    // Use the same title prefix to keep permissions sorted properly.
-    $prefix = 'Relationship:';
-
-    $permissions["view $plugin_id content"] = [
-      'title' => "$prefix View entity relations",
-    ] + $defaults;
-
-    $permissions["create $plugin_id content"] = [
-      'title' => "$prefix Add entity relation",
-      'description' => 'Allows you to relate an existing %entity_type entity to the group.',
-    ] + $defaults;
-
-    $permissions["update own $plugin_id content"] = [
-      'title' => "$prefix Edit own entity relations",
-    ] + $defaults;
-
-    $permissions["update any $plugin_id content"] = [
-      'title' => "$prefix Edit any entity relation",
-    ] + $defaults;
-
-    $permissions["delete own $plugin_id content"] = [
-      'title' => "$prefix Delete own entity relations",
-    ] + $defaults;
-
-    $permissions["delete any $plugin_id content"] = [
-      'title' => "$prefix Delete any entity relation",
-    ] + $defaults;
-
-    return $permissions;
+    return $this->_permissions;
   }
 
   /**
@@ -248,64 +234,54 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
    *   An array of group permissions, see ::getPermissions for more info.
    *
    * @see GroupContentEnablerInterface::getPermissions()
+   *
+   * @deprecated in Group 1.0, will be removed before Group 2.0.
    */
   protected function getTargetEntityPermissions() {
-    $plugin_id = $this->getPluginId();
-
-    // Allow permissions here and in child classes to easily use the plugin and
-    // target entity type labels in their titles and descriptions.
-    $t_args = [
-      '%plugin_name' => $this->getLabel(),
-      '%entity_type' => $this->getEntityType()->getLowercaseLabel(),
-    ];
-    $defaults = ['title_args' => $t_args, 'description_args' => $t_args];
-
-    // Use the same title prefix to keep permissions sorted properly.
-    $prefix = 'Entity:';
-
-    $permissions["view $plugin_id entity"] = [
-      'title' => "$prefix View %entity_type entities",
-    ] + $defaults;
-
-    $permissions["create $plugin_id entity"] = [
-      'title' => "$prefix Add %entity_type entities",
-      'description' => 'Allows you to create a new %entity_type entity and relate it to the group.',
-    ] + $defaults;
-
-    $permissions["update own $plugin_id entity"] = [
-      'title' => "$prefix Edit own %entity_type entities",
-    ] + $defaults;
-
-    $permissions["update any $plugin_id entity"] = [
-      'title' => "$prefix Edit any %entity_type entities",
-    ] + $defaults;
-
-    $permissions["delete own $plugin_id entity"] = [
-      'title' => "$prefix Delete own %entity_type entities",
-    ] + $defaults;
-
-    $permissions["delete any $plugin_id entity"] = [
-      'title' => "$prefix Delete any %entity_type entities",
-    ] + $defaults;
-
-    return $permissions;
+    return $this->_permissions;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getPermissions() {
-    $permissions = $this->getGroupContentPermissions();
-    if ($this->definesEntityAccess()) {
-      $permissions += $this->getTargetEntityPermissions();
+    /** @var \Drupal\group\Plugin\GroupContentEnablerManagerInterface $manager */
+    $manager = \Drupal::service('plugin.manager.group_content_enabler');
+
+    // Backwards compatibility layer:
+    // - Use the declared permission provider if available.
+    if ($manager->hasHandler($this->pluginId, 'permission_provider')) {
+      return $manager->getPermissionProvider($this->pluginId)->buildPermissions();
     }
-    return $permissions;
+
+    // Backwards compatibility layer:
+    // - Fall back to the default permission provider if none was found.
+    // - Still call the protected methods so old code can alter the permissions.
+    /** @var \Drupal\group\plugin\GroupContentPermissionProviderInterface $permission_provider */
+    $permission_provider = $manager->createHandlerInstance('Drupal\group\Plugin\GroupContentPermissionProvider', $this->pluginId, $this->pluginDefinition);
+    $this->_permissions = $permission_provider->buildPermissions();
+    $this->_permissions = $this->getGroupContentPermissions();
+    if ($this->definesEntityAccess()) {
+      $this->_permissions = $this->getTargetEntityPermissions();
+    }
+    return $this->_permissions;
   }
 
   /**
    * {@inheritdoc}
    */
   public function createEntityAccess(GroupInterface $group, AccountInterface $account) {
+    /** @var \Drupal\group\Plugin\GroupContentEnablerManagerInterface $manager */
+    $manager = \Drupal::service('plugin.manager.group_content_enabler');
+
+    // Backwards compatibility layer:
+    // - Use the declared access control handler if available.
+    if ($manager->hasHandler($this->pluginId, 'access')) {
+      return $manager->getAccessControlHandler($this->pluginId)->entityCreateAccess($group, $account, TRUE);
+    }
+
+    // Backwards compatibility layer:
+    // - Run the old code if there is no access control handler.
     // You cannot create target entities if the plugin does not support it.
     if (!$this->definesEntityAccess()) {
       return AccessResult::neutral();
@@ -319,6 +295,17 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
    * {@inheritdoc}
    */
   public function createAccess(GroupInterface $group, AccountInterface $account) {
+    /** @var \Drupal\group\Plugin\GroupContentEnablerManagerInterface $manager */
+    $manager = \Drupal::service('plugin.manager.group_content_enabler');
+
+    // Backwards compatibility layer:
+    // - Use the declared access control handler if available.
+    if ($manager->hasHandler($this->pluginId, 'access')) {
+      return $manager->getAccessControlHandler($this->pluginId)->relationCreateAccess($group, $account, TRUE);
+    }
+
+    // Backwards compatibility layer:
+    // - Run the old code if there is no access control handler.
     $plugin_id = $this->getPluginId();
     return GroupAccessResult::allowedIfHasGroupPermission($group, $account, "create $plugin_id content");
   }
@@ -399,16 +386,30 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
    * {@inheritdoc}
    */
   public function checkAccess(GroupContentInterface $group_content, $operation, AccountInterface $account) {
+    /** @var \Drupal\group\Plugin\GroupContentEnablerManagerInterface $manager */
+    $manager = \Drupal::service('plugin.manager.group_content_enabler');
+
+    // Backwards compatibility layer:
+    // - Use the declared access control handler if available.
+    if ($manager->hasHandler($this->pluginId, 'access')) {
+      return $manager->getAccessControlHandler($this->pluginId)->relationAccess($group_content, $operation, $account, TRUE);
+    }
+
+    // Backwards compatibility layer:
+    // - Run the old code if there is no access control handler.
     switch ($operation) {
       case 'view':
         $result = $this->viewAccess($group_content, $account);
         break;
+
       case 'update':
         $result = $this->updateAccess($group_content, $account);
         break;
+
       case 'delete':
         $result = $this->deleteAccess($group_content, $account);
         break;
+
       default:
         $result = GroupAccessResult::neutral();
     }
@@ -484,7 +485,7 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
     return [
       'group_cardinality' => 0,
       'entity_cardinality' => 0,
-      'use_creation_wizard' => 1
+      'use_creation_wizard' => 0,
     ];
   }
 
@@ -492,7 +493,7 @@ abstract class GroupContentEnablerBase extends PluginBase implements GroupConten
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    /** @var \Drupal\Core\Entity\EntityTypeManager $entity_type_manager */
+    /** @var \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager */
     $entity_type_manager = \Drupal::service('entity_type.manager');
 
     $replace = [

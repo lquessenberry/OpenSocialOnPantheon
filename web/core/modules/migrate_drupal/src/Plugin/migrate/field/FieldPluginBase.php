@@ -22,7 +22,7 @@ abstract class FieldPluginBase extends PluginBase implements MigrateFieldInterfa
   /**
    * {@inheritdoc}
    */
-  public function processField(MigrationInterface $migration) {
+  public function alterFieldMigration(MigrationInterface $migration) {
     $process[0]['map'][$this->pluginId][$this->pluginId] = $this->pluginId;
     $migration->mergeProcessOfProperty('type', $process);
   }
@@ -30,14 +30,14 @@ abstract class FieldPluginBase extends PluginBase implements MigrateFieldInterfa
   /**
    * {@inheritdoc}
    */
-  public function processFieldInstance(MigrationInterface $migration) {
+  public function alterFieldInstanceMigration(MigrationInterface $migration) {
     // Nothing to do by default with field instances.
   }
 
   /**
    * {@inheritdoc}
    */
-  public function processFieldWidget(MigrationInterface $migration) {
+  public function alterFieldWidgetMigration(MigrationInterface $migration) {
     $process = [];
     foreach ($this->getFieldWidgetMap() as $source_widget => $destination_widget) {
       $process['type']['map'][$source_widget] = $destination_widget;
@@ -79,9 +79,8 @@ abstract class FieldPluginBase extends PluginBase implements MigrateFieldInterfa
   /**
    * {@inheritdoc}
    */
-  public function processFieldFormatter(MigrationInterface $migration) {
+  public function alterFieldFormatterMigration(MigrationInterface $migration) {
     $process = [];
-
     // Some migrate field plugin IDs are prefixed with 'd6_' or 'd7_'. Since the
     // plugin ID is used in the static map as the module name, we have to remove
     // this prefix from the plugin ID.
@@ -95,7 +94,7 @@ abstract class FieldPluginBase extends PluginBase implements MigrateFieldInterfa
   /**
    * {@inheritdoc}
    */
-  public function processFieldValues(MigrationInterface $migration, $field_name, $data) {
+  public function defineValueProcessPipeline(MigrationInterface $migration, $field_name, $data) {
     $process = [
       'plugin' => 'get',
       'source' => $field_name,

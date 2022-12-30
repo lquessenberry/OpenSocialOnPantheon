@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - group
+    - options
+id: group.field_group_allowed_join_method
+field_name: field_group_allowed_join_method
+entity_type: group
+type: list_string
+settings:
+  allowed_values: {  }
+  allowed_values_function: '_social_group_allowed_values_callback'
+module: options
+locked: false
+cardinality: -1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

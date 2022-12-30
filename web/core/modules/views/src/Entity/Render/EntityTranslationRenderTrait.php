@@ -49,7 +49,7 @@ trait EntityTranslationRenderTrait {
         $renderer = 'ConfigurableLanguageRenderer';
       }
       $class = '\Drupal\views\Entity\Render\\' . $renderer;
-      $entity_type = $this->getEntityManager()->getDefinition($this->getEntityTypeId());
+      $entity_type = $this->getEntityTypeManager()->getDefinition($this->getEntityTypeId());
       $this->entityTranslationRenderer = new $class($view, $this->getLanguageManager(), $entity_type, $langcode);
     }
     return $this->entityTranslationRenderer;
@@ -74,7 +74,7 @@ trait EntityTranslationRenderTrait {
     $translation = $entity;
     if ($entity instanceof TranslatableInterface && count($entity->getTranslationLanguages()) > 1) {
       $langcode = $this->getEntityTranslationRenderer()->getLangcode($row);
-      $translation = $this->getEntityManager()->getTranslationFromContext($entity, $langcode);
+      $translation = $this->getEntityRepository()->getTranslationFromContext($entity, $langcode);
     }
     return $translation;
   }
@@ -86,14 +86,6 @@ trait EntityTranslationRenderTrait {
    *   The entity type identifier.
    */
   abstract public function getEntityTypeId();
-
-  /**
-   * Returns the entity manager.
-   *
-   * @return \Drupal\Core\Entity\EntityManagerInterface
-   *   The entity manager.
-   */
-  abstract protected function getEntityManager();
 
   /**
    * Returns the language manager.

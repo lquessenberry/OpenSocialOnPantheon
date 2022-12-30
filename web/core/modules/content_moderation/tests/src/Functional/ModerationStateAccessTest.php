@@ -5,7 +5,7 @@ namespace Drupal\Tests\content_moderation\Functional;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
 use Drupal\Tests\BrowserTestBase;
-use Drupal\workflows\Entity\Workflow;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
 
 /**
  * Tests the view access control handler for moderation state entities.
@@ -14,21 +14,44 @@ use Drupal\workflows\Entity\Workflow;
  */
 class ModerationStateAccessTest extends BrowserTestBase {
 
+  use ContentModerationTestTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
-    'content_moderation_test_views',
+  protected static $modules = [
     'content_moderation',
+    'node',
   ];
 
   /**
-   * Test the view operation access handler with the view permission.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+
+    $node_type = NodeType::create([
+      'type' => 'test',
+      'label' => 'Test',
+    ]);
+    $node_type->save();
+
+    $workflow = $this->createEditorialWorkflow();
+    $workflow->getTypePlugin()->addEntityTypeAndBundle('node', 'test');
+    $workflow->save();
+
+    $this->container->get('module_installer')->install(['content_moderation_test_views']);
+  }
+
+  /**
+   * Tests the view operation access handler with the view permission.
    */
   public function testViewShowsCorrectStates() {
-    $node_type_id = 'test';
-    $this->createNodeType('Test', $node_type_id);
-
     $permissions = [
       'access content',
       'view all revisions',
@@ -37,7 +60,7 @@ class ModerationStateAccessTest extends BrowserTestBase {
     $this->drupalLogin($editor1);
 
     $node_1 = Node::create([
-      'type' => $node_type_id,
+      'type' => 'test',
       'title' => 'Draft node',
       'uid' => $editor1->id(),
     ]);
@@ -45,7 +68,7 @@ class ModerationStateAccessTest extends BrowserTestBase {
     $node_1->save();
 
     $node_2 = Node::create([
-      'type' => $node_type_id,
+      'type' => 'test',
       'title' => 'Published node',
       'uid' => $editor1->id(),
     ]);
@@ -78,31 +101,6 @@ class ModerationStateAccessTest extends BrowserTestBase {
     $this->assertTrue($page->hasContent('Draft'));
     $this->assertTrue($page->hasContent('Archived'));
     $this->assertFalse($page->hasContent('Published'));
-  }
-
-  /**
-   * Creates a new node type.
-   *
-   * @param string $label
-   *   The human-readable label of the type to create.
-   * @param string $machine_name
-   *   The machine name of the type to create.
-   *
-   * @return \Drupal\node\Entity\NodeType
-   *   The node type just created.
-   */
-  protected function createNodeType($label, $machine_name) {
-    /** @var \Drupal\node\Entity\NodeType $node_type */
-    $node_type = NodeType::create([
-      'type' => $machine_name,
-      'label' => $label,
-    ]);
-    $node_type->save();
-
-    $workflow = Workflow::load('editorial');
-    $workflow->getTypePlugin()->addEntityTypeAndBundle('node', $machine_name);
-    $workflow->save();
-    return $node_type;
   }
 
 }

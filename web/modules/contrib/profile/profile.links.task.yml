@@ -1,15 +1,8 @@
-# Tabs on the user admin page
-entity.profile.collection_tab:
+entity.profile.collection:
   route_name: entity.profile.collection
   base_route: entity.user.collection
   title: 'Profiles'
   weight: 10
 
-entity.profile_type.edit_form:
-  title: 'Edit'
-  route_name: entity.profile_type.edit_form
-  base_route: entity.profile_type.edit_form
-
-# Add tabs for each profile type
-entity.profile.user_profile_form:
-  deriver: Drupal\profile\Plugin\Derivative\ProfileLocalTask
+profile.user_page:
+  deriver: Drupal\profile\Plugin\Derivative\UserLocalTask

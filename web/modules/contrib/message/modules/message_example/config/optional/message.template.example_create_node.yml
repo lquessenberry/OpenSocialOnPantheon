@@ -1,4 +1,3 @@
-uuid: 6ebdb821-a3a5-4ee3-9407-7a985d3882a8
 langcode: en
 status: true
 dependencies: {  }
@@ -6,8 +5,8 @@ template: example_create_node
 label: 'Example - Create node'
 description: 'Working upon creating of a node.'
 text:
-  - "<p><a href='[message:user-url]'>[message:user-name]</a> created <a href='[message:node-url]'>[message:node-title]</a></p>\r\n"
-  - "<p>[message:node-render]</p>\r\n"
+  - value: "<p><a href='[message:user-url]'>[message:user-name]</a> created <a href='[message:node-url]'>[message:node-title]</a></p>\r\n <p>[message:node-render]</p>\r\n"
+  - format: 'basic_html'
 data:
   'token options':
     clear: 0

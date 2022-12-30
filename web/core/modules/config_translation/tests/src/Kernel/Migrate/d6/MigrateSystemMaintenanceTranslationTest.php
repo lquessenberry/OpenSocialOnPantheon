@@ -8,26 +8,32 @@ use Drupal\Tests\migrate_drupal\Kernel\d6\MigrateDrupal6TestBase;
  * Upgrade i18n maintenance variables to system.*.yml.
  *
  * @group migrate_drupal_6
- * @group legacy
  */
 class MigrateSystemMaintenanceTranslationTest extends MigrateDrupal6TestBase {
 
-  public static $modules = ['language', 'config_translation'];
+  protected static $modules = [
+    'language',
+    'config_translation',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-    $this->executeMigration('d6_system_maintenance_translation');
+    $this->executeMigrations([
+      'language',
+      'system_maintenance',
+      'd6_system_maintenance_translation',
+    ]);
   }
 
   /**
-   * Tests migration of system (maintenance) variables to system.maintenance.yml.
+   * Tests migration of system variables to system.maintenance.yml.
    */
   public function testSystemMaintenance() {
     $config = \Drupal::service('language_manager')->getLanguageConfigOverride('fr', 'system.maintenance');
-    $this->assertIdentical('fr - Drupal is currently under maintenance. We should be back shortly. Thank you for your patience.', $config->get('message'));
+    $this->assertSame('fr - Drupal is currently under maintenance. We should be back shortly. Thank you for your patience.', $config->get('message'));
   }
 
 }

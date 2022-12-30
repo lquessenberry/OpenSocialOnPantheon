@@ -20,7 +20,11 @@
 
       function fieldsChangeHandler($fields, dependentColumns) {
         return function (e) {
-          Drupal.behaviors.contentTranslationDependentOptions.check($fields, dependentColumns, $(e.target));
+          Drupal.behaviors.contentTranslationDependentOptions.check(
+            $fields,
+            dependentColumns,
+            $(e.target),
+          );
         };
       }
 
@@ -33,7 +37,10 @@
           const dependentColumns = options.dependent_selectors[field];
 
           $fields.on('change', fieldsChangeHandler($fields, dependentColumns));
-          Drupal.behaviors.contentTranslationDependentOptions.check($fields, dependentColumns);
+          Drupal.behaviors.contentTranslationDependentOptions.check(
+            $fields,
+            dependentColumns,
+          );
         });
       }
     },
@@ -42,7 +49,7 @@
       let column;
 
       function filterFieldsList(index, field) {
-        return $(field).val() === column;
+        return field.value === column;
       }
 
       // A field that has many different translatable parts can also define one
@@ -55,10 +62,8 @@
         }
 
         if ($element.is(`input[value="${column}"]:checked`)) {
-          $fields.prop('checked', true)
-            .not($element).prop('disabled', true);
-        }
-        else {
+          $fields.prop('checked', true).not($element).prop('disabled', true);
+        } else {
           $fields.prop('disabled', false);
         }
       });
@@ -77,13 +82,16 @@
     attach(context) {
       // Initially hide all field rows for non translatable bundles and all
       // column rows for non translatable fields.
-      $(context).find('table .bundle-settings .translatable :input').once('translation-entity-admin-hide').each(function () {
-        const $input = $(this);
+      once(
+        'translation-entity-admin-hide',
+        // Keep jQuery because of the use of `:input`.
+        $(context).find('table .bundle-settings .translatable :input'),
+      ).forEach((input) => {
+        const $input = $(input);
         const $bundleSettings = $input.closest('.bundle-settings');
         if (!$input.is(':checked')) {
           $bundleSettings.nextUntil('.bundle-settings').hide();
-        }
-        else {
+        } else {
           $bundleSettings
             .nextUntil('.bundle-settings', '.field-settings')
             .find('.translatable :input:not(:checked)')
@@ -96,31 +104,34 @@
       // When a bundle is made translatable all of its fields should inherit
       // this setting. Instead when it is made non translatable its fields are
       // hidden, since their translatability no longer matters.
-      $('body').once('translation-entity-admin-bind').on('click', 'table .bundle-settings .translatable :input', (e) => {
-        const $target = $(e.target);
-        const $bundleSettings = $target.closest('.bundle-settings');
-        const $settings = $bundleSettings.nextUntil('.bundle-settings');
-        const $fieldSettings = $settings.filter('.field-settings');
-        if ($target.is(':checked')) {
-          $bundleSettings.find('.operations :input[name$="[language_alterable]"]').prop('checked', true);
-          $fieldSettings.find('.translatable :input').prop('checked', true);
-          $settings.show();
-        }
-        else {
-          $settings.hide();
-        }
-      })
+      $(once('translation-entity-admin-bind', 'body'))
+        .on('click', 'table .bundle-settings .translatable :input', (e) => {
+          const $target = $(e.target);
+          const $bundleSettings = $target.closest('.bundle-settings');
+          const $settings = $bundleSettings.nextUntil('.bundle-settings');
+          const $fieldSettings = $settings.filter('.field-settings');
+          if ($target.is(':checked')) {
+            $bundleSettings
+              .find('.operations :input[name$="[language_alterable]"]')
+              .prop('checked', true);
+            $fieldSettings.find('.translatable :input').prop('checked', true);
+            $settings.show();
+          } else {
+            $settings.hide();
+          }
+        })
         .on('click', 'table .field-settings .translatable :input', (e) => {
           const $target = $(e.target);
           const $fieldSettings = $target.closest('.field-settings');
-          const $columnSettings = $fieldSettings.nextUntil('.field-settings, .bundle-settings');
+          const $columnSettings = $fieldSettings.nextUntil(
+            '.field-settings, .bundle-settings',
+          );
           if ($target.is(':checked')) {
             $columnSettings.show();
-          }
-          else {
+          } else {
             $columnSettings.hide();
           }
         });
     },
   };
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

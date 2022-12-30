@@ -19,6 +19,7 @@ abstract class PrerenderList extends FieldPluginBase implements MultiItemsFieldH
 
   /**
    * Stores all items which are used to render the items.
+   *
    * It should be keyed first by the id of the base table, for example nid.
    * The second key is the id of the thing which is displayed multiple times
    * per row, for example the tid.
@@ -78,8 +79,8 @@ abstract class PrerenderList extends FieldPluginBase implements MultiItemsFieldH
           '#template' => '{{ items|safe_join(separator) }}',
           '#context' => [
             'items' => $items,
-            'separator' => $this->sanitizeValue($this->options['separator'], 'xss_admin')
-          ]
+            'separator' => $this->sanitizeValue($this->options['separator'], 'xss_admin'),
+          ],
         ];
       }
       else {

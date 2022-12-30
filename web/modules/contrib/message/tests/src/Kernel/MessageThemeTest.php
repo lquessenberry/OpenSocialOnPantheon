@@ -4,7 +4,7 @@ namespace Drupal\Tests\message\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\message\Entity\Message;
-use Drupal\simpletest\UserCreationTrait;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 
 /**
  * Test theming of messages.
@@ -62,7 +62,7 @@ class MessageThemeTest extends KernelTestBase {
 
     // @todo Something is off here, as *only* the div is there, no content.
     // @see https://github.com/Gizra/message/issues/128
-    $this->assertTrue($xpath, 'A div has been found wrapping the message text.');
+    $this->assertNotEmpty($xpath, 'A div has been found wrapping the message text.');
   }
 
 }

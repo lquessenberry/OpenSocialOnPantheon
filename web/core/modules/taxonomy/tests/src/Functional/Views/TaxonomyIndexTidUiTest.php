@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\taxonomy\Functional\Views;
 
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\Tests\views_ui\Functional\UITestBase;
@@ -24,14 +24,29 @@ class TaxonomyIndexTidUiTest extends UITestBase {
    *
    * @var array
    */
-  public static $testViews = ['test_filter_taxonomy_index_tid', 'test_taxonomy_term_name'];
+  public static $testViews = [
+    'test_filter_taxonomy_index_tid',
+    'test_taxonomy_term_name',
+    'test_taxonomy_exposed_grouped_filter',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['node', 'taxonomy', 'views', 'views_ui', 'taxonomy_test_views'];
+  protected static $modules = [
+    'node',
+    'taxonomy',
+    'views',
+    'views_ui',
+    'taxonomy_test_views',
+  ];
 
   /**
    * A nested array of \Drupal\taxonomy\TermInterface objects.
@@ -43,10 +58,13 @@ class TaxonomyIndexTidUiTest extends UITestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = []): void {
+    parent::setUp($import_test_views, $modules);
 
-    $this->adminUser = $this->drupalCreateUser(['administer taxonomy', 'administer views']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer taxonomy',
+      'administer views',
+    ]);
     $this->drupalLogin($this->adminUser);
 
     Vocabulary::create([
@@ -66,12 +84,12 @@ class TaxonomyIndexTidUiTest extends UITestBase {
         $this->terms[$i][$j] = $term = Term::create([
           'vid' => 'tags',
           'name' => "Term $i.$j",
-          'parent' => isset($terms[$i][0]) ? $terms[$i][0]->id() : 0,
+          'parent' => isset($this->terms[$i][0]) ? $this->terms[$i][0]->id() : 0,
         ]);
         $term->save();
       }
     }
-    ViewTestData::createTestViews(get_class($this), ['taxonomy_test_views']);
+    ViewTestData::createTestViews(static::class, ['taxonomy_test_views']);
 
     Vocabulary::create([
       'vid' => 'empty_vocabulary',
@@ -85,7 +103,7 @@ class TaxonomyIndexTidUiTest extends UITestBase {
   public function testFilterUI() {
     $this->drupalGet('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid');
 
-    $result = $this->xpath('//select[@id="edit-options-value"]/option');
+    $result = $this->assertSession()->selectExists('edit-options-value')->findAll('css', 'option');
 
     // Ensure that the expected hierarchy is available in the UI.
     $counter = 0;
@@ -95,8 +113,8 @@ class TaxonomyIndexTidUiTest extends UITestBase {
         $prefix = $this->terms[$i][$j]->parent->target_id ? '-' : '';
         $tid = $option->getAttribute('value');
 
-        $this->assertEqual($prefix . $this->terms[$i][$j]->getName(), $option->getText());
-        $this->assertEqual($this->terms[$i][$j]->id(), $tid);
+        $this->assertEquals($prefix . $this->terms[$i][$j]->getName(), $option->getText());
+        $this->assertEquals($this->terms[$i][$j]->id(), $tid);
       }
     }
 
@@ -107,7 +125,7 @@ class TaxonomyIndexTidUiTest extends UITestBase {
     $display['display_options']['filters']['tid']['type'] = 'textfield';
     $view->save();
     $this->drupalGet('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid');
-    $this->assertFieldById('edit-options-value', NULL);
+    $this->assertSession()->fieldExists('edit-options-value');
 
     // Tests \Drupal\taxonomy\Plugin\views\filter\TaxonomyIndexTid::calculateDependencies().
     $expected = [
@@ -123,7 +141,7 @@ class TaxonomyIndexTidUiTest extends UITestBase {
         'user',
       ],
     ];
-    $this->assertIdentical($expected, $view->calculateDependencies()->getDependencies());
+    $this->assertSame($expected, $view->calculateDependencies()->getDependencies());
   }
 
   /**
@@ -151,70 +169,193 @@ class TaxonomyIndexTidUiTest extends UITestBase {
 
     // Only the nodes with the selected term should be shown.
     $this->drupalGet('test-filter-taxonomy-index-tid');
-    $xpath = $this->xpath('//div[@class="view-content"]//a');
-    $this->assertIdentical(2, count($xpath));
-    $xpath = $this->xpath('//div[@class="view-content"]//a[@href=:href]', [':href' => $node2->url()]);
-    $this->assertIdentical(1, count($xpath));
-    $xpath = $this->xpath('//div[@class="view-content"]//a[@href=:href]', [':href' => $node3->url()]);
-    $this->assertIdentical(1, count($xpath));
+    $this->assertSession()->pageTextNotContains($node1->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node1->toUrl()->toString());
+    $xpath_node2_link = $this->assertSession()->buildXPathQuery('//div[@class="views-row"]//a[@href=:url and text()=:label]', [
+      ':url' => $node2->toUrl()->toString(),
+      ':label' => $node2->label(),
+    ]);
+    $this->assertSession()->elementsCount('xpath', $xpath_node2_link, 1);
+    $xpath_node3_link = $this->assertSession()->buildXPathQuery('//div[@class="views-row"]//a[@href=:url and text()=:label]', [
+      ':url' => $node3->toUrl()->toString(),
+      ':label' => $node3->label(),
+    ]);
+    $this->assertSession()->elementsCount('xpath', $xpath_node3_link, 1);
+    $this->assertSession()->pageTextNotContains($node4->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node4->toUrl()->toString());
 
     // Expose the filter.
-    $this->drupalPostForm('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid', [], 'Expose filter');
+    $this->drupalGet('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid');
+    $this->submitForm([], 'Expose filter');
     // Set the operator to 'empty' and remove the default term ID.
-    $this->drupalPostForm(NULL, [
+    $this->submitForm([
       'options[operator]' => 'empty',
       'options[value][]' => [],
     ], 'Apply');
     // Save the view.
-    $this->drupalPostForm(NULL, [], 'Save');
+    $this->submitForm([], 'Save');
 
     // After switching to 'empty' operator, the node without a term should be
     // shown.
     $this->drupalGet('test-filter-taxonomy-index-tid');
-    $xpath = $this->xpath('//div[@class="view-content"]//a');
-    $this->assertIdentical(1, count($xpath));
-    $xpath = $this->xpath('//div[@class="view-content"]//a[@href=:href]', [':href' => $node1->url()]);
-    $this->assertIdentical(1, count($xpath));
+    $xpath_node1_link = $this->assertSession()->buildXPathQuery('//div[@class="views-row"]//a[@href=:url and text()=:label]', [
+      ':url' => $node1->toUrl()->toString(),
+      ':label' => $node1->label(),
+    ]);
+    $this->assertSession()->elementsCount('xpath', $xpath_node1_link, 1);
+    $this->assertSession()->pageTextNotContains($node2->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node2->toUrl()->toString());
+    $this->assertSession()->pageTextNotContains($node3->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node3->toUrl()->toString());
+    $this->assertSession()->pageTextNotContains($node4->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node4->toUrl()->toString());
 
     // Set the operator to 'not empty'.
-    $this->drupalPostForm('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid', ['options[operator]' => 'not empty'], 'Apply');
+    $this->drupalGet('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid');
+    $this->submitForm(['options[operator]' => 'not empty'], 'Apply');
     // Save the view.
-    $this->drupalPostForm(NULL, [], 'Save');
+    $this->submitForm([], 'Save');
 
     // After switching to 'not empty' operator, all nodes with terms should be
     // shown.
     $this->drupalGet('test-filter-taxonomy-index-tid');
-    $xpath = $this->xpath('//div[@class="view-content"]//a');
-    $this->assertIdentical(3, count($xpath));
-    $xpath = $this->xpath('//div[@class="view-content"]//a[@href=:href]', [':href' => $node2->url()]);
-    $this->assertIdentical(1, count($xpath));
-    $xpath = $this->xpath('//div[@class="view-content"]//a[@href=:href]', [':href' => $node3->url()]);
-    $this->assertIdentical(1, count($xpath));
-    $xpath = $this->xpath('//div[@class="view-content"]//a[@href=:href]', [':href' => $node4->url()]);
-    $this->assertIdentical(1, count($xpath));
+    $this->assertSession()->pageTextNotContains($node1->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node1->toUrl()->toString());
+    $xpath_node2_link = $this->assertSession()->buildXPathQuery('//div[@class="views-row"]//a[@href=:url and text()=:label]', [
+      ':url' => $node2->toUrl()->toString(),
+      ':label' => $node2->label(),
+    ]);
+    $this->assertSession()->elementsCount('xpath', $xpath_node2_link, 1);
+    $xpath_node3_link = $this->assertSession()->buildXPathQuery('//div[@class="views-row"]//a[@href=:url and text()=:label]', [
+      ':url' => $node3->toUrl()->toString(),
+      ':label' => $node3->label(),
+    ]);
+    $this->assertSession()->elementsCount('xpath', $xpath_node3_link, 1);
+    $xpath_node4_link = $this->assertSession()->buildXPathQuery('//div[@class="views-row"]//a[@href=:url and text()=:label]', [
+      ':url' => $node4->toUrl()->toString(),
+      ':label' => $node4->label(),
+    ]);
+    $this->assertSession()->elementsCount('xpath', $xpath_node4_link, 1);
 
     // Select 'Term ID' as the field to be displayed.
     $edit = ['name[taxonomy_term_field_data.tid]' => TRUE];
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_taxonomy_term_name/default/field', $edit, 'Add and configure fields');
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_taxonomy_term_name/default/field');
+    $this->submitForm($edit, 'Add and configure fields');
     // Select 'Term' and 'Vocabulary' as filters.
     $edit = [
       'name[taxonomy_term_field_data.tid]' => TRUE,
-      'name[taxonomy_term_field_data.vid]' => TRUE
+      'name[taxonomy_term_field_data.vid]' => TRUE,
     ];
-    $this->drupalPostForm('admin/structure/views/nojs/add-handler/test_taxonomy_term_name/default/filter', $edit, 'Add and configure filter criteria');
+    $this->drupalGet('admin/structure/views/nojs/add-handler/test_taxonomy_term_name/default/filter');
+    $this->submitForm($edit, 'Add and configure filter criteria');
     // Select 'Empty Vocabulary' and 'Autocomplete' from the list of options.
-    $this->drupalPostForm('admin/structure/views/nojs/handler-extra/test_taxonomy_term_name/default/filter/tid', [], 'Apply and continue');
+    $this->drupalGet('admin/structure/views/nojs/handler-extra/test_taxonomy_term_name/default/filter/tid');
+    $this->submitForm([], 'Apply and continue');
     // Expose the filter.
     $edit = ['options[expose_button][checkbox][checkbox]' => TRUE];
-    $this->drupalPostForm('admin/structure/views/nojs/handler/test_taxonomy_term_name/default/filter/tid', $edit, 'Expose filter');
-    $this->drupalPostForm('admin/structure/views/nojs/handler/test_taxonomy_term_name/default/filter/tid', $edit, 'Apply');
+    $this->drupalGet('admin/structure/views/nojs/handler/test_taxonomy_term_name/default/filter/tid');
+    $this->submitForm($edit, 'Expose filter');
+    $this->drupalGet('admin/structure/views/nojs/handler/test_taxonomy_term_name/default/filter/tid');
+    $this->submitForm($edit, 'Apply');
     // Filter 'Taxonomy terms' belonging to 'Empty Vocabulary'.
     $edit = ['options[value][empty_vocabulary]' => TRUE];
-    $this->drupalPostForm('admin/structure/views/nojs/handler/test_taxonomy_term_name/default/filter/vid', $edit, 'Apply');
-    $this->drupalPostForm('admin/structure/views/view/test_taxonomy_term_name/edit/default', [], 'Save');
-    $this->drupalPostForm(NULL, [], t('Update preview'));
-    $preview = $this->xpath("//div[@class='view-content']");
-    $this->assertTrue(empty($preview), 'No results.');
+    $this->drupalGet('admin/structure/views/nojs/handler/test_taxonomy_term_name/default/filter/vid');
+    $this->submitForm($edit, 'Apply');
+    $this->drupalGet('admin/structure/views/view/test_taxonomy_term_name/edit/default');
+    $this->submitForm([], 'Save');
+    $this->submitForm([], 'Update preview');
+    $this->assertSession()->pageTextNotContains($node1->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node1->toUrl()->toString());
+    $this->assertSession()->pageTextNotContains($node2->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node2->toUrl()->toString());
+    $this->assertSession()->pageTextNotContains($node3->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node3->toUrl()->toString());
+    $this->assertSession()->pageTextNotContains($node4->getTitle());
+    $this->assertSession()->linkByHrefNotExists($node4->toUrl()->toString());
+    $this->assertSession()->elementNotExists('xpath', "//div[@class='views-row']");
+  }
+
+  /**
+   * Tests exposed grouped taxonomy filters.
+   */
+  public function testExposedGroupedFilter() {
+    // Create a content type with a taxonomy field.
+    $this->drupalCreateContentType(['type' => 'article']);
+    $field_name = 'field_views_testing_tags';
+    $this->createEntityReferenceField('node', 'article', $field_name, NULL, 'taxonomy_term');
+
+    $nodes = [];
+    for ($i = 0; $i < 3; $i++) {
+      $node = [];
+      $node['type'] = 'article';
+      $node['field_views_testing_tags'][0]['target_id'] = $this->terms[$i][0]->id();
+      $nodes[] = $this->drupalCreateNode($node);
+    }
+
+    $this->drupalGet('/admin/structure/views/nojs/handler/test_taxonomy_exposed_grouped_filter/page_1/filter/field_views_testing_tags_target_id');
+    $edit = [
+      'options[group_info][group_items][1][value][]' => [$this->terms[0][0]->id(), $this->terms[1][0]->id()],
+      'options[group_info][group_items][2][value][]' => [$this->terms[1][0]->id(), $this->terms[2][0]->id()],
+      'options[group_info][group_items][3][value][]' => [$this->terms[2][0]->id(), $this->terms[0][0]->id()],
+    ];
+    $this->submitForm($edit, 'Apply');
+    $this->submitForm([], 'Save');
+
+    // Visit the view's page url and validate the results.
+    $this->drupalGet('/test-taxonomy-exposed-grouped-filter');
+    $this->submitForm(['field_views_testing_tags_target_id' => 1], 'Apply');
+    $this->assertSession()->pageTextContains($nodes[0]->getTitle());
+    $this->assertSession()->pageTextContains($nodes[1]->getTitle());
+    $this->assertSession()->pageTextNotContains($nodes[2]->getTitle());
+
+    $this->submitForm(['field_views_testing_tags_target_id' => 2], 'Apply');
+    $this->assertSession()->pageTextContains($nodes[1]->getTitle());
+    $this->assertSession()->pageTextContains($nodes[2]->getTitle());
+    $this->assertSession()->pageTextNotContains($nodes[0]->getTitle());
+
+    $this->submitForm(['field_views_testing_tags_target_id' => 3], 'Apply');
+    $this->assertSession()->pageTextContains($nodes[0]->getTitle());
+    $this->assertSession()->pageTextContains($nodes[2]->getTitle());
+    $this->assertSession()->pageTextNotContains($nodes[1]->getTitle());
+  }
+
+  /**
+   * Tests that an exposed taxonomy filter doesn't show unpublished terms.
+   */
+  public function testExposedUnpublishedFilterOptions() {
+    $this->terms[1][0]->setUnpublished()->save();
+    // Expose the filter.
+    $this->drupalGet('admin/structure/views/nojs/handler/test_filter_taxonomy_index_tid/default/filter/tid');
+    $this->submitForm([], 'Expose filter');
+    $edit = ['options[expose_button][checkbox][checkbox]' => TRUE];
+    $this->submitForm($edit, 'Apply');
+    $this->submitForm([], 'Save');
+    // Make sure the unpublished term is shown to the admin user.
+    $this->drupalGet('test-filter-taxonomy-index-tid');
+    $this->assertNotEmpty($this->cssSelect('option[value="' . $this->terms[0][0]->id() . '"]'));
+    $this->assertNotEmpty($this->cssSelect('option[value="' . $this->terms[1][0]->id() . '"]'));
+    $this->drupalLogout();
+    $this->drupalGet('test-filter-taxonomy-index-tid');
+    // Make sure the unpublished term isn't shown to the anonymous user.
+    $this->assertNotEmpty($this->cssSelect('option[value="' . $this->terms[0][0]->id() . '"]'));
+    $this->assertEmpty($this->cssSelect('option[value="' . $this->terms[1][0]->id() . '"]'));
+
+    // Tests that the term also isn't shown when not showing hierarchy.
+    $this->drupalLogin($this->adminUser);
+    $edit = [
+      'options[hierarchy]' => FALSE,
+    ];
+    $this->drupalGet('admin/structure/views/nojs/handler-extra/test_filter_taxonomy_index_tid/default/filter/tid');
+    $this->submitForm($edit, 'Apply');
+    $this->submitForm([], 'Save');
+    $this->drupalGet('test-filter-taxonomy-index-tid');
+    $this->assertNotEmpty($this->cssSelect('option[value="' . $this->terms[0][0]->id() . '"]'));
+    $this->assertNotEmpty($this->cssSelect('option[value="' . $this->terms[1][0]->id() . '"]'));
+    $this->drupalLogout();
+    $this->drupalGet('test-filter-taxonomy-index-tid');
+    // Make sure the unpublished term isn't shown to the anonymous user.
+    $this->assertNotEmpty($this->cssSelect('option[value="' . $this->terms[0][0]->id() . '"]'));
+    $this->assertEmpty($this->cssSelect('option[value="' . $this->terms[1][0]->id() . '"]'));
   }
 
 }

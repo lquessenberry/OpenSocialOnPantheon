@@ -20,15 +20,15 @@ class StyleSerializerKernelTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['rest_test_views', 'serialization', 'rest'];
+  protected static $modules = ['rest_test_views', 'serialization', 'rest'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
-    ViewTestData::createTestViews(get_class($this), ['rest_test_views']);
+    ViewTestData::createTestViews(static::class, ['rest_test_views']);
   }
 
   /**
@@ -46,16 +46,6 @@ class StyleSerializerKernelTest extends ViewsKernelTestBase {
 
     $view->calculateDependencies();
     $this->assertEquals(['module' => ['rest', 'serialization', 'user']], $view->getDependencies());
-
-    \Drupal::service('module_installer')->install(['hal']);
-
-    $view = View::load('test_serializer_display_entity');
-    $display = &$view->getDisplay('rest_export_1');
-    $display['display_options']['style']['options']['formats'] = ['json', 'xml', 'hal_json'];
-    $view->save();
-
-    $view->calculateDependencies();
-    $this->assertEquals(['module' => ['hal', 'rest', 'serialization', 'user']], $view->getDependencies());
   }
 
 }

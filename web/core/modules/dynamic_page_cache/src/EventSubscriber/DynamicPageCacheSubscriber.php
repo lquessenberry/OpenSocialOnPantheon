@@ -9,8 +9,8 @@ use Drupal\Core\PageCache\RequestPolicyInterface;
 use Drupal\Core\PageCache\ResponsePolicyInterface;
 use Drupal\Core\Render\RenderCacheInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
@@ -119,10 +119,10 @@ class DynamicPageCacheSubscriber implements EventSubscriberInterface {
   /**
    * Sets a response in case of a Dynamic Page Cache hit.
    *
-   * @param \Symfony\Component\HttpKernel\Event\GetResponseEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\RequestEvent $event
    *   The event to process.
    */
-  public function onRouteMatch(GetResponseEvent $event) {
+  public function onRequest(RequestEvent $event) {
     // Don't cache the response if the Dynamic Page Cache request policies are
     // not met. Store the result in a static keyed by current request, so that
     // onResponse() does not have to redo the request policy check.
@@ -145,10 +145,10 @@ class DynamicPageCacheSubscriber implements EventSubscriberInterface {
   /**
    * Stores a response in case of a Dynamic Page Cache miss, if cacheable.
    *
-   * @param \Symfony\Component\HttpKernel\Event\FilterResponseEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ResponseEvent $event
    *   The event to process.
    */
-  public function onResponse(FilterResponseEvent $event) {
+  public function onResponse(ResponseEvent $event) {
     $response = $event->getResponse();
 
     // Dynamic Page Cache only works with cacheable responses. It does not work
@@ -189,7 +189,7 @@ class DynamicPageCacheSubscriber implements EventSubscriberInterface {
 
     // Don't cache the response if the Dynamic Page Cache request & response
     // policies are not met.
-    // @see onRouteMatch()
+    // @see onRequest()
     if ($this->requestPolicyResults[$request] === RequestPolicyInterface::DENY || $this->responsePolicy->check($response, $request) === ResponsePolicyInterface::DENY) {
       return;
     }
@@ -312,7 +312,7 @@ class DynamicPageCacheSubscriber implements EventSubscriberInterface {
     // should not be polluted by maintenance mode-specific behavior; priority
     // 30), but before ContentControllerSubscriber (updates _controller, but
     // that is a no-op when Dynamic Page Cache runs; priority 25).
-    $events[KernelEvents::REQUEST][] = ['onRouteMatch', 27];
+    $events[KernelEvents::REQUEST][] = ['onRequest', 27];
 
     // Run before HtmlResponseSubscriber::onRespond(), which has priority 0.
     $events[KernelEvents::RESPONSE][] = ['onResponse', 100];

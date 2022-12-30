@@ -12,7 +12,7 @@
   Drupal.behaviors.batch = {
     attach(context, settings) {
       const batch = settings.batch;
-      const $progress = $('[data-drupal-progress]').once('batch');
+      const $progress = $(once('batch', '[data-drupal-progress]'));
       let progressBar;
 
       // Success: redirect to the summary.
@@ -29,7 +29,12 @@
       }
 
       if ($progress.length) {
-        progressBar = new Drupal.ProgressBar('updateprogress', updateCallback, 'POST', errorCallback);
+        progressBar = new Drupal.ProgressBar(
+          'updateprogress',
+          updateCallback,
+          'POST',
+          errorCallback,
+        );
         progressBar.setProgress(-1, batch.initMessage);
         progressBar.startMonitoring(`${batch.uri}&op=do`, 10);
         // Remove HTML from no-js progress bar.
@@ -39,4 +44,4 @@
       }
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

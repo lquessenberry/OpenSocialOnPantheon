@@ -42,6 +42,17 @@ flag.action_link_flag:
   path: '/flag/flag/{flag}/{entity_id}'
   defaults:
     _controller: '\Drupal\flag\Controller\ActionLinkController::flag'
+  methods: [POST]
+  requirements:
+    _flag_access: 'entity:flag{flag}'
+    _format: 'html'
+    _csrf_token: 'TRUE'
+
+flag.action_link_flag_nojs:
+  path: '/flag/flag/{flag}/{entity_id}'
+  defaults:
+    _controller: '\Drupal\flag\Controller\ActionLinkNoJsController::flag'
+  methods: [GET]
   requirements:
     _flag_access: 'entity:flag{flag}'
     _format: 'html'
@@ -51,6 +62,17 @@ flag.action_link_unflag:
   path: '/flag/unflag/{flag}/{entity_id}'
   defaults:
     _controller: '\Drupal\flag\Controller\ActionLinkController::unflag'
+  methods: [POST]
+  requirements:
+    _unflag_access: 'entity:flag{flag}'
+    _format: 'html'
+    _csrf_token: 'TRUE'
+
+flag.action_link_unflag_nojs:
+  path: '/flag/unflag/{flag}/{entity_id}'
+  defaults:
+    _controller: '\Drupal\flag\Controller\ActionLinkNoJsController::unflag'
+  methods: [GET]
   requirements:
     _unflag_access: 'entity:flag{flag}'
     _format: 'html'
@@ -117,13 +139,5 @@ entity.flag.reset:
   defaults:
     _form: '\Drupal\flag\Form\FlagResetForm'
     _title: 'Reset Flag?'
-  requirements:
-    _permission: 'administer flags'
-
-flag.clearall:
-  path: '/admin/structure/flags/clear'
-  defaults:
-    _form: '\Drupal\flag\Form\ClearAllForm'
-    _title: 'Prepare Uninstall'
   requirements:
     _permission: 'administer flags'

@@ -2,7 +2,6 @@
 
 namespace Drupal\image\Plugin\ImageEffect;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Image\ImageInterface;
 use Drupal\image\ConfigurableImageEffectBase;
@@ -13,7 +12,7 @@ use Drupal\image\ConfigurableImageEffectBase;
  * @ImageEffect(
  *   id = "image_convert",
  *   label = @Translation("Convert"),
- *   description = @Translation("Converts an image between extensions (e.g. from PNG to JPEG).")
+ *   description = @Translation("Converts an image to a format (such as JPEG).")
  * )
  */
 class ConvertImageEffect extends ConfigurableImageEffectBase {
@@ -41,7 +40,7 @@ class ConvertImageEffect extends ConfigurableImageEffectBase {
    */
   public function getSummary() {
     $summary = [
-      '#markup' => Unicode::strtoupper($this->configuration['extension']),
+      '#markup' => mb_strtoupper($this->configuration['extension']),
     ];
     $summary += parent::getSummary();
 
@@ -64,11 +63,11 @@ class ConvertImageEffect extends ConfigurableImageEffectBase {
     $extensions = \Drupal::service('image.toolkit.manager')->getDefaultToolkit()->getSupportedExtensions();
     $options = array_combine(
       $extensions,
-      array_map(['\Drupal\Component\Utility\Unicode', 'strtoupper'], $extensions)
+      array_map('mb_strtoupper', $extensions)
     );
     $form['extension'] = [
       '#type' => 'select',
-      '#title' => t('Extension'),
+      '#title' => t('Convert to'),
       '#default_value' => $this->configuration['extension'],
       '#required' => TRUE,
       '#options' => $options,

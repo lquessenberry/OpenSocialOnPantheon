@@ -21,13 +21,16 @@ JavaScript image gallery for mobile and desktop.
 ## Plugins / extensions / addons
 
 - [Ruby gem](https://rubygems.org/gems/photoswipe-rails).
-- [Ember.js addon](https://github.com/poetic/ember-cli-photoswipe).
+- Ember.js addons: [ember-photoswipe](https://github.com/kaermorchen/ember-photoswipe), [ember-cli-photoswipe](https://github.com/poetic/ember-cli-photoswipe).
 - [Eager app](https://eager.io/app/DvuKIoU8iTOt).
 - [Koken CMS plugin](https://github.com/DanielMuller/koken-plugin-photoswipe).
 - [Orchard CMS module](https://gallery.orchardproject.net/List/Modules/Orchard.Module.Cascade.PhotoSwipe).
 - [Yellow CMS plugin](https://github.com/datenstrom/yellow-plugins/tree/master/gallery).
 - [Kirby CMS plugin](https://github.com/SiteMarina/guggenheim).
 - [Drupal CMF module](https://www.drupal.org/project/photoswipe).
+- [ProcessWire CMS module](https://github.com/blynx/MarkupProcesswirePhotoswipe).
+- [SPIP CMS module](https://plugins.spip.net/photoswipe.html).
+- [Fork CMS MediaLibrary widget](https://github.com/forkcms/forkcms).
 
 Coded something useful? <a href='mailto:diiiimaaaa@gmail.com?subject="PhotoSwipe Plugin"'>Email me</a> and I’ll post a link to it here.
 

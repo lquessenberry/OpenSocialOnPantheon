@@ -84,7 +84,7 @@ class PhpBackend implements CacheBackendInterface {
    */
   public function setMultiple(array $items) {
     foreach ($items as $cid => $item) {
-      $this->set($cid, $item['data'], isset($item['expire']) ? $item['expire'] : CacheBackendInterface::CACHE_PERMANENT, isset($item['tags']) ? $item['tags'] : []);
+      $this->set($cid, $item['data'], $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT, $item['tags'] ?? []);
     }
   }
 
@@ -112,7 +112,7 @@ class PhpBackend implements CacheBackendInterface {
    * as appropriate.
    *
    * @param object $cache
-   *   An item loaded from cache_get() or cache_get_multiple().
+   *   An item loaded from self::get() or self::getMultiple().
    * @param bool $allow_invalid
    *   If FALSE, the method returns FALSE if the cache item is not valid.
    *
@@ -184,7 +184,7 @@ class PhpBackend implements CacheBackendInterface {
    * {@inheritdoc}
    */
   public function invalidate($cid) {
-    $this->invalidatebyHash($this->normalizeCid($cid));
+    $this->invalidateByHash($this->normalizeCid($cid));
   }
 
   /**
@@ -193,7 +193,7 @@ class PhpBackend implements CacheBackendInterface {
    * @param string $cidhash
    *   The hashed version of the original cache ID after being normalized.
    */
-  protected function invalidatebyHash($cidhash) {
+  protected function invalidateByHash($cidhash) {
     if ($item = $this->getByHash($cidhash)) {
       $item->expire = REQUEST_TIME - 1;
       $this->writeItem($cidhash, $item);
@@ -214,7 +214,7 @@ class PhpBackend implements CacheBackendInterface {
    */
   public function invalidateAll() {
     foreach ($this->storage()->listAll() as $cidhash) {
-      $this->invalidatebyHash($cidhash);
+      $this->invalidateByHash($cidhash);
     }
   }
 
@@ -237,7 +237,7 @@ class PhpBackend implements CacheBackendInterface {
    *
    * @param string $cidhash
    *   The hashed version of the original cache ID after being normalized.
-   * @param \stdClass $item
+   * @param object $item
    *   The cache item to store.
    */
   protected function writeItem($cidhash, \stdClass $item) {

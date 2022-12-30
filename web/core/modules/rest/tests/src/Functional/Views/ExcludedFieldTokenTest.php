@@ -4,7 +4,6 @@ namespace Drupal\Tests\rest\Functional\Views;
 
 use Drupal\node\Entity\Node;
 use Drupal\Tests\views\Functional\ViewTestBase;
-use Drupal\views\Tests\ViewTestData;
 use Drupal\views\Views;
 
 /**
@@ -29,11 +28,16 @@ class ExcludedFieldTokenTest extends ViewTestBase {
   public static $testViews = ['test_excluded_field_token_display'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * The modules that need to be installed for this test.
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'entity_test',
     'rest_test_views',
     'node',
@@ -43,10 +47,8 @@ class ExcludedFieldTokenTest extends ViewTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
-
-    ViewTestData::createTestViews(get_class($this), ['rest_test_views']);
+  protected function setUp($import_test_views = TRUE, $modules = ['rest_test_views']): void {
+    parent::setUp($import_test_views, $modules);
 
     // Create some test content.
     for ($i = 1; $i <= 10; $i++) {
@@ -67,7 +69,7 @@ class ExcludedFieldTokenTest extends ViewTestBase {
    */
   public function testExcludedTitleTokenDisplay() {
     $actual_json = $this->drupalGet($this->view->getPath(), ['query' => ['_format' => 'json']]);
-    $this->assertResponse(200);
+    $this->assertSession()->statusCodeEquals(200);
 
     $expected = [
       ['nothing' => 'Article test 10'],
@@ -81,7 +83,7 @@ class ExcludedFieldTokenTest extends ViewTestBase {
       ['nothing' => 'Article test 2'],
       ['nothing' => 'Article test 1'],
     ];
-    $this->assertIdentical($actual_json, json_encode($expected));
+    $this->assertSame(json_encode($expected), $actual_json);
   }
 
 }

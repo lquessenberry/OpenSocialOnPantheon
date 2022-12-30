@@ -1,8 +1,7 @@
 name: 'Field Layout test'
 type: module
 description: 'Support module for Field Layout tests.'
-core: 8.x
 package: Testing
 version: VERSION
 dependencies:
-  - entity_test
+  - drupal:entity_test

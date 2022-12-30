@@ -16,7 +16,12 @@ class GetRdfNamespacesTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['rdf', 'rdf_test_namespaces'];
+  protected static $modules = ['rdf', 'rdf_test_namespaces'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests getting RDF namespaces.
@@ -44,9 +49,9 @@ class GetRdfNamespacesTest extends BrowserTestBase {
     // Get all RDF namespaces.
     $ns = rdf_get_namespaces();
 
-    $this->assertEqual($ns['rdfs'], 'http://www.w3.org/2000/01/rdf-schema#', 'A prefix declared once is included.');
-    $this->assertEqual($ns['foaf'], 'http://xmlns.com/foaf/0.1/', 'The same prefix declared in several implementations of hook_rdf_namespaces() is valid as long as all the namespaces are the same.');
-    $this->assertEqual($ns['foaf1'], 'http://xmlns.com/foaf/0.1/', 'Two prefixes can be assigned the same namespace.');
+    $this->assertEquals('http://www.w3.org/2000/01/rdf-schema#', $ns['rdfs'], 'A prefix declared once is included.');
+    $this->assertEquals('http://xmlns.com/foaf/0.1/', $ns['foaf'], 'The same prefix declared in several implementations of hook_rdf_namespaces() is valid as long as all the namespaces are the same.');
+    $this->assertEquals('http://xmlns.com/foaf/0.1/', $ns['foaf1'], 'Two prefixes can be assigned the same namespace.');
 
     // Enable rdf_conflicting_namespaces to ensure that an exception is thrown
     // when RDF namespaces are conflicting.
@@ -56,7 +61,7 @@ class GetRdfNamespacesTest extends BrowserTestBase {
       $this->fail('Expected exception not thrown for conflicting namespace declaration.');
     }
     catch (\Exception $e) {
-      $this->pass('Expected exception thrown: ' . $e->getMessage());
+      // Expected exception; just continue testing.
     }
   }
 

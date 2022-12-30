@@ -31,21 +31,26 @@ INSTALLATION
 CONFIGURATION
 -------------
 
- * Add the Data Policy Inform block to the region you want it to be shown at. Go to
-   /admin/structure/block and click on "Place block" in a region. In the
+ * Add the Data Policy Inform block to the region you want it to be shown at.
+   Go to /admin/structure/block and click on "Place block" in a region. In the
    overview click on the Data Policy Inform block.
 
  * Navigate to /admin/config/system/inform-consent and add the pages you would
    like to have the explanation shown on.
 
- * Go to /admin/config/people/data-policy to create a data policy. You can also
-   add new revisions here which you can make active. A data policy cannot be
-   made inactive, be sure to create a new revision if you want to change
-   something to an active revision.
+ * Go to /admin/config/people/data-policy to create a new data policy entity.
+   You can also add new revisions for each entity which you can make active.
+   A data policy cannot be made inactive, be sure to create a new revision
+   if you want to change something to an active revision.
 
  * At /admin/config/people/data-policy/settings you can choose if you want to
    force users to accept your (latest) data policy. If it is set to enforce and
    users do not agree they will be redirected to the account cancel page.
+   Also on this page, you can set a new "enforce consent text" and add multiple
+   data policy entities, an active revision will be used for each entity.
+   To add multiple entities, stick to the format: [id:entity_id].
+   Entity ID you can find `/admin/config/people/data-policy` in `DATA POLICY ID`
+   column.
 
  * Visit /admin/reports/data-policy-agreements for an overview of users that
    saw, agreed to or did not agree to your data policy (or policies).

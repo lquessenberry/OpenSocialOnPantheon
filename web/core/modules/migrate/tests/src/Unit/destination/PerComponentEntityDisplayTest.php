@@ -53,13 +53,17 @@ class PerComponentEntityDisplayTest extends MigrateTestCase {
 class TestPerComponentEntityDisplay extends ComponentEntityDisplayBase {
   const MODE_NAME = 'view_mode';
   protected $testValues;
+  protected $entity;
+
   public function __construct($entity) {
     $this->entity = $entity;
   }
+
   protected function getEntity($entity_type, $bundle, $view_mode) {
     $this->testValues = func_get_args();
     return $this->entity;
   }
+
   public function getTestValues() {
     return $this->testValues;
   }

@@ -9,6 +9,10 @@ use Symfony\Component\Routing\RouteCollection;
 
 /**
  * Provides the HTML route for deleting multiple entities.
+ *
+ * @deprecated Since Drupal 8.6.x the core DefaultHtmlRouteProvider provides
+ *   the route for any entity type with a "delete-multiple-form" link template
+ *   and a "delete-multiple-confirm" form.
  */
 class DeleteMultipleRouteProvider implements EntityRouteProviderInterface {
 
@@ -34,7 +38,10 @@ class DeleteMultipleRouteProvider implements EntityRouteProviderInterface {
    *   The generated route, if available.
    */
   protected function deleteMultipleFormRoute(EntityTypeInterface $entity_type) {
-    if ($entity_type->hasLinkTemplate('delete-multiple-form')) {
+    // Core requires a "delete-multiple-confirm" form to be declared as well,
+    // if it's missing, it's safe to assume that the entity type is still
+    // relying on previous Entity API contrib behavior.
+    if ($entity_type->hasLinkTemplate('delete-multiple-form') && !$entity_type->hasHandlerClass('form', 'delete-multiple-confirm')) {
       $route = new Route($entity_type->getLinkTemplate('delete-multiple-form'));
       $route->setDefault('_form', '\Drupal\entity\Form\DeleteMultipleForm');
       $route->setDefault('entity_type_id', $entity_type->id());

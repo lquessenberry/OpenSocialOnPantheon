@@ -3,7 +3,6 @@
 namespace Drupal\Tests\field\Kernel;
 
 use Drupal\Component\Plugin\Discovery\DiscoveryInterface;
-use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Entity\ContentEntityTypeInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
@@ -21,7 +20,7 @@ class FieldDefinitionIntegrityTest extends KernelTestBase {
   /**
    * @var array
    */
-  public static $modules = ['system'];
+  protected static $modules = ['system', 'path_alias'];
 
   /**
    * Tests the integrity of field plugin definitions.
@@ -66,46 +65,25 @@ class FieldDefinitionIntegrityTest extends KernelTestBase {
     foreach ($field_type_manager->getDefinitions() as $definition) {
       // Test default field widgets.
       if (isset($definition['default_widget'])) {
-        if (in_array($definition['default_widget'], $available_field_widget_ids)) {
-          $this->pass(sprintf('Field type %s uses an existing field widget by default.', $definition['id']));
-        }
-        else {
-          $this->fail(sprintf('Field type %s uses a non-existent field widget by default: %s', $definition['id'], $definition['default_widget']));
-        }
+        $this->assertContains($definition['default_widget'], $available_field_widget_ids, sprintf('Field type %s uses a non-existent field widget by default: %s', $definition['id'], $definition['default_widget']));
       }
 
       // Test default field formatters.
       if (isset($definition['default_formatter'])) {
-        if (in_array($definition['default_formatter'], $available_field_formatter_ids)) {
-          $this->pass(sprintf('Field type %s uses an existing field formatter by default.', $definition['id']));
-        }
-        else {
-          $this->fail(sprintf('Field type %s uses a non-existent field formatter by default: %s', $definition['id'], $definition['default_formatter']));
-        }
+        $this->assertContains($definition['default_formatter'], $available_field_formatter_ids, sprintf('Field type %s uses a non-existent field formatter by default: %s', $definition['id'], $definition['default_formatter']));
       }
     }
 
     // Test the field widget plugins.
     foreach ($field_widget_manager->getDefinitions() as $definition) {
       $missing_field_type_ids = array_diff($definition['field_types'], $available_field_type_ids);
-      if ($missing_field_type_ids) {
-        $this->fail(sprintf('Field widget %s integrates with non-existent field types: %s', $definition['id'], implode(', ', $missing_field_type_ids)));
-      }
-      else {
-        $this->pass(sprintf('Field widget %s integrates with existing field types.', $definition['id']));
-      }
+      $this->assertEmpty($missing_field_type_ids, sprintf('Field widget %s integrates with non-existent field types: %s', $definition['id'], implode(', ', $missing_field_type_ids)));
     }
 
     // Test the field formatter plugins.
     foreach ($field_formatter_manager->getDefinitions() as $definition) {
       $missing_field_type_ids = array_diff($definition['field_types'], $available_field_type_ids);
-      if ($missing_field_type_ids) {
-        $this->fail(sprintf('Field formatter %s integrates with non-existent field types: %s', $definition['id'], implode(', ', $missing_field_type_ids)));
-      }
-      else {
-        $this->pass(sprintf('Field formatter %s integrates with existing field types.', $definition['id']));
-      }
-
+      $this->assertEmpty($missing_field_type_ids, sprintf('Field formatter %s integrates with non-existent field types: %s', $definition['id'], implode(', ', $missing_field_type_ids)));
     }
   }
 
@@ -166,18 +144,13 @@ class FieldDefinitionIntegrityTest extends KernelTestBase {
   protected function checkDisplayOption($entity_type_id, $field_id, BaseFieldDefinition $field_definition, DiscoveryInterface $plugin_manager, $display_context) {
     $display_options = $field_definition->getDisplayOptions($display_context);
     if (!empty($display_options['type'])) {
-      try {
-        $plugin_manager->getDefinition($display_options['type']);
-      }
-      catch (PluginNotFoundException $e) {
-        $this->fail(sprintf(
-          'PluginNotFoundException here for "%s" field %s display options of "%s" entity type. Original message: %s',
-          $field_id,
-          $display_context,
-          $entity_type_id,
-          $e->getMessage()
-        ));
-      }
+      $plugin = $plugin_manager->getDefinition($display_options['type'], FALSE);
+      $this->assertNotNull($plugin, sprintf(
+        'Plugin found for "%s" field %s display options of "%s" entity type.',
+        $field_id,
+        $display_context,
+        $entity_type_id)
+      );
     }
   }
 
@@ -197,7 +170,7 @@ class FieldDefinitionIntegrityTest extends KernelTestBase {
    *   and all modules required by any of these modules.
    */
   protected function modulesWithSubdirectory($subdirectory) {
-    $modules = system_rebuild_module_data();
+    $modules = \Drupal::service('extension.list.module')->getList();
     $modules = array_filter($modules, function (Extension $module) use ($subdirectory) {
       // Filter contrib, hidden, already enabled modules and modules in the
       // Testing package.

@@ -18,10 +18,15 @@ class FieldGroupWithoutFieldUiTest extends BrowserTestBase {
   public static $modules = ['field_group', 'block'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Test that local actions show up without field ui enabled.
    */
   public function testLocalActions() {
-    // Local actions of field_group should not depend on field_ui
+    // Local actions of field_group should not depend on field_ui.
     // @see https://www.drupal.org/node/2719569
     $this->placeBlock('local_actions_block', ['id' => 'local_actions_block']);
     $this->drupalGet(Url::fromRoute('user.login'));

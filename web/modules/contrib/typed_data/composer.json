@@ -1,0 +1,22 @@
+{
+    "name": "drupal/typed_data",
+    "description": "Extends the core Typed Data API with new APIs and features.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://www.drupal.org/project/typed_data",
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/typed_data",
+        "source": "https://git.drupalcode.org/project/typed_data"
+    },
+    "require": {
+        "drupal/core": "^8.8.2 || ^9"
+    },
+    "minimum-stability": "dev",
+    "extra": {
+        "drush": {
+            "services": {
+                "drush.services.yml": "^9 || ^10"
+            }
+        }
+    }
+}

@@ -14,7 +14,11 @@ use Drupal\group\Plugin\GroupContentEnablerBase;
  *   entity_type_id = "user",
  *   pretty_path_key = "user",
  *   reference_label = @Translation("Username"),
- *   reference_description = @Translation("The name of the user you want to add to the group")
+ *   reference_description = @Translation("The name of the user you want to add to the group"),
+ *   handlers = {
+ *     "permission_provider" = "Drupal\group\Plugin\GroupContentPermissionProvider",
+ *   },
+ *   admin_permission = "administer user_as_content"
  * )
  */
 class UserAsContent extends GroupContentEnablerBase {

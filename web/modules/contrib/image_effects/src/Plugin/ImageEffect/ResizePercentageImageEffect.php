@@ -89,7 +89,7 @@ class ResizePercentageImageEffect extends ConfigurableImageEffectBase {
    * {@inheritdoc}
    */
   public function transformDimensions(array &$dimensions, $uri) {
-    $d = $this->getDimensions($dimensions['width'], $dimensions['height']);
+    $d = ImageUtility::resizeDimensions($dimensions['width'], $dimensions['height'], $this->configuration['width'], $this->configuration['height']);
     $dimensions['width'] = $d['width'];
     $dimensions['height'] = $d['height'];
   }
@@ -99,35 +99,8 @@ class ResizePercentageImageEffect extends ConfigurableImageEffectBase {
    */
   public function applyEffect(ImageInterface $image) {
     // Get resulting dimensions.
-    $dimensions = $this->getDimensions($image->getWidth(), $image->getHeight());
+    $dimensions = ImageUtility::resizeDimensions($image->getWidth(), $image->getHeight(), $this->configuration['width'], $this->configuration['height']);
     return $image->resize($dimensions['width'], $dimensions['height']);
-  }
-
-  /**
-   * Calculate resulting image dimensions.
-   *
-   * @param int $source_width
-   *   Source image width.
-   * @param int $source_height
-   *   Source image height.
-   *
-   * @return array
-   *   Associative array.
-   *   - width: Integer with the derivative image width.
-   *   - height: Integer with the derivative image height.
-   */
-  protected function getDimensions($source_width, $source_height) {
-    $aspect = $source_height / $source_width;
-    $dimensions = [];
-    $dimensions['width'] = ImageUtility::percentFilter($this->configuration['width'], $source_width);
-    $dimensions['height'] = ImageUtility::percentFilter($this->configuration['height'], $source_height);
-    if ($dimensions['width'] && !$dimensions['height']) {
-      $dimensions['height'] = (int) round($dimensions['width'] * $aspect);
-    }
-    elseif (!$dimensions['width'] && $dimensions['height']) {
-      $dimensions['width'] = (int) round($dimensions['height'] / $aspect);
-    }
-    return $dimensions;
   }
 
 }

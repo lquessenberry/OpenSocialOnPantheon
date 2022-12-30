@@ -1,13 +1,11 @@
 name: Mailsystem Test
 type: module
-package: Mail
+package: Testing
 hidden: true
-# core: 8.x
 dependencies:
-  - mailsystem
+  - mailsystem:mailsystem
 
-# Information added by Drupal.org packaging script on 2016-07-08
-version: '8.x-4.1'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2022-07-11
+version: '8.x-4.4'
 project: 'mailsystem'
-datestamp: 1467993737
+datestamp: 1657576309

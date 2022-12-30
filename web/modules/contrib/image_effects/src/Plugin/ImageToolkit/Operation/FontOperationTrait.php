@@ -2,48 +2,16 @@
 
 namespace Drupal\image_effects\Plugin\ImageToolkit\Operation;
 
-use Drupal\Core\StreamWrapper\LocalStream;
-
 /**
  * Base trait for image toolkit operations that require font handling.
  */
 trait FontOperationTrait {
 
   /**
-   * The stream wrapper manager service.
-   *
-   * @var \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface
-   */
-  protected $streamWrapperManagerForFontHandling;
-
-  /**
-   * An array of resolved font file URIs.
-   *
-   * @var array
-   */
-  protected static $fontPaths = [];
-
-  /**
-   * Return the real path of the specified file.
-   *
-   * @param string $uri
-   *   An URI.
-   *
-   * @return string
-   *   The local path of the file.
-   */
-  protected function getRealFontPath($uri) {
-    $uri_wrapper = $this->getStreamWrapperManagerForFontHandling()->getViaUri($uri);
-    if ($uri_wrapper instanceof LocalStream) {
-      return $uri_wrapper->realpath();
-    }
-    else {
-      return is_file($uri) ? $uri : NULL;
-    }
-  }
-
-  /**
    * Return the path of the font file.
+   *
+   * The imagettf* GD functions, and ImageMagick toolkit, do not allow use of
+   * URIs to specify files. Always resolve the font file to a local path.
    *
    * @param string $font_uri
    *   The font URI.
@@ -55,26 +23,36 @@ trait FontOperationTrait {
     if (!$font_uri) {
       throw new \InvalidArgumentException('Font file not specified');
     }
-    if (!isset(static::$fontPaths[$font_uri])) {
-      if (!$ret = $this->getRealFontPath($font_uri)) {
-        throw new \InvalidArgumentException("Could not find the font file {$font_uri}");
-      }
-      static::$fontPaths[$font_uri] = $ret;
-    }
-    return static::$fontPaths[$font_uri];
-  }
 
-  /**
-   * Returns the stream wrapper manager service.
-   *
-   * @return \Drupal\Core\StreamWrapper\streamWrapperManagerInterface
-   *   The stream wrapper manager service.
-   */
-  protected function getStreamWrapperManagerForFontHandling() {
-    if (!$this->streamWrapperManagerForFontHandling) {
-      $this->streamWrapperManagerForFontHandling = \Drupal::service('stream_wrapper_manager');
+    // Determine if the $font_uri is a real URI or a local path.
+    $uri_wrapper = \Drupal::service('stream_wrapper_manager')->getViaUri($font_uri);
+
+    // If local path, return it.
+    if ($uri_wrapper === FALSE) {
+      return $font_uri;
     }
-    return $this->streamWrapperManagerForFontHandling;
+
+    // Determine if a local path can be resolved for the URI. If so, return it.
+    $local_path = $uri_wrapper->realpath();
+    if ($local_path !== FALSE) {
+      return $local_path;
+    }
+
+    // If no local path available, the file may be stored in a remote file
+    // system. Use the file metadata manager service to copy the file to local
+    // temp and keep it there for further access within same request. It is not
+    // necessary to load its metadata.
+    $file = \Drupal::service('file_metadata_manager')->uri($font_uri);
+    $local_path = $file->getLocalTempPath();
+    if ($local_path !== NULL) {
+      return $local_path;
+    }
+    elseif ($file->copyUriToTemp() === TRUE) {
+      return $file->getLocalTempPath();
+    }
+
+    // None of the above worked, file can not be accessed.
+    throw new \InvalidArgumentException("Cannot access font file '$font_uri'");
   }
 
 }

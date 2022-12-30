@@ -5,6 +5,7 @@ namespace Drupal\comment;
 use Drupal\Core\Entity\ContentEntityTypeInterface;
 use Drupal\Core\Entity\Sql\SqlContentEntityStorageSchema;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
+use Drupal\Core\Field\RequiredFieldStorageDefinitionInterface;
 
 /**
  * Defines the comment schema handler.
@@ -17,24 +18,26 @@ class CommentStorageSchema extends SqlContentEntityStorageSchema {
   protected function getEntitySchema(ContentEntityTypeInterface $entity_type, $reset = FALSE) {
     $schema = parent::getEntitySchema($entity_type, $reset);
 
-    $schema['comment_field_data']['indexes'] += [
-      'comment__status_pid' => ['pid', 'status'],
-      'comment__num_new' => [
-        'entity_id',
-        'entity_type',
-        'comment_type',
-        'status',
-        'created',
-        'cid',
-        'thread',
-      ],
-      'comment__entity_langcode' => [
-        'entity_id',
-        'entity_type',
-        'comment_type',
-        'default_langcode',
-      ],
-    ];
+    if ($data_table = $this->storage->getDataTable()) {
+      $schema[$data_table]['indexes'] += [
+        'comment__status_pid' => ['pid', 'status'],
+        'comment__num_new' => [
+          'entity_id',
+          'entity_type',
+          'comment_type',
+          'status',
+          'created',
+          'cid',
+          'thread',
+        ],
+        'comment__entity_langcode' => [
+          'entity_id',
+          'entity_type',
+          'comment_type',
+          'default_langcode',
+        ],
+      ];
+    }
 
     return $schema;
   }
@@ -56,6 +59,16 @@ class CommentStorageSchema extends SqlContentEntityStorageSchema {
           // Improves the performance of the comment__num_new index defined
           // in getEntitySchema().
           $schema['fields'][$field_name]['not null'] = TRUE;
+          break;
+
+        case 'entity_type':
+        case 'field_name':
+          assert($storage_definition instanceof RequiredFieldStorageDefinitionInterface);
+          if ($storage_definition->isStorageRequired()) {
+            // The 'entity_type' and 'field_name' are required so they also need
+            // to be marked as NOT NULL.
+            $schema['fields'][$field_name]['not null'] = TRUE;
+          }
           break;
 
         case 'created':

@@ -3,7 +3,6 @@
 namespace Drupal\Component\Render;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\UrlHelper;
 
 /**
@@ -21,7 +20,7 @@ use Drupal\Component\Utility\UrlHelper;
  * non-English-only sites) in addition to formatting it. Variables concatenated
  * without the insertion of language-specific words or punctuation are some
  * examples where translation is not applicable and using this class directly
- * directly is appropriate.
+ * is appropriate.
  *
  * This class is designed for formatting messages that are mostly text, not as
  * an HTML template language. As such:
@@ -106,8 +105,9 @@ class FormattableMarkup implements MarkupInterface, \Countable {
    * @return int
    *   The length of the string.
    */
+  #[\ReturnTypeWillChange]
   public function count() {
-    return Unicode::strlen($this->string);
+    return mb_strlen($this->string);
   }
 
   /**
@@ -116,6 +116,7 @@ class FormattableMarkup implements MarkupInterface, \Countable {
    * @return string
    *   The safe string content.
    */
+  #[\ReturnTypeWillChange]
   public function jsonSerialize() {
     return $this->__toString();
   }
@@ -232,17 +233,12 @@ class FormattableMarkup implements MarkupInterface, \Countable {
           break;
 
         default:
-          // We do not trigger an error for placeholder that start with an
-          // alphabetic character.
-          // @todo https://www.drupal.org/node/2807743 Change to an exception
-          //   and always throw regardless of the first character.
-          if (!ctype_alpha($key[0])) {
-            // We trigger an error as we may want to introduce new placeholders
-            // in the future without breaking backward compatibility.
-            trigger_error('Invalid placeholder (' . $key . ') in string: ' . $string, E_USER_ERROR);
+          // Deprecate support for random variables that won't be replaced.
+          if (ctype_alpha($key[0]) && strpos($string, $key) === FALSE) {
+            @trigger_error(sprintf('Support for keys without a placeholder prefix is deprecated in Drupal 9.1.0 and will be removed in Drupal 10.0.0. Invalid placeholder (%s) with string: "%s"', $key, $string), E_USER_DEPRECATED);
           }
-          elseif (strpos($string, $key) !== FALSE) {
-            trigger_error('Invalid placeholder (' . $key . ') in string: ' . $string, E_USER_DEPRECATED);
+          else {
+            trigger_error(sprintf('Invalid placeholder (%s) with string: "%s"', $key, $string), E_USER_WARNING);
           }
           // No replacement possible therefore we can discard the argument.
           unset($args[$key]);

@@ -14,10 +14,10 @@ class ElementInfoIntegrationTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->container->get('theme_handler')->install(['test_theme', 'classy']);
+    $this->container->get('theme_installer')->install(['test_theme', 'classy']);
   }
 
   /**
@@ -34,10 +34,10 @@ class ElementInfoIntegrationTest extends KernelTestBase {
     $element_info = $this->container->get('plugin.manager.element_info');
 
     $theme_manager->setActiveTheme($theme_initializer->getActiveThemeByName('classy'));
-    $this->assertEqual(60, $element_info->getInfo('textfield')['#size']);
+    $this->assertEquals(60, $element_info->getInfo('textfield')['#size']);
 
     $theme_manager->setActiveTheme($theme_initializer->getActiveThemeByName('test_theme'));
-    $this->assertEqual(40, $element_info->getInfo('textfield')['#size']);
+    $this->assertEquals(40, $element_info->getInfo('textfield')['#size']);
   }
 
 }

@@ -12,8 +12,7 @@ search_api.execute_tasks:
     _controller: '\Drupal\search_api\Controller\TaskController::executeTasks'
     _title: 'Execute pending tasks'
   requirements:
-    _permission: 'administer search_api'
-    _search_api_tasks: 'TRUE'
+    _custom_access: '\Drupal\search_api\Controller\TaskController::executeTasksAccess'
 
 entity.search_api_server.add_form:
   path: '/admin/config/search/search-api/add-server'
@@ -225,6 +224,17 @@ entity.search_api_index.clear:
     _entity_form: 'search_api_index.clear'
   requirements:
     _entity_access: 'search_api_index.clear'
+  options:
+    parameters:
+      search_api_index:
+        with_config_overrides: TRUE
+
+entity.search_api_index.rebuild_tracker:
+  path: '/admin/config/search/search-api/index/{search_api_index}/rebuild-tracker'
+  defaults:
+    _entity_form: 'search_api_index.rebuild_tracker'
+  requirements:
+    _entity_access: 'search_api_index.rebuild_tracker'
   options:
     parameters:
       search_api_index:

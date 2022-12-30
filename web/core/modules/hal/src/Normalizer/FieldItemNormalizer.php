@@ -4,6 +4,8 @@ namespace Drupal\hal\Normalizer;
 
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\TypedData\TypedDataInternalPropertiesHelper;
+use Drupal\serialization\Normalizer\FieldableEntityNormalizerTrait;
+use Drupal\serialization\Normalizer\SerializedColumnNormalizerTrait;
 use Symfony\Component\Serializer\Exception\InvalidArgumentException;
 
 /**
@@ -11,12 +13,13 @@ use Symfony\Component\Serializer\Exception\InvalidArgumentException;
  */
 class FieldItemNormalizer extends NormalizerBase {
 
+  use FieldableEntityNormalizerTrait;
+  use SerializedColumnNormalizerTrait;
+
   /**
-   * The interface or class that this Normalizer supports.
-   *
-   * @var string
+   * {@inheritdoc}
    */
-  protected $supportedInterfaceOrClass = 'Drupal\Core\Field\FieldItemInterface';
+  protected $supportedInterfaceOrClass = FieldItemInterface::class;
 
   /**
    * {@inheritdoc}
@@ -44,6 +47,7 @@ class FieldItemNormalizer extends NormalizerBase {
     }
 
     $field_item = $context['target_instance'];
+    $this->checkForSerializedStrings($data, $class, $field_item);
 
     // If this field is translatable, we need to create a translated instance.
     if (isset($data['lang'])) {
@@ -57,21 +61,6 @@ class FieldItemNormalizer extends NormalizerBase {
 
     $field_item->setValue($this->constructValue($data, $context));
     return $field_item;
-  }
-
-  /**
-   * Build the field item value using the incoming data.
-   *
-   * @param $data
-   *   The incoming data for this field item.
-   * @param $context
-   *   The context passed into the Normalizer.
-   *
-   * @return mixed
-   *   The value to use in Entity::setValue().
-   */
-  protected function constructValue($data, $context) {
-    return $data;
   }
 
   /**
@@ -92,7 +81,10 @@ class FieldItemNormalizer extends NormalizerBase {
     // We normalize each individual property, so each can do their own casting,
     // if needed.
     /** @var \Drupal\Core\TypedData\TypedDataInterface $property */
-    foreach (TypedDataInternalPropertiesHelper::getNonInternalProperties($field_item) as $property_name => $property) {
+    $field_properties = !empty($field_item->getProperties(TRUE))
+      ? TypedDataInternalPropertiesHelper::getNonInternalProperties($field_item)
+      : $field_item->getValue();
+    foreach ($field_properties as $property_name => $property) {
       $normalized[$property_name] = $this->serializer->normalize($property, $format, $context);
     }
 
@@ -131,6 +123,13 @@ class FieldItemNormalizer extends NormalizerBase {
     $entity_translation = $entity->hasTranslation($langcode) ? $entity->getTranslation($langcode) : $entity->addTranslation($langcode);
     $field_name = $item->getFieldDefinition()->getName();
     return $entity_translation->get($field_name)->appendItem();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function hasCacheableSupportsMethod(): bool {
+    return TRUE;
   }
 
 }

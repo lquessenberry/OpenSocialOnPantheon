@@ -22,7 +22,7 @@ use Symfony\Component\Console\Input\StringInput;
  *
  * @author Greg Anderson <greg.1.anderson@greenknowe.org>
  */
-class Logger extends AbstractLogger // extends ConsoleLogger
+class Logger extends AbstractLogger implements StylableLoggerInterface, SettableLogOutputStreamInterface
 {
     /**
      * @var OutputInterface

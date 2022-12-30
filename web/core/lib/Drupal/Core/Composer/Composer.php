@@ -2,10 +2,12 @@
 
 namespace Drupal\Core\Composer;
 
-use Drupal\Component\PhpStorage\FileStorage;
-use Composer\Script\Event;
+use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\Installer\PackageEvent;
+use Composer\Script\Event;
 use Composer\Semver\Constraint\Constraint;
+use Composer\Util\ProcessExecutor;
+use Drupal\Component\FileSecurity\FileSecurity;
 
 /**
  * Provides static functions for composer script events.
@@ -16,47 +18,60 @@ class Composer {
 
   protected static $packageToCleanup = [
     'behat/mink' => ['tests', 'driver-testsuite'],
-    'behat/mink-browserkit-driver' => ['tests'],
-    'behat/mink-goutte-driver' => ['tests'],
+    'behat/mink-selenium2-driver' => ['tests'],
+    'composer/composer' => ['bin'],
     'drupal/coder' => ['coder_sniffer/Drupal/Test', 'coder_sniffer/DrupalPractice/Test'],
-    'doctrine/cache' => ['tests'],
-    'doctrine/collections' => ['tests'],
-    'doctrine/common' => ['tests'],
-    'doctrine/inflector' => ['tests'],
     'doctrine/instantiator' => ['tests'],
+    'easyrdf/easyrdf' => ['scripts'],
     'egulias/email-validator' => ['documentation', 'tests'],
-    'fabpot/goutte' => ['Goutte/Tests'],
+    'friends-of-behat/mink-browserkit-driver' => ['tests'],
     'guzzlehttp/promises' => ['tests'],
     'guzzlehttp/psr7' => ['tests'],
-    'jcalderonzumba/gastonjs' => ['docs', 'examples', 'tests'],
-    'jcalderonzumba/mink-phantomjs-driver' => ['tests'],
-    'masterminds/html5' => ['test'],
+    'instaclick/php-webdriver' => ['doc', 'test'],
+    'justinrainbow/json-schema' => ['demo'],
+    'laminas/laminas-escaper' => ['doc'],
+    'laminas/laminas-feed' => ['doc'],
+    'laminas/laminas-stdlib' => ['doc'],
+    'masterminds/html5' => ['bin', 'test'],
     'mikey179/vfsStream' => ['src/test'],
-    'paragonie/random_compat' => ['tests'],
+    'myclabs/deep-copy' => ['doc'],
+    'pear/archive_tar' => ['docs', 'tests'],
+    'pear/console_getopt' => ['tests'],
+    'pear/pear-core-minimal' => ['tests'],
+    'pear/pear_exception' => ['tests'],
+    'phar-io/manifest' => ['examples', 'tests'],
+    'phar-io/version' => ['tests'],
     'phpdocumentor/reflection-docblock' => ['tests'],
+    'phpspec/prophecy' => ['fixtures', 'spec', 'tests'],
     'phpunit/php-code-coverage' => ['tests'],
     'phpunit/php-timer' => ['tests'],
     'phpunit/php-token-stream' => ['tests'],
     'phpunit/phpunit' => ['tests'],
-    'phpunit/php-mock-objects' => ['tests'],
+    'sebastian/code-unit-reverse-lookup' => ['tests'],
     'sebastian/comparator' => ['tests'],
     'sebastian/diff' => ['tests'],
     'sebastian/environment' => ['tests'],
     'sebastian/exporter' => ['tests'],
     'sebastian/global-state' => ['tests'],
+    'sebastian/object-enumerator' => ['tests'],
+    'sebastian/object-reflector' => ['tests'],
     'sebastian/recursion-context' => ['tests'],
+    'seld/jsonlint' => ['tests'],
+    'squizlabs/php_codesniffer' => ['tests'],
     'stack/builder' => ['tests'],
     'symfony/browser-kit' => ['Tests'],
-    'symfony/class-loader' => ['Tests'],
     'symfony/console' => ['Tests'],
     'symfony/css-selector' => ['Tests'],
     'symfony/debug' => ['Tests'],
     'symfony/dependency-injection' => ['Tests'],
     'symfony/dom-crawler' => ['Tests'],
-    // @see \Drupal\Tests\Component\EventDispatcher\ContainerAwareEventDispatcherTest
-    // 'symfony/event-dispatcher' => ['Tests'],
+    'symfony/filesystem' => ['Tests'],
+    'symfony/finder' => ['Tests'],
+    'symfony/error-handler' => ['Tests'],
+    'symfony/event-dispatcher' => ['Tests'],
     'symfony/http-foundation' => ['Tests'],
     'symfony/http-kernel' => ['Tests'],
+    'symfony/phpunit-bridge' => ['Tests'],
     'symfony/process' => ['Tests'],
     'symfony/psr-http-message-bridge' => ['Tests'],
     'symfony/routing' => ['Tests'],
@@ -65,11 +80,15 @@ class Composer {
     'symfony/validator' => ['Tests', 'Resources'],
     'symfony/yaml' => ['Tests'],
     'symfony-cmf/routing' => ['Test', 'Tests'],
-    'twig/twig' => ['doc', 'ext', 'test'],
+    'theseer/tokenizer' => ['tests'],
+    'twig/twig' => ['doc', 'ext', 'test', 'tests'],
   ];
 
   /**
    * Add vendor classes to Composer's static classmap.
+   *
+   * @param \Composer\Script\Event $event
+   *   The event.
    */
   public static function preAutoloadDump(Event $event) {
     // Get the configured vendor directory.
@@ -90,14 +109,18 @@ class Composer {
     if (!isset($autoload['classmap'])) {
       $autoload['classmap'] = [];
     }
-    // Check for our packages, and then optimize them if they're present.
+    // Check for packages used prior to the default classloader being able to
+    // use APCu and optimize them if they're present.
+    // @see \Drupal\Core\DrupalKernel::boot()
     if ($repository->findPackage('symfony/http-foundation', $constraint)) {
       $autoload['classmap'] = array_merge($autoload['classmap'], [
         $vendor_dir . '/symfony/http-foundation/Request.php',
+        $vendor_dir . '/symfony/http-foundation/RequestStack.php',
         $vendor_dir . '/symfony/http-foundation/ParameterBag.php',
         $vendor_dir . '/symfony/http-foundation/FileBag.php',
         $vendor_dir . '/symfony/http-foundation/ServerBag.php',
         $vendor_dir . '/symfony/http-foundation/HeaderBag.php',
+        $vendor_dir . '/symfony/http-foundation/HeaderUtils.php',
       ]);
     }
     if ($repository->findPackage('symfony/http-kernel', $constraint)) {
@@ -107,6 +130,23 @@ class Composer {
         $vendor_dir . '/symfony/http-kernel/TerminableInterface.php',
       ]);
     }
+    if ($repository->findPackage('symfony/dependency-injection', $constraint)) {
+      $autoload['classmap'] = array_merge($autoload['classmap'], [
+        $vendor_dir . '/symfony/dependency-injection/ContainerAwareInterface.php',
+        $vendor_dir . '/symfony/dependency-injection/ContainerInterface.php',
+      ]);
+    }
+    if ($repository->findPackage('psr/container', $constraint)) {
+      $autoload['classmap'] = array_merge($autoload['classmap'], [
+        $vendor_dir . '/psr/container/src/ContainerInterface.php',
+      ]);
+    }
+    if ($repository->findPackage('laminas/laminas-zendframework-bridge', $constraint)) {
+      $autoload['classmap'] = array_merge($autoload['classmap'], [
+        $vendor_dir . '/laminas/laminas-zendframework-bridge/src/Autoloader.php',
+        $vendor_dir . '/laminas/laminas-zendframework-bridge/src/RewriteRules.php',
+      ]);
+    }
     $package->setAutoload($autoload);
   }
 
@@ -114,6 +154,7 @@ class Composer {
    * Ensures that .htaccess and web.config files are present in Composer root.
    *
    * @param \Composer\Script\Event $event
+   *   The event.
    */
   public static function ensureHtaccess(Event $event) {
 
@@ -122,67 +163,10 @@ class Composer {
     $vendor_dir = $event->getComposer()->getConfig()->get('vendor-dir');
 
     // Prevent access to vendor directory on Apache servers.
-    $htaccess_file = $vendor_dir . '/.htaccess';
-    if (!file_exists($htaccess_file)) {
-      file_put_contents($htaccess_file, FileStorage::htaccessLines(TRUE) . "\n");
-    }
+    FileSecurity::writeHtaccess($vendor_dir);
 
     // Prevent access to vendor directory on IIS servers.
-    $webconfig_file = $vendor_dir . '/web.config';
-    if (!file_exists($webconfig_file)) {
-      $lines = <<<EOT
-<configuration>
-  <system.webServer>
-    <authorization>
-      <deny users="*">
-    </authorization>
-  </system.webServer>
-</configuration>
-EOT;
-      file_put_contents($webconfig_file, $lines . "\n");
-    }
-  }
-
-  /**
-   * Fires the drupal-phpunit-upgrade script event if necessary.
-   *
-   * @param \Composer\Script\Event $event
-   */
-  public static function upgradePHPUnit(Event $event) {
-    $repository = $event->getComposer()->getRepositoryManager()->getLocalRepository();
-    // This is, essentially, a null constraint. We only care whether the package
-    // is present in the vendor directory yet, but findPackage() requires it.
-    $constraint = new Constraint('>', '');
-    $phpunit_package = $repository->findPackage('phpunit/phpunit', $constraint);
-    if (!$phpunit_package) {
-      // There is nothing to do. The user is probably installing using the
-      // --no-dev flag.
-      return;
-    }
-
-    // If the PHP version is 7.2 or above and PHPUnit is less than version 6
-    // call the drupal-phpunit-upgrade script to upgrade PHPUnit.
-    if (!static::upgradePHPUnitCheck($phpunit_package->getVersion())) {
-      $event->getComposer()
-        ->getEventDispatcher()
-        ->dispatchScript('drupal-phpunit-upgrade');
-    }
-  }
-
-  /**
-   * Determines if PHPUnit needs to be upgraded.
-   *
-   * This method is located in this file because it is possible that it is
-   * called before the autoloader is available.
-   *
-   * @param string $phpunit_version
-   *   The PHPUnit version string.
-   *
-   * @return bool
-   *   TRUE if the PHPUnit needs to be upgraded, FALSE if not.
-   */
-  public static function upgradePHPUnitCheck($phpunit_version) {
-    return !(version_compare(PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION, '7.2') >= 0 && version_compare($phpunit_version, '6.1') < 0);
+    FileSecurity::writeWebConfig($vendor_dir);
   }
 
   /**
@@ -196,7 +180,7 @@ EOT;
     $vendor_dir = $event->getComposer()->getConfig()->get('vendor-dir');
     $io = $event->getIO();
     $op = $event->getOperation();
-    if ($op->getJobType() == 'update') {
+    if ($op instanceof UpdateOperation) {
       $package = $op->getTargetPackage();
     }
     else {
@@ -270,6 +254,13 @@ EOT;
   }
 
   /**
+   * Removes Composer's timeout so that scripts can run indefinitely.
+   */
+  public static function removeTimeout() {
+    ProcessExecutor::setTimeout(0);
+  }
+
+  /**
    * Helper method to remove directories and the files they contain.
    *
    * @param string $path
@@ -294,6 +285,49 @@ EOT;
     $dir->close();
 
     return rmdir($path) && $success;
+  }
+
+  /**
+   * Fires the drupal-phpunit-upgrade script event if necessary.
+   *
+   * @param \Composer\Script\Event $event
+   *   The event.
+   */
+  public static function upgradePHPUnit(Event $event) {
+    $repository = $event->getComposer()->getRepositoryManager()->getLocalRepository();
+    // This is, essentially, a null constraint. We only care whether the package
+    // is present in the vendor directory yet, but findPackage() requires it.
+    $constraint = new Constraint('>', '');
+    $phpunit_package = $repository->findPackage('phpunit/phpunit', $constraint);
+    if (!$phpunit_package) {
+      // There is nothing to do. The user is probably installing using the
+      // --no-dev flag.
+      return;
+    }
+
+    // If the PHP version is 7.4 or above and PHPUnit is less than version 9
+    // call the drupal-phpunit-upgrade script to upgrade PHPUnit.
+    if (!static::upgradePHPUnitCheck($phpunit_package->getVersion())) {
+      $event->getComposer()
+        ->getEventDispatcher()
+        ->dispatchScript('drupal-phpunit-upgrade');
+    }
+  }
+
+  /**
+   * Determines if PHPUnit needs to be upgraded.
+   *
+   * This method is located in this file because it is possible that it is
+   * called before the autoloader is available.
+   *
+   * @param string $phpunit_version
+   *   The PHPUnit version string.
+   *
+   * @return bool
+   *   TRUE if the PHPUnit needs to be upgraded, FALSE if not.
+   */
+  public static function upgradePHPUnitCheck($phpunit_version) {
+    return !(version_compare(PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION, '7.4') >= 0 && version_compare($phpunit_version, '9.0') < 0);
   }
 
 }

@@ -15,7 +15,7 @@ class ProfileFieldTranslationTest extends MigrateSqlSourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['config_translation', 'migrate_drupal', 'user'];
+  protected static $modules = ['config_translation', 'migrate_drupal', 'user'];
 
   /**
    * {@inheritdoc}
@@ -25,12 +25,23 @@ class ProfileFieldTranslationTest extends MigrateSqlSourceTestBase {
     $test[0]['source_data'] = [
       'profile_fields' => [
         [
+          'fid' => 2,
+          'title' => 'Test',
+          'name' => 'profile_test',
+        ],
+        [
           'fid' => 42,
           'title' => 'I love migrations',
           'name' => 'profile_love_migrations',
         ],
       ],
       'i18n_strings' => [
+        [
+          'lid' => 1,
+          'objectid' => 'profile_test',
+          'type' => 'field',
+          'property' => 'explanation',
+        ],
         [
           'lid' => 10,
           'objectid' => 'profile_love_migrations',
@@ -41,8 +52,8 @@ class ProfileFieldTranslationTest extends MigrateSqlSourceTestBase {
           'lid' => 11,
           'objectid' => 'profile_love_migrations',
           'type' => 'field',
-          'property' => 'explanation'
-        ]
+          'property' => 'explanation',
+        ],
       ],
       'locales_target' => [
         [

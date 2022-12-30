@@ -5,7 +5,8 @@
  * Install, update and uninstall functions for the social_user module.
  */
 
-use Drupal\user\Entity\Role;
+use Drupal\user\RoleInterface;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Implements hook_install().
@@ -13,145 +14,160 @@ use Drupal\user\Entity\Role;
  * Perform actions related to the installation of social_user.
  */
 function social_user_install() {
-  // Set some default permissions.
-  _social_user_set_permissions();
-
-  // Set default value for displaying navigation icons.
-  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config */
-  $config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user.navigation.settings');
-  $config->set('display_social_private_message_icon', 1)->save();
-  $config->set('display_my_groups_icon', 1)->save();
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'cancel account',
+      'change own username',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'access user profiles',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'access user profiles',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'access user profiles',
+      'view users',
+      'block users',
+      'administer navigation settings',
+      'administer social_user settings',
+      'assign contentmanager role',
+      'assign sitemanager role',
+      'assign verified role',
+      'view blocked user',
+    ]
+  );
 }
 
 /**
- * Fix 2 wrongly saved view displays.
+ * Implements hook_update_last_removed().
  */
-function social_user_update_8001(&$sandbox) {
-  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $conf_default */
-  $conf_default = \Drupal::getContainer()->get('config.factory')->getEditable('core.entity_view_display.user.user.default');
-  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $conf_full */
-  $conf_full = \Drupal::getContainer()->get('config.factory')->getEditable('core.entity_view_display.user.user.full');
-
-  /*
-   * For both these displays, the content is empty.
-   * In a previous version 3 subfields were exported into the root level of
-   * 'content'.
-   * This removes those fields that have no purpose and makes sure
-   * the update hook for Drupal 8.3.1 works properly.
-   */
-  $conf_default->set('content', [])->save();
-  $conf_full->set('content', [])->save();
+function social_user_update_last_removed() : int {
+  // Removed all update hooks before 10.0.
+  return 8810;
 }
 
 /**
- * Set default value for displaying navigation icons.
+ * Implements hook_update_dependencies().
  */
-function social_user_update_8002() {
-  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config */
-  $config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user_navigation.settings');
-  $config->set('display_social_private_message_icon', 1)->save();
-  $config->set('display_my_groups_icon', 1)->save();
-}
-
-/**
- * Add permissions to view and block users for site manager role.
- */
-function social_user_update_8003() {
-  $permissions = _social_user_get_permissions('sitemanager');
-  user_role_grant_permissions('sitemanager', $permissions);
-}
-
-/**
- * Migrate navigation settings into the correct format.
- */
-function social_user_update_8004() {
-  $old_config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user_navigation.settings');
-  $new_config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user.navigation.settings');
-  // Store the values.
-  $new_config->setData($old_config->getRawData());
-  // Remove the old config altogether.
-  $old_config->delete();
-}
-
-/**
- * Add permissions to administer the navigation settings.
- */
-function social_user_update_8005() {
-  $rid = 'sitemanager';
-  // Revoke permissions for the role.
-  $role = Role::load($rid);
-  if ($role) {
-    $permissions = ['administer navigation settings'];
-    user_role_grant_permissions($rid, $permissions);
-  }
-}
-
-/**
- * Create the default configuration for the social_user help texts.
- */
-function social_user_update_8006() {
-  $config = [
-    "langcode" => "en",
-    "signup_help" => "A welcome message with further instructions will be sent to your email address after you successfully enter your email address and a username.",
-    "login_help" => "",
+function social_user_update_dependencies(): array {
+  // Run the update hook with the "Grant Profile permissions for the
+  // Authenticated user role" only after an update hook "Reassign permissions
+  // between roles" in social_core.
+  $dependencies['social_user'][11002] = [
+    'social_core' => 11002,
   ];
 
-  \Drupal::configFactory()
-    ->getEditable('social_user.settings')
-    ->setData($config)
-    ->save();
+  return $dependencies;
 }
 
 /**
- * Function to set permissions.
+ * Create the default configuration for the verified immediately site setting.
  */
-function _social_user_set_permissions() {
-  $roles = Role::loadMultiple();
-
-  /** @var \Drupal\user\Entity\Role $role */
-  foreach ($roles as $role) {
-    if ($role->id() === 'administrator') {
-      continue;
-    }
-
-    $permissions = _social_user_get_permissions($role->id());
-    user_role_grant_permissions($role->id(), $permissions);
-  }
+function social_user_update_11001(): void {
+  $config = \Drupal::getContainer()->get('config.factory')->getEditable('social_user.settings');
+  $config->set('verified_immediately', TRUE)->save();
 }
 
 /**
- * Return the permissions per role.
- *
- * @param string $role
- *   The role to get the permissions for.
- *
- * @return array
- *   A list of permissions.
+ * Grant Profile permissions for the Authenticated user role.
  */
-function _social_user_get_permissions($role) {
-  // Anonymous.
-  $permissions['anonymous'] = [];
+function social_user_update_11002(): void {
+  // Grant the Authenticated user new permissions.
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'cancel account',
+      'change own username',
+    ]
+  );
+}
 
-  // Authenticated.
-  $permissions['authenticated'] = array_merge($permissions['anonymous'], [
-    'access user profiles',
-    'cancel account',
-    'change own username',
+/**
+ * Update permissions for the sitemanager role.
+ */
+function social_user_update_11003(): void {
+  // Grant the sitemanagers new permissions.
+  user_role_grant_permissions('sitemanager', [
+    'assign verified role',
+  ]);
+}
+
+/**
+ * Update the views filter to limit operators in admin/people.
+ */
+function social_user_update_11004(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_user', 'social_user_update_11004');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Revoke the permission select account cancellation method .
+ */
+function social_user_update_11005(): void {
+  user_role_revoke_permissions(RoleInterface::AUTHENTICATED_ID, [
     'select account cancellation method',
   ]);
+}
 
-  // Content manager.
-  $permissions['contentmanager'] = array_merge($permissions['authenticated'], []);
+/**
+ * Update 'views.view.user_admin_people'.
+ */
+function social_user_update_11006(array &$sandbox): void {
+  $config_file = \Drupal::service('extension.list.module')->getPath('social_user') . '/config/static/social_user_update_11006.yml';
 
-  // Site manager.
-  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], [
-    'view users',
-    'block users',
-    'administer navigation settings',
-  ]);
+  if (is_file($config_file)) {
+    $settings = Yaml::parse((string) file_get_contents($config_file));
+    if (is_array($settings)) {
+      $config = \Drupal::configFactory()
+        ->getEditable('views.view.user_admin_people');
 
-  if (isset($permissions[$role])) {
-    return $permissions[$role];
+      $config->setData($settings)->save(TRUE);
+    }
   }
-  return [];
+}
+
+/**
+ * Allow select few items in group filter on the users overview admin page.
+ */
+function social_user_update_11201(): string {
+  /** @var \Drupal\update_helper\UpdaterInterface $update_helper */
+  $update_helper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $update_helper->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $update_helper->logger()->output();
+}
+
+/**
+ * Allow to filter users by Profile tag(s).
+ */
+function social_user_update_11401(): string {
+  /** @var \Drupal\update_helper\UpdaterInterface $update_helper */
+  $update_helper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $update_helper->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $update_helper->logger()->output();
 }

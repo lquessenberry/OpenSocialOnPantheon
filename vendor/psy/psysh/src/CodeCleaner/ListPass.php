@@ -3,7 +3,7 @@
 /*
  * This file is part of Psy Shell.
  *
- * (c) 2012-2018 Justin Hileman
+ * (c) 2012-2022 Justin Hileman
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -17,7 +17,9 @@ use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayDimFetch;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\List_;
+use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use Psy\Exception\ParseErrorException;
@@ -31,7 +33,7 @@ class ListPass extends CodeCleanerPass
 
     public function __construct()
     {
-        $this->atLeastPhp71 = \version_compare(PHP_VERSION, '7.1', '>=');
+        $this->atLeastPhp71 = \version_compare(\PHP_VERSION, '7.1', '>=');
     }
 
     /**
@@ -40,6 +42,8 @@ class ListPass extends CodeCleanerPass
      * @throws ParseErrorException if the user used empty with anything but a variable
      *
      * @param Node $node
+     *
+     * @return int|Node|null Replacement node (or special return value)
      */
     public function enterNode(Node $node)
     {
@@ -95,18 +99,16 @@ class ListPass extends CodeCleanerPass
      *
      * @return bool
      */
-    private static function isValidArrayItem(Expr $item)
+    private static function isValidArrayItem(Expr $item): bool
     {
         $value = ($item instanceof ArrayItem) ? $item->value : $item;
 
-        if ($value instanceof Variable) {
-            return true;
+        while ($value instanceof ArrayDimFetch || $value instanceof PropertyFetch) {
+            $value = $value->var;
         }
 
-        if ($value instanceof ArrayDimFetch || $value instanceof PropertyFetch) {
-            return isset($value->var) && $value->var instanceof Variable;
-        }
-
-        return false;
+        // We just kind of give up if it's a method call. We can't tell if it's
+        // valid via static analysis.
+        return $value instanceof Variable || $value instanceof MethodCall || $value instanceof FuncCall;
     }
 }

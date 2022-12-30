@@ -33,7 +33,7 @@ class CountryConstraintValidatorTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     $country_repository = $this->prophesize(CountryRepositoryInterface::class);
     $country_repository->getList()->willReturn(['RS' => 'Serbia', 'FR' => 'France']);
 

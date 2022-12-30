@@ -114,13 +114,9 @@ class PluginHelper implements PluginHelperInterface {
     $plugins = [];
     $index_settings = $index->get($type . '_settings');
     foreach ($plugin_ids as $plugin_id) {
-      $configuration = [];
-      if (isset($configurations[$plugin_id])) {
-        $configuration = $configurations[$plugin_id];
-      }
-      elseif (isset($index_settings[$plugin_id])) {
-        $configuration = $index_settings[$plugin_id];
-      }
+      $configuration = $configurations[$plugin_id]
+        ?? $index_settings[$plugin_id]
+        ?? [];
       $plugins[$plugin_id] = $this->createIndexPlugin($index, $type, $plugin_id, $configuration);
     }
 

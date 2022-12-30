@@ -20,7 +20,7 @@ class VoteAccessControlHandler extends EntityAccessControlHandler {
    * {@inheritdoc}
    */
   protected function checkAccess(EntityInterface $entity, $operation, AccountInterface $account) {
-    return AccessResult::allowed();
+    return $operation == 'delete' ? AccessResult::allowedIfHasPermission($account, 'delete votes') : AccessResult::allowed();
   }
 
   /**

@@ -3,8 +3,7 @@ type: module
 description: 'Provides default views for views node tests.'
 package: Testing
 version: VERSION
-core: 8.x
 dependencies:
-  - node
-  - views
-  - language
+  - drupal:node
+  - drupal:views
+  - drupal:language

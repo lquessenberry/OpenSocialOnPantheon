@@ -11,7 +11,6 @@ description: ''
 tag: default
 base_table: users_field_data
 base_field: uid
-core: 8.0-dev
 display:
   default:
     display_options:
@@ -88,6 +87,6 @@ display:
         type: default
       title: test_groupwise_user
     display_plugin: default
-    display_title: Master
+    display_title: Default
     id: default
     position: 0

@@ -6,6 +6,7 @@ use Drupal\entity_test\Entity\EntityTest;
 use Drupal\entity_test\Entity\EntityTestMulRev;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\language\Entity\ConfigurableLanguage;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 
 /**
  * Tests the entity converter when the "load_latest_revision" flag is set.
@@ -15,12 +16,14 @@ use Drupal\language\Entity\ConfigurableLanguage;
  */
 class EntityConverterLatestRevisionTest extends KernelTestBase {
 
+  use UserCreationTrait;
+
   /**
    * Modules to install.
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'entity_test',
     'user',
     'language',
@@ -37,10 +40,11 @@ class EntityConverterLatestRevisionTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->installEntitySchema('user');
+    $this->setUpCurrentUser();
+
     $this->installEntitySchema('entity_test_mulrev');
     $this->installEntitySchema('entity_test');
     $this->installConfig(['system', 'language']);
@@ -171,7 +175,7 @@ class EntityConverterLatestRevisionTest extends KernelTestBase {
   }
 
   /**
-   * Test the latest revision flag and non-revisionable entities.
+   * Tests the latest revision flag and non-revisionable entities.
    */
   public function testConvertNonRevisionableEntityType() {
     $entity = EntityTest::create();

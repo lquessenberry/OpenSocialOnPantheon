@@ -9,6 +9,7 @@ use Drupal\search_api\Contrib\RowsOfMultiValueFields;
 use Drupal\search_api\Utility\CommandHelper;
 use Drush\Commands\DrushCommands;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Defines Drush commands for the Search API.
@@ -29,21 +30,38 @@ class SearchApiCommands extends DrushCommands {
    *   The entity type manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   The module handler.
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
+   *   The event dispatcher.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   *   Thrown if the "search_api_index" or "search_api_server" entity types'
+   *   storage handlers couldn't be loaded.
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   *   Thrown if the "search_api_index" or "search_api_server" entity types are
+   *   unknown.
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager, ModuleHandlerInterface $moduleHandler) {
-    $this->commandHelper = new CommandHelper($entityTypeManager, $moduleHandler, 'dt');
+  public function __construct(EntityTypeManagerInterface $entityTypeManager, ModuleHandlerInterface $moduleHandler, EventDispatcherInterface $eventDispatcher) {
+    parent::__construct();
+
+    $this->commandHelper = new CommandHelper($entityTypeManager, $moduleHandler, $eventDispatcher, 'dt');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function setLogger(LoggerInterface $logger) {
+  public function setLogger(LoggerInterface $logger): void {
     parent::setLogger($logger);
     $this->commandHelper->setLogger($logger);
   }
 
   /**
    * Lists all search indexes.
+   *
+   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+   *   The table rows.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if an index has a server which couldn't be loaded.
    *
    * @command search-api:list
    *
@@ -63,9 +81,6 @@ class SearchApiCommands extends DrushCommands {
    * @default-fields id,name,serverName,typeNames,status,limit
    *
    * @aliases sapi-l,search-api-list
-   *
-   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
-   *   The table rows.
    */
   public function listCommand() {
     $rows = $this->commandHelper->indexListCommand();
@@ -78,6 +93,9 @@ class SearchApiCommands extends DrushCommands {
    *
    * @param string $indexId
    *   A search index ID.
+   *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if no indexes could be loaded.
    *
    * @command search-api:enable
    *
@@ -92,6 +110,9 @@ class SearchApiCommands extends DrushCommands {
 
   /**
    * Enables all disabled search indexes.
+   *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if no indexes could be loaded.
    *
    * @command search-api:enable-all
    *
@@ -112,6 +133,9 @@ class SearchApiCommands extends DrushCommands {
    * @param string $indexId
    *   A search index ID.
    *
+   * @throws \Exception
+   *   If no indexes are defined or no index has been passed.
+   *
    * @command search-api:disable
    *
    * @usage drush search-api:disable node_index
@@ -120,9 +144,6 @@ class SearchApiCommands extends DrushCommands {
    *   Alias to disable the search index with the ID node_index.
    *
    * @aliases sapi-dis,search-api-disable
-   *
-   * @throws \Exception
-   *   If no indexes are defined or no index has been passed.
    */
   public function disable($indexId) {
     $this->commandHelper->disableIndexCommand([$indexId]);
@@ -130,6 +151,9 @@ class SearchApiCommands extends DrushCommands {
 
   /**
    * Disables all enabled search indexes.
+   *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if no indexes could be loaded.
    *
    * @command search-api:disable-all
    *
@@ -150,6 +174,12 @@ class SearchApiCommands extends DrushCommands {
    * @param string|null $indexId
    *   (optional) A search index ID, or NULL to show the status of all indexes.
    *
+   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+   *   The table rows.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set.
+   *
    * @command search-api:status
    *
    * @usage drush search-api:status
@@ -167,9 +197,6 @@ class SearchApiCommands extends DrushCommands {
    *   total: Total
    *
    * @aliases sapi-s,search-api-status
-   *
-   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
-   *   The table rows.
    */
   public function status($indexId = NULL) {
     $rows = $this->commandHelper->indexStatusCommand([$indexId]);
@@ -184,6 +211,9 @@ class SearchApiCommands extends DrushCommands {
    *   indexes.
    * @param array $options
    *   (optional) An array of options.
+   *
+   * @throws \Exception
+   *   If a batch process could not be created.
    *
    * @command search-api:index
    *
@@ -200,16 +230,13 @@ class SearchApiCommands extends DrushCommands {
    *   Alias to index all items for all enabled indexes.
    * @usage drush sapi-i node_index
    *   Index all items for the index with the ID node_index.
-   * @usage drush sapi-i node_index 100
+   * @usage drush sapi-i --limit=100 node_index
    *   Index a maximum number of 100 items for the index with the ID node_index.
-   * @usage drush sapi-i node_index 100 10
+   * @usage drush sapi-i --limit=100 --batch-size=10 node_index
    *   Index a maximum number of 100 items (10 items per batch run) for the
    *   index with the ID node_index.
    *
    * @aliases sapi-i,search-api-index
-   *
-   * @throws \Exception
-   *   If a batch process could not be created.
    */
   public function index($indexId = NULL, array $options = ['limit' => NULL, 'batch-size' => NULL]) {
     $limit = $options['limit'];
@@ -230,6 +257,10 @@ class SearchApiCommands extends DrushCommands {
    * @param array $options
    *   An array of options.
    *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set, or some
+   *   other internal error occurred.
+   *
    * @command search-api:reset-tracker
    *
    * @option entity-types List of entity type ids to reset tracker for.
@@ -248,11 +279,38 @@ class SearchApiCommands extends DrushCommands {
   }
 
   /**
+   * Rebuilds the trackers for one or all indexes.
+   *
+   * @param string $indexId
+   *   The machine name of an index. Optional. If missed, will rebuild the
+   *   trackers of all indexes.
+   *
+   * @command search-api:rebuild-tracker
+   *
+   * @usage drush search-api:rebuild-tracker
+   *   Rebuild the trackers of all search indexes.
+   *
+   * @usage drush sapi-rt
+   *   Alias for rebuilding the trackers of all search indexes.
+   * @usage drush sapi-rt node_index
+   *   Rebuild the tracker of the search index with the ID node_index.
+   *
+   * @aliases sapi-rt,search-api-rebuild-tracker
+   */
+  public function rebuildTracker($indexId = NULL) {
+    $this->commandHelper->rebuildTrackerCommand([$indexId]);
+  }
+
+  /**
    * Clears one or all search indexes and marks them for reindexing.
    *
    * @param string $indexId
    *   The machine name of an index. Optional. If missed all search indexes will
    *   be cleared.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set, or some
+   *   other internal error occurred.
    *
    * @command search-api:clear
    *
@@ -277,6 +335,15 @@ class SearchApiCommands extends DrushCommands {
    * @param string $keyword
    *   The keyword to look for.
    *
+   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+   *   The table rows.
+   *
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if no search query could be created for the given index, for
+   *   example because it is disabled or its server could not be loaded.
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if searching failed for any reason.
+   *
    * @command search-api:search
    *
    * @usage drush search-api:search node_index title
@@ -289,9 +356,6 @@ class SearchApiCommands extends DrushCommands {
    *   label: Label
    *
    * @aliases sapi-search,search-api-search
-   *
-   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
-   *   The table rows.
    */
   public function search($indexId, $keyword) {
     $rows = $this->commandHelper->searchIndexCommand($indexId, $keyword);
@@ -301,6 +365,12 @@ class SearchApiCommands extends DrushCommands {
 
   /**
    * Lists all search servers.
+   *
+   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+   *   The table rows.
+   *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if no servers could be loaded.
    *
    * @command search-api:server-list
    *
@@ -315,9 +385,6 @@ class SearchApiCommands extends DrushCommands {
    *   status: Status
    *
    * @aliases sapi-sl,search-api-server-list
-   *
-   * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
-   *   The table rows.
    */
   public function serverList() {
     $rows = $this->commandHelper->serverListCommand();
@@ -330,6 +397,11 @@ class SearchApiCommands extends DrushCommands {
    *
    * @param string $serverId
    *   The machine name of a server.
+   *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if the server couldn't be loaded.
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   Thrown if an internal error occurred when saving the server.
    *
    * @command search-api:server-enable
    *
@@ -350,6 +422,11 @@ class SearchApiCommands extends DrushCommands {
    * @param string $serverId
    *   The machine name of a server.
    *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if the server couldn't be loaded.
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   Thrown if an internal error occurred when saving the server.
+   *
    * @command search-api:server-disable
    *
    * @usage drush search-api:server-disable
@@ -368,6 +445,12 @@ class SearchApiCommands extends DrushCommands {
    *
    * @param string $serverId
    *   The machine name of a server.
+   *
+   * @throws \Drupal\search_api\ConsoleException
+   *   Thrown if the server couldn't be loaded.
+   * @throws \Drupal\search_api\SearchApiException
+   *   Thrown if one of the affected indexes had an invalid tracker set, or some
+   *   other internal error occurred.
    *
    * @command search-api:server-clear
    *
@@ -390,6 +473,9 @@ class SearchApiCommands extends DrushCommands {
    * @param string $serverId
    *   The machine name of a server.
    *
+   * @throws \Exception
+   *   If no index or no server were passed or passed values are invalid.
+   *
    * @command search-api:set-index-server
    *
    * @usage drush search-api:set-index-server default_node_index my_solr_server
@@ -399,9 +485,6 @@ class SearchApiCommands extends DrushCommands {
    *   server.
    *
    * @aliases sapi-sis,search-api-set-index-server
-   *
-   * @throws \Exception
-   *   If no index or no server were passed or passed values are invalid.
    */
   public function setIndexServer($indexId, $serverId) {
     $this->commandHelper->setIndexServerCommand($indexId, $serverId);

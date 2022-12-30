@@ -1,12 +1,21 @@
 <?php
+
 namespace Robo;
 
+use Robo\Common\InflectionTrait;
+use Robo\Common\OutputAwareTrait;
+use Robo\Contract\InflectionInterface;
+use Robo\Contract\OutputAwareInterface;
 use Robo\Contract\TaskInterface;
 use Robo\Exception\TaskExitException;
+use Robo\Log\ResultPrinter;
 use Robo\State\Data;
 
-class Result extends ResultData
+class Result extends ResultData implements OutputAwareInterface, InflectionInterface
 {
+    use InflectionTrait;
+    use OutputAwareTrait;
+
     /**
      * @var bool
      */
@@ -19,7 +28,7 @@ class Result extends ResultData
 
     /**
      * @param \Robo\Contract\TaskInterface $task
-     * @param string $exitCode
+     * @param int $exitCode
      * @param string $message
      * @param array $data
      */
@@ -27,6 +36,7 @@ class Result extends ResultData
     {
         parent::__construct($exitCode, $message, $data);
         $this->task = $task;
+        $this->inflect($task);
         $this->printResult();
 
         if (self::$stopOnFail) {
@@ -37,6 +47,11 @@ class Result extends ResultData
     /**
      * Tasks should always return a Result. However, they are also
      * allowed to return NULL or an array to indicate success.
+     *
+     * @param \Robo\Contract\TaskInterface $task
+     * @param \Robo\Result|\Robo\State\Data|\Robo\ResultData|array|null
+     *
+     * @return static
      */
     public static function ensureResult($task, $result)
     {
@@ -66,7 +81,7 @@ class Result extends ResultData
         // existing behavior for backwards compatibility. This is undesirable
         // in the long run, though, as it can result in unwanted repeated input
         // in task collections et. al.
-        $resultPrinter = Robo::resultPrinter();
+        $resultPrinter = $this->resultPrinter();
         if ($resultPrinter) {
             if ($resultPrinter->printResult($this)) {
                 $this->alreadyPrinted();
@@ -79,7 +94,7 @@ class Result extends ResultData
      * @param string $extension
      * @param string $service
      *
-     * @return \Robo\Result
+     * @return static
      */
     public static function errorMissingExtension(TaskInterface $task, $extension, $service)
     {
@@ -94,7 +109,7 @@ class Result extends ResultData
      * @param string $class
      * @param string $package
      *
-     * @return \Robo\Result
+     * @return static
      */
     public static function errorMissingPackage(TaskInterface $task, $class, $package)
     {
@@ -109,7 +124,7 @@ class Result extends ResultData
      * @param string $message
      * @param array $data
      *
-     * @return \Robo\Result
+     * @return static
      */
     public static function error(TaskInterface $task, $message, $data = [])
     {
@@ -121,7 +136,7 @@ class Result extends ResultData
      * @param \Exception $e
      * @param array $data
      *
-     * @return \Robo\Result
+     * @return static
      */
     public static function fromException(TaskInterface $task, \Exception $e, $data = [])
     {
@@ -137,7 +152,7 @@ class Result extends ResultData
      * @param string $message
      * @param array $data
      *
-     * @return \Robo\Result
+     * @return static
      */
     public static function success(TaskInterface $task, $message = '', $data = [])
     {
@@ -237,13 +252,37 @@ class Result extends ResultData
     public function stopOnFail()
     {
         if (!$this->wasSuccessful()) {
-            $resultPrinter = Robo::resultPrinter();
+            $resultPrinter = $this->resultPrinter();
             if ($resultPrinter) {
                 $resultPrinter->printStopOnFail($this);
             }
             $this->exitEarly($this->getExitCode());
         }
         return $this;
+    }
+
+    /**
+     * @return ResultPrinter
+     */
+    protected function resultPrinter()
+    {
+        if (isset($this->output)) {
+            // @todo: Stop using logger in ResultPrinter and we won't need this.
+            $logger = Robo::logger();
+            $resultPrinter = new ResultPrinter();
+            $resultPrinter->setLogger($logger);
+            $resultPrinter->setOutput($this->output);
+            return $resultPrinter;
+        }
+        // @deprecated: In the future, Tasks will be required to extend BaseTask
+        return Robo::resultPrinter();
+    }
+
+    public function injectDependencies($child)
+    {
+        if ($child instanceof OutputAwareInterface) {
+            $child->setOutput($this->output);
+        }
     }
 
     /**

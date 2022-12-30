@@ -4,6 +4,7 @@ namespace Drupal\Core\StackMiddleware;
 
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
@@ -41,7 +42,7 @@ class ReverseProxyMiddleware implements HttpKernelInterface {
   /**
    * {@inheritdoc}
    */
-  public function handle(Request $request, $type = self::MASTER_REQUEST, $catch = TRUE) {
+  public function handle(Request $request, $type = self::MASTER_REQUEST, $catch = TRUE): Response {
     // Initialize proxy settings.
     static::setSettingsOnRequest($request, $this->settings);
     return $this->httpKernel->handle($request, $type, $catch);
@@ -58,24 +59,16 @@ class ReverseProxyMiddleware implements HttpKernelInterface {
   public static function setSettingsOnRequest(Request $request, Settings $settings) {
     // Initialize proxy settings.
     if ($settings->get('reverse_proxy', FALSE)) {
-      $ip_header = $settings->get('reverse_proxy_header', 'X_FORWARDED_FOR');
-      $request::setTrustedHeaderName($request::HEADER_X_FORWARDED_FOR, $ip_header);
-
-      $proto_header = $settings->get('reverse_proxy_proto_header', 'X_FORWARDED_PROTO');
-      $request::setTrustedHeaderName($request::HEADER_X_FORWARDED_PROTO, $proto_header);
-
-      $host_header = $settings->get('reverse_proxy_host_header', 'X_FORWARDED_HOST');
-      $request::setTrustedHeaderName($request::HEADER_X_FORWARDED_HOST, $host_header);
-
-      $port_header = $settings->get('reverse_proxy_port_header', 'X_FORWARDED_PORT');
-      $request::setTrustedHeaderName($request::HEADER_X_FORWARDED_PORT, $port_header);
-
-      $forwarded_header = $settings->get('reverse_proxy_forwarded_header', 'FORWARDED');
-      $request::setTrustedHeaderName($request::HEADER_FORWARDED, $forwarded_header);
-
       $proxies = $settings->get('reverse_proxy_addresses', []);
       if (count($proxies) > 0) {
-        $request::setTrustedProxies($proxies, Request::HEADER_X_FORWARDED_ALL | Request::HEADER_FORWARDED);
+        // Set the default value. This is the most relaxed setting possible and
+        // not recommended for production.
+        $trusted_header_set = Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_FORWARDED;
+
+        $request::setTrustedProxies(
+          $proxies,
+          $settings->get('reverse_proxy_trusted_headers', $trusted_header_set)
+        );
       }
     }
   }

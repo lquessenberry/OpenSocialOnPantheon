@@ -26,6 +26,7 @@ class GroupContentAccessControlHandler extends EntityAccessControlHandler {
    * {@inheritdoc}
    */
   protected function checkCreateAccess(AccountInterface $account, array $context, $entity_bundle = NULL) {
+    /** @var \Drupal\group\Entity\GroupContentTypeInterface $group_content_type */
     $group_content_type = GroupContentType::load($entity_bundle);
     return $group_content_type->getContentPlugin()->createAccess($context['group'], $account);
   }

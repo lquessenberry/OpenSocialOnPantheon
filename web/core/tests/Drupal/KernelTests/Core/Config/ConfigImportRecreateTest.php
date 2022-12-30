@@ -2,7 +2,6 @@
 
 namespace Drupal\KernelTests\Core\Config;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigImporter;
 use Drupal\Core\Config\StorageComparer;
 use Drupal\KernelTests\KernelTestBase;
@@ -27,21 +26,20 @@ class ConfigImportRecreateTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['system', 'field', 'text', 'user', 'node'];
+  protected static $modules = ['system', 'field', 'text', 'user', 'node'];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('node');
-    $this->installConfig(['field', 'node']);
+    $this->installConfig(['system', 'field', 'node']);
 
     $this->copyConfig($this->container->get('config.storage'), $this->container->get('config.storage.sync'));
 
     // Set up the ConfigImporter object for testing.
     $storage_comparer = new StorageComparer(
       $this->container->get('config.storage.sync'),
-      $this->container->get('config.storage'),
-      $this->container->get('config.manager')
+      $this->container->get('config.storage')
     );
     $this->configImporter = new ConfigImporter(
       $storage_comparer->createChangelist(),
@@ -52,12 +50,13 @@ class ConfigImportRecreateTest extends KernelTestBase {
       $this->container->get('module_handler'),
       $this->container->get('module_installer'),
       $this->container->get('theme_handler'),
-      $this->container->get('string_translation')
+      $this->container->get('string_translation'),
+      $this->container->get('extension.list.module')
     );
   }
 
   public function testRecreateEntity() {
-    $type_name = Unicode::strtolower($this->randomMachineName(16));
+    $type_name = mb_strtolower($this->randomMachineName(16));
     $content_type = NodeType::create([
       'type' => $type_name,
       'name' => 'Node type one',
@@ -89,9 +88,9 @@ class ConfigImportRecreateTest extends KernelTestBase {
     // will be recreated.
     $creates = $this->configImporter->getUnprocessedConfiguration('create');
     $deletes = $this->configImporter->getUnprocessedConfiguration('delete');
-    $this->assertEqual(5, count($creates), 'There are 5 configuration items to create.');
-    $this->assertEqual(5, count($deletes), 'There are 5 configuration items to delete.');
-    $this->assertEqual(0, count($this->configImporter->getUnprocessedConfiguration('update')), 'There are no configuration items to update.');
+    $this->assertCount(5, $creates, 'There are 5 configuration items to create.');
+    $this->assertCount(5, $deletes, 'There are 5 configuration items to delete.');
+    $this->assertCount(0, $this->configImporter->getUnprocessedConfiguration('update'), 'There are no configuration items to update.');
     $this->assertSame($creates, array_reverse($deletes), 'Deletes and creates contain the same configuration names in opposite orders due to dependencies.');
 
     $this->configImporter->import();
@@ -99,7 +98,7 @@ class ConfigImportRecreateTest extends KernelTestBase {
     // Verify that there is nothing more to import.
     $this->assertFalse($this->configImporter->reset()->hasUnprocessedConfigurationChanges());
     $content_type = NodeType::load($type_name);
-    $this->assertEqual('Node type one', $content_type->label());
+    $this->assertEquals('Node type one', $content_type->label());
   }
 
 }

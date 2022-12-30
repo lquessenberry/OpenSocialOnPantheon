@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\flag\Kernel;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\entity_test\Entity\EntityTest;
 use Drupal\flag\Entity\Flag;
 use Drupal\flag\Plugin\Action\DeleteFlaggingAction;
@@ -72,15 +71,15 @@ class FlagActionTest extends FlagKernelTestBase {
     ]);
     $selfies_flag->save();
 
-    $flag_action = $this->entityTypeManager->getStorage('action')->load('flag_action.selfies.flag');
-    $this->assertEquals('flag_action.selfies.flag', $flag_action->id());
-    $unflag_action = $this->entityTypeManager->getStorage('action')->load('flag_action.selfies.unflag');
-    $this->assertEquals('flag_action.selfies.unflag', $unflag_action->id());
+    $flag_action = $this->entityTypeManager->getStorage('action')->load('flag_action.selfies_flag');
+    $this->assertEquals('flag_action.selfies_flag', $flag_action->id());
+    $unflag_action = $this->entityTypeManager->getStorage('action')->load('flag_action.selfies_unflag');
+    $this->assertEquals('flag_action.selfies_unflag', $unflag_action->id());
 
     $selfies_flag->delete();
     $this->entityTypeManager->getStorage('action')->resetCache();
-    $this->assertNull($this->entityTypeManager->getStorage('action')->load('flag_action.selfies.flag'));
-    $this->assertNull($this->entityTypeManager->getStorage('action')->load('flag_action.selfies.unflag'));
+    $this->assertNull($this->entityTypeManager->getStorage('action')->load('flag_action.selfies_flag'));
+    $this->assertNull($this->entityTypeManager->getStorage('action')->load('flag_action.selfies_unflag'));
   }
 
   /**
@@ -89,7 +88,7 @@ class FlagActionTest extends FlagKernelTestBase {
   public function testFlagActions() {
     /** @var \Drupal\flag\FlagInterface $entity_flag */
     $entity_flag = Flag::create([
-      'id' => Unicode::strtolower($this->randomMachineName()),
+      'id' => strtolower($this->randomMachineName()),
       'label' => $this->randomString(),
       'entity_type' => 'entity_test',
       'flag_type' => 'entity:entity_test',
@@ -102,7 +101,7 @@ class FlagActionTest extends FlagKernelTestBase {
     $test_entity = EntityTest::create();
     $test_entity->save();
     /** @var \Drupal\system\ActionConfigEntityInterface $action */
-    $action = $this->container->get('entity_type.manager')->getStorage('action')->load('flag_action.' . $entity_flag->id() . '.flag');
+    $action = $this->container->get('entity_type.manager')->getStorage('action')->load('flag_action.' . $entity_flag->id() . '_flag');
     $plugin = $action->getPlugin();
     $plugin->execute($test_entity);
     $this->assertTrue($entity_flag->isFlagged($test_entity, $this->account));
@@ -115,7 +114,7 @@ class FlagActionTest extends FlagKernelTestBase {
 
     // Unflag.
     $this->entityTypeManager->getStorage('flagging')->resetCache();
-    $action = $this->entityTypeManager->getStorage('action')->load('flag_action.' . $entity_flag->id() . '.unflag');
+    $action = $this->entityTypeManager->getStorage('action')->load('flag_action.' . $entity_flag->id() . '_unflag');
     $plugin = $action->getPlugin();
     $plugin->execute($test_entity);
     // @todo Flagging cache cannot be cleared, so this check cannot happen.
@@ -141,7 +140,7 @@ class FlagActionTest extends FlagKernelTestBase {
 
     /** @var \Drupal\flag\FlagInterface $entity_flag */
     $entity_flag = Flag::create([
-      'id' => Unicode::strtolower($this->randomMachineName()),
+      'id' => strtolower($this->randomMachineName()),
       'label' => $this->randomString(),
       'entity_type' => 'entity_test',
       'flag_type' => 'entity:entity_test',

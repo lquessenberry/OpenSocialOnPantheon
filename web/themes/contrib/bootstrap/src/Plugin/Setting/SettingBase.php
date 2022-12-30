@@ -5,6 +5,8 @@ namespace Drupal\bootstrap\Plugin\Setting;
 use Drupal\bootstrap\Bootstrap;
 use Drupal\bootstrap\Plugin\PluginBase;
 use Drupal\bootstrap\Utility\Element;
+use Drupal\Core\Access\AccessResultAllowed;
+use Drupal\Core\Access\AccessResultForbidden;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
@@ -15,11 +17,24 @@ use Drupal\Core\Url;
  */
 class SettingBase extends PluginBase implements SettingInterface {
 
+  public static $autoUserInterface = TRUE;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function access() {
+    // Hide the setting if is been deprecated.
+    if ($this instanceof DeprecatedSettingInterface) {
+      return AccessResultForbidden::forbidden();
+    }
+    return AccessResultAllowed::allowed();
+  }
+
   /**
    * {@inheritdoc}
    */
   public function alterForm(array &$form, FormStateInterface $form_state, $form_id = NULL) {
-    $this->alterFormElement(Element::create($form), $form_state);
+    $this->alterFormElement(Element::create($form, $form_state), $form_state);
   }
 
   /**
@@ -27,6 +42,13 @@ class SettingBase extends PluginBase implements SettingInterface {
    */
   public function alterFormElement(Element $form, FormStateInterface $form_state, $form_id = NULL) {
     $this->getSettingElement($form, $form_state);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function autoCreateFormElement() {
+    return !($this instanceof DeprecatedSettingInterface);
   }
 
   /**
@@ -77,12 +99,19 @@ class SettingBase extends PluginBase implements SettingInterface {
 
   /**
    * {@inheritdoc}
+   */
+  public function getDescription() {
+    return isset($this->pluginDefinition['description']) ? $this->pluginDefinition['description'] : NULL;
+  }
+
+  /**
+   * {@inheritdoc}
    *
    * @deprecated Will be removed in a future release. Use \Drupal\bootstrap\Plugin\Setting\SettingInterface::getGroupElement
    */
   public function getGroup(array &$form, FormStateInterface $form_state) {
     Bootstrap::deprecated();
-    return $this->getGroupElement(Element::create($form), $form_state);
+    return $this->getGroupElement(Element::create($form, $form_state), $form_state);
   }
 
   /**
@@ -100,7 +129,7 @@ class SettingBase extends PluginBase implements SettingInterface {
         else {
           $group->$key = ['#type' => 'container'];
         }
-        $group = Element::create($group->$key->getArray());
+        $group = Element::create($group->$key->getArray(), $form_state);
         if ($first) {
           $group->setProperty('group', 'bootstrap');
         }
@@ -109,7 +138,7 @@ class SettingBase extends PluginBase implements SettingInterface {
         }
       }
       else {
-        $group = Element::create($group->$key->getArray());
+        $group = Element::create($group->$key->getArray(), $form_state);
       }
       $first = FALSE;
     }
@@ -130,7 +159,7 @@ class SettingBase extends PluginBase implements SettingInterface {
    */
   public function getElement(array &$form, FormStateInterface $form_state) {
     Bootstrap::deprecated();
-    return $this->getSettingElement(Element::create($form), $form_state);
+    return $this->getSettingElement(Element::create($form, $form_state), $form_state);
   }
 
   /**
@@ -153,8 +182,17 @@ class SettingBase extends PluginBase implements SettingInterface {
         $group->$plugin_id->setProperty($name, $value);
       }
 
+      // Get the default value.
+      $default_value = $this->getSettingValue($form_state);
+
+      // Convert value from an array into a newline separated value.
+      // @todo Remove once settings have proper config schemas in place.
+      // @see https://www.drupal.org/project/bootstrap/issues/2883714
+      if ($group->$plugin_id->getProperty('type') === 'textarea' && is_array($default_value)) {
+        $default_value = implode("\n", $default_value);
+      }
+
       // Set default value from the stored form state value or theme setting.
-      $default_value = $form_state->getValue($plugin_id, $this->theme->getSetting($plugin_id));
       $group->$plugin_id->setProperty('default_value', $default_value);
 
       // Append additional "see" link references to the description.
@@ -168,17 +206,35 @@ class SettingBase extends PluginBase implements SettingInterface {
           '#attributes' => [
             'target' => '_blank',
           ],
-        ]);
+        ], $form_state);
         $links[] = (string) $link->renderPlain();
       }
       if (!empty($links)) {
         $description .= '<br>';
-        $description .= t('See also:');
+        $description .= $this->t('See also:');
         $description .= ' ' . implode(', ', $links);
         $group->$plugin_id->setProperty('description', $description);
       }
     }
+
+    // Set accessibility.
+    $group->$plugin_id->access($this->access());
+
     return $group->$plugin_id;
+  }
+
+  /**
+   * Retrieves the setting value used to populate the form.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current form state.
+   *
+   * @return mixed
+   *   The setting value.
+   */
+  protected function getSettingValue(FormStateInterface $form_state) {
+    $plugin_id = $this->getPluginId();
+    return $form_state->getValue($plugin_id, $this->theme->getSetting($plugin_id));
   }
 
   /**
@@ -191,8 +247,17 @@ class SettingBase extends PluginBase implements SettingInterface {
   /**
    * {@inheritdoc}
    */
+  public function processDeprecatedValues(array $values, array $deprecated) {
+    // Most deprecated settings will be a 1:1 map. Anything more complex than
+    // this should be handled by the newer replacement setting itself.
+    return !empty($values) ? reset($values) : NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public static function submitForm(array &$form, FormStateInterface $form_state) {
-    static::submitFormElement(Element::create($form), $form_state);
+    static::submitFormElement(Element::create($form, $form_state), $form_state);
   }
 
   /**
@@ -204,7 +269,7 @@ class SettingBase extends PluginBase implements SettingInterface {
    * {@inheritdoc}
    */
   public static function validateForm(array &$form, FormStateInterface $form_state) {
-    static::validateFormElement(Element::create($form), $form_state);
+    static::validateFormElement(Element::create($form, $form_state), $form_state);
   }
 
   /**

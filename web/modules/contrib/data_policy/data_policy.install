@@ -5,7 +5,12 @@
  * Install, update and uninstall functions for the data_policy module.
  */
 
+use Drupal\Core\Config\FileStorage;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\data_policy\Entity\DataPolicy;
+use Drupal\data_policy\Entity\DataPolicyInterface;
+use Drupal\Core\Config\ImmutableConfig;
 
 /**
  * Implements hook_install().
@@ -13,6 +18,7 @@ use Drupal\data_policy\Entity\DataPolicy;
 function data_policy_install() {
   // Hide a message about a new version of data policy for the anonymous user.
   user_role_grant_permissions('anonymous', ['without consent']);
+  user_role_grant_permissions('sitemanager', ['administer data policy entities']);
 }
 
 /**
@@ -25,4 +31,214 @@ function data_policy_uninstall() {
   }
 
   \Drupal::configFactory()->getEditable('data_policy.data_policy')->delete();
+}
+
+/**
+ * Display Name field on the edit form.
+ */
+function data_policy_update_8001() {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('core.entity_form_display.data_policy.data_policy.default');
+  $data = $config->getRawData();
+  $data['content']['name'] = [
+    'type' => 'string_textfield',
+    'weight' => -1,
+    'settings' => [
+      'size' => 60,
+      'placeholder' => '',
+    ],
+    'third_party_settings' => [],
+    'region' => 'content',
+
+  ];
+  $config->setData($data);
+  $config->save(TRUE);
+}
+
+/**
+ * Makes the 'data_policy_revision_id' field multiple and migrate its data.
+ */
+function data_policy_update_8002() {
+  // To update the field schema we need to have no field data in the storage,
+  // thus we retrieve it, delete it from storage, and write it back to the
+  // storage after updating the schema.
+  $database = \Drupal::database();
+
+  // Retrieve existing field data.
+  $data = $database->select('user_consent', 'uc')->fields('uc', [
+    'id',
+    'data_policy_revision_id',
+  ])->execute()->fetchAllKeyed();
+
+  // Remove data from the storage.
+  $database->update('user_consent')
+    ->fields(['data_policy_revision_id' => NULL])
+    ->execute();
+
+  // Update definitions and schema.
+  $manager = \Drupal::entityDefinitionUpdateManager();
+  $storage_definition = $manager->getFieldStorageDefinition('data_policy_revision_id', 'user_consent');
+  $storage_definition->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
+  $manager->updateFieldStorageDefinition($storage_definition);
+
+  // Restore entity data in the new schema.
+  $insert_query = $database->insert('user_consent__data_policy_revision_id')
+    ->fields([
+      'bundle',
+      'deleted',
+      'entity_id',
+      'revision_id',
+      'langcode',
+      'delta',
+      'data_policy_revision_id_value',
+    ]);
+
+  foreach ($data as $id => $data_policy_revision_id) {
+    $insert_query->values([
+      'user_consent',
+      0,
+      $id,
+      $id,
+      'en',
+      0,
+      $data_policy_revision_id,
+    ]);
+  }
+
+  $insert_query->execute();
+}
+
+/**
+ * Add default consent_text to data policy and set default entity name.
+ */
+function data_policy_update_8003() {
+  $data_policy = \Drupal::entityTypeManager()->getStorage('data_policy')->load(1);
+
+  if ($data_policy instanceof DataPolicyInterface && empty($data_policy->getName())) {
+    $data_policy->setName('Data Policy');
+    $data_policy->save();
+  }
+
+  $data_policy_config = \Drupal::configFactory()->getEditable('data_policy.data_policy');
+  $data_policy_config->set('consent_text', 'I agree with the [id:1]');
+  $data_policy_config->save();
+}
+
+/**
+ * Update the "Data Policy Agreements" view.
+ */
+function data_policy_update_8004() {
+  $name = 'views.view.data_policy_agreements';
+
+  $install_source = drupal_get_path('module', 'data_policy') . '/config/install';
+  $source = new FileStorage($install_source);
+  $config_storage = \Drupal::service('config.storage');
+  $config_storage->write($name, $source->read($name));
+}
+
+/**
+ * Make the 'Name' field form data policy required.
+ */
+function data_policy_update_8005() {
+  // Update definitions and schema.
+  $manager = \Drupal::entityDefinitionUpdateManager();
+  $storage_definition = $manager->getFieldStorageDefinition('name', 'data_policy');
+  $storage_definition->setRequired(TRUE);
+  $manager->updateFieldStorageDefinition($storage_definition);
+}
+
+/**
+ * Add the "required" field to the user_consent entity.
+ */
+function data_policy_update_8006() {
+  $field_storage_definition = BaseFieldDefinition::create('boolean')
+    ->setLabel(t('Required'));
+
+  \Drupal::entityDefinitionUpdateManager()
+    ->installFieldStorageDefinition('required', 'user_consent', 'data_policy', $field_storage_definition);
+}
+
+/**
+ * Update "user_consent" required field for all old entities.
+ */
+function data_policy_update_8009() {
+  $database = \Drupal::database();
+  $config = \Drupal::configFactory()->get('data_policy.data_policy');
+  $enforce_consent = $config->get('enforce_consent');
+
+  $database->update('user_consent')
+    ->fields([
+      'required' => $enforce_consent,
+    ])
+    ->execute();
+}
+
+/**
+ * Add access for SM to see data policy entities.
+ */
+function data_policy_update_8010() {
+  user_role_grant_permissions('sitemanager', ['administer data policy entities']);
+}
+
+/**
+ * Fix issues with Data Policy translation.
+ */
+function data_policy_update_8011() {
+  // Make "name" field translatable.
+  $manager = \Drupal::entityDefinitionUpdateManager();
+  $storage_definition = $manager->getFieldStorageDefinition('name', 'data_policy');
+  $storage_definition->setTranslatable(TRUE);
+  $manager->updateFieldStorageDefinition($storage_definition);
+
+  // Make field "Description" translatable.
+  $config = \Drupal::configFactory()->getEditable('field.field.data_policy.data_policy.field_description');
+  $config->set('translatable', TRUE);
+  $config->save();
+
+  // If there are updates for data policy translations - lets run them.
+  $config = \Drupal::config('language.content_settings.data_policy.data_policy');
+  $translatable = ($config instanceof ImmutableConfig) && $config->get('status');
+
+  $change_list = \Drupal::entityDefinitionUpdateManager()->getChangeList();
+
+  if ($translatable && !empty($change_list['data_policy'])) {
+    if (function_exists('_content_translation_install_field_storage_definitions')) {
+      _content_translation_install_field_storage_definitions('data_policy');
+
+      // Set default values for new fields.
+      $database = \Drupal::database();
+      $storage = \Drupal::entityTypeManager()->getStorage('data_policy');
+      foreach ($storage->loadMultiple() as $entity) {
+        $langcodes = array_keys($entity->getTranslationLanguages());
+        foreach ($langcodes as $langcode) {
+          // Update data policy entity. Let's do it with database query
+          // to avoid to make the entity changed.
+          $translation = $entity->getTranslation($langcode);
+          $database->update('data_policy_field_data')
+            ->fields([
+              'content_translation_uid' => $translation->getOwnerId(),
+              'content_translation_created' => $translation->getCreatedTime(),
+              'content_translation_changed' => $translation->getChangedTime(),
+            ])
+            ->condition('id', $translation->id())
+            ->condition('langcode', $langcode)
+            ->execute();
+
+          // Update revisions.
+          $vids = $storage->revisionIds($translation);
+          foreach ($vids as $vid) {
+            $revision = $storage->loadRevision($vid);
+            $database->update('data_policy_field_revision')
+              ->fields([
+                'content_translation_uid' => $revision->getOwnerId(),
+                'content_translation_created' => $revision->getCreatedTime(),
+                'content_translation_changed' => $revision->getChangedTime(),
+              ])
+              ->condition('vid', $vid)
+              ->execute();
+          }
+        }
+      }
+    }
+  }
 }

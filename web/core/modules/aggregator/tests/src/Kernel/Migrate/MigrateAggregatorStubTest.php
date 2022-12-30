@@ -9,6 +9,7 @@ use Drupal\migrate_drupal\Tests\StubTestTrait;
  * Test stub creation for aggregator feeds and items.
  *
  * @group aggregator
+ * @group legacy
  */
 class MigrateAggregatorStubTest extends MigrateDrupalTestBase {
 
@@ -17,12 +18,12 @@ class MigrateAggregatorStubTest extends MigrateDrupalTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['aggregator'];
+  protected static $modules = ['aggregator'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('aggregator_feed');
     $this->installEntitySchema('aggregator_item');

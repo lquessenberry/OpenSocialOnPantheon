@@ -38,7 +38,7 @@ class DynamicEntityReferenceFieldItemList extends EntityReferenceFieldItemList {
    * {@inheritdoc}
    */
   public function referencedEntities() {
-    if (empty($this->list)) {
+    if ($this->isEmpty()) {
       return [];
     }
 

@@ -32,6 +32,9 @@ class GroupRoleSynchronizerTest extends UnitTestCase {
    */
   protected $groupRoleSynchronizer;
 
+  /**
+   * {@inheritdoc}
+   */
   public function setUp() {
     parent::setUp();
     $this->entityTypeManager = $this->prophesize(EntityTypeManagerInterface::class);
@@ -60,6 +63,21 @@ class GroupRoleSynchronizerTest extends UnitTestCase {
   }
 
   /**
+   * @covers ::getGroupRoleIdsByGroupTypes
+   * @depends testGetGroupRoleId
+   */
+  public function testGetGroupRoleIdsByGroupTypes() {
+    $this->setUpConfigEntityStorage('user_role', ['bar', 'baz']);
+    $expected = [
+      $this->groupRoleSynchronizer->getGroupRoleId('foo', 'bar'),
+      $this->groupRoleSynchronizer->getGroupRoleId('bee', 'bar'),
+      $this->groupRoleSynchronizer->getGroupRoleId('foo', 'baz'),
+      $this->groupRoleSynchronizer->getGroupRoleId('bee', 'baz'),
+    ];
+    $this->assertEquals($expected, $this->groupRoleSynchronizer->getGroupRoleIdsByGroupTypes(['foo', 'bee']));
+  }
+
+  /**
    * @covers ::getGroupRoleIdsByUserRole
    * @depends testGetGroupRoleId
    */
@@ -73,89 +91,18 @@ class GroupRoleSynchronizerTest extends UnitTestCase {
   }
 
   /**
-   * @covers ::createGroupRoles
+   * @covers ::getGroupRoleIdsByUserRoles
    * @depends testGetGroupRoleId
    */
-  public function testCreateGroupRoles() {
-    // Set up the global 'anonymous', 'authenticated' and 'baz' roles.
-    $user_role_1 = $this->prophesize(RoleInterface::class);
-    $user_role_2 = $this->prophesize(RoleInterface::class);
-    $user_role_3 = $this->prophesize(RoleInterface::class);
-    $user_role_3->id()->willReturn('baz');
-    $user_role_3->label()->willReturn('Custom user role');
-    $user_role_3->getWeight()->willReturn(2);
-    $user_role_3->getConfigDependencyName()->willReturn('user.role.baz');
-    $user_roles = [
-      'anonymous' => $user_role_1->reveal(),
-      'authenticated' => $user_role_2->reveal(),
-      'baz' => $user_role_3->reveal(),
-    ];
-
-    // Set up the group type and user role storage.
+  public function testGetGroupRoleIdsByUserRoles() {
     $this->setUpConfigEntityStorage('group_type', ['foo', 'bar']);
-    $this->setUpConfigEntityStorage('user_role', [], $user_roles);
-
-    $storage = $this->prophesize(ConfigEntityStorageInterface::class);
-    $query = $this->prophesize(QueryInterface::class);
-
-    // Test whether two IDs will be checked against the database.
-    $expected_ids = [
+    $expected = [
       $this->groupRoleSynchronizer->getGroupRoleId('foo', 'baz'),
+      $this->groupRoleSynchronizer->getGroupRoleId('foo', 'ook'),
       $this->groupRoleSynchronizer->getGroupRoleId('bar', 'baz'),
+      $this->groupRoleSynchronizer->getGroupRoleId('bar', 'ook'),
     ];
-    $query->condition('id', $expected_ids)->shouldBeCalledTimes(1);
-
-    // Return the ID for the bar-baz combo so only foo-bar will be created.
-    $returned_id = $this->groupRoleSynchronizer->getGroupRoleId('bar', 'baz');
-    $query->execute()->willReturn([$returned_id => $returned_id]);
-    $storage->getQuery()->willReturn($query->reveal());
-
-    // Check for the generated group role definition and whether it's created.
-    $group_role = $this->prophesize(GroupRoleInterface::class);
-    $group_role->save()->shouldbeCalledTimes(1);
-    $definition = [
-      'id' => $this->groupRoleSynchronizer->getGroupRoleId('foo', 'baz'),
-      'label' => 'Custom user role',
-      'weight' => 2,
-      'internal' => TRUE,
-      'audience' => 'outsider',
-      'group_type' => 'foo',
-      'permissions_ui' => FALSE,
-      'dependencies' => [
-        'enforced' => [
-          'config' => ['user.role.baz'],
-        ],
-      ],
-    ];
-    $storage->create($definition)->shouldBeCalledTimes(1)->willReturn($group_role->reveal());
-
-    // Set the prophesized group role storage and run our code.
-    $this->entityTypeManager->getStorage('group_role')->willReturn($storage->reveal());
-    $this->groupRoleSynchronizer->createGroupRoles();
-  }
-
-  /**
-   * @covers ::updateGroupRoleLabels
-   * @depends testGetGroupRoleId
-   */
-  public function testUpdateGroupRoleLabels() {
-    // Set up the global role.
-    $user_role = $this->prophesize(RoleInterface::class);
-    $user_role->id()->willReturn('bar');
-    $user_role->label()->willReturn('Baz');
-
-    // Set up the corresponding group role.
-    $group_role = $this->prophesize(GroupRoleInterface::class);
-    $group_role->save()->shouldBeCalledTimes(1);
-    $group_role->set('label', 'Baz')->shouldBeCalledTimes(1)->willReturn($group_role->reveal());
-    $group_roles = [$this->groupRoleSynchronizer->getGroupRoleId('foo', 'bar') => $group_role->reveal()];
-
-    // Set up the group type and group role storage.
-    $this->setUpConfigEntityStorage('group_type', ['foo']);
-    $this->setUpConfigEntityStorage('group_role', [], $group_roles);
-
-    // See whether the label of the group role got updated and saved.
-    $this->groupRoleSynchronizer->updateGroupRoleLabels($user_role->reveal());
+    $this->assertEquals($expected, $this->groupRoleSynchronizer->getGroupRoleIdsByUserRoles(['baz', 'ook']));
   }
 
   /**

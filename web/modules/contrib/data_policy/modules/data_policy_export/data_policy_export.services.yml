@@ -1,0 +1,4 @@
+services:
+  plugin.manager.data_policy_export_plugin:
+    class: Drupal\data_policy_export\Plugin\DataPolicyExportPluginManager
+    arguments: ['@container.namespaces', '@cache.discovery', '@module_handler', '@current_user', '@config.factory']

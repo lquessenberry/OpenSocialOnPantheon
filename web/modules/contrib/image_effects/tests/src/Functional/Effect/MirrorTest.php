@@ -7,12 +7,12 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Mirror effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class MirrorTest extends ImageEffectsTestBase {
 
   /**
-   * Test effect on required toolkits.
+   * Mirror effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -23,18 +23,11 @@ class MirrorTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testMirrorEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Mirror effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testMirrorEffect() {
     // Test on the PNG test image.
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     // Test data.
     $test_data = [
@@ -91,7 +84,7 @@ class MirrorTest extends ImageEffectsTestBase {
       $uuid = $this->addEffectToTestStyle($effect);
 
       // Assert effect summary text.
-      $this->assertText($data['expected_text']);
+      $this->assertSession()->pageTextContains($data['expected_text']);
 
       // Check that ::applyEffect generates image with expected mirror. Colors
       // of the derivative image should be swapped according to the mirror

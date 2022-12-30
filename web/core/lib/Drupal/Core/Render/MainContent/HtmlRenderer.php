@@ -15,7 +15,8 @@ use Drupal\Core\Render\RenderContext;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Render\RenderEvents;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Drupal\Core\Theme\ThemeManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -47,7 +48,7 @@ class HtmlRenderer implements MainContentRendererInterface {
   /**
    * The event dispatcher.
    *
-   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   * @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
   /**
@@ -81,13 +82,20 @@ class HtmlRenderer implements MainContentRendererInterface {
   protected $rendererConfig;
 
   /**
+   * The theme manager.
+   *
+   * @var \Drupal\Core\Theme\ThemeManagerInterface
+   */
+  protected $themeManager;
+
+  /**
    * Constructs a new HtmlRenderer.
    *
    * @param \Drupal\Core\Controller\TitleResolverInterface $title_resolver
    *   The title resolver.
    * @param \Drupal\Component\Plugin\PluginManagerInterface $display_variant_manager
    *   The display variant manager.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   The event dispatcher.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
@@ -97,8 +105,10 @@ class HtmlRenderer implements MainContentRendererInterface {
    *   The render cache service.
    * @param array $renderer_config
    *   The renderer configuration array.
+   * @param \Drupal\Core\Theme\ThemeManagerInterface $theme_manager
+   *   The theme manager.
    */
-  public function __construct(TitleResolverInterface $title_resolver, PluginManagerInterface $display_variant_manager, EventDispatcherInterface $event_dispatcher, ModuleHandlerInterface $module_handler, RendererInterface $renderer, RenderCacheInterface $render_cache, array $renderer_config) {
+  public function __construct(TitleResolverInterface $title_resolver, PluginManagerInterface $display_variant_manager, EventDispatcherInterface $event_dispatcher, ModuleHandlerInterface $module_handler, RendererInterface $renderer, RenderCacheInterface $render_cache, array $renderer_config, ThemeManagerInterface $theme_manager = NULL) {
     $this->titleResolver = $title_resolver;
     $this->displayVariantManager = $display_variant_manager;
     $this->eventDispatcher = $event_dispatcher;
@@ -106,6 +116,11 @@ class HtmlRenderer implements MainContentRendererInterface {
     $this->renderer = $renderer;
     $this->renderCache = $render_cache;
     $this->rendererConfig = $renderer_config;
+    if ($theme_manager === NULL) {
+      @trigger_error('Calling ' . __METHOD__ . ' without the $theme_manager argument is deprecated in drupal:9.1.0 and will be required in drupal:10.0.0. See https://www.drupal.org/node/3159762', E_USER_DEPRECATED);
+      $theme_manager = \Drupal::service('theme.manager');
+    }
+    $this->themeManager = $theme_manager;
   }
 
   /**
@@ -114,7 +129,7 @@ class HtmlRenderer implements MainContentRendererInterface {
    * The entire HTML: takes a #type 'page' and wraps it in a #type 'html'.
    */
   public function renderResponse(array $main_content, Request $request, RouteMatchInterface $route_match) {
-    list($page, $title) = $this->prepare($main_content, $request, $route_match);
+    [$page, $title] = $this->prepare($main_content, $request, $route_match);
 
     if (!isset($page['#type']) || $page['#type'] !== 'page') {
       throw new \LogicException('Must be #type page');
@@ -190,7 +205,7 @@ class HtmlRenderer implements MainContentRendererInterface {
     // Determine the title: use the title provided by the main content if any,
     // otherwise get it from the routing information.
     $get_title = function (array $main_content) use ($request, $route_match) {
-      return isset($main_content['#title']) ? $main_content['#title'] : $this->titleResolver->getTitle($request, $route_match->getRouteObject());
+      return $main_content['#title'] ?? $this->titleResolver->getTitle($request, $route_match->getRouteObject());
     };
 
     // If the _controller result already is #type => page,
@@ -206,7 +221,7 @@ class HtmlRenderer implements MainContentRendererInterface {
       // Select the page display variant to be used to render this main content,
       // default to the built-in "simple page".
       $event = new PageDisplayVariantSelectionEvent('simple_page', $route_match);
-      $this->eventDispatcher->dispatch(RenderEvents::SELECT_PAGE_DISPLAY_VARIANT, $event);
+      $this->eventDispatcher->dispatch($event, RenderEvents::SELECT_PAGE_DISPLAY_VARIANT);
       $variant_id = $event->getPluginId();
 
       // We must render the main content now already, because it might provide a
@@ -226,7 +241,7 @@ class HtmlRenderer implements MainContentRendererInterface {
           return $this->renderer->render($main_content, FALSE);
         });
         $main_content = $this->renderCache->getCacheableRenderArray($main_content) + [
-          '#title' => isset($main_content['#title']) ? $main_content['#title'] : NULL
+          '#title' => $main_content['#title'] ?? NULL,
         ];
       }
 
@@ -261,7 +276,7 @@ class HtmlRenderer implements MainContentRendererInterface {
 
     // $page is now fully built. Find all non-empty page regions, and add a
     // theme wrapper function that allows them to be consistently themed.
-    $regions = \Drupal::theme()->getActiveTheme()->getRegions();
+    $regions = $this->themeManager->getActiveTheme()->getRegions();
     foreach ($regions as $region) {
       if (!empty($page[$region])) {
         $page[$region]['#theme_wrappers'][] = 'region';
@@ -292,17 +307,19 @@ class HtmlRenderer implements MainContentRendererInterface {
   public function invokePageAttachmentHooks(array &$page) {
     // Modules can add attachments.
     $attachments = [];
-    foreach ($this->moduleHandler->getImplementations('page_attachments') as $module) {
-      $function = $module . '_page_attachments';
-      $function($attachments);
-    }
+    $this->moduleHandler->invokeAllWith(
+      'page_attachments',
+      function (callable $hook, string $module) use (&$attachments) {
+        $hook($attachments);
+      }
+    );
     if (array_diff(array_keys($attachments), ['#attached', '#cache']) !== []) {
       throw new \LogicException('Only #attached and #cache may be set in hook_page_attachments().');
     }
 
     // Modules and themes can alter page attachments.
     $this->moduleHandler->alter('page_attachments', $attachments);
-    \Drupal::theme()->alter('page_attachments', $attachments);
+    $this->themeManager->alter('page_attachments', $attachments);
     if (array_diff(array_keys($attachments), ['#attached', '#cache']) !== []) {
       throw new \LogicException('Only #attached and #cache may be set in hook_page_attachments_alter().');
     }
@@ -331,14 +348,18 @@ class HtmlRenderer implements MainContentRendererInterface {
     // Modules can add render arrays to the top and bottom of the page.
     $page_top = [];
     $page_bottom = [];
-    foreach ($this->moduleHandler->getImplementations('page_top') as $module) {
-      $function = $module . '_page_top';
-      $function($page_top);
-    }
-    foreach ($this->moduleHandler->getImplementations('page_bottom') as $module) {
-      $function = $module . '_page_bottom';
-      $function($page_bottom);
-    }
+    $this->moduleHandler->invokeAllWith(
+      'page_top',
+      function (callable $hook, string $module) use (&$page_top) {
+        $hook($page_top);
+      }
+    );
+    $this->moduleHandler->invokeAllWith(
+      'page_bottom',
+      function (callable $hook, string $module) use (&$page_bottom) {
+        $hook($page_bottom);
+      }
+    );
     if (!empty($page_top)) {
       $html['page_top'] = $page_top;
     }

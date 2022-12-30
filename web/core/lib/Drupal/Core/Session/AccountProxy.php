@@ -2,6 +2,9 @@
 
 namespace Drupal\Core\Session;
 
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+
 /**
  * A proxied implementation of AccountInterface.
  *
@@ -14,6 +17,8 @@ namespace Drupal\Core\Session;
  * directly injected into dependent code.
  */
 class AccountProxy implements AccountProxyInterface {
+
+  use DependencySerializationTrait;
 
   /**
    * The instantiated account.
@@ -30,13 +35,21 @@ class AccountProxy implements AccountProxyInterface {
   protected $id = 0;
 
   /**
-   * Initial account id.
+   * Event dispatcher.
    *
-   * @var int
-   *
-   * @deprecated Scheduled for removal in Drupal 8.4.x. Use $this->id instead.
+   * @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    */
-  protected $initialAccountId;
+  protected $eventDispatcher;
+
+  /**
+   * AccountProxy constructor.
+   *
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
+   *   Event dispatcher.
+   */
+  public function __construct(EventDispatcherInterface $eventDispatcher) {
+    $this->eventDispatcher = $eventDispatcher;
+  }
 
   /**
    * {@inheritdoc}
@@ -49,7 +62,7 @@ class AccountProxy implements AccountProxyInterface {
     }
     $this->account = $account;
     $this->id = $account->id();
-    date_default_timezone_set(drupal_get_user_timezone());
+    $this->eventDispatcher->dispatch(new AccountSetEvent($account), AccountEvents::SET_USER);
   }
 
   /**
@@ -123,13 +136,6 @@ class AccountProxy implements AccountProxyInterface {
   /**
    * {@inheritdoc}
    */
-  public function getUsername() {
-    return $this->getAccountName();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function getAccountName() {
     return $this->getAccount()->getAccountName();
   }
@@ -170,19 +176,19 @@ class AccountProxy implements AccountProxyInterface {
       throw new \LogicException('AccountProxyInterface::setInitialAccountId() cannot be called after an account was set on the AccountProxy');
     }
 
-    $this->id = $this->initialAccountId = $account_id;
+    $this->id = $account_id;
   }
 
   /**
    * Load a user entity.
    *
-   * The entity manager requires additional initialization code and cache
+   * The entity type manager requires additional initialization code and cache
    * clearing after the list of modules is changed. Therefore it is necessary to
    * retrieve it as late as possible.
    *
    * Because of serialization issues it is currently not possible to inject the
    * container into the AccountProxy. Thus it is necessary to retrieve the
-   * entity manager statically.
+   * entity type manager statically.
    *
    * @see https://www.drupal.org/node/2430447
    *
@@ -193,7 +199,7 @@ class AccountProxy implements AccountProxyInterface {
    *   An account or NULL if none is found.
    */
   protected function loadUserEntity($account_id) {
-    return \Drupal::entityManager()->getStorage('user')->load($account_id);
+    return \Drupal::entityTypeManager()->getStorage('user')->load($account_id);
   }
 
 }

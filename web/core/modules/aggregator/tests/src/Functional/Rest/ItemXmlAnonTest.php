@@ -7,6 +7,7 @@ use Drupal\Tests\rest\Functional\EntityResource\XmlEntityNormalizationQuirksTrai
 
 /**
  * @group rest
+ * @group legacy
  */
 class ItemXmlAnonTest extends ItemResourceTestBase {
 
@@ -22,5 +23,10 @@ class ItemXmlAnonTest extends ItemResourceTestBase {
    * {@inheritdoc}
    */
   protected static $mimeType = 'text/xml; charset=UTF-8';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
 }

@@ -2,15 +2,15 @@
 
 namespace Drupal\Tests\rest\Functional\Rest;
 
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 use Drupal\rest\Entity\RestResourceConfig;
 
-abstract class RestResourceConfigResourceTestBase extends EntityResourceTestBase {
+abstract class RestResourceConfigResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['dblog'];
+  protected static $modules = ['dblog'];
 
   /**
    * {@inheritdoc}
@@ -89,6 +89,7 @@ abstract class RestResourceConfigResourceTestBase extends EntityResourceTestBase
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
   /**

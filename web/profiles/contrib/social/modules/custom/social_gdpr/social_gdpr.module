@@ -7,8 +7,8 @@
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
-use Drupal\data_policy\Entity\DataPolicy;
 
 /**
  * Implements hook_help().
@@ -27,45 +27,7 @@ function social_gdpr_help($route_name, RouteMatchInterface $route_match) {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function social_gdpr_form_data_policy_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  if (\Drupal::routeMatch()->getRouteName() == 'social_gdpr.data_policy.add') {
-    $form['actions']['submit']['#submit'][] = '_social_gdpr_data_policy_submit';
-  }
-}
-
-/**
- * Implements hook_form_FORM_ID_alter().
- */
-function social_gdpr_form_data_policy_data_policy_revision_edit_alter(&$form, FormStateInterface $form_state, $form_id) {
-  if (\Drupal::routeMatch()->getRouteName() == 'social_gdpr.data_policy.revision_edit') {
-    $form['actions']['submit']['#submit'][] = '_social_gdpr_data_policy_submit';
-  }
-}
-
-/**
- * Implements hook_form_FORM_ID_alter().
- */
 function social_gdpr_form_data_policy_data_policy_agreement_alter(&$form, FormStateInterface $form_state, $form_id) {
-  // Get the active data policy and display a message that it was updated.
-  $entity_id = \Drupal::config('data_policy.data_policy')->get('entity_id');
-  $timestamp = DataPolicy::load($entity_id)->getChangedTime();
-  $date = \Drupal::service('date.formatter')->format($timestamp, 'social_medium_date');
-  $form['date'] = [
-    '#theme' => 'status_messages',
-    '#message_list' => [
-      'info' => [
-        [
-          '#type' => 'html_tag',
-          '#tag' => 'strong',
-          '#value' => t('Our data policy has been updated on %date', [
-            '%date' => $date,
-          ]),
-        ],
-      ],
-    ],
-    '#weight' => -1,
-  ];
-
   if (isset($form['not_agree'])) {
     $form['not_agree']['#tag'] = 'small';
   }
@@ -80,35 +42,30 @@ function social_gdpr_form_user_register_form_alter(&$form, FormStateInterface $f
   if (isset($form['data_policy'], $form['account'])) {
     $form['account']['data_policy'] = $form['data_policy'];
     unset($form['data_policy']);
+
+    // Provide it with a weight so it'll sit at the bottom relative to the other
+    // user registration form fields.
+    $form['account']['data_policy']['#weight'] = 100;
   }
 }
 
 /**
- * Implements hook_social_user_account_header_links().
+ * Implements hook_social_user_account_header_account_links().
  */
-function social_gdpr_social_user_account_header_links() {
-  $items = [];
-
+function social_gdpr_social_user_account_header_account_links(array $context): array {
   if (\Drupal::service('data_policy.manager')->needConsent()) {
-    $items['data_policy_agreement'] = [
-      'title' => t('Data policy agreement'),
-      'url' => Url::fromRoute('data_policy.data_policy.agreement'),
-      'after' => 'edit_profile',
-      'divider' => 'before',
+    return [
+      'data_policy_agreement' => [
+        '#type' => 'link',
+        '#attributes' => [
+          'title' => new TranslatableMarkup("Data policy agreement"),
+        ],
+        '#url' => Url::fromRoute('data_policy.data_policy.agreement'),
+        '#title' => new TranslatableMarkup("Data policy agreement"),
+        '#weight' => 1500,
+      ],
     ];
   }
 
-  return $items;
-}
-
-/**
- * Form submit redirect for data policy.
- *
- * @param array $form
- *   Data policy form.
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- *   Form state interface.
- */
-function _social_gdpr_data_policy_submit(array $form, FormStateInterface $form_state) {
-  $form_state->setRedirect('social_gdpr.data_policy.revisions');
+  return [];
 }

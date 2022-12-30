@@ -13,7 +13,9 @@
   // "DOMContentReady" event) to add "new" and "updated" indicators.
   window.addEventListener('load', () => {
     if (drupalSettings.history && drupalSettings.history.nodesToMarkAsRead) {
-      Object.keys(drupalSettings.history.nodesToMarkAsRead).forEach(Drupal.history.markAsRead);
+      Object.keys(drupalSettings.history.nodesToMarkAsRead).forEach(
+        Drupal.history.markAsRead,
+      );
     }
   });
-}(window, Drupal, drupalSettings));
+})(window, Drupal, drupalSettings);

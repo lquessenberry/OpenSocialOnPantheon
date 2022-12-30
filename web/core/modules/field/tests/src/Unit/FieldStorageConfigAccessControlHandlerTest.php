@@ -6,7 +6,6 @@ use Drupal\Component\Uuid\UuidInterface;
 use Drupal\Core\Cache\Context\CacheContextsManager;
 use Drupal\Core\Config\Entity\ConfigEntityTypeInterface;
 use Drupal\Core\DependencyInjection\Container;
-use Drupal\Core\Entity\EntityManager;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -62,10 +61,10 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->anon = $this->getMock(AccountInterface::class);
+    $this->anon = $this->createMock(AccountInterface::class);
     $this->anon
       ->expects($this->any())
       ->method('hasPermission')
@@ -75,19 +74,19 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
       ->method('id')
       ->will($this->returnValue(0));
 
-    $this->member = $this->getMock(AccountInterface::class);
+    $this->member = $this->createMock(AccountInterface::class);
     $this->member
       ->expects($this->any())
       ->method('hasPermission')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         ['administer node fields', TRUE],
-      ]));
+      ]);
     $this->member
       ->expects($this->any())
       ->method('id')
       ->will($this->returnValue(2));
 
-    $storageType = $this->getMock(ConfigEntityTypeInterface::class);
+    $storageType = $this->createMock(ConfigEntityTypeInterface::class);
     $storageType
       ->expects($this->any())
       ->method('getProvider')
@@ -97,7 +96,7 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
       ->method('getConfigPrefix')
       ->will($this->returnValue('field.storage'));
 
-    $entityType = $this->getMock(ConfigEntityTypeInterface::class);
+    $entityType = $this->createMock(ConfigEntityTypeInterface::class);
     $entityType
       ->expects($this->any())
       ->method('getProvider')
@@ -107,11 +106,7 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
       ->method('getConfigPrefix')
       ->willReturn('node');
 
-    $this->moduleHandler = $this->getMock(ModuleHandlerInterface::class);
-    $this->moduleHandler
-      ->expects($this->any())
-      ->method('getImplementations')
-      ->will($this->returnValue([]));
+    $this->moduleHandler = $this->createMock(ModuleHandlerInterface::class);
     $this->moduleHandler
       ->expects($this->any())
       ->method('invokeAll')
@@ -120,7 +115,7 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
     $storage_access_control_handler = new FieldStorageConfigAccessControlHandler($storageType);
     $storage_access_control_handler->setModuleHandler($this->moduleHandler);
 
-    $entity_type_manager = $this->getMock(EntityTypeManagerInterface::class);
+    $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
     $entity_type_manager
       ->expects($this->any())
       ->method('getDefinition')
@@ -132,7 +127,7 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
       ->expects($this->any())
       ->method('getStorage')
       ->willReturnMap([
-        ['field_storage_config', $this->getMock(EntityStorageInterface::class)],
+        ['field_storage_config', $this->createMock(EntityStorageInterface::class)],
       ]);
     $entity_type_manager
       ->expects($this->any())
@@ -141,16 +136,10 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
         ['field_storage_config', $storage_access_control_handler],
       ]);
 
-    $entity_manager = new EntityManager();
-
     $container = new Container();
-    $container->set('entity.manager', $entity_manager);
     $container->set('entity_type.manager', $entity_type_manager);
-    $container->set('uuid', $this->getMock(UuidInterface::class));
+    $container->set('uuid', $this->createMock(UuidInterface::class));
     $container->set('cache_contexts_manager', $this->prophesize(CacheContextsManager::class));
-    // Inject the container into entity.manager so it can defer to
-    // entity_type.manager.
-    $entity_manager->setContainer($container);
     \Drupal::setContainer($container);
 
     $this->entity = new FieldStorageConfig([
@@ -171,8 +160,10 @@ class FieldStorageConfigAccessControlHandlerTest extends UnitTestCase {
    *   A list of allowed operations.
    * @param \Drupal\Core\Session\AccountInterface $user
    *   The account to use for get access.
+   *
+   * @internal
    */
-  public function assertAllowOperations(array $allow_operations, AccountInterface $user) {
+  public function assertAllowOperations(array $allow_operations, AccountInterface $user): void {
     foreach (['view', 'update', 'delete'] as $operation) {
       $expected = in_array($operation, $allow_operations);
       $actual = $this->accessControlHandler->access($this->entity, $operation, $user);

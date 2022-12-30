@@ -1,0 +1,4 @@
+services:
+  select2.autocomplete_matcher:
+    class: Drupal\select2\EntityAutocompleteMatcher
+    arguments: ['@plugin.manager.entity_reference_selection', '@module_handler']

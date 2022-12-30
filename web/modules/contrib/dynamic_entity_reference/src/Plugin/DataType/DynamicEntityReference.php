@@ -50,7 +50,9 @@ class DynamicEntityReference extends EntityReference {
       // DynamicEntityReferenceItem storage settings it is selected dynamically
       // so it exists in DynamicEntityReferenceItem::values['target_type'].
       $target_type = $this->parent->getValue()['target_type'];
-      $entity = entity_load($target_type, $this->id);
+      $entity = \Drupal::entityTypeManager()
+        ->getStorage($target_type)
+        ->load($this->id);
       $this->target = isset($entity) ? $entity->getTypedData() : NULL;
     }
     return $this->target;

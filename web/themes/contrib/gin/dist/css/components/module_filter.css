@@ -1,0 +1,122 @@
+.modules-tabs {
+  background: transparent;
+  border: 0 none;
+}
+
+.modules-tabs__pane, .modules-tabs__menu, .modules-tabs__menu-item {
+  background: var(--colorGinLayerBackground);
+}
+
+.modules-tabs__pane {
+  padding: 1.5rem 1.5rem 0 1.5rem;
+}
+
+[dir="ltr"] .modules-tabs__pane {
+  border-left: 1px solid var(--colorGinBorder);
+}
+
+[dir="rtl"] .modules-tabs__pane {
+  border-right: 1px solid var(--colorGinBorder);
+}
+
+.modules-tabs__pane table tr.enabling {
+  background: var(--colorGinGreenLightBackground);
+}
+
+.modules-tabs__menu-item {
+  border-top: 1px solid var(--colorGinBorder);
+}
+
+.modules-tabs__menu-item.tab__new {
+  border-bottom: 1px solid var(--colorGinBorder);
+}
+
+.modules-tabs__menu-item.disabled {
+  background-color: transparent;
+  border-top-color: var(--colorGinBorder);
+  border-bottom-color: transparent;
+}
+
+.modules-tabs__menu-item.suggest,
+.modules-tabs__menu-item a:hover,
+.modules-tabs__menu-item a:focus,
+.modules-tabs__menu-item a:active {
+  background: var(--colorGinItemHover);
+}
+
+.modules-tabs__menu-item.is-selected a,
+.modules-tabs__menu-item.is-selected a:hover,
+.modules-tabs__menu-item.is-selected a:focus,
+.modules-tabs__menu-item.is-selected a:active {
+  background: var(--colorGinLayerBackground);
+}
+
+.modules-tabs__menu-item ul.enabling {
+  color: var(--colorGinGreen);
+}
+
+#module-filter-update-status-form .table-filter {
+  float: none;
+}
+
+[dir="ltr"] #module-filter-update-status-form .table-filter {
+  text-align: left;
+}
+
+[dir="rtl"] #module-filter-update-status-form .table-filter {
+  text-align: right;
+}
+
+#module-filter-update-status-form .table-filter .winnow-input {
+  width: 100%;
+}
+
+#module-filter-update-status-form .table-filter .winnow-clear {
+  width: 44px;
+}
+
+#module-filter-update-status-form .table-filter .winnow-clear:after {
+  top: 10px;
+}
+
+[dir="ltr"] #module-filter-update-status-form .table-filter .winnow-clear:after {
+  right: 8px;
+}
+
+[dir="rtl"] #module-filter-update-status-form .table-filter .winnow-clear:after {
+  left: 8px;
+}
+
+#module-filter-update-status-form .table-filter input.form-search {
+  width: 100%;
+  padding: 1rem;
+}
+
+#module-filter-update-status-form .table-filter .form-type--search {
+  margin-bottom: .5rem;
+}
+
+.system-modules-uninstall .winnow-input {
+  width: 100%;
+}
+
+[dir="ltr"] .module-filter-status {
+  margin-left: -1em;
+}
+
+[dir="rtl"] .module-filter-status {
+  margin-right: -1em;
+}
+
+[dir="ltr"] .modules-tabs .module-filter-status {
+  margin-left: 0;
+}
+
+[dir="rtl"] .modules-tabs .module-filter-status {
+  margin-right: 0;
+}
+
+.system-modules td details a {
+  color: var(--colorGinPrimary);
+}
+

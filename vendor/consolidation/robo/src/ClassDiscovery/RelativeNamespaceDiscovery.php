@@ -35,7 +35,7 @@ class RelativeNamespaceDiscovery extends AbstractClassDiscovery
     /**
      * @param string $relativeNamespace
      *
-     * @return RelativeNamespaceDiscovery
+     * @return $this
      */
     public function setRelativeNamespace($relativeNamespace)
     {
@@ -45,7 +45,7 @@ class RelativeNamespaceDiscovery extends AbstractClassDiscovery
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getClasses()
     {
@@ -54,13 +54,13 @@ class RelativeNamespaceDiscovery extends AbstractClassDiscovery
 
         foreach ($this->classLoader->getPrefixesPsr4() as $baseNamespace => $directories) {
             $directories = array_filter(array_map(function ($directory) use ($relativePath) {
-                return $directory.$relativePath;
+                return $directory . $relativePath;
             }, $directories), 'is_dir');
 
             if ($directories) {
                 foreach ($this->search($directories, $this->searchPattern) as $file) {
                     $relativePathName = $file->getRelativePathname();
-                    $classes[] = $baseNamespace.$this->convertPathToNamespace($relativePath.'/'.$relativePathName);
+                    $classes[] = $baseNamespace . $this->convertPathToNamespace($relativePath . '/' . $relativePathName);
                 }
             }
         }
@@ -77,8 +77,8 @@ class RelativeNamespaceDiscovery extends AbstractClassDiscovery
     }
 
     /**
-     * @param $directories
-     * @param $pattern
+     * @param string|array $directories
+     * @param string $pattern
      *
      * @return \Symfony\Component\Finder\Finder
      */
@@ -93,9 +93,9 @@ class RelativeNamespaceDiscovery extends AbstractClassDiscovery
     }
 
     /**
-     * @param $path
+     * @param string $path
      *
-     * @return mixed
+     * @return string
      */
     protected function convertPathToNamespace($path)
     {
@@ -103,10 +103,12 @@ class RelativeNamespaceDiscovery extends AbstractClassDiscovery
     }
 
     /**
+     * @param string $namespace
+     *
      * @return string
      */
     public function convertNamespaceToPath($namespace)
     {
-        return '/'.str_replace("\\", '/', trim($namespace, '\\'));
+        return '/' . str_replace("\\", '/', trim($namespace, '\\'));
     }
 }

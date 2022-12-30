@@ -5,11 +5,14 @@
  * Builds placeholder replacement tokens for Social Like module.
  */
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\message\Entity\Message;
+use Drupal\node\NodeInterface;
 use Drupal\votingapi\Entity\Vote;
 use Drupal\Core\Render\Markup;
 use Drupal\node\Entity\Node;
+use Drupal\votingapi\VoteInterface;
 
 /**
  * Implements hook_token_info().
@@ -52,15 +55,18 @@ function social_like_tokens($type, $tokens, array $data, array $options, Bubblea
   if ($type == 'social_like' && !empty($data['message'])) {
     /** @var \Drupal\message\Entity\Message $message */
     $message = $data['message'];
-    /** @var \Drupal\votingapi\Entity\Vote $vote */
-    if ($vote = Vote::load($message->field_message_related_object->target_id)) {
+
+    if (
+      ($message instanceof Message) &&
+      $vote = Vote::load($message->getFieldValue('field_message_related_object', 'target_id'))
+    ) {
       foreach ($tokens as $name => $original) {
         switch ($name) {
 
           case 'liked_entity':
           case 'liked_content_type':
           case 'liked_entity_link_html':
-
+            /** @var \Drupal\votingapi\Entity\Vote $vote */
             $storage = \Drupal::entityTypeManager()->getStorage($vote->getVotedEntityType());
             $entity = $storage->load($vote->getVotedEntityId());
             $url_options = ['absolute' => TRUE];
@@ -71,15 +77,15 @@ function social_like_tokens($type, $tokens, array $data, array $options, Bubblea
 
             $content_type = $entity->getEntityTypeId();
             // Check if the content type is node.
+            $content_type_label = '';
             if ($content_type === 'node') {
               // Then get the bundle name.
-              $content_type_label = Unicode::strtolower(\Drupal::entityTypeManager()
-                ->getStorage('node_type')
-                ->load($entity->bundle())
-                ->label());
+              $label = \Drupal::entityTypeManager()->getStorage('node_type')->load($entity->bundle())->label();
+              $label = $label instanceof TranslatableMarkup ? $label->render() : $label;
+              $content_type_label = $label !== NULL ? mb_strtolower($label) : '';
             }
             if ($content_type === 'post' || $content_type === 'photo' || $content_type === 'comment') {
-              $content_type_label = Unicode::strtolower($entity->getEntityType()->getLabel());
+              $content_type_label = mb_strtolower($entity->getEntityType()->getLabel());
             }
             if ($name === 'liked_content_type') {
               $replacements[$original] = $content_type_label;
@@ -95,24 +101,25 @@ function social_like_tokens($type, $tokens, array $data, array $options, Bubblea
 
                 // Let's make an exception for comments.
                 if ($content_type === 'comment') {
+                  /** @var \Drupal\comment\Entity\Comment $commented_entity */
                   $commented_entity = $entity->getCommentedEntity();
 
                   $url_options = ['absolute' => TRUE];
-                  /** @var \Drupal\Core\Entity\Entity $commented_entity */
+                  /** @var \Drupal\Core\Entity\EntityBase $commented_entity */
                   $ref_link = $commented_entity->toUrl('canonical', $url_options)->toString();
 
                   // We should only use the label of entities who have a label.
                   if ($ref_link_label = $commented_entity->label()) {
                     if ($commented_entity instanceof Node) {
-                      $commented_content_type = strtolower($commented_entity->type->entity->label());
+                      $commented_content_type = strtolower($commented_entity->getEntityType()->getLabel());
                     }
                     else {
                       $commented_content_type = $commented_entity->bundle();
                     }
-                    $liked_entity_link_html .= ' ' . t('on') . ' ' . $commented_content_type . ' <a href="' . $ref_link . '">' . $ref_link_label . '</a>';
+                    $liked_entity_link_html .= ' ' . t('on the') . ' ' . $commented_content_type . ' <a href="' . $ref_link . '">' . $ref_link_label . '</a>';
                   }
                   else {
-                    $commented_content_type = Unicode::strtolower($commented_entity->getEntityType()->getLabel());
+                    $commented_content_type = mb_strtolower($commented_entity->getEntityType()->getLabel());
                     $liked_entity_link_html .= ' ' . t('on a') . ' <a href="' . $ref_link . '">' . $commented_content_type . '</a>';
                   }
                 }
@@ -127,4 +134,80 @@ function social_like_tokens($type, $tokens, array $data, array $options, Bubblea
     }
   }
   return $replacements;
+}
+
+/**
+ * Implements hook_tokens_alter().
+ */
+function social_like_tokens_alter(array &$replacements, array $context, BubbleableMetadata $bubbleable_metadata) {
+  if ($context['type'] == 'message' && !empty($context['data']['message'])) {
+    /** @var Drupal\message\Entity\Message $message */
+    $message = $context['data']['message'];
+
+    // Alter the [message:cta_button] token, and replace it with the rendered
+    // content with new text and link.
+    if (isset($context['tokens']['cta_button']) || isset($context['tokens']['preview'])) {
+      if ($message->hasField('field_message_related_object') && !$message->get('field_message_related_object')->isEmpty()) {
+        if ($message->getFieldValue('field_message_related_object', 'target_type') == 'vote') {
+          /** @var \Drupal\social_activity\EmailTokenServices $email_token_services */
+          $email_token_services = \Drupal::service('social_activity.email_token_services');
+          $vote = $email_token_services->getRelatedObject($message);
+          if (!($vote instanceof VoteInterface)) {
+            return;
+          }
+
+          /** @var \Drupal\votingapi\Entity\Vote $vote */
+          $storage = \Drupal::entityTypeManager()
+            ->getStorage($vote->getVotedEntityType());
+          /** @var Drupal\Core\Entity\Entity $voted_entity */
+          $voted_entity = $storage->load($vote->getVotedEntityId());
+          $content_type = $voted_entity->getEntityTypeId();
+
+          $message_template_id = $message->getTemplate()->id();
+
+          switch ($message_template_id) {
+            case 'create_like_node_or_post':
+              // Replace the cta_button token value.
+              if (isset($context['tokens']['cta_button'])) {
+                $url_options = ['absolute' => TRUE];
+                $link = $voted_entity->toUrl('canonical', $url_options);
+                // We should only use the label of entities who have a label.
+                if ($content_type === 'comment') {
+                  /** @var \Drupal\comment\Entity\Comment $voted_entity */
+                  $commented_entity = $voted_entity->getCommentedEntity();
+                  $link = $commented_entity->toUrl('canonical', $url_options);
+                }
+                $cta_button = $email_token_services->getCtaButton($link, new TranslatableMarkup('See all likes'));
+                $replacements[$context['tokens']['cta_button']] = \Drupal::service('renderer')
+                  ->renderPlain($cta_button);
+              }
+              // Replace the preview token.
+              if (isset($context['tokens']['preview'])) {
+                $preview_info = [];
+                switch ($content_type) {
+                  case 'comment':
+                    $preview_info = $email_token_services->getCommentPreview($voted_entity);
+                    break;
+
+                  case 'post':
+                    // Get the summary of the comment.
+                    /** @var \Drupal\social_post\Entity\Post $voted_entity */
+                    $preview_info = $email_token_services->getPostPreview($voted_entity);
+                    break;
+
+                  case 'node':
+                    if ($voted_entity instanceof NodeInterface) {
+                      /** @var \Drupal\node\Entity\Node $voted_entity */
+                      $preview_info = $email_token_services->getContentPreview($voted_entity);
+                    }
+                    break;
+                }
+                // Render the preview.
+                $replacements[$context['tokens']['preview']] = \Drupal::service('renderer')->renderPlain($preview_info);
+              }
+          }
+        }
+      }
+    }
+  }
 }

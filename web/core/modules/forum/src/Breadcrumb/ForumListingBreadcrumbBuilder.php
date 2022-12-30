@@ -25,12 +25,12 @@ class ForumListingBreadcrumbBuilder extends ForumBreadcrumbBuilderBase {
     $breadcrumb->addCacheContexts(['route']);
 
     // Add all parent forums to breadcrumbs.
-    /** @var \Drupal\Taxonomy\TermInterface $term */
+    /** @var \Drupal\taxonomy\TermInterface $term */
     $term = $route_match->getParameter('taxonomy_term');
     $term_id = $term->id();
     $breadcrumb->addCacheableDependency($term);
 
-    $parents = $this->forumManager->getParents($term_id);
+    $parents = $this->termStorage->loadAllParents($term_id);
     if ($parents) {
       foreach (array_reverse($parents) as $parent) {
         if ($parent->id() != $term_id) {

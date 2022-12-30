@@ -22,9 +22,12 @@ class SessionConfiguration implements SessionConfigurationInterface {
    *
    * @see \Symfony\Component\HttpFoundation\Session\Storage\NativeSessionStorage::__construct()
    * @see http://php.net/manual/session.configuration.php
+   * @see https://www.php.net/manual/session.security.ini.php
    */
   public function __construct($options = []) {
-    $this->options = $options;
+    // Provide sensible defaults for sid_length and sid_bits_per_character.
+    // See core/assets/scaffold/files/default.services.yml for more information.
+    $this->options = $options + ['sid_length' => 48, 'sid_bits_per_character' => 6];
   }
 
   /**
@@ -106,7 +109,7 @@ class SessionConfiguration implements SessionConfigurationInterface {
    * Return the session cookie domain.
    *
    * The Set-Cookie response header and its domain attribute are defined in RFC
-   * 2109, RFC 2965 and RFC 6265 each one superseeding the previous version.
+   * 2109, RFC 2965 and RFC 6265 each one superseding the previous version.
    *
    * @see http://tools.ietf.org/html/rfc2109
    * @see http://tools.ietf.org/html/rfc2965

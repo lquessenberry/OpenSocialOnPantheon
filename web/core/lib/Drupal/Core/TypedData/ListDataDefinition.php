@@ -20,7 +20,7 @@ class ListDataDefinition extends DataDefinition implements ListDataDefinitionInt
    * @param string $item_type
    *   The data type of the list items; e.g., 'string', 'integer' or 'any'.
    *
-   * @return \Drupal\Core\TypedData\ListDataDefinition
+   * @return static
    *   A new List Data Definition object.
    */
   public static function create($item_type) {
@@ -96,7 +96,7 @@ class ListDataDefinition extends DataDefinition implements ListDataDefinitionInt
   /**
    * Sets the item definition.
    *
-   * @param \Drupal\Core\TypedData\DataDefinition $definition
+   * @param \Drupal\Core\TypedData\DataDefinitionInterface $definition
    *   A list item's data definition.
    *
    * @return $this

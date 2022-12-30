@@ -2,6 +2,7 @@
 
 namespace Drupal\locale\Form;
 
+use Drupal\Component\Utility\Environment;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -46,6 +47,7 @@ class ImportForm extends FormBase {
       $container->get('language_manager')
     );
   }
+
   /**
    * Constructs a form for language import.
    *
@@ -98,7 +100,7 @@ class ImportForm extends FormBase {
 
     $validators = [
       'file_validate_extensions' => ['po'],
-      'file_validate_size' => [file_upload_max_size()],
+      'file_validate_size' => [Environment::getUploadMaxSize()],
     ];
     $form['file'] = [
       '#type' => 'file',
@@ -175,7 +177,7 @@ class ImportForm extends FormBase {
     if (empty($language)) {
       $language = ConfigurableLanguage::createFromLangcode($form_state->getValue('langcode'));
       $language->save();
-      drupal_set_message($this->t('The language %language has been created.', ['%language' => $this->t($language->label())]));
+      $this->messenger()->addStatus($this->t('The language %language has been created.', ['%language' => $this->t($language->label())]));
     }
     $options = array_merge(_locale_translation_default_update_options(), [
       'langcode' => $form_state->getValue('langcode'),

@@ -7,8 +7,10 @@ use Drupal\Core\Render\Markup;
 use Drupal\Core\Template\Attribute;
 use Drupal\Core\Template\AttributeArray;
 use Drupal\Core\Template\AttributeString;
+use Drupal\Core\Template\Loader\StringLoader;
 use Drupal\Tests\UnitTestCase;
 use Drupal\Component\Render\MarkupInterface;
+use Twig\Environment;
 
 /**
  * @coversDefaultClass \Drupal\Core\Template\Attribute
@@ -92,7 +94,7 @@ class AttributeTest extends UnitTestCase {
     // Test adding array to class.
     $attribute = new Attribute();
     $attribute->setAttribute('class', ['kitten', 'cat']);
-    $this->assertArrayEquals(['kitten', 'cat'], $attribute['class']->value());
+    $this->assertEquals(['kitten', 'cat'], $attribute['class']->value());
 
     // Test adding boolean attributes.
     $attribute = new Attribute();
@@ -172,19 +174,19 @@ class AttributeTest extends UnitTestCase {
 
     // Add one class on empty attribute.
     $attribute->addClass('banana');
-    $this->assertArrayEquals(['banana'], $attribute['class']->value());
+    $this->assertEquals(['banana'], $attribute['class']->value());
 
     // Add one class.
     $attribute->addClass('aa');
-    $this->assertArrayEquals(['banana', 'aa'], $attribute['class']->value());
+    $this->assertEquals(['banana', 'aa'], $attribute['class']->value());
 
     // Add multiple classes.
     $attribute->addClass('xx', 'yy');
-    $this->assertArrayEquals(['banana', 'aa', 'xx', 'yy'], $attribute['class']->value());
+    $this->assertEquals(['banana', 'aa', 'xx', 'yy'], $attribute['class']->value());
 
     // Add an array of classes.
     $attribute->addClass(['red', 'green', 'blue']);
-    $this->assertArrayEquals(['banana', 'aa', 'xx', 'yy', 'red', 'green', 'blue'], $attribute['class']->value());
+    $this->assertEquals(['banana', 'aa', 'xx', 'yy', 'red', 'green', 'blue'], $attribute['class']->value());
 
     // Add an array of duplicate classes.
     $attribute->addClass(['red', 'green', 'blue'], ['aa', 'aa', 'banana'], 'yy');
@@ -216,7 +218,7 @@ class AttributeTest extends UnitTestCase {
     $attribute->removeClass('gg');
     $this->assertNotContains(['gg'], $attribute['class']->value());
     // Test that the array index remains sequential.
-    $this->assertArrayEquals(['aa'], $attribute['class']->value());
+    $this->assertEquals(['aa'], $attribute['class']->value());
 
     $attribute->removeClass('aa');
     $this->assertEmpty((string) $attribute);
@@ -252,7 +254,7 @@ class AttributeTest extends UnitTestCase {
       ->addClass(['apple', 'lime', 'grapefruit'])
       ->addClass(['banana']);
     $expected = ['example-class', 'blue', 'apple', 'lime', 'grapefruit', 'banana'];
-    $this->assertArrayEquals($expected, $attribute['class']->value(), 'Attributes chained');
+    $this->assertEquals($expected, $attribute['class']->value(), 'Attributes chained');
   }
 
   /**
@@ -261,25 +263,24 @@ class AttributeTest extends UnitTestCase {
    *
    * @covers ::removeClass
    * @covers ::addClass
-   *
-   * @group legacy
    */
   public function testTwigAddRemoveClasses($template, $expected, $seed_attributes = []) {
-    $loader = new \Twig_Loader_String();
-    $twig = new \Twig_Environment($loader);
+    $loader = new StringLoader();
+    $twig = new Environment($loader);
     $data = ['attributes' => new Attribute($seed_attributes)];
-    $result = $twig->render($template, $data);
+    $result = $twig->createTemplate($template)->render($data);
     $this->assertEquals($expected, $result);
   }
 
   /**
-   * Provides tests data for testEscaping
+   * Provides tests data for testEscaping.
    *
    * @return array
    *   An array of test data each containing of a twig template string,
    *   a resulting string of classes and an optional array of attributes.
    */
   public function providerTestAttributeClassHelpers() {
+    // cSpell:disable
     return [
       ["{{ attributes.class }}", ''],
       ["{{ attributes.addClass('everest').class }}", 'everest'],
@@ -313,6 +314,7 @@ class AttributeTest extends UnitTestCase {
       // Test for the removal of an empty class name.
       ["{{ attributes.addClass('rakaposhi', '').class }}", 'rakaposhi'],
     ];
+    // cSpell:enable
   }
 
   /**
@@ -349,7 +351,7 @@ class AttributeTest extends UnitTestCase {
     $this->assertID('example-id', $html);
     $this->assertNoID('example-id2', $html);
 
-    $this->assertTrue(strpos($html, 'enabled') !== FALSE);
+    $this->assertStringContainsString('enabled', $html);
   }
 
   /**
@@ -380,8 +382,10 @@ class AttributeTest extends UnitTestCase {
    *   The CSS class to check.
    * @param string $html
    *   The HTML snippet to check.
+   *
+   * @internal
    */
-  protected function assertClass($class, $html) {
+  protected function assertClass(string $class, string $html): void {
     $xpath = "//*[@class='$class']";
     self::assertTrue((bool) $this->getXPathResultCount($xpath, $html));
   }
@@ -393,8 +397,10 @@ class AttributeTest extends UnitTestCase {
    *   The CSS class to check.
    * @param string $html
    *   The HTML snippet to check.
+   *
+   * @internal
    */
-  protected function assertNoClass($class, $html) {
+  protected function assertNoClass(string $class, string $html): void {
     $xpath = "//*[@class='$class']";
     self::assertFalse((bool) $this->getXPathResultCount($xpath, $html));
   }
@@ -406,8 +412,10 @@ class AttributeTest extends UnitTestCase {
    *   The CSS ID to check.
    * @param string $html
    *   The HTML snippet to check.
+   *
+   * @internal
    */
-  protected function assertID($id, $html) {
+  protected function assertID(string $id, string $html): void {
     $xpath = "//*[@id='$id']";
     self::assertTrue((bool) $this->getXPathResultCount($xpath, $html));
   }
@@ -419,8 +427,10 @@ class AttributeTest extends UnitTestCase {
    *   The CSS ID to check.
    * @param string $html
    *   The HTML snippet to check.
+   *
+   * @internal
    */
-  protected function assertNoID($id, $html) {
+  protected function assertNoID(string $id, string $html): void {
     $xpath = "//*[@id='$id']";
     self::assertFalse((bool) $this->getXPathResultCount($xpath, $html));
   }
@@ -451,6 +461,64 @@ class AttributeTest extends UnitTestCase {
     $attribute = new Attribute(['class' => ['example-class']]);
 
     $this->assertEquals(['class' => new AttributeArray('class', ['example-class'])], $attribute->storage());
+  }
+
+  /**
+   * Provides tests data for testHasAttribute.
+   *
+   * @return array
+   *   An array of test data each containing an array of attributes, the name
+   *   of the attribute to check existence of, and the expected result.
+   */
+  public function providerTestHasAttribute() {
+    return [
+      [['class' => ['example-class']], 'class', TRUE],
+      [[], 'class', FALSE],
+      [['class' => ['example-class']], 'id', FALSE],
+      [['class' => ['example-class'], 'id' => 'foo'], 'id', TRUE],
+      [['id' => 'foo'], 'class', FALSE],
+    ];
+  }
+
+  /**
+   * @covers ::hasAttribute
+   * @dataProvider providerTestHasAttribute
+   */
+  public function testHasAttribute(array $test_data, $test_attribute, $expected) {
+    $attributes = new Attribute($test_data);
+    $this->assertSame($expected, $attributes->hasAttribute($test_attribute));
+  }
+
+  /**
+   * Provides tests data for testMerge.
+   *
+   * @return array
+   *   An array of test data each containing an initial Attribute object, an
+   *   Attribute object or array to be merged, and the expected result.
+   */
+  public function providerTestMerge() {
+    return [
+      [new Attribute([]), new Attribute(['class' => ['class1']]), new Attribute(['class' => ['class1']])],
+      [new Attribute(['class' => ['example-class']]), new Attribute(['class' => ['class1']]), new Attribute(['class' => ['example-class', 'class1']])],
+      [new Attribute(['class' => ['example-class']]), new Attribute(['id' => 'foo', 'href' => 'bar']), new Attribute(['class' => ['example-class'], 'id' => 'foo', 'href' => 'bar'])],
+    ];
+  }
+
+  /**
+   * @covers ::merge
+   * @dataProvider providerTestMerge
+   */
+  public function testMerge($original, $merge, $expected) {
+    $this->assertEquals($expected, $original->merge($merge));
+  }
+
+  /**
+   * @covers ::merge
+   */
+  public function testMergeArgumentException() {
+    $attributes = new Attribute(['class' => ['example-class']]);
+    $this->expectException(\TypeError::class);
+    $attributes->merge('not an array');
   }
 
 }

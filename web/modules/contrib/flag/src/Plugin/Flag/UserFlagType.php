@@ -43,12 +43,12 @@ class UserFlagType extends EntityFlagType {
       // A user flag doesn't support node types.
       // TODO: Maybe support roles instead of node types.
       '#type' => 'value',
-      '#value' => array(0 => 0),
+      '#value' => [0 => 0],
     ];
     $form['display']['show_on_profile'] = [
       '#type' => 'checkbox',
-      '#title' => t('Display link on user profile page'),
-      '#description' => t('Show the link formatted as a user profile element.'),
+      '#title' => $this->t('Display link on user profile page'),
+      '#description' => $this->t('Show the link formatted as a user profile element.'),
       '#default_value' => $this->showOnProfile(),
       // Put this above 'show on entity'.
       '#weight' => -1,
@@ -87,9 +87,9 @@ class UserFlagType extends EntityFlagType {
     return $this->configuration['show_on_profile'];
   }
 
-   /**
-    * {@inheritdoc}
-    */
+  /**
+   * {@inheritdoc}
+   */
   protected function getExtraPermissionsOwner(FlagInterface $flag) {
     $permissions['flag ' . $flag->id() . ' own user account'] = [
       'title' => $this->t('Flag %flag_title own profile', [

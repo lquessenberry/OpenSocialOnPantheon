@@ -20,12 +20,12 @@ class MigrateTaxonomyTermStubTest extends MigrateDrupalTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['taxonomy', 'text', 'taxonomy_term_stub_test'];
+  protected static $modules = ['taxonomy', 'text', 'taxonomy_term_stub_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('taxonomy_term');
   }
@@ -72,14 +72,14 @@ class MigrateTaxonomyTermStubTest extends MigrateDrupalTestBase {
     $migration = $this->getMigration('taxonomy_term_stub_test');
     $term_executable = new MigrateExecutable($migration, $this);
     $term_executable->import();
-    $this->assertTrue($migration->getIdMap()->getRowBySource(['2']), 'Stub row exists in the ID map table');
+    $this->assertNotEmpty($migration->getIdMap()->getRowBySource(['2']), 'Stub row exists in the ID map table');
 
     // Load the referenced term, which should exist as a stub.
     /** @var \Drupal\Core\Entity\ContentEntityBase $stub_entity */
     $stub_entity = Term::load(2);
-    $this->assertTrue($stub_entity, 'Stub successfully created');
+    $this->assertNotEmpty($stub_entity, 'Stub successfully created');
     if ($stub_entity) {
-      $this->assertIdentical(count($stub_entity->validate()), 0, 'Stub is a valid entity');
+      $this->assertCount(0, $stub_entity->validate(), 'Stub is a valid entity');
     }
   }
 

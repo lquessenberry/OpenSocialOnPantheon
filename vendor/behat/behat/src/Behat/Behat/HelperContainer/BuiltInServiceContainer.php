@@ -12,7 +12,7 @@ namespace Behat\Behat\HelperContainer;
 
 use Behat\Behat\HelperContainer\Exception\ServiceNotFoundException;
 use Behat\Behat\HelperContainer\Exception\WrongServicesConfigurationException;
-use Interop\Container\ContainerInterface;
+use Psr\Container\ContainerInterface as PsrContainerInterface;
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -21,7 +21,7 @@ use ReflectionMethod;
  *
  * @author Konstantin Kudryashov <ever.zet@gmail.com>
  */
-final class BuiltInServiceContainer implements ContainerInterface
+final class BuiltInServiceContainer implements PsrContainerInterface
 {
     /**
      * @var array
@@ -45,7 +45,7 @@ final class BuiltInServiceContainer implements ContainerInterface
     /**
      * {@inheritdoc}
      */
-    public function has($id)
+    public function has($id): bool
     {
         return array_key_exists($id, $this->schema);
     }
@@ -62,7 +62,7 @@ final class BuiltInServiceContainer implements ContainerInterface
             );
         }
 
-        return $this->instances[$id] = isset($this->instances[$id]) ? $this->instances[$id] : $this->createInstance($id);
+        return $this->instances[$id] = $this->instances[$id] ?? $this->createInstance($id);
     }
 
     /**

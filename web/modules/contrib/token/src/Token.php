@@ -65,9 +65,9 @@ class Token extends TokenBase implements TokenInterface {
         }
 
         $this->tokenInfo = $token_info;
-        $this->cache->set($cache_id, $this->tokenInfo, CacheBackendInterface::CACHE_PERMANENT, array(
+        $this->cache->set($cache_id, $this->tokenInfo, CacheBackendInterface::CACHE_PERMANENT, [
           static::TOKEN_INFO_CACHE_TAG,
-        ));
+        ]);
       }
     }
 
@@ -136,7 +136,7 @@ class Token extends TokenBase implements TokenInterface {
    */
   function getInvalidTokens($type, $tokens) {
     $token_info = $this->getInfo();
-    $invalid_tokens = array();
+    $invalid_tokens = [];
 
     foreach ($tokens as $token => $full_token) {
       if (isset($token_info['tokens'][$type][$token])) {
@@ -162,7 +162,7 @@ class Token extends TokenBase implements TokenInterface {
         }
         else {
           // Recursively check the chained tokens.
-          $sub_tokens = $this->findWithPrefix(array($token => $full_token), $parts[0]);
+          $sub_tokens = $this->findWithPrefix([$token => $full_token], $parts[0]);
           $invalid_tokens = array_merge($invalid_tokens, $this->getInvalidTokens($sub_token_info['type'], $sub_tokens));
         }
       }
@@ -184,7 +184,7 @@ class Token extends TokenBase implements TokenInterface {
       $valid_types = array_merge($valid_types, $this->getGlobalTokenTypes());
     }
 
-    $invalid_tokens = array();
+    $invalid_tokens = [];
     $value_tokens = is_string($value) ? $this->scan($value) : $value;
 
     foreach ($value_tokens as $type => $tokens) {

@@ -83,7 +83,7 @@ class Schemas extends SettingBase {
    *   The current state of the form.
    */
   public static function updateTheme(array $form, FormStateInterface $form_state) {
-    if ($theme = SystemThemeSettings::getTheme($form, $form_state)) {
+    if ($theme = SystemThemeSettings::getTheme(Element::create($form), $form_state)) {
       // Due to the fact that the batch API stores it's arguments in DB storage,
       // theme based objects cannot be passed as an operation argument here.
       // During _batch_page(), the DB item will attempt to restore the arguments
@@ -200,7 +200,7 @@ class Schemas extends SettingBase {
         '#items' => $results['success'],
         '#context' => ['type' => 'success'],
       ]);
-      drupal_set_message(new FormattableMarkup('@message' . $list->renderPlain(), [
+      \Drupal::messenger()->addMessage(new FormattableMarkup('@message' . $list->renderPlain(), [
         '@message' => t('Successfully completed the following theme updates:'),
       ]));
     }
@@ -212,7 +212,7 @@ class Schemas extends SettingBase {
         '#items' => $results['errors'],
         '#context' => ['type' => 'errors'],
       ]);
-      drupal_set_message(new FormattableMarkup('@message' . $list->renderPlain(), [
+      \Drupal::messenger()->addMessage(new FormattableMarkup('@message' . $list->renderPlain(), [
         '@message' => t('The following theme updates could not be completed:'),
       ]), 'error');
     }

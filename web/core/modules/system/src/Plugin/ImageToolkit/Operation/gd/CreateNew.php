@@ -52,7 +52,7 @@ class CreateNew extends GDImageToolkitOperationBase {
   protected function validateArguments(array $arguments) {
     // Assure extension is supported.
     if (!in_array($arguments['extension'], $this->getToolkit()->getSupportedExtensions())) {
-      throw new \InvalidArgumentException("Invalid extension ('{$arguments['extension']}') specified for the image 'convert' operation");
+      throw new \InvalidArgumentException("Invalid extension ('{$arguments['extension']}') specified for the image 'create_new' operation");
     }
 
     // Assure integers for width and height.
@@ -93,6 +93,7 @@ class CreateNew extends GDImageToolkitOperationBase {
     // Fill the resource with transparency as possible.
     switch ($type) {
       case IMAGETYPE_PNG:
+      case IMAGETYPE_WEBP:
         imagealphablending($res, FALSE);
         $transparency = imagecolorallocatealpha($res, 0, 0, 0, 127);
         imagefill($res, 0, 0, $transparency);

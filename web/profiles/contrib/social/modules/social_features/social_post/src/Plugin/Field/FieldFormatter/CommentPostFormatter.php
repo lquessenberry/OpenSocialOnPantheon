@@ -10,6 +10,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\comment\CommentManagerInterface;
 use Drupal\comment\CommentInterface;
 use Drupal\Core\Link;
+use Drupal\Core\Url;
 
 /**
  * Provides a post comment formatter.
@@ -34,7 +35,7 @@ class CommentPostFormatter extends CommentDefaultFormatter {
   public static function defaultSettings() {
     return [
       'num_comments' => 2,
-      'order' => 'DESC',
+      'order' => 'ASC',
     ];
   }
 
@@ -93,7 +94,7 @@ class CommentPostFormatter extends CommentDefaultFormatter {
             ];
 
             // Set path to post node.
-            $link_url = $entity->urlInfo('canonical');
+            $link_url = $entity->toUrl('canonical');
 
             // Attach the attributes.
             $link_url->setOptions($more_link_options);
@@ -115,7 +116,7 @@ class CommentPostFormatter extends CommentDefaultFormatter {
         $group_id = $entity->field_recipient_group->target_id;
         if ($group_id) {
           /** @var \Drupal\group\Entity\Group $group */
-          $group = entity_load('group', $group_id);
+          $group = \Drupal::service('entity_type.manager')->getStorage('group')->load($group_id);
           if ($group->hasPermission('add post entities in group', $this->currentUser) && $this->currentUser->hasPermission('post comments')) {
             $add_comment_form = TRUE;
           }
@@ -133,6 +134,23 @@ class CommentPostFormatter extends CommentDefaultFormatter {
             ],
             ],
             '#create_placeholder' => TRUE,
+          ];
+        }
+        else {
+          // Add log in and sign up links below discussion comments for AN user.
+          $log_in_url = Url::fromRoute('user.login', ['destination' => Url::fromRoute('<current>')->toString()]);
+          $log_in_link = Link::fromTextAndUrl(t('log in'), $log_in_url)
+            ->toString();
+          $create_account_url = Url::fromRoute('user.register');
+          $sign_up = Link::fromTextAndUrl(t('sign up'), $create_account_url)
+            ->toString();
+          $description = $this->t('Please @log_in or @sign_up to comment.', [
+            '@log_in' => $log_in_link,
+            '@sign_up' => $sign_up,
+          ]);
+          $output['comment_form'] = [
+            '#prefix' => '<hr>',
+            '#markup' => $description,
           ];
         }
       }
@@ -188,8 +206,8 @@ class CommentPostFormatter extends CommentDefaultFormatter {
    * @see Drupal\comment\CommentStorage::loadThead()
    */
   public function loadThread(EntityInterface $entity, $field_name, $mode, $comments_per_page = 0, $pager_id = 0) {
-    // @TODO: Refactor this to use CommentDefaultFormatter->loadThread with dependency injection instead.
-    $query = db_select('comment_field_data', 'c');
+    // @todo Refactor this to use CommentDefaultFormatter->loadThread with dependency injection instead.
+    $query = \Drupal::database()->select('comment_field_data', 'c');
     $query->addField('c', 'cid');
     $query
       ->condition('c.entity_id', $entity->id())
@@ -227,7 +245,7 @@ class CommentPostFormatter extends CommentDefaultFormatter {
 
     $comments = [];
     if ($cids) {
-      $comments = entity_load_multiple('comment', $cids);
+      $comments = $this->storage->loadMultiple($cids);
     }
 
     return $comments;

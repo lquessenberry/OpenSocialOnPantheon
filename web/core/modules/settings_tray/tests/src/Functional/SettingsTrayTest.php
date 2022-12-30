@@ -15,10 +15,15 @@ class SettingsTrayTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'settings_tray',
     'settings_tray_test',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Gets the block CSS selector.
@@ -29,7 +34,7 @@ class SettingsTrayTest extends BrowserTestBase {
    * @return string
    *   The CSS selector.
    */
-  protected  function getBlockSelector(Block $block) {
+  protected function getBlockSelector(Block $block) {
     return '#block-' . $block->id();
   }
 

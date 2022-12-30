@@ -5,7 +5,8 @@ namespace Drupal\Tests\search_api\Functional;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
+use Drupal\search_api\Utility\Utility;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
 use Drupal\search_api\Entity\Index;
 use Drupal\search_api\Entity\Server;
 use Drupal\search_api\Item\Field;
@@ -14,8 +15,6 @@ use Drupal\search_api_test\PluginTestTrait;
 
 /**
  * Tests the admin UI for processors.
- *
- * @todo Move this whole class into a single IntegrationTest check*() method?
  *
  * @group search_api
  */
@@ -27,15 +26,16 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'filter',
     'taxonomy',
+    'search_api_test_no_ui',
   ];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
     $this->drupalLogin($this->adminUser);
 
@@ -97,7 +97,13 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
    */
   public function testProcessorIntegration() {
     // Some processors are always enabled.
-    $enabled = ['add_url', 'aggregated_field', 'rendered_item'];
+    $enabled = [
+      'add_url',
+      'aggregated_field',
+      'entity_type',
+      'language_with_fallback',
+      'rendered_item',
+    ];
     $actual_processors = array_keys($this->loadIndex()->getProcessors());
     sort($actual_processors);
     $this->assertEquals($enabled, $actual_processors);
@@ -108,6 +114,8 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
     foreach ($hidden as $processor_id) {
       $this->assertSession()->responseNotContains(Html::escape($processor_id));
     }
+
+    $this->checkLanguageWithFallbackIntegration();
 
     $this->checkAggregatedFieldsIntegration();
 
@@ -160,6 +168,13 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
     sort($actual_processors);
     $this->assertEquals($enabled, $actual_processors);
 
+    $this->checkNoUiIntegration();
+    $enabled[] = 'search_api_test_no_ui';
+    sort($enabled);
+    $actual_processors = array_keys($this->loadIndex()->getProcessors());
+    sort($actual_processors);
+    $this->assertEquals($enabled, $actual_processors);
+
     $this->checkRoleFilterIntegration();
     $enabled[] = 'role_filter';
     sort($enabled);
@@ -199,6 +214,13 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
 
     $this->checkStemmerIntegration();
     $enabled[] = 'stemmer';
+    sort($enabled);
+    $actual_processors = array_keys($this->loadIndex()->getProcessors());
+    sort($actual_processors);
+    $this->assertEquals($enabled, $actual_processors);
+
+    $this->checkNumberFieldBoostIntegration();
+    $enabled[] = 'number_field_boost';
     sort($enabled);
     $actual_processors = array_keys($this->loadIndex()->getProcessors());
     sort($actual_processors);
@@ -254,7 +276,7 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
     // After disabling some datasource, all related processors should be
     // disabled also.
     $this->drupalGet('admin/config/search/search-api/index/' . $this->indexId . '/edit');
-    $this->drupalPostForm(NULL, ['datasources[entity:user]' => FALSE], 'Save');
+    $this->submitForm(['datasources[entity:user]' => FALSE], 'Save');
     $processors = $this->loadIndex()->getProcessors();
     $this->assertArrayNotHasKey('role_filter', $processors);
     $this->drupalGet('admin/config/search/search-api/index/' . $this->indexId . '/processors');
@@ -296,13 +318,36 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
     $this->drupalGet($settings_path);
     $this->submitForm(['server' => 'webtest_server'], 'Save');
 
-    // Load the processors again and check that they are not shown anymore.
+    // Load the processors again and check that they are disabled now.
     $this->loadProcessorsTab();
     $this->assertSession()->statusCodeEquals(200);
-    $this->assertSession()->pageTextNotContains('Highlight');
-    $this->assertSession()->pageTextNotContains('Ignore character');
-    $this->assertSession()->pageTextNotContains('Tokenizer');
-    $this->assertSession()->pageTextNotContains('Stopwords');
+    $this->assertSession()->pageTextContains('It is recommended not to use this processor with the selected server.');
+    $this->assertSession()->elementExists('css', 'input[name="status[highlight]"][disabled="disabled"]');
+    $this->assertSession()->elementExists('css', 'input[name="status[ignore_character]"][disabled="disabled"]');
+    $this->assertSession()->elementExists('css', 'input[name="status[tokenizer]"][disabled="disabled"]');
+    $this->assertSession()->elementExists('css', 'input[name="status[stopwords]"][disabled="disabled"]');
+  }
+
+  /**
+   * Tests the integration of the "Language (with fallback)" processor.
+   */
+  protected function checkLanguageWithFallbackIntegration() {
+    // Test that the processor is locked.
+    $index = $this->loadIndex();
+    $index->removeProcessor('language_with_fallback');
+    $index->save();
+
+    $this->assertTrue($this->loadIndex()->isValidProcessor('language_with_fallback'), 'The "Language (with fallback)" processor cannot be disabled.');
+
+    // Add a language_with_fallback field.
+    $options['query']['datasource'] = '';
+    $this->drupalGet($this->getIndexPath('fields/add/nojs'), $options);
+    // See \Drupal\search_api\Tests\IntegrationTest::addField().
+    $this->assertSession()->responseContains('name="language_with_fallback"');
+    $this->submitForm([], 'language_with_fallback');
+
+    $args['%label'] = 'Language (with fallback)';
+    $this->assertSession()->responseContains(new FormattableMarkup('Field %label was added to the index.', $args));
   }
 
   /**
@@ -385,20 +430,33 @@ class ProcessorIntegrationTest extends SearchApiBrowserTestBase {
     $configuration = [
       'boosts' => [
         'entity:node' => [
-          'datasource_boost' => '3.0',
+          'datasource_boost' => 3.0,
           'bundle_boosts' => [
-            'article' => '5.0',
+            'article' => 5.0,
           ],
         ],
         'entity:user' => [
-          'datasource_boost' => '1.0',
+          'datasource_boost' => 1.0,
         ],
       ],
     ];
-    $form_values = $configuration;
+    $form_values = [
+      'boosts' => [
+        'entity:node' => [
+          'datasource_boost' => Utility::formatBoostFactor(3),
+          'bundle_boosts' => [
+            'article' => Utility::formatBoostFactor(5),
+          ],
+        ],
+        'entity:user' => [
+          'datasource_boost' => Utility::formatBoostFactor(1),
+        ],
+      ],
+    ];
     $form_values['boosts']['entity:node']['bundle_boosts']['page'] = '';
 
     $this->editSettingsForm($configuration, 'type_boost', $form_values);
+    $this->editSettingsForm($configuration, 'type_boost', []);
   }
 
   /**
@@ -443,6 +501,7 @@ TAGS
     $this->checkValidationError($configuration, 'html_filter', $errors);
 
     $configuration = $form_values = [
+      'all_fields' => TRUE,
       'title' => FALSE,
       'alt' => FALSE,
       'tags' => [
@@ -457,7 +516,9 @@ TAGS
    * Tests the UI for the "Ignore case" processor.
    */
   public function checkIgnoreCaseIntegration() {
-    $this->editSettingsForm([], 'ignorecase');
+    $this->editSettingsForm([
+      'all_fields' => TRUE,
+    ], 'ignorecase');
   }
 
   /**
@@ -470,32 +531,33 @@ TAGS
     $this->checkValidationError($configuration, 'ignore_character', 'The entered text is no valid regular expression.');
 
     $configuration = $form_values = [
+      'all_fields' => TRUE,
       'ignorable' => '[¿¡!?,.]',
-      'strip' => [
-        'character_sets' => [
-          'Pc' => 'Pc',
-          'Pd' => 'Pd',
-          'Pe' => 'Pe',
-          'Pf' => 'Pf',
-          'Pi' => 'Pi',
-          'Po' => 'Po',
-          'Ps' => 'Ps',
-          'Cc' => 'Cc',
-          'Cf' => FALSE,
-          'Co' => FALSE,
-          'Mc' => FALSE,
-          'Me' => FALSE,
-          'Mn' => FALSE,
-          'Sc' => FALSE,
-          'Sk' => FALSE,
-          'Sm' => FALSE,
-          'So' => FALSE,
-          'Zl' => FALSE,
-          'Zp' => FALSE,
-          'Zs' => FALSE,
-        ],
-      ],
     ];
+    $form_values['strip']['character_sets'] = [
+      'Pc' => 'Pc',
+      'Pd' => 'Pd',
+      'Pe' => 'Pe',
+      'Pf' => 'Pf',
+      'Pi' => 'Pi',
+      'Po' => 'Po',
+      'Ps' => 'Ps',
+      'Cc' => 'Cc',
+      'Cf' => FALSE,
+      'Co' => FALSE,
+      'Mc' => FALSE,
+      'Me' => FALSE,
+      'Mn' => FALSE,
+      'Sc' => FALSE,
+      'Sk' => FALSE,
+      'Sm' => FALSE,
+      'So' => FALSE,
+      'Zl' => FALSE,
+      'Zp' => FALSE,
+      'Zs' => FALSE,
+    ];
+    $configuration['ignorable_classes'] = array_filter($form_values['strip']['character_sets']);
+    sort($configuration['ignorable_classes']);
     $this->editSettingsForm($configuration, 'ignore_character', $form_values);
   }
 
@@ -504,6 +566,21 @@ TAGS
    */
   public function checkEntityStatusIntegration() {
     $this->enableProcessor('entity_status');
+  }
+
+  /**
+   * Tests the "No UI" test processor.
+   */
+  public function checkNoUiIntegration() {
+    $this->loadProcessorsTab();
+    $this->assertSession()->pageTextNotContains('No UI processor');
+
+    // Ensure that the processor can still be enabled programmatically – and
+    // stays enabled when submitting the processors form.
+    $index = $this->loadIndex();
+    $processor = \Drupal::getContainer()->get('search_api.plugin_helper')
+      ->createProcessorPlugin($index, 'search_api_test_no_ui');
+    $index->addProcessor($processor)->save();
   }
 
   /**
@@ -556,9 +633,11 @@ TAGS
    */
   public function checkStopWordsIntegration() {
     $configuration = [
+      'all_fields' => TRUE,
       'stopwords' => ['the'],
     ];
     $form_values = [
+      'all_fields' => TRUE,
       'stopwords' => 'the',
     ];
     $this->editSettingsForm($configuration, 'stopwords', $form_values);
@@ -574,6 +653,7 @@ TAGS
     $this->checkValidationError($configuration, 'tokenizer', 'The entered text is no valid PCRE character class.');
 
     $configuration = [
+      'all_fields' => TRUE,
       'spaces' => '',
       'overlap_cjk' => FALSE,
       'minimum_word_size' => 2,
@@ -585,7 +665,9 @@ TAGS
    * Tests the UI for the "Transliteration" processor.
    */
   public function checkTransliterationIntegration() {
-    $this->editSettingsForm([], 'transliteration');
+    $this->editSettingsForm([
+      'all_fields' => TRUE,
+    ], 'transliteration');
   }
 
   /**
@@ -613,12 +695,43 @@ TAGS
   public function checkStemmerIntegration() {
     $this->enableProcessor('stemmer');
     $configuration = [
+      'all_fields' => TRUE,
       'exceptions' => ['indian' => 'india'],
     ];
     $form_values = [
+      'all_fields' => TRUE,
       'exceptions' => 'indian=india',
     ];
     $this->editSettingsForm($configuration, 'stemmer', $form_values);
+  }
+
+  /**
+   * Tests the UI for the "Number field-based boosting" processor.
+   */
+  public function checkNumberFieldBoostIntegration() {
+    $this->enableProcessor('number_field_boost');
+    $configuration = [
+      'boosts' => [
+        'term_field' => [
+          'boost_factor' => 8.0,
+          'aggregation' => 'avg',
+        ],
+      ],
+    ];
+    $form_values = [
+      'boosts' => [
+        'term_field' => [
+          'boost_factor' => Utility::formatBoostFactor(8),
+          'aggregation' => 'avg',
+        ],
+        'parent_reference' => [
+          'boost_factor' => Utility::formatBoostFactor(0),
+          'aggregation' => 'sum',
+        ],
+      ],
+    ];
+    unset($configuration['boosts']['parent_reference']);
+    $this->editSettingsForm($configuration, 'number_field_boost', $form_values);
   }
 
   /**
@@ -668,20 +781,16 @@ TAGS
    *   actual configuration prior to comparing with the given configuration.
    */
   protected function editSettingsForm(array $configuration, $processor_id, array $form_values = NULL, $enable = TRUE, $unset_fields = TRUE) {
-    if (!isset($form_values)) {
-      $form_values = $configuration;
-    }
-
     $this->loadProcessorsTab();
 
-    $edit = $this->getFormValues($form_values, "processors[$processor_id][settings]");
+    $edit = $this->getFormValues($form_values ?? $configuration, "processors[$processor_id][settings]");
     if ($enable) {
       $edit["status[$processor_id]"] = 1;
     }
     $this->submitForm($edit, 'Save');
 
     $processor = $this->loadIndex()->getProcessor($processor_id);
-    $this->assertTrue($processor, "Successfully enabled the '$processor_id' processor.'");
+    $this->assertInstanceOf(ProcessorInterface::class, $processor, "Successfully enabled the '$processor_id' processor.'");
     if ($processor) {
       $actual_configuration = $processor->getConfiguration();
       unset($actual_configuration['weights']);

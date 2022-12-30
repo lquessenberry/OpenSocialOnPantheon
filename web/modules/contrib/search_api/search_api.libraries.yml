@@ -10,4 +10,3 @@ drupal.search_api.processors:
   dependencies:
     - core/drupal
     - core/jquery
-    - core/jquery.once

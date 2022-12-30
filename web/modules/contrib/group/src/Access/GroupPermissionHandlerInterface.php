@@ -49,10 +49,15 @@ interface GroupPermissionHandlerInterface {
    *     the module providing the permission. You may set this to another
    *     module's name to make it appear as if the permission was provided by
    *     that module.
-   *   - section: (optional) The section name of the permission. This is used to
-   *     maintain a clear overview on the permissions form. Defaults to the
-   *     plugin name for plugin provided permissions and to "General" for all
-   *     other permissions.
+   *   - section: (optional) The untranslated section name of the permission.
+   *     This is used to maintain a clear overview on the permissions form.
+   *     Defaults to the plugin name for plugin provided permissions and to
+   *     "General" for all other permissions.
+   *   - section_args: (optional) The placeholder values for the section name.
+   *   - section_id: (optional) The machine name to identify the section by,
+   *     defaults to the plugin ID for plugin provided permissions and to
+   *     "general" for all other permissions. This is not a great solution and
+   *     should be refactored in 2.0.0.
    */
   public function getPermissions($include_plugins = FALSE);
 

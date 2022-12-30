@@ -21,7 +21,12 @@ class FilterSecurityTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'filter_test'];
+  protected static $modules = ['node', 'filter_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with administrative permissions.
@@ -30,7 +35,7 @@ class FilterSecurityTest extends BrowserTestBase {
    */
   protected $adminUser;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Create Basic page node type.
@@ -41,7 +46,11 @@ class FilterSecurityTest extends BrowserTestBase {
     $filtered_html_permission = $filtered_html_format->getPermissionName();
     user_role_grant_permissions(RoleInterface::ANONYMOUS_ID, [$filtered_html_permission]);
 
-    $this->adminUser = $this->drupalCreateUser(['administer modules', 'administer filters', 'administer site configuration']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer modules',
+      'administer filters',
+      'administer site configuration',
+    ]);
     $this->drupalLogin($this->adminUser);
   }
 
@@ -57,25 +66,27 @@ class FilterSecurityTest extends BrowserTestBase {
     $body_raw = $node->body->value;
     $format_id = $node->body->format;
     $this->drupalGet('node/' . $node->id());
-    $this->assertText($body_raw, 'Node body found.');
+    $this->assertSession()->pageTextContains($body_raw);
 
     // Enable the filter_test_replace filter.
     $edit = [
       'filters[filter_test_replace][status]' => 1,
     ];
-    $this->drupalPostForm('admin/config/content/formats/manage/' . $format_id, $edit, t('Save configuration'));
+    $this->drupalGet('admin/config/content/formats/manage/' . $format_id);
+    $this->submitForm($edit, 'Save configuration');
 
     // Verify that filter_test_replace filter replaced the content.
     $this->drupalGet('node/' . $node->id());
-    $this->assertNoText($body_raw, 'Node body not found.');
-    $this->assertText('Filter: Testing filter', 'Testing filter output found.');
+    $this->assertSession()->pageTextNotContains($body_raw);
+    $this->assertSession()->pageTextContains('Filter: Testing filter');
 
     // Disable the text format entirely.
-    $this->drupalPostForm('admin/config/content/formats/manage/' . $format_id . '/disable', [], t('Disable'));
+    $this->drupalGet('admin/config/content/formats/manage/' . $format_id . '/disable');
+    $this->submitForm([], 'Disable');
 
     // Verify that the content is empty, because the text format does not exist.
     $this->drupalGet('node/' . $node->id());
-    $this->assertNoText($body_raw, 'Node body not found.');
+    $this->assertSession()->pageTextNotContains($body_raw);
   }
 
   /**
@@ -84,8 +95,8 @@ class FilterSecurityTest extends BrowserTestBase {
   public function testSkipSecurityFilters() {
     $text = "Text with some disallowed tags: <script />, <p><object>unicorn</object></p>, <i><table></i>.";
     $expected_filtered_text = "Text with some disallowed tags: , <p>unicorn</p>, .";
-    $this->assertEqual(check_markup($text, 'filtered_html', '', []), $expected_filtered_text, 'Expected filter result.');
-    $this->assertEqual(check_markup($text, 'filtered_html', '', [FilterInterface::TYPE_HTML_RESTRICTOR]), $expected_filtered_text, 'Expected filter result, even when trying to disable filters of the FilterInterface::TYPE_HTML_RESTRICTOR type.');
+    $this->assertEquals($expected_filtered_text, check_markup($text, 'filtered_html', '', []), 'Expected filter result.');
+    $this->assertEquals($expected_filtered_text, check_markup($text, 'filtered_html', '', [FilterInterface::TYPE_HTML_RESTRICTOR]), 'Expected filter result, even when trying to disable filters of the FilterInterface::TYPE_HTML_RESTRICTOR type.');
   }
 
 }

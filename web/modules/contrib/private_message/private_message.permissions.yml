@@ -2,10 +2,16 @@ use private messaging system:
   title: 'Use private messaging system'
   description: 'Allows users to send and receive private messages'
 
+delete private message thread for all:
+  title: 'Delete private message thread for all participants'
+  description: 'Allows users to delete thread completely for all it members'
+
 administer private messages:
   title: 'Administer private messages'
   description: 'Allows administrators to administer private messages'
+  restrict access: true
 
 administer private message module:
   title: 'Administer private message module'
   description: 'Allows administrators to manage all parts of the One Page Private Message module'
+  restrict access: true

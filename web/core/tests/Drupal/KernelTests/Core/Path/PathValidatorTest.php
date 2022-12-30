@@ -6,6 +6,7 @@ use Drupal\Core\Routing\RequestContext;
 use Drupal\Core\Url;
 use Drupal\entity_test\Entity\EntityTest;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 
 /**
  * Tests the path validator.
@@ -16,16 +17,19 @@ use Drupal\KernelTests\KernelTestBase;
  */
 class PathValidatorTest extends KernelTestBase {
 
-  /**
-   * {@inheritdoc}
-   */
-  public static $modules = ['path', 'entity_test', 'user'];
+  use UserCreationTrait;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected static $modules = ['path', 'entity_test', 'system', 'user'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
+    $this->setUpCurrentUser();
     $this->installEntitySchema('entity_test');
   }
 
@@ -44,8 +48,9 @@ class PathValidatorTest extends KernelTestBase {
       'PUT',
       'PATCH',
       'DELETE',
-      // Used in CLI context.
-      NULL,
+      // NULL is used in CLI context which results in a request method of an
+      // empty string.
+      '',
       // If no request was even pushed onto the request stack, and hence.
       FALSE,
     ];

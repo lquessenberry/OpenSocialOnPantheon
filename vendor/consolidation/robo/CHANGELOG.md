@@ -1,5 +1,136 @@
 # Changelog
 
+### 3.0.10 2/21/2022
+
+* symfony/process ^6
+
+### 3.0.8 2/15/2022
+
+* Fix bug when using dot-access-data ^3 (#1104)
+* ProgressIndicator uses the stdError by Andor (#1101)
+* Use TaskAccessor trait in Task\Archive\Extract by Andor (#1089)
+* Avoid cross volume rename in Task\Archive\Extract by Andor (#1090)
+* Fixing PHPDoc block @param on BuilderAwareTrait::collectionBuilder by Jay Klehr (#1096)
+* League container 4 by Nicos Panayides (#1083)
+* PHP 8.1 TimeKeeper implicit conversion from float to int by Andor (#1095)
+
+### 3.0.7 12/30/2021
+
+* PHP 8.1 & Symfony 6 (#1092, #1091)
+* PackPhar: Don't strip PHP8 attributes by Gintautas Miselis (#1084)
+* Fix image minifier task by Dan Untenzu (#1052)
+
+### 3.0.6 10/5/2021
+
+* Use consolidation/self-update ^2
+
+### 3.0.4 08/28/2021
+
+* Undeprecate escapeArgument() by Mark Dorison (#1039)
+* Add setProcessInput and deprecate setInput by Rodrigo (#1034)
+* Add array as a type accepted for argv parameter by Rodrigo (#1032)
+* Fix null return in createContainer by Rodrigo (#1031)
+* Fix mkdir error in taskExtract on PHP 8 by wxa (#1028)
+* refactor: Remove hardcoded namespace by Pol Dellaiera refactor (#1026)
+* refactor: Use proper use imports by Pol Dellaiera refactor (#1025)
+* Run linter in parallel by Viktor Szépe (#1020)
+* Fix task pack (#1044)
+
+### 3.0.0 02/21/2021
+
+* PHP 8 support
+* Update to league/container ^3
+* Prefer passing `ConsoleIO $io` to commands over `$this->io()`, which is now deprecated.
+* `loadTasks` renamed to `Tasks`
+
+### 2.2.0 09/05/2020
+
+* New CheckPlatformReqs task by Pierre Rudloff (#957)
+* Add Runner function for retrieving an application to be used with tests by Les Peabody (#968)
+* Add ignorelist to pack command by O'Briat (#964)
+* Create a semver file if using the SemVer task for the first time by Dan Untenzu (#960)
+* Allow symfony/yaml ^5
+
+### 2.1.0 05/27/2020
+
+* Symfony 5 support. (#940)
+
+### 2.0.4 - 2.0.5 05/22/2020
+
+* Class ZipArchive does not have a constructor by Viktor Szépe (#902)
+* In instances where the simple default config rules are in use, allow for config files to be loaded from the root of the app when Robo is in the vendor directory. (#948)
+* Docker builds with Buildkit by Mario Lubenka (#942)
+* Add a limit to replace via regexp by Patrick Kollitsch (#946)
+* Github access_token via query parameter is deprecated. by Dane Powell (#943)
+* Added the --no-suggest option to composer tasks by Klein Thomas (#934)
+
+### 2.0.0 - 2.0.3 02/18/2019
+
+* Compatible with the 1.x branch, but removes support for old versions of PHP and requires Symfony 4.x.
+* PHP 7.4 compatibility by Dane Powell (#923)
+* extract() is not our friend by Viktor Szépe (#903)
+* Old variables in ImageMinify by Viktor Szépe (#904)
+* RuntimeException used realtively by Viktor Szépe (#905)
+
+### 1.4.10 7/29/2019
+ 
+* Allow default argument for confirm() questions by Dane Powell (#850)
+* Allow command classes to end in Commands or Command by Jelle Sebreghts (#878)
+* ImageMinify: Prevent undefined variable error by Dan (#852) (#854)
+* Add sample with changed file handling to Base/Watch documentation by Patrick Kollitsch (#847)
+* Clearer explanation of --load-from option by Jordan Koplowicz (#872)
+* Fix PHPDoc @param and @return type hints by Andor (#886)
+* Update PHPDoc mismatch by Filippo Tessarotto (#883)
+
+### 1.4.7 - 1.4.9 2/19/2019
+
+* Re-release 1.4.6 to remove artifacts inadvertantly added to tagged release.
+ 
+### 1.4.6 2/16/2019
+ 
+* Extend ConfigAwareTrait from consolidation config (#838)
+
+### 1.4.5 2/15/2019
+
+* Improved paramameter injection (#822)
+
+### 1.4.4 2/8/2019
+
+* Add stderr() convenience method to Robo\Common\OutputAwareTrait.
+
+### 1.4.0 - 1.4.3 1/2/2019
+
+* BUGFIX: Back out 1.3.5, which contained breaking changes. Create a 1.x branch for continuation of compatible versions, and move breaking code to 2.x development (on master branch).
+
+### 1.3.4 12/20/2018
+
+* Allow for aborting completions or rollbacks by James Sansbury (#815)
+* BUGFIX: Allow commands to declare '@param InputInterface' to satisfy code style checks
+
+### 1.3.3 12/13/2018
+
+* Add StdinHandler to the standard Robo DI container (#814)
+* BUGFIX: Add test to ensure rollback order is in reverse by James Sansbury (#812)
+* BUGFIX: Fix the main Robo script entrypoint to work as a phar. (#811)
+
+### 1.3.2 11/21/2018
+
+* Update to Composer Test Scenarios 3 (#803)
+* Support Windows line endings in ".semver" file by Cédric Belin (#788)
+* Ensure that environment variables are preserved in Exec by James Sansbury (#769)
+* Correct Doxygen in \Robo\Task\Composer\loadTasks. (#772)
+
+### 1.3.1 8/17/2018
+
+* Move self:update command to consolidation/self-update project.
+* Fix overzealous shebang function (#759)
+* Actualize RoboFile of Codeception project link url in RADME.php by Valerij Ivashchenko (#756)
+* Workaround - Move g1a/composer-test-scenarios from require-dev to require.
+* Add --no-progress --no-suggest back in.
+* Tell dependencies.io to use --no-dev when determining if a PR should be made.
+* Omit --no-dev when the PR is actually being composed.
+* Add `Events` as third parameter in watch function (#751)
+
 ### 1.3.0 5/26/2018
 
 * Add EnvConfig to Robo: set configuration values via environment variables (#737)

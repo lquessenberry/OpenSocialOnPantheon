@@ -1,0 +1,199 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.group.flexible_group.field_flexible_group_visibility
+    - field.field.group.flexible_group.field_group_address
+    - field.field.group.flexible_group.field_group_allowed_join_method
+    - field.field.group.flexible_group.field_group_allowed_visibility
+    - field.field.group.flexible_group.field_group_description
+    - field.field.group.flexible_group.field_group_image
+    - field.field.group.flexible_group.field_group_location
+    - field.field.group.flexible_group.field_group_type
+    - field.field.group.flexible_group.field_group_posts_enabled
+    - group.type.flexible_group
+    - image.style.social_x_large
+  module:
+    - address
+    - field_group
+    - image_widget_crop
+    - path
+    - text
+third_party_settings:
+  field_group:
+    group_content:
+      children:
+        - field_group_type
+        - label
+        - field_group_image
+        - field_group_description
+      parent_name: ''
+      weight: 0
+      label: 'Basic information'
+      format_type: fieldset
+      format_settings:
+        description: ''
+        classes: ''
+        id: ''
+        required_fields: true
+      region: content
+    group_location:
+      children:
+        - field_group_location
+        - field_group_address
+      parent_name: ''
+      weight: 3
+      label: Location
+      format_type: fieldset
+      format_settings:
+        description: ''
+        classes: ''
+        id: ''
+        required_fields: true
+      region: content
+    group_settings:
+      children:
+        - path
+      parent_name: ''
+      weight: 5
+      format_type: details
+      format_settings:
+        id: ''
+        classes: social-collapsible-fieldset
+        description: ''
+        required_fields: true
+        open: false
+      label: Settings
+      region: content
+    group_access_permissions:
+      children:
+        - field_flexible_group_visibility
+        - field_group_allowed_visibility
+        - field_group_allowed_join_method
+      format_settings:
+        classes: ''
+        description: ''
+        id: ''
+        required_fields: true
+      format_type: fieldset
+      label: 'Access permissions'
+      parent_name: ''
+      region: content
+      weight: 2
+    group_additional_details:
+      children: {  }
+      format_settings:
+        classes: social-collapsible-fieldset
+        description: ''
+        id: ''
+        open: false
+        required_fields: true
+      format_type: details
+      label: 'Additional information'
+      parent_name: ''
+      region: content
+      weight: 4
+    group_personalisation:
+      children:
+        - field_group_posts_enabled
+      format_settings:
+        classes: ''
+        description: ''
+        id: ''
+        required_fields: true
+      format_type: fieldset
+      label: 'Personalisation'
+      parent_name: ''
+      region: content
+      weight: 1
+id: group.flexible_group.default
+targetEntityType: group
+bundle: flexible_group
+mode: default
+content:
+  field_flexible_group_visibility:
+    weight: 100
+    settings: {  }
+    third_party_settings: {  }
+    type: options_buttons
+    region: content
+  field_group_address:
+    weight: 6
+    settings: {  }
+    third_party_settings: {  }
+    type: address_default
+    region: content
+  field_group_allowed_join_method:
+    weight: 102
+    settings: {  }
+    third_party_settings: {  }
+    type: options_buttons
+    region: content
+  field_group_allowed_visibility:
+    weight: 101
+    settings: {  }
+    third_party_settings: {  }
+    type: options_buttons
+    region: content
+  field_group_description:
+    weight: 103
+    settings:
+      rows: 5
+      placeholder: ''
+    third_party_settings: {  }
+    type: text_textarea
+    region: content
+  field_group_image:
+    weight: 102
+    settings:
+      show_crop_area: true
+      show_default_crop: true
+      preview_image_style: social_x_large
+      crop_preview_image_style: crop_thumbnail
+      crop_list:
+        - hero_small
+        - hero
+        - teaser
+      progress_indicator: throbber
+      crop_types_required: {  }
+      warn_multiple_usages: true
+    third_party_settings: {  }
+    type: image_widget_crop
+    region: content
+  field_group_location:
+    weight: 5
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_group_type:
+    weight: 100
+    settings: {  }
+    third_party_settings: {  }
+    type: categorized_options_buttons
+    region: content
+  field_group_posts_enabled:
+    weight: 99
+    settings:
+      display_label: true
+    third_party_settings: { }
+    type: boolean_checkbox
+    region: content
+  label:
+    type: string_textfield
+    weight: 101
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    region: content
+  path:
+    type: path
+    weight: 4
+    settings: {  }
+    third_party_settings: {  }
+    region: content
+hidden:
+  uid: true

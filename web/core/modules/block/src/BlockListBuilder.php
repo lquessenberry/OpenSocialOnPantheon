@@ -11,6 +11,7 @@ use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Form\FormInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Theme\ThemeManagerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -52,9 +53,11 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
   protected $formBuilder;
 
   /**
-   * {@inheritdoc}
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
    */
-  protected $limit = FALSE;
+  protected $messenger;
 
   /**
    * Constructs a new BlockListBuilder object.
@@ -67,12 +70,16 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
    *   The theme manager.
    * @param \Drupal\Core\Form\FormBuilderInterface $form_builder
    *   The form builder.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
    */
-  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, ThemeManagerInterface $theme_manager, FormBuilderInterface $form_builder) {
+  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, ThemeManagerInterface $theme_manager, FormBuilderInterface $form_builder, MessengerInterface $messenger) {
     parent::__construct($entity_type, $storage);
 
     $this->themeManager = $theme_manager;
     $this->formBuilder = $form_builder;
+    $this->messenger = $messenger;
+    $this->limit = FALSE;
   }
 
   /**
@@ -81,9 +88,10 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('theme.manager'),
-      $container->get('form_builder')
+      $container->get('form_builder'),
+      $container->get('messenger')
     );
   }
 
@@ -176,13 +184,16 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
 
     // Weights range from -delta to +delta, so delta should be at least half
     // of the amount of blocks present. This makes sure all blocks in the same
-    // region get an unique weight.
+    // region get a unique weight.
     $weight_delta = round(count($entities) / 2);
 
     $placement = FALSE;
     if ($this->request->query->has('block-placement')) {
       $placement = $this->request->query->get('block-placement');
       $form['#attached']['drupalSettings']['blockPlacement'] = $placement;
+      // Remove the block placement from the current request so that it is not
+      // passed on to any redirect destinations.
+      $this->request->query->remove('block-placement');
     }
 
     // Loop over each region and build blocks.
@@ -212,7 +223,7 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
         '#theme_wrappers' => [
           'container' => [
             '#attributes' => ['class' => 'region-title__action'],
-          ]
+          ],
         ],
         '#prefix' => $title,
         '#type' => 'link',
@@ -367,10 +378,7 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
       $entity->setRegion($entity_values['region']);
       $entity->save();
     }
-    drupal_set_message(t('The block settings have been updated.'));
-
-    // Remove any previously set block placement.
-    $this->request->query->remove('block-placement');
+    $this->messenger->addStatus($this->t('The block settings have been updated.'));
   }
 
   /**

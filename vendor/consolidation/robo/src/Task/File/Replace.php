@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Task\File;
 
 use Robo\Result;
@@ -42,6 +43,11 @@ class Replace extends BaseTask
      * @var string|string[]
      */
     protected $from;
+
+    /**
+     * @var integer
+     */
+    protected $limit = -1;
 
     /**
      * @var string|string[]
@@ -112,18 +118,30 @@ class Replace extends BaseTask
     }
 
     /**
+     * If used with $this->regexp() how many counts will be replaced
+     *
+     * @param int $limit
+     *
+     * @return $this
+     */
+    public function limit($limit)
+    {
+        $this->limit = $limit;
+        return $this;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function run()
     {
         if (!file_exists($this->filename)) {
-            $this->printTaskError('File {filename} does not exist', ['filename' => $this->filename]);
-            return false;
+            return Result::error($this, 'File {filename} does not exist', ['filename' => $this->filename]);
         }
 
         $text = file_get_contents($this->filename);
         if ($this->regex) {
-            $text = preg_replace($this->regex, $this->to, $text, -1, $count);
+            $text = preg_replace($this->regex, $this->to, $text, $this->limit, $count);
         } else {
             $text = str_replace($this->from, $this->to, $text, $count);
         }

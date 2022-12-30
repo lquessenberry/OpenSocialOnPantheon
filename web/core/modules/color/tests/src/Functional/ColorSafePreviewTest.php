@@ -9,6 +9,7 @@ use Drupal\Tests\BrowserTestBase;
  * Tests sanitizing color preview loaded from theme.
  *
  * @group color
+ * @group legacy
  */
 class ColorSafePreviewTest extends BrowserTestBase {
 
@@ -17,7 +18,12 @@ class ColorSafePreviewTest extends BrowserTestBase {
    *
    * @var string[]
    */
-  public static $modules = ['color', 'color_test'];
+  protected static $modules = ['color', 'color_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with administrative permissions.
@@ -29,7 +35,7 @@ class ColorSafePreviewTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Create user.
@@ -41,17 +47,17 @@ class ColorSafePreviewTest extends BrowserTestBase {
    */
   public function testColorPreview() {
     // Install the color test theme.
-    \Drupal::service('theme_handler')->install(['color_test_theme']);
+    \Drupal::service('theme_installer')->install(['color_test_theme']);
     $this->drupalLogin($this->bigUser);
 
-    // Markup is being printed from a HTML file located in:
+    // Markup is being printed from an HTML file located in:
     // core/modules/color/tests/modules/color_test/themes/color_test_theme/color/preview.html
     $url = Url::fromRoute('system.theme_settings_theme', ['theme' => 'color_test_theme']);
     $this->drupalGet($url);
-    $this->assertText('TEST COLOR PREVIEW');
+    $this->assertSession()->pageTextContains('TEST COLOR PREVIEW');
 
-    $this->assertNoRaw('<script>alert("security filter test");</script>');
-    $this->assertRaw('<h2>TEST COLOR PREVIEW</h2>');
+    $this->assertSession()->responseNotContains('<script>alert("security filter test");</script>');
+    $this->assertSession()->responseContains('<h2>TEST COLOR PREVIEW</h2>');
   }
 
 }

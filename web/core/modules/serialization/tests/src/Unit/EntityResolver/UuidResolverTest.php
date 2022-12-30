@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\serialization\Unit\EntityResolver;
 
+use Drupal\Core\Entity\EntityRepositoryInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\serialization\EntityResolver\UuidResolver;
 
@@ -19,42 +20,40 @@ class UuidResolverTest extends UnitTestCase {
   protected $resolver;
 
   /**
-   * The mock EntityManager instance.
+   * The mock entity repository service.
    *
-   * @var \Drupal\Core\Entity\EntityManager|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityRepositoryInterface|\PHPUnit\Framework\MockObject\MockObject
    */
-  protected $entityManager;
+  protected $entityRepository;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    $this->entityManager = $this->getMockBuilder('Drupal\Core\Entity\EntityManager')
-      ->disableOriginalConstructor()
-      ->getMock();
+  protected function setUp(): void {
+    $this->entityRepository = $this->createMock(EntityRepositoryInterface::class);
 
-    $this->resolver = new UuidResolver($this->entityManager);
+    $this->resolver = new UuidResolver($this->entityRepository);
   }
 
   /**
-   * Test resolve() with a class using the incorrect interface.
+   * Tests resolve() with a class using the incorrect interface.
    */
   public function testResolveNotInInterface() {
-    $this->entityManager->expects($this->never())
+    $this->entityRepository->expects($this->never())
       ->method('loadEntityByUuid');
 
-    $normalizer = $this->getMock('Symfony\Component\Serializer\Normalizer\NormalizerInterface');
+    $normalizer = $this->createMock('Symfony\Component\Serializer\Normalizer\NormalizerInterface');
     $this->assertNull($this->resolver->resolve($normalizer, [], 'test_type'));
   }
 
   /**
-   * Test resolve() with a class using the correct interface but no UUID.
+   * Tests resolve() with a class using the correct interface but no UUID.
    */
   public function testResolveNoUuid() {
-    $this->entityManager->expects($this->never())
+    $this->entityRepository->expects($this->never())
       ->method('loadEntityByUuid');
 
-    $normalizer = $this->getMock('Drupal\serialization\EntityResolver\UuidReferenceInterface');
+    $normalizer = $this->createMock('Drupal\serialization\EntityResolver\UuidReferenceInterface');
     $normalizer->expects($this->once())
       ->method('getUuid')
       ->with([])
@@ -63,17 +62,17 @@ class UuidResolverTest extends UnitTestCase {
   }
 
   /**
-   * Test resolve() with correct interface but no matching entity for the UUID.
+   * Tests resolve() with correct interface but no matching entity for the UUID.
    */
   public function testResolveNoEntity() {
     $uuid = '392eab92-35c2-4625-872d-a9dab4da008e';
 
-    $this->entityManager->expects($this->once())
+    $this->entityRepository->expects($this->once())
       ->method('loadEntityByUuid')
       ->with('test_type')
       ->will($this->returnValue(NULL));
 
-    $normalizer = $this->getMock('Drupal\serialization\EntityResolver\UuidReferenceInterface');
+    $normalizer = $this->createMock('Drupal\serialization\EntityResolver\UuidReferenceInterface');
     $normalizer->expects($this->once())
       ->method('getUuid')
       ->with([])
@@ -83,22 +82,22 @@ class UuidResolverTest extends UnitTestCase {
   }
 
   /**
-   * Test resolve() when a UUID corresponds to an entity.
+   * Tests resolve() when a UUID corresponds to an entity.
    */
   public function testResolveWithEntity() {
     $uuid = '392eab92-35c2-4625-872d-a9dab4da008e';
 
-    $entity = $this->getMock('Drupal\Core\Entity\EntityInterface');
+    $entity = $this->createMock('Drupal\Core\Entity\EntityInterface');
     $entity->expects($this->once())
       ->method('id')
       ->will($this->returnValue(1));
 
-    $this->entityManager->expects($this->once())
+    $this->entityRepository->expects($this->once())
       ->method('loadEntityByUuid')
       ->with('test_type', $uuid)
       ->will($this->returnValue($entity));
 
-    $normalizer = $this->getMock('Drupal\serialization\EntityResolver\UuidReferenceInterface');
+    $normalizer = $this->createMock('Drupal\serialization\EntityResolver\UuidReferenceInterface');
     $normalizer->expects($this->once())
       ->method('getUuid')
       ->with([])

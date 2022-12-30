@@ -1,6 +1,10 @@
 administer flags:
   title: 'Administer Flags'
-  decription: 'Define and manage Flags and Flag settings.'
+  description: 'Define and manage Flags and Flag settings.'
+  restrict access: TRUE
+administer flaggings:
+  title: 'Administer Flaggings'
+  description: 'Delete flaggings for all users.'
   restrict access: TRUE
 
 permission_callbacks:

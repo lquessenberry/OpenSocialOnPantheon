@@ -16,4 +16,11 @@ use Drupal\search_api\DataType\DataTypePluginBase;
  */
 class BooleanDataType extends DataTypePluginBase {
 
+  /**
+   * {@inheritdoc}
+   */
+  public function getValue($value) {
+    return (bool) $value;
+  }
+
 }

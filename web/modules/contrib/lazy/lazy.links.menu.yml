@@ -1,0 +1,5 @@
+lazy.config_form:
+  title: 'Lazy-load configuration'
+  parent: system.admin_config_content
+  description: 'Configure how images and iframes are lazy-loaded in content.'
+  route_name: lazy.config_form

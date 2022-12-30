@@ -11,6 +11,7 @@ class So implements UnicodeCharacterPropertyInterface {
    * {@inheritdoc}
    */
   public static function getRegularExpression() {
+    // phpcs:disable
     return
       '\x{00A6}\x{00A9}\x{00AE}\x{00B0}\x{0482}\x{060E}\x{060F}' .
       '\x{06DE}\x{06E9}\x{06FD}\x{06FE}\x{07F6}\x{09FA}\x{0B70}' .
@@ -642,6 +643,7 @@ class So implements UnicodeCharacterPropertyInterface {
       '\x{1F765}\x{1F766}\x{1F767}\x{1F768}\x{1F769}\x{1F76A}\x{1F76B}' .
       '\x{1F76C}\x{1F76D}\x{1F76E}\x{1F76F}\x{1F770}\x{1F771}\x{1F772}' .
       '\x{1F773}';
+    // phpcs:enable
   }
 
 }

@@ -7,7 +7,6 @@
 
 namespace Drupal\url_embed;
 
-use Drupal\Core\Cache\DatabaseBackend;
 use Drupal\Component\Datetime\TimeInterface;
 
 /**
@@ -38,14 +37,14 @@ interface UrlEmbedInterface {
   public function getEmbed($request, array $config = []);
 
   /**
-   * Get the HTML code for an URL embed.
+   * Get the info for an URL embed.
    *
    * @param string $url
    *   The URL to embed.
    *
-   * @return null|string
-   *   the HTML code of the URL embed.
+   * @return null|array
+   *   the info for the URL embed.
    */
-  public function getUrlCode($url);
+  public function getUrlInfo($url);
 
 }

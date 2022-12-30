@@ -10,12 +10,11 @@ description: ''
 tag: ''
 base_table: watchdog
 base_field: wid
-core: 8.x
 display:
   default:
     display_plugin: default
     id: default
-    display_title: Master
+    display_title: Default
     position: null
     display_options:
       access:
@@ -37,7 +36,7 @@ display:
           id: wid
           table: watchdog
           field: wid
-          plugin_id: numeric
+          plugin_id: standard
         message:
           id: message
           table: watchdog

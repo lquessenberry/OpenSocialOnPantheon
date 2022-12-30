@@ -1,6 +1,6 @@
 name: Flag Bookmark
 description: Provides an example bookmark flag and supporting views.
-# core: 8.x
+core_version_requirement: ^8.8 || ^9
 type: module
 dependencies:
   - flag:flag
@@ -8,8 +8,7 @@ dependencies:
   - drupal:node
 package: Flags
 
-# Information added by Drupal.org packaging script on 2017-05-11
-version: '8.x-4.0-alpha2'
-core: '8.x'
+# Information added by Drupal.org packaging script on 2021-11-29
+version: '8.x-4.0-beta3'
 project: 'flag'
-datestamp: 1494517390
+datestamp: 1638201557

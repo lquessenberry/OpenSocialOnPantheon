@@ -1,0 +1,4 @@
+services:
+  variation_cache_factory:
+    class: Drupal\variationcache\Cache\VariationCacheFactory
+    arguments: ['@request_stack', '@cache_factory', '@cache_contexts_manager']

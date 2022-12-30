@@ -4,7 +4,7 @@ namespace Drupal\Core\Entity\Enhancer;
 
 use Drupal\Core\Routing\EnhancerInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\Routing\Route;
 
 /**
@@ -68,7 +68,6 @@ class EntityRouteEnhancer implements EnhancerInterface {
     return $defaults;
   }
 
-
   /**
    * Update defaults for an entity list.
    *
@@ -106,7 +105,7 @@ class EntityRouteEnhancer implements EnhancerInterface {
     $defaults['_controller'] = '\Drupal\Core\Entity\Controller\EntityViewController::view';
     if (strpos($defaults['_entity_view'], '.') !== FALSE) {
       // The _entity_view entry is of the form entity_type.view_mode.
-      list($entity_type, $view_mode) = explode('.', $defaults['_entity_view']);
+      [$entity_type, $view_mode] = explode('.', $defaults['_entity_view']);
       $defaults['view_mode'] = $view_mode;
     }
     else {

@@ -2,6 +2,7 @@
 
 namespace Drupal\Core\Render\Element;
 
+use Drupal\Core\Link as BaseLink;
 use Drupal\Core\Url as BaseUrl;
 use Drupal\Component\Utility\NestedArray;
 
@@ -23,7 +24,7 @@ class SystemCompactLink extends Link {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#pre_render' => [
         [$class, 'preRenderCompactLink'],
@@ -65,7 +66,7 @@ class SystemCompactLink extends Link {
       $element['#url'] = BaseUrl::fromRoute('system.admin_compact_page', ['mode' => 'off']);
       $element['#options'] = [
         'attributes' => ['title' => t('Expand layout to include descriptions.')],
-        'query' => \Drupal::destination()->getAsArray()
+        'query' => \Drupal::destination()->getAsArray(),
       ];
     }
     else {
@@ -78,7 +79,7 @@ class SystemCompactLink extends Link {
     }
 
     $options = NestedArray::mergeDeep($element['#url']->getOptions(), $element['#options']);
-    $element['#markup'] = \Drupal::l($element['#title'], $element['#url']->setOptions($options));
+    $element['#markup'] = BaseLink::fromTextAndUrl($element['#title'], $element['#url']->setOptions($options))->toString();
 
     return $element;
   }

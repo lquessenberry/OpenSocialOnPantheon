@@ -53,6 +53,13 @@ class GroupPermission extends AccessPluginBase implements CacheableDependencyInt
   protected $group;
 
   /**
+   * The group context from the route.
+   *
+   * @var \Drupal\Core\Plugin\Context\ContextInterface
+   */
+  protected $context;
+
+  /**
    * Constructs a Permission object.
    *
    * @param array $configuration
@@ -73,9 +80,9 @@ class GroupPermission extends AccessPluginBase implements CacheableDependencyInt
     $this->permissionHandler = $permission_handler;
     $this->moduleHandler = $module_handler;
 
-    /** @var \Drupal\Core\Plugin\Context\ContextInterface[] $contexts */
     $contexts = $context_provider->getRuntimeContexts(['group']);
-    $this->group = $contexts['group']->getContextValue();
+    $this->context = $contexts['group'];
+    $this->group = $this->context->getContextValue();
   }
 
   /**
@@ -140,11 +147,11 @@ class GroupPermission extends AccessPluginBase implements CacheableDependencyInt
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
 
-    // Get list of permissions
+    // Get list of permissions.
     $permissions = [];
     foreach ($this->permissionHandler->getPermissions(TRUE) as $permission_name => $permission) {
       $display_name = $this->moduleHandler->getName($permission['provider']);
-      $permissions[$display_name][$permission_name] = strip_tags($permission['title']);
+      $permissions[$display_name . ' : ' . $permission['section']][$permission_name] = strip_tags($permission['title']);
     }
 
     $form['group_permission'] = [
@@ -160,21 +167,21 @@ class GroupPermission extends AccessPluginBase implements CacheableDependencyInt
    * {@inheritdoc}
    */
   public function getCacheMaxAge() {
-    return Cache::PERMANENT;
+    return Cache::mergeMaxAges(Cache::PERMANENT, $this->context->getCacheMaxAge());
   }
 
   /**
    * {@inheritdoc}
    */
   public function getCacheContexts() {
-    return ['group_membership.roles.permissions'];
+    return Cache::mergeContexts(['user.group_permissions'], $this->context->getCacheContexts());
   }
 
   /**
    * {@inheritdoc}
    */
   public function getCacheTags() {
-    return [];
+    return $this->context->getCacheTags();
   }
 
 }

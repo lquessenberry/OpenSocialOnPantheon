@@ -1,6 +1,8 @@
 <?php
+
 namespace Drush\Commands\core;
 
+use Consolidation\AnnotatedCommand\CommandData;
 use Drush\Commands\DrushCommands;
 
 /**
@@ -18,11 +20,11 @@ class DocsCommands extends DrushCommands
      * @command docs:readme
      * @aliases docs-readme
      * @hidden
-     * @topic
+     * @topic ../../../README.md
      */
-    public function readme()
+    public function readme(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/README.md');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -31,37 +33,37 @@ class DocsCommands extends DrushCommands
      * @command docs:bisect
      * @aliases docs-bisect
      * @hidden
-     * @topic
+     * @topic ../../../examples/git-bisect.example.sh
      */
-    public function bisect()
+    public function bisect(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/examples/git-bisect.example.sh');
+        self::printFileTopic($this->commandData);
     }
 
     /**
-     * Bashrc customization examples for Drush.
-     *
-     * @command docs:bashrc
-     * @aliases docs-bashrc
-     * @hidden
-     * @topic
-     */
-    public function bashrc()
-    {
-        self::printFile(DRUSH_BASE_PATH. '/examples/example.bashrc');
-    }
-
-    /**
-     * Configuration overview with examples from example.drush.yml.
+     * Drush configuration.
      *
      * @command docs:configuration
      * @aliases docs-configuration
      * @hidden
-     * @topic
+     * @topic ../../../docs/using-drush-configuration.md
      */
-    public function config()
+    public function config(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/examples/example.drush.yml');
+        self::printFileTopic($this->commandData);
+    }
+
+    /**
+     * Drush hooks.
+     *
+     * @command docs:hooks
+     * @aliases docs-hooks
+     * @hidden
+     * @topic ../../../docs/hooks.md
+     */
+    public function hooks(): void
+    {
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -70,11 +72,25 @@ class DocsCommands extends DrushCommands
      * @command docs:config:exporting
      * @aliases docs-config-exporting
      * @hidden
-     * @topic
+     * @topic ../../../docs/config-exporting.md
      */
-    public function configExport()
+    public function configExport(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/docs/config-exporting.md');
+        self::printFileTopic($this->commandData);
+    }
+
+    /**
+     * Output formatters and filters: control the command output
+     *
+     * @command docs:output-formats-filters
+     * @aliases docs:output
+     * @aliases docs-output
+     * @hidden
+     * @topic  ../../../docs/output-formats-filters.md
+     */
+    public function outputFormatsFilters(): void
+    {
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -83,11 +99,24 @@ class DocsCommands extends DrushCommands
      * @command docs:aliases
      * @aliases docs-aliases
      * @hidden
-     * @topic
+     * @topic ../../../docs/site-aliases.md
      */
-    public function siteAliases()
+    public function siteAliases(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/examples/example.site.yml');
+        self::printFileTopic($this->commandData);
+    }
+
+    /**
+     * An example Drush script.
+     *
+     * @command docs:script
+     * @aliases docs-script
+     * @hidden
+     * @topic ../../../examples/helloworld.script
+     */
+    public function script(): void
+    {
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -96,11 +125,11 @@ class DocsCommands extends DrushCommands
      * @command docs:bootstrap
      * @aliases docs-bootstrap
      * @hidden
-     * @topic
+     * @topic ../../../docs/bootstrap.md
      */
-    public function bootstrap()
+    public function bootstrap(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/docs/bootstrap.md');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -109,11 +138,11 @@ class DocsCommands extends DrushCommands
      * @command docs:cron
      * @aliases docs-cron
      * @hidden
-     * @topic
+     * @topic ../../../docs/cron.md
      */
-    public function cron()
+    public function cron(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/docs/cron.md');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -122,11 +151,11 @@ class DocsCommands extends DrushCommands
      * @command docs:commands
      * @aliases docs-commands
      * @hidden
-     * @topic
+     * @topic ../../../docs/commands.md
      */
-    public function commands()
+    public function commands(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/docs/commands.md');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -135,11 +164,11 @@ class DocsCommands extends DrushCommands
      * @command docs:generators
      * @aliases docs-generators
      * @hidden
-     * @topic
+     * @topic ../../../docs/generators.md
      */
-    public function generators()
+    public function generators(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/docs/generators.md');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -148,11 +177,23 @@ class DocsCommands extends DrushCommands
      * @command docs:examplecommand
      * @aliases docs-examplecommand
      * @hidden
-     * @topic
+     * @topic ../../../examples/Commands/ArtCommands.php
      */
-    public function exampleCommand()
+    public function exampleCommand(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/examples/Commands/ArtCommands.php');
+        self::printFileTopic($this->commandData);
+    }
+
+    /**
+     * Defining and running migrations.
+     *
+     * @command docs:migrate
+     * @hidden
+     * @topic ../../../docs/migrate.md
+     */
+    public function migrate(): void
+    {
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -161,11 +202,11 @@ class DocsCommands extends DrushCommands
      * @command docs:example-sync-via-http
      * @aliases docs-example-sync-via-http
      * @hidden
-     * @topic
+     * @topic ../../../examples/Commands/SyncViaHttpCommands.php
      */
-    public function syncHttp()
+    public function syncHttp(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/examples/Commands/SyncViaHttpCommands.php');
+        self::printFileTopic($this->commandData);
     }
 
     /**
@@ -174,10 +215,23 @@ class DocsCommands extends DrushCommands
      * @command docs:policy
      * @aliases docs-policy
      * @hidden
-     * @topic
+     * @topic ../../../examples/Commands/PolicyCommands.php
      */
-    public function policy()
+    public function policy(): void
     {
-        self::printFile(DRUSH_BASE_PATH. '/examples/Commands/PolicyCommands.php');
+        self::printFileTopic($this->commandData);
+    }
+
+    /**
+     * Deploy command for Drupal.
+     *
+     * @command docs:deploy
+     * @aliases docs-deploy
+     * @hidden
+     * @topic  ../../../docs/deploycommand.md
+     */
+    public function deploy(): void
+    {
+        self::printFileTopic($this->commandData);
     }
 }

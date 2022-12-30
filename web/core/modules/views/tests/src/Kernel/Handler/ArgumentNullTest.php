@@ -56,7 +56,7 @@ class ArgumentNullTest extends ViewsKernelTestBase {
     $view->destroy();
     $view->setDisplay();
 
-    // Add a argument, which has null as handler.
+    // Add an argument, which has null as handler.
     $view->displayHandlers->get('default')->overrideOption('arguments', [
       'id' => [
         'id' => 'id',
@@ -68,7 +68,7 @@ class ArgumentNullTest extends ViewsKernelTestBase {
     $this->executeView($view, [26]);
 
     // The argument should be ignored, so every result should return.
-    $this->assertEqual(5, count($view->result));
+    $this->assertCount(5, $view->result);
   }
 
 }

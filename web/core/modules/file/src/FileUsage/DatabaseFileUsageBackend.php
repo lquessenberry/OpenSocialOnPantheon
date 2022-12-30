@@ -28,18 +28,17 @@ class DatabaseFileUsageBackend extends FileUsageBase {
   /**
    * Construct the DatabaseFileUsageBackend.
    *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection which will be used to store the file usage
    *   information.
    * @param string $table
    *   (optional) The table to store file usage info. Defaults to 'file_usage'.
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   (optional) The config factory.
    */
-  public function __construct(Connection $connection, $table = 'file_usage', ConfigFactoryInterface $config_factory = NULL) {
+  public function __construct(ConfigFactoryInterface $config_factory, Connection $connection, $table = 'file_usage') {
     parent::__construct($config_factory);
     $this->connection = $connection;
-
     $this->tableName = $table;
   }
 
@@ -55,7 +54,7 @@ class DatabaseFileUsageBackend extends FileUsageBase {
         'id' => $id,
       ])
       ->fields(['count' => $count])
-      ->expression('count', 'count + :count', [':count' => $count])
+      ->expression('count', '[count] + :count', [':count' => $count])
       ->execute();
 
     parent::add($file, $module, $type, $id, $count);
@@ -65,7 +64,7 @@ class DatabaseFileUsageBackend extends FileUsageBase {
    * {@inheritdoc}
    */
   public function delete(FileInterface $file, $module, $type = NULL, $id = NULL, $count = 1) {
-    // Delete rows that have a exact or less value to prevent empty rows.
+    // Delete rows that have an exact or less value to prevent empty rows.
     $query = $this->connection->delete($this->tableName)
       ->condition('module', $module)
       ->condition('fid', $file->id());
@@ -89,7 +88,7 @@ class DatabaseFileUsageBackend extends FileUsageBase {
           ->condition('type', $type)
           ->condition('id', $id);
       }
-      $query->expression('count', 'count - :count', [':count' => $count]);
+      $query->expression('count', '[count] - :count', [':count' => $count]);
       $query->execute();
     }
 

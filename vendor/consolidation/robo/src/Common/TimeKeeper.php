@@ -1,4 +1,5 @@
 <?php
+
 namespace Robo\Common;
 
 class TimeKeeper
@@ -8,12 +9,12 @@ class TimeKeeper
     const DAY = 86400;
 
     /**
-     * @var float
+     * @var float|null
      */
     protected $startedAt;
 
     /**
-     * @var float
+     * @var float|null
      */
     protected $finishedAt;
 
@@ -31,6 +32,11 @@ class TimeKeeper
         $this->finishedAt = microtime(true);
     }
 
+    public function reset()
+    {
+        $this->startedAt = $this->finishedAt = null;
+    }
+
     /**
      * @return float|null
      */
@@ -44,26 +50,27 @@ class TimeKeeper
     }
 
     /**
-     * Format a duration into a human-readable time
+     * Format a duration into a human-readable time.
      *
-     * @param float $duration Duration in seconds, with fractional component
+     * @param float $duration
+     *   Duration in seconds, with fractional component.
      *
      * @return string
      */
     public static function formatDuration($duration)
     {
         if ($duration >= self::DAY * 2) {
-            return gmdate('z \d\a\y\s H:i:s', $duration);
+            return gmdate('z \d\a\y\s H:i:s', (int) $duration);
         }
-        if ($duration > self::DAY) {
-            return gmdate('\1 \d\a\y H:i:s', $duration);
+        if ($duration >= self::DAY) {
+            return gmdate('\1 \d\a\y H:i:s', (int) $duration);
         }
-        if ($duration > self::HOUR) {
-            return gmdate("H:i:s", $duration);
+        if ($duration >= self::HOUR) {
+            return gmdate("H:i:s", (int) $duration);
         }
-        if ($duration > self::MINUTE) {
-            return gmdate("i:s", $duration);
+        if ($duration >= self::MINUTE) {
+            return gmdate("i:s", (int) $duration);
         }
-        return round($duration, 3).'s';
+        return round($duration, 3) . 's';
     }
 }

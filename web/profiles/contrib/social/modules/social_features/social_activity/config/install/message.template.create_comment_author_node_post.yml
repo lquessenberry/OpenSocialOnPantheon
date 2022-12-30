@@ -13,21 +13,22 @@ third_party_settings:
     activity_destinations:
       notifications: notifications
       email: email
-    activity_create_direct: 1
-    activity_aggregate: 0
+    activity_create_direct: false
+    activity_aggregate: false
     activity_entity_condition: comment_not_reply
+    email_subject: 'Someone commented on your content'
 template: create_comment_author_node_post
 label: 'Create comment on authors node or post'
 description: 'A person commented on content created or organised by me'
 text:
   -
-    value: '<p><a href="[message:author:url:absolute]">[message:author:display-name]</a> commented on your [social_comment:commented_entity_link_html]</p>'
+    value: "<p><a href=\"[message:author:url:absolute]\">[message:author:display-name]</a> commented on your [social_comment:commented_entity_link_html]</p>\r\n"
     format: full_html
   -
-    value: '<p><a href="[message:author:url:absolute]">[message:author:display-name]</a> commented on your [social_comment:commented_entity_link_html]</p>'
+    value: "<p><a href=\"[message:author:url:absolute]\">[message:author:display-name]</a> commented on your [social_comment:commented_entity_link_html]</p>\r\n"
     format: full_html
   -
-    value: '<p><a href="[message:author:url:absolute]">[message:author:display-name]</a> commented on your [social_comment:commented_entity_link_html]</p>'
+    value: "<p><a href=\"[message:author:url:absolute]\">[message:author:display-name]</a> commented on your [social_comment:commented_entity_link_html]</p>\r\n\r\n<p>[message:preview]</p>\r\n\r\n<p>[message:cta_button]</p>\r\n"
     format: full_html
 settings:
   'token options':

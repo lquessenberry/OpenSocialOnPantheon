@@ -7,11 +7,10 @@ description: ''
 tag: default
 base_table: entity_test
 base_field: id
-core: '8'
 display:
   default:
     id: default
-    display_title: Master
+    display_title: Default
     display_plugin: default
     position: 0
     display_options:

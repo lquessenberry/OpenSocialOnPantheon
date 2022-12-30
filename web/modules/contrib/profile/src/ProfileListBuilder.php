@@ -51,6 +51,8 @@ class ProfileListBuilder extends EntityListBuilder {
    *   The date formatter service.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
+   * @param \Drupal\Core\Routing\RedirectDestinationInterface $redirect_destination
+   *   The redirect destination service.
    */
   public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, DateFormatter $date_formatter, RendererInterface $renderer, RedirectDestinationInterface $redirect_destination) {
     parent::__construct($entity_type, $storage);
@@ -66,7 +68,7 @@ class ProfileListBuilder extends EntityListBuilder {
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager')->getStorage($entity_type->id()),
       $container->get('date.formatter'),
       $container->get('renderer'),
       $container->get('redirect.destination')
@@ -119,7 +121,7 @@ class ProfileListBuilder extends EntityListBuilder {
       '#theme' => 'username',
       '#account' => $entity->getOwner(),
     ];
-    $row['status'] = $entity->isActive() ? $this->t('active') : $this->t('not active');
+    $row['status'] = $entity->isPublished() ? $this->t('active') : $this->t('not active');
     $row['is_default'] = $entity->isDefault() ? $this->t('default') : $this->t('not default');
     $row['changed'] = $this->dateFormatter->format($entity->getChangedTime(), 'short');
     $language_manager = \Drupal::languageManager();
@@ -133,19 +135,21 @@ class ProfileListBuilder extends EntityListBuilder {
   /**
    * {@inheritdoc}
    */
-  public function getOperations(EntityInterface $entity) {
-    $operations = parent::getOperations($entity);
+  public function getDefaultOperations(EntityInterface $entity) {
+    $operations = parent::getDefaultOperations($entity);
 
     $destination = $this->redirectDestination->getAsArray();
     foreach ($operations as $key => $operation) {
       $operations[$key]['query'] = $destination;
     }
 
-    if ($entity->isActive() && !$entity->isDefault()) {
+    /** @var \Drupal\profile\Entity\ProfileInterface $entity */
+    if ($entity->access('update') && $entity->isPublished() && !$entity->isDefault()) {
       $operations['set_default'] = [
         'title' => $this->t('Mark as default'),
         'url' => $entity->toUrl('set-default'),
         'parameter' => $entity,
+        'weight' => 20,
       ];
     }
 

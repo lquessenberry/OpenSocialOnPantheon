@@ -3,9 +3,12 @@
 namespace Drupal\group\Fields;
 
 use Drupal\Core\Field\EntityReferenceFieldItemList;
+use Drupal\Core\TypedData\ComputedItemListTrait;
 use Drupal\Core\TypedData\DataDefinitionInterface;
 use Drupal\Core\TypedData\TypedDataInterface;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+use Drupal\group\Entity\Group;
+use Drupal\group\Entity\GroupContent;
 
 /**
  * A computed property for the related groups.
@@ -14,6 +17,7 @@ class GroupGroupReferenceItemList extends EntityReferenceFieldItemList {
 
   // Support non-database views. Ex: Search API Solr.
   use DependencySerializationTrait;
+  use ComputedItemListTrait;
 
   /**
    * The entity type manager.
@@ -42,31 +46,7 @@ class GroupGroupReferenceItemList extends EntityReferenceFieldItemList {
   /**
    * {@inheritdoc}
    */
-  public function get($index) {
-    $this->computeValues();
-    return isset($this->list[$index]) ? $this->list[$index] : NULL;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function referencedEntities() {
-    $this->computeValues();
-    return parent::referencedEntities();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getIterator() {
-    $this->computeValues();
-    return parent::getIterator();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function computeValues() {
+  public function computeValue() {
     // We only support nodes and users.
     if ($this->getEntity()->getEntityTypeId() === 'node') {
       $plugin_id = 'group_node:' . $this->getEntity()->bundle();
@@ -108,6 +88,78 @@ class GroupGroupReferenceItemList extends EntityReferenceFieldItemList {
         ]);
       }
     }
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function postSave($update) {
+    if ($this->valueComputed) {
+      $node = $this->getEntity();
+
+      // Index-Array for wanted groups ( gid => gid )
+      $gids_wanted = [];
+      foreach ($this->list as $delta => $item) {
+        $id = $item->get('target_id')->getValue();
+        $gids_wanted[$id] = $id;
+      }
+
+      // Index-Array for existing groups for this node gid => gid
+      $gids_existing = [];
+
+      // Index-Array for gnodes for easier deletion gid => GroupContent
+      $gnodes_existing = [];
+
+      /** @var \Drupal\group\Entity\Storage\GroupContentStorageInterface $storage */
+      $storage = \Drupal::entityTypeManager()->getStorage('group_content');
+      // Loads all groups with a relation to the node
+      $activeGroupListEntity = $storage->loadByEntity($node);
+      foreach ($activeGroupListEntity as $groupContent) {
+        // fill Index-Array with existing groups gid => gid
+        $gids_existing[$groupContent->getGroup()->id()] = $groupContent->getGroup()->id();
+
+        // fill Index-Array for existing gnodes
+        $gnodes_existing[$groupContent->getGroup()->id()] = $groupContent;
+      }
+
+      // Union for existing and wanted groups
+      $gids_union = $gids_existing + $gids_wanted;
+
+      // Index-Array gnodes to create
+      // = (Union for existing and wanted) minus existing
+      $gids_create = array_diff($gids_union, $gids_existing);
+
+      // Index-Array gnodes to delete
+      // = (Union for existing and wanted) minus wanted
+      $gids_delete = array_diff($gids_union, $gids_wanted);
+
+      foreach ($gids_create as $gid) {
+        // Skip -none- option
+        if ($gid == '_none') {
+          continue;
+        }
+        $group = Group::load($gid);
+        /** @var \Drupal\group\Plugin\GroupContentEnablerInterface $plugin */
+        $plugin = $group->getGroupType()->getContentPlugin('group_node:'.$node->bundle());
+        $group_content = GroupContent::create([
+          'type' => $plugin->getContentTypeConfigId(),
+          'gid' => $group->id(),
+          'entity_id' => $node->id(),
+        ]);
+        $group_content->save();
+      }
+
+      foreach ($gids_delete as $gid) {
+        // Skip -none- option
+        if ($gid == '_none') {
+          continue;
+        }
+        $gnodes_existing[$gid]->delete();
+      }
+    }
+    return parent::postSave($update);
+
+    // @fixme Also care that we got correct referencable entities in widget.
   }
 
 }

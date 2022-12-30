@@ -3,18 +3,25 @@
 namespace Drupal\migrate\Plugin\migrate\destination;
 
 use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Field\FieldTypePluginManagerInterface;
+use Drupal\Core\Session\AccountSwitcherInterface;
 use Drupal\Core\TypedData\TranslatableInterface;
 use Drupal\Core\TypedData\TypedDataInterface;
 use Drupal\migrate\Audit\HighestIdInterface;
+use Drupal\migrate\Exception\EntityValidationException;
+use Drupal\migrate\Plugin\MigrateValidatableEntityInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\Plugin\MigrateIdMapInterface;
 use Drupal\migrate\Row;
+use Drupal\user\EntityOwnerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+
+// cspell:ignore validatable
 
 /**
  * Provides destination class for all content entities lacking a specific class.
@@ -25,6 +32,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * - overwrite_properties: (optional) A list of properties that will be
  *   overwritten if an entity with the same ID already exists. Any properties
  *   that are not listed will not be overwritten.
+ * - validate: (optional) Boolean, indicates whether an entity should be
+ *   validated, defaults to FALSE.
  *
  * Example:
  *
@@ -74,18 +83,22 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   overwrite_properties:
  *     - title
  *     - body
+ *   # Run entity and fields validation before saving an entity.
+ *   # @see \Drupal\Core\Entity\FieldableEntityInterface::validate()
+ *   validate: true
  * @endcode
  *
+ * @see \Drupal\migrate\Plugin\migrate\destination\Entity
  * @see \Drupal\migrate\Plugin\migrate\destination\EntityRevision
  */
-class EntityContentBase extends Entity implements HighestIdInterface {
+class EntityContentBase extends Entity implements HighestIdInterface, MigrateValidatableEntityInterface {
 
   /**
-   * Entity manager.
+   * Entity field manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
-  protected $entityManager;
+  protected $entityFieldManager;
 
   /**
    * Field type plugin manager.
@@ -93,6 +106,13 @@ class EntityContentBase extends Entity implements HighestIdInterface {
    * @var \Drupal\Core\Field\FieldTypePluginManagerInterface
    */
   protected $fieldTypeManager;
+
+  /**
+   * The account switcher service.
+   *
+   * @var \Drupal\Core\Session\AccountSwitcherInterface
+   */
+  protected $accountSwitcher;
 
   /**
    * Constructs a content entity.
@@ -109,15 +129,22 @@ class EntityContentBase extends Entity implements HighestIdInterface {
    *   The storage for this entity type.
    * @param array $bundles
    *   The list of bundles this entity type has.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager service.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
    * @param \Drupal\Core\Field\FieldTypePluginManagerInterface $field_type_manager
    *   The field type plugin manager service.
+   * @param \Drupal\Core\Session\AccountSwitcherInterface $account_switcher
+   *   The account switcher service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, EntityStorageInterface $storage, array $bundles, EntityManagerInterface $entity_manager, FieldTypePluginManagerInterface $field_type_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, EntityStorageInterface $storage, array $bundles, EntityFieldManagerInterface $entity_field_manager, FieldTypePluginManagerInterface $field_type_manager, AccountSwitcherInterface $account_switcher = NULL) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $migration, $storage, $bundles);
-    $this->entityManager = $entity_manager;
+    $this->entityFieldManager = $entity_field_manager;
     $this->fieldTypeManager = $field_type_manager;
+    if ($account_switcher === NULL) {
+      @trigger_error('Calling ' . __NAMESPACE__ . '\EntityContentBase::__construct() without the $account_switcher argument is deprecated in drupal:9.3.0 and will be required in drupal:10.0.0. See https://www.drupal.org/node/3142975', E_USER_DEPRECATED);
+      $account_switcher = \Drupal::service('account_switcher');
+    }
+    $this->accountSwitcher = $account_switcher;
   }
 
   /**
@@ -130,15 +157,21 @@ class EntityContentBase extends Entity implements HighestIdInterface {
       $plugin_id,
       $plugin_definition,
       $migration,
-      $container->get('entity.manager')->getStorage($entity_type),
-      array_keys($container->get('entity.manager')->getBundleInfo($entity_type)),
-      $container->get('entity.manager'),
-      $container->get('plugin.manager.field.field_type')
+      $container->get('entity_type.manager')->getStorage($entity_type),
+      array_keys($container->get('entity_type.bundle.info')->getBundleInfo($entity_type)),
+      $container->get('entity_field.manager'),
+      $container->get('plugin.manager.field.field_type'),
+      $container->get('account_switcher')
     );
   }
 
   /**
    * {@inheritdoc}
+   *
+   * @throws \Drupal\migrate\MigrateException
+   *   When an entity cannot be looked up.
+   * @throws \Drupal\migrate\Exception\EntityValidationException
+   *   When an entity validation hasn't been passed.
    */
   public function import(Row $row, array $old_destination_id_values = []) {
     $this->rollbackAction = MigrateIdMapInterface::ROLLBACK_DELETE;
@@ -146,12 +179,57 @@ class EntityContentBase extends Entity implements HighestIdInterface {
     if (!$entity) {
       throw new MigrateException('Unable to get entity');
     }
-
+    assert($entity instanceof ContentEntityInterface);
+    if ($this->isEntityValidationRequired($entity)) {
+      $this->validateEntity($entity);
+    }
     $ids = $this->save($entity, $old_destination_id_values);
     if ($this->isTranslationDestination()) {
       $ids[] = $entity->language()->getId();
     }
     return $ids;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isEntityValidationRequired(FieldableEntityInterface $entity) {
+    // Prioritize the entity method over migration config because it won't be
+    // possible to save that entity unvalidated.
+    /* @see \Drupal\Core\Entity\ContentEntityBase::preSave() */
+    return $entity->isValidationRequired() || !empty($this->configuration['validate']);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateEntity(FieldableEntityInterface $entity) {
+    // Entity validation can require the user that owns the entity. Switch to
+    // use that user during validation.
+    // As an example:
+    // @see \Drupal\Core\Entity\Plugin\Validation\Constraint\ValidReferenceConstraint
+    $account = $entity instanceof EntityOwnerInterface ? $entity->getOwner() : NULL;
+    // Validate account exists as the owner reference could be invalid for any
+    // number of reasons.
+    if ($account) {
+      $this->accountSwitcher->switchTo($account);
+    }
+    // This finally block ensures that the account is always switched back, even
+    // if an exception was thrown. Any validation exceptions are intentionally
+    // left unhandled. They should be caught and logged by a catch block
+    // surrounding the row import and then added to the migration messages table
+    // for the current row.
+    try {
+      $violations = $entity->validate();
+    } finally {
+      if ($account) {
+        $this->accountSwitcher->switchBack();
+      }
+    }
+
+    if (count($violations) > 0) {
+      throw new EntityValidationException($violations);
+    }
   }
 
   /**
@@ -272,8 +350,8 @@ class EntityContentBase extends Entity implements HighestIdInterface {
     }
 
     // Populate any required fields not already populated.
-    $fields = $this->entityManager
-      ->getFieldDefinitions($this->storage->getEntityTypeId(), $bundle_key);
+    $fields = $this->entityFieldManager
+      ->getFieldDefinitions($this->storage->getEntityTypeId(), $row->getDestinationProperty($bundle_key));
     foreach ($fields as $field_name => $field_definition) {
       if ($field_definition->isRequired() && is_null($row->getDestinationProperty($field_name))) {
         // Use the configured default value for this specific field, if any.
@@ -281,8 +359,6 @@ class EntityContentBase extends Entity implements HighestIdInterface {
           $values = $default_value;
         }
         else {
-          // Otherwise, ask the field type to generate a sample value.
-          $field_type = $field_definition->getType();
           /** @var \Drupal\Core\Field\FieldItemInterface $field_type_class */
           $field_type_class = $this->fieldTypeManager
             ->getPluginClass($field_definition->getType());
@@ -324,34 +400,6 @@ class EntityContentBase extends Entity implements HighestIdInterface {
     else {
       parent::rollback($destination_identifier);
     }
-  }
-
-  /**
-   * Gets the field definition from a specific entity base field.
-   *
-   * The method takes the field ID as an argument and returns the field storage
-   * definition to be used in getIds() by querying the destination entity base
-   * field definition.
-   *
-   * @param string $key
-   *   The field ID key.
-   *
-   * @return array
-   *   An associative array with a structure that contains the field type, keyed
-   *   as 'type', together with field storage settings as they are returned by
-   *   FieldStorageDefinitionInterface::getSettings().
-   *
-   * @see \Drupal\Core\Field\FieldStorageDefinitionInterface::getSettings()
-   */
-  protected function getDefinitionFromEntity($key) {
-    $entity_type_id = static::getEntityTypeId($this->getPluginId());
-    /** @var \Drupal\Core\Field\FieldStorageDefinitionInterface[] $definitions */
-    $definitions = $this->entityManager->getBaseFieldDefinitions($entity_type_id);
-    $field_definition = $definitions[$key];
-
-    return [
-      'type' => $field_definition->getType(),
-    ] + $field_definition->getSettings();
   }
 
   /**

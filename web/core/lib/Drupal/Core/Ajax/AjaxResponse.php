@@ -32,7 +32,7 @@ class AjaxResponse extends JsonResponse implements AttachmentsInterface {
    *   A boolean which determines whether the new command should be executed
    *   before previously added commands. Defaults to FALSE.
    *
-   * @return AjaxResponse
+   * @return $this
    *   The current AjaxResponse.
    */
   public function addCommand(CommandInterface $command, $prepend = FALSE) {
@@ -43,13 +43,14 @@ class AjaxResponse extends JsonResponse implements AttachmentsInterface {
       $this->commands[] = $command->render();
     }
     if ($command instanceof CommandWithAttachedAssetsInterface) {
-      $assets = $command->getAttachedAssets();
-      $attachments = [
-        'library' => $assets->getLibraries(),
-        'drupalSettings' => $assets->getSettings(),
-      ];
-      $attachments = BubbleableMetadata::mergeAttachments($this->getAttachments(), $attachments);
-      $this->setAttachments($attachments);
+      if ($assets = $command->getAttachedAssets()) {
+        $attachments = [
+          'library' => $assets->getLibraries(),
+          'drupalSettings' => $assets->getSettings(),
+        ];
+        $attachments = BubbleableMetadata::mergeAttachments($this->getAttachments(), $attachments);
+        $this->setAttachments($attachments);
+      }
     }
 
     return $this;
@@ -58,8 +59,8 @@ class AjaxResponse extends JsonResponse implements AttachmentsInterface {
   /**
    * Gets all AJAX commands.
    *
-   * @return \Drupal\Core\Ajax\CommandInterface[]
-   *   Returns all previously added AJAX commands.
+   * @return array
+   *   Returns render arrays for all previously added commands.
    */
   public function &getCommands() {
     return $this->commands;

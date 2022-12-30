@@ -27,7 +27,7 @@ function system_test_help($route_name, RouteMatchInterface $route_match) {
 function system_test_modules_installed($modules) {
   if (\Drupal::state()->get('system_test.verbose_module_hooks')) {
     foreach ($modules as $module) {
-      drupal_set_message(t('hook_modules_installed fired for @module', ['@module' => $module]));
+      \Drupal::messenger()->addStatus(t('hook_modules_installed fired for @module', ['@module' => $module]));
     }
   }
 }
@@ -38,7 +38,7 @@ function system_test_modules_installed($modules) {
 function system_test_modules_uninstalled($modules) {
   if (\Drupal::state()->get('system_test.verbose_module_hooks')) {
     foreach ($modules as $module) {
-      drupal_set_message(t('hook_modules_uninstalled fired for @module', ['@module' => $module]));
+      \Drupal::messenger()->addStatus(t('hook_modules_uninstalled fired for @module', ['@module' => $module]));
     }
   }
 }
@@ -70,7 +70,6 @@ function system_test_system_info_alter(&$info, Extension $file, $type) {
     'system_incompatible_module_version_dependencies_test',
     'system_incompatible_core_version_dependencies_test',
     'system_incompatible_module_version_test',
-    'system_incompatible_core_version_test',
   ])) {
     $info['hidden'] = FALSE;
   }
@@ -88,9 +87,9 @@ function system_test_system_info_alter(&$info, Extension $file, $type) {
 function system_test_page_attachments(array &$page) {
   // Used by FrontPageTestCase to get the results of
   // \Drupal::service('path.matcher')->isFrontPage().
-  $frontpage = \Drupal::state()->get('system_test.front_page_output') ?: 0;
+  $frontpage = \Drupal::state()->get('system_test.front_page_output', 0);
   if ($frontpage && \Drupal::service('path.matcher')->isFrontPage()) {
-    drupal_set_message(t('On front page.'));
+    \Drupal::messenger()->addStatus(t('On front page.'));
   }
 }
 
@@ -134,6 +133,7 @@ function system_test_filetransfer_info() {
  * Implements hook_module_preinstall().
  */
 function system_test_module_preinstall($module) {
+  \Drupal::messenger()->addStatus('system_test_preinstall_module called');
   \Drupal::state()->set('system_test_preinstall_module', $module);
 }
 

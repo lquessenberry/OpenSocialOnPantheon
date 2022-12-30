@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Set transparent color effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class SetTransparentColorTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class SetTransparentColorTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Set transparent color effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,18 +33,11 @@ class SetTransparentColorTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testSetTransparentColorEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Set transparent color effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testSetTransparentColorEffect() {
     // Test on the GIF test image.
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.gif', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.gif');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
     // Test data.

@@ -18,7 +18,17 @@ class ImageField extends FieldPluginBase {
   /**
    * {@inheritdoc}
    */
-  public function processFieldValues(MigrationInterface $migration, $field_name, $data) {
+  public function getFieldWidgetMap() {
+    return [
+      'image' => 'image_default',
+      'image_miw' => 'image_image',
+    ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function defineValueProcessPipeline(MigrationInterface $migration, $field_name, $data) {
     $process = [
       'plugin' => 'sub_process',
       'source' => $field_name,

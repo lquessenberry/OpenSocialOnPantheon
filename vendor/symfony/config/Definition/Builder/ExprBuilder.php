@@ -37,7 +37,7 @@ class ExprBuilder
      */
     public function always(\Closure $then = null)
     {
-        $this->ifPart = function ($v) { return true; };
+        $this->ifPart = function () { return true; };
 
         if (null !== $then) {
             $this->thenPart = $then;
@@ -91,7 +91,7 @@ class ExprBuilder
     /**
      * Tests if the value is empty.
      *
-     * @return ExprBuilder
+     * @return $this
      */
     public function ifEmpty()
     {
@@ -144,7 +144,7 @@ class ExprBuilder
     public function castToArray()
     {
         $this->ifPart = function ($v) { return !\is_array($v); };
-        $this->thenPart = function ($v) { return array($v); };
+        $this->thenPart = function ($v) { return [$v]; };
 
         return $this;
     }
@@ -168,13 +168,13 @@ class ExprBuilder
      */
     public function thenEmptyArray()
     {
-        $this->thenPart = function ($v) { return array(); };
+        $this->thenPart = function () { return []; };
 
         return $this;
     }
 
     /**
-     * Sets a closure marking the value as invalid at validation time.
+     * Sets a closure marking the value as invalid at processing time.
      *
      * if you want to add the value of the node in your message just use a %s placeholder.
      *
@@ -192,7 +192,7 @@ class ExprBuilder
     }
 
     /**
-     * Sets a closure unsetting this key of the array at validation time.
+     * Sets a closure unsetting this key of the array at processing time.
      *
      * @return $this
      *
@@ -200,7 +200,7 @@ class ExprBuilder
      */
     public function thenUnset()
     {
-        $this->thenPart = function ($v) { throw new UnsetKeyException('Unsetting key'); };
+        $this->thenPart = function () { throw new UnsetKeyException('Unsetting key.'); };
 
         return $this;
     }

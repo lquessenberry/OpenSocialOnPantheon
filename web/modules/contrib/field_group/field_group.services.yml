@@ -4,7 +4,7 @@ services:
     parent: default_plugin_manager
   field_group.subscriber:
     class: Drupal\field_group\Routing\RouteSubscriber
-    arguments: ['@entity.manager']
+    arguments: ['@entity_type.manager']
     tags:
      - { name: event_subscriber }
   field_group.param_converter:

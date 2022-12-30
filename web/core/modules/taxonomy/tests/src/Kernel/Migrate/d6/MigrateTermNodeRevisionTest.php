@@ -14,12 +14,12 @@ class MigrateTermNodeRevisionTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['taxonomy', 'menu_ui'];
+  protected static $modules = ['taxonomy', 'menu_ui'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installSchema('node', ['node_access']);
     $this->migrateContent(['revisions']);
@@ -31,8 +31,8 @@ class MigrateTermNodeRevisionTest extends MigrateDrupal6TestBase {
    * Tests the Drupal 6 term-node revision association to Drupal 8 migration.
    */
   public function testTermRevisionNode() {
-    $node = \Drupal::entityManager()->getStorage('node')->loadRevision(2);
-    $this->assertSame(2, count($node->field_vocabulary_3_i_2_));
+    $node = \Drupal::entityTypeManager()->getStorage('node')->loadRevision(2001);
+    $this->assertCount(2, $node->field_vocabulary_3_i_2_);
     $this->assertSame('4', $node->field_vocabulary_3_i_2_[0]->target_id);
     $this->assertSame('5', $node->field_vocabulary_3_i_2_[1]->target_id);
   }

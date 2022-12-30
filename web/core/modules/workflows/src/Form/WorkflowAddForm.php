@@ -48,7 +48,7 @@ class WorkflowAddForm extends EntityForm {
   public function form(array $form, FormStateInterface $form_state) {
     $form = parent::form($form, $form_state);
 
-    /* @var \Drupal\workflows\WorkflowInterface $workflow */
+    /** @var \Drupal\workflows\WorkflowInterface $workflow */
     $workflow = $this->entity;
     $form['label'] = [
       '#type' => 'textfield',
@@ -82,17 +82,17 @@ class WorkflowAddForm extends EntityForm {
    * {@inheritdoc}
    */
   public function save(array $form, FormStateInterface $form_state) {
-    /* @var \Drupal\workflows\WorkflowInterface $workflow */
+    /** @var \Drupal\workflows\WorkflowInterface $workflow */
     $workflow = $this->entity;
     $return = $workflow->save();
     if (empty($workflow->getTypePlugin()->getStates())) {
-      drupal_set_message($this->t('Created the %label Workflow. In order for the workflow to be enabled there needs to be at least one state.', [
+      $this->messenger()->addStatus($this->t('Created the %label Workflow. In order for the workflow to be enabled there needs to be at least one state.', [
         '%label' => $workflow->label(),
       ]));
       $form_state->setRedirectUrl($workflow->toUrl('add-state-form'));
     }
     else {
-      drupal_set_message($this->t('Created the %label Workflow.', [
+      $this->messenger()->addStatus($this->t('Created the %label Workflow.', [
         '%label' => $workflow->label(),
       ]));
       $form_state->setRedirectUrl($workflow->toUrl('edit-form'));

@@ -34,8 +34,6 @@ namespace WebDriver;
  * @method void forward() Navigates forward in the browser history, if possible.
  * @method void back() Navigates backward in the browser history, if possible.
  * @method void refresh() Refresh the current page.
- * @method mixed execute($jsonScript) Inject a snippet of JavaScript into the page for execution in the context of the currently selected frame. (synchronous)
- * @method mixed execute_async($jsonScript) Inject a snippet of JavaScript into the page for execution in the context of the currently selected frame. (asynchronous)
  * @method string screenshot() Take a screenshot of the current page.
  * @method array getCookie() Retrieve all cookies visible to the current page.
  * @method array postCookie($jsonCookie) Set a cookie.
@@ -78,8 +76,6 @@ final class Session extends Container
             'forward' => array('POST'),
             'back' => array('POST'),
             'refresh' => array('POST'),
-            'execute' => array('POST'),
-            'execute_async' => array('POST'),
             'screenshot' => array('GET'),
             'cookie' => array('GET', 'POST'), // for DELETE, use deleteAllCookies()
             'source' => array('GET'),
@@ -222,7 +218,7 @@ final class Session extends Container
     /**
      * window methods: /session/:sessionId/window (POST, DELETE)
      * - $session->window() - close current window
-     * - $session->window($name) - set focus
+     * - $session->window($window_handle) - set focus
      * - $session->window($window_handle)->method() - chaining
      *
      * @return \WebDriver\Window|\WebDriver\Session
@@ -237,7 +233,7 @@ final class Session extends Container
         }
 
         // set focus
-        $arg = func_get_arg(0); // window handle or name attribute
+        $arg = func_get_arg(0); // window handle
 
         if (is_array($arg)) {
             $this->curl('POST', '/window', $arg);
@@ -264,13 +260,13 @@ final class Session extends Container
     /**
      * Set focus to window: /session/:sessionId/window (POST)
      *
-     * @param mixed $name window handler or name attribute
+     * @param mixed $name window handle
      *
      * @return \WebDriver\Session
      */
     public function focusWindow($name)
     {
-        $this->curl('POST', '/window', array('name' => $name));
+        $this->curl('POST', '/window', array('handle' => $name, 'name' => $name));
 
         return $this;
     }
@@ -427,10 +423,98 @@ final class Session extends Container
     }
 
     /**
+     * Inject a snippet of JavaScript into the page for execution in the context of the currently selected frame. (synchronous)
+     *
+     * @param array{script: string, args: array} $jsonScript
+     *
+     * @return mixed
+     */
+    public function execute(array $jsonScript)
+    {
+        $jsonScript['args'] = $this->serializeArguments($jsonScript['args']);
+
+        $result = $this->curl('POST', '/execute', $jsonScript);
+
+        return $this->unserializeResult($result['value']);
+    }
+
+    /**
+     * Inject a snippet of JavaScript into the page for execution in the context of the currently selected frame. (asynchronous)
+     *
+     * @param array{script: string, args: array} $jsonScript
+     *
+     * @return mixed
+     */
+    public function execute_async(array $jsonScript)
+    {
+        $jsonScript['args'] = $this->serializeArguments($jsonScript['args']);
+
+        $result = $this->curl('POST', '/execute_async', $jsonScript);
+
+        return $this->unserializeResult($result['value']);
+    }
+
+    /**
      * {@inheritdoc}
      */
     protected function getElementPath($elementId)
     {
         return sprintf('%s/element/%s', $this->url, $elementId);
+    }
+
+    /**
+     * Serialize script arguments (containing web elements)
+     *
+     * @see https://w3c.github.io/webdriver/#executing-script
+     *
+     * @param array $arguments
+     *
+     * @return array
+     */
+    private function serializeArguments(array $arguments)
+    {
+        foreach ($arguments as $key => $value) {
+            // Potential compat-buster, i.e., W3C-specific
+            if ($value instanceof Element) {
+                // preferably we want to detect W3C support and never set nor parse
+                // LEGACY_ELEMENT_ID, until detection is implemented, serialize to both
+                // variants, tested with Selenium v2.53.1 and v3.141.59
+                $arguments[$key] = [
+                    Container::WEBDRIVER_ELEMENT_ID => $value->getID(),
+                    Container::LEGACY_ELEMENT_ID => $value->getID(),
+                ];
+                continue;
+            }
+
+            if (is_array($value)) {
+                $arguments[$key] = $this->serializeArguments($value);
+            }
+        }
+
+        return $arguments;
+    }
+
+    /**
+     * Unserialize result (containing web elements)
+     *
+     * @param mixed $result
+     *
+     * @return mixed
+     */
+    private function unserializeResult($result)
+    {
+        $element = $this->webDriverElement($result);
+
+        if ($element !== null) {
+            return $element;
+        }
+
+        if (is_array($result)) {
+            foreach ($result as $key => $value) {
+                $result[$key] = $this->unserializeResult($value);
+            }
+        }
+
+        return $result;
     }
 }

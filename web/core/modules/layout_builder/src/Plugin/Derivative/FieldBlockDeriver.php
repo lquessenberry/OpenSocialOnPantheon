@@ -10,6 +10,7 @@ use Drupal\Core\Field\FieldConfigInterface;
 use Drupal\Core\Field\FieldTypePluginManagerInterface;
 use Drupal\Core\Field\FormatterPluginManager;
 use Drupal\Core\Plugin\Context\ContextDefinition;
+use Drupal\Core\Plugin\Context\EntityContextDefinition;
 use Drupal\Core\Plugin\Discovery\ContainerDeriverInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -18,6 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * Provides entity field block definitions for every field.
  *
  * @internal
+ *   Plugin derivers are internal.
  */
 class FieldBlockDeriver extends DeriverBase implements ContainerDeriverInterface {
 
@@ -106,7 +108,7 @@ class FieldBlockDeriver extends DeriverBase implements ContainerDeriverInterface
             $derivative['default_formatter'] = $field_type_definition['default_formatter'];
           }
 
-          $derivative['category'] = $this->t('@entity', ['@entity' => $entity_type_labels[$entity_type_id]]);
+          $derivative['category'] = $this->t('@entity fields', ['@entity' => $entity_type_labels[$entity_type_id]]);
 
           $derivative['admin_label'] = $field_definition->getLabel();
 
@@ -118,12 +120,11 @@ class FieldBlockDeriver extends DeriverBase implements ContainerDeriverInterface
           // unavailable to place in the block UI.
           $derivative['_block_ui_hidden'] = !$field_definition->isDisplayConfigurable('view');
 
-          // @todo Use EntityContextDefinition after resolving
-          //   https://www.drupal.org/node/2932462.
-          $context_definition = new ContextDefinition('entity:' . $entity_type_id, $entity_type_labels[$entity_type_id], TRUE);
+          $context_definition = EntityContextDefinition::fromEntityTypeId($entity_type_id)->setLabel($entity_type_labels[$entity_type_id]);
           $context_definition->addConstraint('Bundle', [$bundle]);
-          $derivative['context'] = [
+          $derivative['context_definitions'] = [
             'entity' => $context_definition,
+            'view_mode' => new ContextDefinition('string'),
           ];
 
           $derivative_id = $entity_type_id . PluginBase::DERIVATIVE_SEPARATOR . $bundle . PluginBase::DERIVATIVE_SEPARATOR . $field_name;

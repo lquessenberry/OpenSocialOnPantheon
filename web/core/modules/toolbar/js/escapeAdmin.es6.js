@@ -12,7 +12,10 @@
   // back to it when browsing administrative pages. If there is a destination
   // parameter there is not need to save the current path because the page is
   // loaded within an existing "workflow".
-  if (!pathInfo.currentPathIsAdmin && !/destination=/.test(windowLocation.search)) {
+  if (
+    !pathInfo.currentPathIsAdmin &&
+    !/destination=/.test(windowLocation.search)
+  ) {
     sessionStorage.setItem('escapeAdminPath', windowLocation);
   }
 
@@ -29,15 +32,14 @@
    */
   Drupal.behaviors.escapeAdmin = {
     attach() {
-      const $toolbarEscape = $('[data-toolbar-escape-admin]').once('escapeAdmin');
-      if ($toolbarEscape.length && pathInfo.currentPathIsAdmin) {
+      const toolbarEscape = once('escapeAdmin', '[data-toolbar-escape-admin]');
+      if (toolbarEscape.length && pathInfo.currentPathIsAdmin) {
         if (escapeAdminPath !== null) {
-          $toolbarEscape.attr('href', escapeAdminPath);
-        }
-        else {
-          $toolbarEscape.text(Drupal.t('Home'));
+          $(toolbarEscape).attr('href', escapeAdminPath);
+        } else {
+          toolbarEscape[0].textContent = Drupal.t('Home');
         }
       }
     },
   };
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

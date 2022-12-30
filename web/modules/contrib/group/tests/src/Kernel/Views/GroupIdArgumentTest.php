@@ -20,7 +20,7 @@ class GroupIdArgumentTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['group', 'field', 'text', 'group_test_config', 'user', 'group_test_views'];
+  public static $modules = ['group', 'options', 'entity', 'variationcache', 'field', 'text', 'group_test_config', 'group_test_views'];
 
   /**
    * Views used by this test.
@@ -35,12 +35,12 @@ class GroupIdArgumentTest extends ViewsKernelTestBase {
   protected function setUp($import_test_views = TRUE) {
     parent::setUp($import_test_views);
 
-    $this->installConfig(['group', 'field', 'group_test_config']);
     $this->installEntitySchema('user');
     $this->installEntitySchema('group');
     $this->installEntitySchema('group_type');
     $this->installEntitySchema('group_content');
     $this->installEntitySchema('group_content_type');
+    $this->installConfig(['group', 'field', 'group_test_config']);
 
     // Set the current user so group creation can rely on it.
     $account = User::create(['name' => $this->randomString()]);

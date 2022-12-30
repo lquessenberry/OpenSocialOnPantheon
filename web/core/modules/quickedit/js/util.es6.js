@@ -18,7 +18,8 @@
    *
    * @type {string}
    */
-  Drupal.quickedit.util.constants.transitionEnd = 'transitionEnd.quickedit webkitTransitionEnd.quickedit transitionend.quickedit msTransitionEnd.quickedit oTransitionEnd.quickedit';
+  Drupal.quickedit.util.constants.transitionEnd =
+    'transitionEnd.quickedit webkitTransitionEnd.quickedit transitionend.quickedit msTransitionEnd.quickedit oTransitionEnd.quickedit';
 
   /**
    * Converts a field id into a formatted url path.
@@ -85,7 +86,6 @@
    * @namespace
    */
   Drupal.quickedit.util.form = {
-
     /**
      * Loads a form, calls a callback to insert.
      *
@@ -113,7 +113,12 @@
 
       // Create a Drupal.ajax instance to load the form.
       const formLoaderAjax = Drupal.ajax({
-        url: Drupal.quickedit.util.buildUrl(fieldID, Drupal.url('quickedit/form/!entity_type/!id/!field_name/!langcode/!view_mode')),
+        url: Drupal.quickedit.util.buildUrl(
+          fieldID,
+          Drupal.url(
+            'quickedit/form/!entity_type/!id/!field_name/!langcode/!view_mode',
+          ),
+        ),
         submit: {
           nocssjs: options.nocssjs,
           reset: options.reset,
@@ -121,8 +126,14 @@
         error(xhr, url) {
           // Show a modal to inform the user of the network error.
           const fieldLabel = Drupal.quickedit.metadata.get(fieldID, 'label');
-          const message = Drupal.t('Could not load the form for <q>@field-label</q>, either due to a website problem or a network connection problem.<br>Please try again.', { '@field-label': fieldLabel });
-          Drupal.quickedit.util.networkErrorModal(Drupal.t('Network problem!'), message);
+          const message = Drupal.t(
+            'Could not load the form for <q>@field-label</q>, either due to a website problem or a network connection problem.<br>Please try again.',
+            { '@field-label': fieldLabel },
+          );
+          Drupal.quickedit.util.networkErrorModal(
+            Drupal.t('Network problem!'),
+            message,
+          );
 
           // Change the state back to "candidate", to allow the user to start
           // in-place editing of the field again.
@@ -131,7 +142,11 @@
         },
       });
       // Implement a scoped quickeditFieldForm AJAX command: calls the callback.
-      formLoaderAjax.commands.quickeditFieldForm = function (ajax, response, status) {
+      formLoaderAjax.commands.quickeditFieldForm = function (
+        ajax,
+        response,
+        status,
+      ) {
         callback(response.data, ajax);
         Drupal.ajax.instances[this.instanceIndex] = null;
       };
@@ -204,6 +219,5 @@
     unajaxifySaving(ajax) {
       $(ajax.element).off('click.quickedit');
     },
-
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

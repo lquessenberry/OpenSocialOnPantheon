@@ -1,3 +1,5 @@
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/woprrr/image_widget_crop/badges/quality-score.png?b=8.x-2.x)](https://scrutinizer-ci.com/g/woprrr/image_widget_crop/?branch=8.x-2.x)
+
 # ImageWidgetCrop module
 Provides an interface for using the features of the [Crop API]. This element
 provides an UX for using a crop on all fields images or file elements. This

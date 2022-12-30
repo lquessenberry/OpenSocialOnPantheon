@@ -1,0 +1,112 @@
+ultimate_cron.settings:
+  path: '/admin/config/system/cron/settings'
+  defaults:
+    _form: '\Drupal\ultimate_cron\Form\GeneralSettingsForm'
+    _title: 'Manage Cron settings'
+  requirements:
+    _permission: 'administer ultimate cron'
+
+ultimate_cron.general_settings:
+  path: '/admin/config/system/cron/settings'
+  defaults:
+    _form: '\Drupal\ultimate_cron\Form\GeneralSettingsForm'
+    _title: 'General Cron Settings'
+  requirements:
+    _permission: 'administer ultimate cron'
+
+ultimate_cron.launcher_settings:
+  path: '/admin/config/system/cron/settings/launcher'
+  defaults:
+    _form: '\Drupal\ultimate_cron\Form\LauncherSettingsForm'
+    _title: 'Launcher settings'
+  requirements:
+    _permission: 'administer ultimate cron'
+
+ultimate_cron.logger_settings:
+  path: '/admin/config/system/cron/settings/logger'
+  defaults:
+    _form: '\Drupal\ultimate_cron\Form\LoggerSettingsForm'
+    _title: 'Logger settings'
+  requirements:
+    _permission: 'administer ultimate cron'
+
+ultimate_cron.scheduler_settings:
+  path: '/admin/config/system/cron/settings/scheduler'
+  defaults:
+    _form: '\Drupal\ultimate_cron\Form\SchedulerSettingsForm'
+    _title: 'Scheduler settings'
+  requirements:
+    _permission: 'administer ultimate cron'
+
+entity.ultimate_cron_job.collection:
+  path: '/admin/config/system/cron/jobs'
+  defaults:
+    _entity_list: 'ultimate_cron_job'
+    _title: 'Cron jobs'
+  requirements:
+    _permission: 'administer ultimate cron'
+
+ultimate_cron.discover_jobs:
+  path: '/admin/config/system/cron/jobs/discover'
+  defaults:
+    _controller: '\Drupal\ultimate_cron\Controller\JobController::discoverJobs'
+    _title: 'Discover jobs'
+  requirements:
+    _permission: 'administer ultimate cron'
+    _csrf: 'TRUE'
+
+entity.ultimate_cron_job.edit_form:
+  path: '/admin/config/system/cron/jobs/manage/{ultimate_cron_job}'
+  defaults:
+    _entity_form: 'ultimate_cron_job.default'
+    _title: 'Edit job'
+  requirements:
+    _entity_access: 'ultimate_cron_job.update'
+
+entity.ultimate_cron_job.run:
+  path: '/admin/config/system/cron/jobs/{ultimate_cron_job}/run'
+  defaults:
+    _controller: '\Drupal\ultimate_cron\Controller\JobController::runCronJob'
+    _title: Run Cron job
+  requirements:
+    _permission: 'run cron jobs'
+
+entity.ultimate_cron_job.delete_form:
+  path: '/admin/config/system/cron/jobs/manage/{ultimate_cron_job}/delete'
+  defaults:
+    _entity_form: 'ultimate_cron_job.delete'
+    _title: 'Delete job'
+  requirements:
+    _entity_access: 'ultimate_cron_job.delete'
+
+entity.ultimate_cron_job.disable:
+  path: '/admin/config/system/cron/jobs/manage/{ultimate_cron_job}/disable'
+  defaults:
+    _entity_form: 'ultimate_cron_job.disable'
+    _title: 'Disable cron job'
+  requirements:
+    _entity_access: 'ultimate_cron_job.disable'
+
+entity.ultimate_cron_job.enable:
+  path: '/admin/config/system/cron/jobs/manage/{ultimate_cron_job}/enable'
+  defaults:
+    _entity_form: 'ultimate_cron_job.enable'
+    _title: 'Enable cron job'
+  requirements:
+    _entity_access: 'ultimate_cron_job.enable'
+
+entity.ultimate_cron_job.logs:
+  path: '/admin/config/system/cron/jobs/logs/{ultimate_cron_job}'
+  defaults:
+    _controller: '\Drupal\ultimate_cron\Controller\JobController::showLogs'
+    _title: 'Cron jobs logs'
+  requirements:
+    _entity_access: 'ultimate_cron_job.views'
+
+entity.ultimate_cron_job.unlock:
+  path: '/admin/config/system/cron/jobs/{ultimate_cron_job}/unlock'
+  defaults:
+    _controller: '\Drupal\ultimate_cron\Controller\JobController::unlockCronJob'
+    _title: Unlock Cron job
+  requirements:
+    _permission: 'run cron jobs'

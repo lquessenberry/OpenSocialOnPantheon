@@ -3,8 +3,9 @@
 namespace Drupal\node;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Entity\ContentEntityForm;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityRepositoryInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountInterface;
@@ -33,10 +34,17 @@ class NodeForm extends ContentEntityForm {
   protected $currentUser;
 
   /**
+   * The date formatter service.
+   *
+   * @var \Drupal\Core\Datetime\DateFormatterInterface
+   */
+  protected $dateFormatter;
+
+  /**
    * Constructs a NodeForm object.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
    * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $temp_store_factory
    *   The factory for the temp store object.
    * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
@@ -45,11 +53,14 @@ class NodeForm extends ContentEntityForm {
    *   The time service.
    * @param \Drupal\Core\Session\AccountInterface $current_user
    *   The current user.
+   * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
+   *   The date formatter service.
    */
-  public function __construct(EntityManagerInterface $entity_manager, PrivateTempStoreFactory $temp_store_factory, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL, AccountInterface $current_user) {
-    parent::__construct($entity_manager, $entity_type_bundle_info, $time);
+  public function __construct(EntityRepositoryInterface $entity_repository, PrivateTempStoreFactory $temp_store_factory, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL, AccountInterface $current_user, DateFormatterInterface $date_formatter) {
+    parent::__construct($entity_repository, $entity_type_bundle_info, $time);
     $this->tempStoreFactory = $temp_store_factory;
     $this->currentUser = $current_user;
+    $this->dateFormatter = $date_formatter;
   }
 
   /**
@@ -57,11 +68,12 @@ class NodeForm extends ContentEntityForm {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager'),
+      $container->get('entity.repository'),
       $container->get('tempstore.private'),
       $container->get('entity_type.bundle.info'),
       $container->get('datetime.time'),
-      $container->get('current_user')
+      $container->get('current_user'),
+      $container->get('date.formatter')
     );
   }
 
@@ -77,7 +89,7 @@ class NodeForm extends ContentEntityForm {
     // rebuilding the form.
     $request_uuid = \Drupal::request()->query->get('uuid');
     if (!$form_state->isRebuilding() && $request_uuid && $preview = $store->get($request_uuid)) {
-      /** @var $preview \Drupal\Core\Form\FormStateInterface */
+      /** @var \Drupal\Core\Form\FormStateInterface $preview */
 
       $form_state->setStorage($preview->getStorage());
       $form_state->setUserInput($preview->getUserInput());
@@ -102,7 +114,7 @@ class NodeForm extends ContentEntityForm {
     if ($this->operation == 'edit') {
       $form['#title'] = $this->t('<em>Edit @type</em> @title', [
         '@type' => node_get_type_label($node),
-        '@title' => $node->label()
+        '@title' => $node->label(),
       ]);
     }
 
@@ -134,13 +146,13 @@ class NodeForm extends ContentEntityForm {
     $form['meta']['changed'] = [
       '#type' => 'item',
       '#title' => $this->t('Last saved'),
-      '#markup' => !$node->isNew() ? format_date($node->getChangedTime(), 'short') : $this->t('Not saved yet'),
+      '#markup' => !$node->isNew() ? $this->dateFormatter->format($node->getChangedTime(), 'short') : $this->t('Not saved yet'),
       '#wrapper_attributes' => ['class' => ['entity-meta__last-saved']],
     ];
     $form['meta']['author'] = [
       '#type' => 'item',
       '#title' => $this->t('Author'),
-      '#markup' => $node->getOwner()->getUsername(),
+      '#markup' => $node->getOwner()->getAccountName(),
       '#wrapper_attributes' => ['class' => ['entity-meta__author']],
     ];
 
@@ -149,7 +161,7 @@ class NodeForm extends ContentEntityForm {
     // Node author information for administrators.
     $form['author'] = [
       '#type' => 'details',
-      '#title' => t('Authoring information'),
+      '#title' => $this->t('Authoring information'),
       '#group' => 'advanced',
       '#attributes' => [
         'class' => ['node-form-author'],
@@ -172,7 +184,7 @@ class NodeForm extends ContentEntityForm {
     // Node options for administrators.
     $form['options'] = [
       '#type' => 'details',
-      '#title' => t('Promotion options'),
+      '#title' => $this->t('Promotion options'),
       '#group' => 'advanced',
       '#attributes' => [
         'class' => ['node-form-options'],
@@ -198,30 +210,6 @@ class NodeForm extends ContentEntityForm {
   }
 
   /**
-   * Entity builder updating the node status with the submitted value.
-   *
-   * @param string $entity_type_id
-   *   The entity type identifier.
-   * @param \Drupal\node\NodeInterface $node
-   *   The node updated with the submitted values.
-   * @param array $form
-   *   The complete form array.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The current state of the form.
-   *
-   * @see \Drupal\node\NodeForm::form()
-   *
-   * @deprecated in Drupal 8.4.x, will be removed before Drupal 9.0.0.
-   *   The "Publish" button was removed.
-   */
-  public function updateStatus($entity_type_id, NodeInterface $node, array $form, FormStateInterface $form_state) {
-    $element = $form_state->getTriggeringElement();
-    if (isset($element['#published_status'])) {
-      $node->setPublished($element['#published_status']);
-    }
-  }
-
-  /**
    * {@inheritdoc}
    */
   protected function actions(array $form, FormStateInterface $form_state) {
@@ -234,13 +222,14 @@ class NodeForm extends ContentEntityForm {
     $element['preview'] = [
       '#type' => 'submit',
       '#access' => $preview_mode != DRUPAL_DISABLED && ($node->access('create') || $node->access('update')),
-      '#value' => t('Preview'),
+      '#value' => $this->t('Preview'),
       '#weight' => 20,
       '#submit' => ['::submitForm', '::preview'],
     ];
 
-    $element['delete']['#access'] = $node->access('delete');
-    $element['delete']['#weight'] = 100;
+    if (array_key_exists('delete', $element)) {
+      $element['delete']['#weight'] = 100;
+    }
 
     return $element;
   }
@@ -279,17 +268,17 @@ class NodeForm extends ContentEntityForm {
     $node = $this->entity;
     $insert = $node->isNew();
     $node->save();
-    $node_link = $node->link($this->t('View'));
+    $node_link = $node->toLink($this->t('View'))->toString();
     $context = ['@type' => $node->getType(), '%title' => $node->label(), 'link' => $node_link];
-    $t_args = ['@type' => node_get_type_label($node), '%title' => $node->link($node->label())];
+    $t_args = ['@type' => node_get_type_label($node), '%title' => $node->toLink()->toString()];
 
     if ($insert) {
       $this->logger('content')->notice('@type: added %title.', $context);
-      drupal_set_message(t('@type %title has been created.', $t_args));
+      $this->messenger()->addStatus($this->t('@type %title has been created.', $t_args));
     }
     else {
       $this->logger('content')->notice('@type: updated %title.', $context);
-      drupal_set_message(t('@type %title has been updated.', $t_args));
+      $this->messenger()->addStatus($this->t('@type %title has been updated.', $t_args));
     }
 
     if ($node->id()) {
@@ -312,7 +301,7 @@ class NodeForm extends ContentEntityForm {
     else {
       // In the unlikely case something went wrong on save, the node will be
       // rebuilt and node form redisplayed the same way as in preview.
-      drupal_set_message(t('The post could not be saved.'), 'error');
+      $this->messenger()->addError($this->t('The post could not be saved.'));
       $form_state->setRebuild();
     }
   }

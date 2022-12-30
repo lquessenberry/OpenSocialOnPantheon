@@ -30,24 +30,22 @@
       if (character === '"') {
         current += character;
         quote = !quote;
-      }
-      else if (character === ',' && !quote) {
+      } else if (character === ',' && !quote) {
         result.push(current.trim());
         current = '';
-      }
-      else {
+      } else {
         current += character;
       }
     }
     if (value.length > 0) {
-      result.push($.trim(current));
+      result.push(current.trim());
     }
 
     return result;
   }
 
   /**
-   * Returns the last value of an multi-value textfield.
+   * Returns the last value of a multi-value textfield.
    *
    * @function Drupal.autocomplete.extractLastTerm
    *
@@ -81,7 +79,10 @@
 
     const term = autocomplete.extractLastTerm(event.target.value);
     // Abort search if the first character is in firstCharacterBlacklist.
-    if (term.length > 0 && options.firstCharacterBlacklist.indexOf(term[0]) !== -1) {
+    if (
+      term.length > 0 &&
+      options.firstCharacterBlacklist.indexOf(term[0]) !== -1
+    ) {
       return false;
     }
     // Only search when the term is at least the minimum length.
@@ -122,6 +123,9 @@
       response(suggestions);
     }
 
+    // Get the desired term and construct the autocomplete URL for it.
+    const term = autocomplete.extractLastTerm(request.term);
+
     /**
      * Transforms the data object into an array and update autocomplete results.
      *
@@ -135,15 +139,14 @@
       showSuggestions(data);
     }
 
-    // Get the desired term and construct the autocomplete URL for it.
-    const term = autocomplete.extractLastTerm(request.term);
-
     // Check if the term is already cached.
     if (autocomplete.cache[elementId].hasOwnProperty(term)) {
       showSuggestions(autocomplete.cache[elementId][term]);
-    }
-    else {
-      const options = $.extend({ success: sourceCallbackHandler, data: { q: term } }, autocomplete.ajax);
+    } else {
+      const options = $.extend(
+        { success: sourceCallbackHandler, data: { q: term } },
+        autocomplete.ajax,
+      );
       $.ajax(this.element.attr('data-autocomplete-path'), options);
     }
   }
@@ -193,9 +196,7 @@
    *   jQuery collection of the ul element.
    */
   function renderItem(ul, item) {
-    return $('<li>')
-      .append($('<a>').html(item.label))
-      .appendTo(ul);
+    return $('<li>').append($('<a>').html(item.label)).appendTo(ul);
   }
 
   /**
@@ -211,18 +212,22 @@
   Drupal.behaviors.autocomplete = {
     attach(context) {
       // Act on textfields with the "form-autocomplete" class.
-      const $autocomplete = $(context).find('input.form-autocomplete').once('autocomplete');
+      const $autocomplete = $(
+        once('autocomplete', 'input.form-autocomplete', context),
+      );
       if ($autocomplete.length) {
-        // Allow options to be overriden per instance.
-        const blacklist = $autocomplete.attr('data-autocomplete-first-character-blacklist');
+        // Allow options to be overridden per instance.
+        const blacklist = $autocomplete.attr(
+          'data-autocomplete-first-character-blacklist',
+        );
         $.extend(autocomplete.options, {
-          firstCharacterBlacklist: (blacklist) || '',
+          firstCharacterBlacklist: blacklist || '',
         });
         // Use jQuery UI Autocomplete on the textfield.
-        $autocomplete.autocomplete(autocomplete.options)
-          .each(function () {
-            $(this).data('ui-autocomplete')._renderItem = autocomplete.options.renderItem;
-          });
+        $autocomplete.autocomplete(autocomplete.options).each(function () {
+          $(this).data('ui-autocomplete')._renderItem =
+            autocomplete.options.renderItem;
+        });
 
         // Use CompositionEvent to handle IME inputs. It requests remote server on "compositionend" event only.
         $autocomplete.on('compositionstart.autocomplete', () => {
@@ -235,9 +240,9 @@
     },
     detach(context, settings, trigger) {
       if (trigger === 'unload') {
-        $(context).find('input.form-autocomplete')
-          .removeOnce('autocomplete')
-          .autocomplete('destroy');
+        $(
+          once.remove('autocomplete', 'input.form-autocomplete', context),
+        ).autocomplete('destroy');
       }
     },
   };
@@ -273,8 +278,9 @@
     },
     ajax: {
       dataType: 'json',
+      jsonp: false,
     },
   };
 
   Drupal.autocomplete = autocomplete;
-}(jQuery, Drupal));
+})(jQuery, Drupal);

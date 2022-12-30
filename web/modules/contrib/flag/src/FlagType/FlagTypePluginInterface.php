@@ -3,7 +3,7 @@
 namespace Drupal\flag\FlagType;
 
 use Drupal\Core\Plugin\PluginFormInterface;
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\ConfigurableInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\flag\FlagInterface;
 use Drupal\Core\Entity\EntityInterface;
@@ -12,7 +12,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 /**
  * Provides an interface for all flag type plugins.
  */
-interface FlagTypePluginInterface extends PluginFormInterface, ConfigurablePluginInterface, ContainerFactoryPluginInterface {
+interface FlagTypePluginInterface extends PluginFormInterface, ConfigurableInterface, ContainerFactoryPluginInterface {
 
   /**
    * Returns the permissions available to this flag type.

@@ -1,30 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace League\Container\Definition;
 
-interface DefinitionInterface
+use League\Container\ContainerAwareInterface;
+
+interface DefinitionInterface extends ContainerAwareInterface
 {
-    /**
-     * Handle instantiation and manipulation of value and return.
-     *
-     * @param  array $args
-     * @return mixed
-     */
-    public function build(array $args = []);
-
-    /**
-     * Add an argument to be injected.
-     *
-     * @param  mixed $arg
-     * @return $this
-     */
-    public function withArgument($arg);
-
-    /**
-     * Add multiple arguments to be injected.
-     *
-     * @param  array $args
-     * @return $this
-     */
-    public function withArguments(array $args);
+    public function addArgument($arg): DefinitionInterface;
+    public function addArguments(array $args): DefinitionInterface;
+    public function addMethodCall(string $method, array $args = []): DefinitionInterface;
+    public function addMethodCalls(array $methods = []): DefinitionInterface;
+    public function addTag(string $tag): DefinitionInterface;
+    public function getAlias(): string;
+    public function getConcrete();
+    public function hasTag(string $tag): bool;
+    public function isShared(): bool;
+    public function resolve();
+    public function resolveNew();
+    public function setAlias(string $id): DefinitionInterface;
+    public function setConcrete($concrete): DefinitionInterface;
+    public function setShared(bool $shared): DefinitionInterface;
 }

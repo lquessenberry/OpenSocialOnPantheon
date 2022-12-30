@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\mailsystem_test\Plugin\Mail\DummySender.
- */
 
 namespace Drupal\mailsystem_test\Plugin\Mail;
 
@@ -18,6 +14,7 @@ use Drupal\Core\Mail\MailInterface;
  * )
  */
 class DummySender implements MailInterface {
+
   /**
    * {@inheritdoc}
    */
@@ -30,11 +27,11 @@ class DummySender implements MailInterface {
    */
   public function mail(array $message) {
     // TODO: Implement format() method.
-    \debug(array(
+    \dump([
       'Subject' => $message['subject'],
       'Body' => $message['body'],
       'Headers' => $message['headers'],
-    ), 'DummySender: mail()');
+    ], 'DummySender: mail()');
     return $message;
   }
 

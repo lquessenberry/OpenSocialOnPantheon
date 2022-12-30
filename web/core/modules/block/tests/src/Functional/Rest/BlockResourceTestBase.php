@@ -3,14 +3,15 @@
 namespace Drupal\Tests\block\Functional\Rest;
 
 use Drupal\block\Entity\Block;
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 
-abstract class BlockResourceTestBase extends EntityResourceTestBase {
+abstract class BlockResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['block'];
+  protected static $modules = ['block'];
 
   /**
    * {@inheritdoc}
@@ -30,9 +31,11 @@ abstract class BlockResourceTestBase extends EntityResourceTestBase {
       case 'GET':
         $this->entity->setVisibilityConfig('user_role', [])->save();
         break;
+
       case 'POST':
         $this->grantPermissionsToTestedRole(['administer blocks']);
         break;
+
       case 'PATCH':
         $this->grantPermissionsToTestedRole(['administer blocks']);
         break;
@@ -47,7 +50,7 @@ abstract class BlockResourceTestBase extends EntityResourceTestBase {
       'plugin' => 'llama_block',
       'region' => 'header',
       'id' => 'llama',
-      'theme' => 'classy',
+      'theme' => 'stark',
     ]);
     // All blocks can be viewed by the anonymous user by default. An interesting
     // side effect of this is that any anonymous user is also able to read the
@@ -82,10 +85,10 @@ abstract class BlockResourceTestBase extends EntityResourceTestBase {
       'status' => TRUE,
       'dependencies' => [
         'theme' => [
-          'classy',
+          'stark',
         ],
       ],
-      'theme' => 'classy',
+      'theme' => 'stark',
       'region' => 'header',
       'provider' => NULL,
       'plugin' => 'llama_block',
@@ -106,6 +109,7 @@ abstract class BlockResourceTestBase extends EntityResourceTestBase {
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
   /**
@@ -129,13 +133,10 @@ abstract class BlockResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     switch ($method) {
       case 'GET':
-        return "You are not authorized to view this block entity.";
+        return "The block visibility condition 'user_role' denied access.";
+
       default:
         return parent::getExpectedUnauthorizedAccessMessage($method);
     }
@@ -143,17 +144,25 @@ abstract class BlockResourceTestBase extends EntityResourceTestBase {
 
   /**
    * {@inheritdoc}
+   *
+   * @todo Fix this in https://www.drupal.org/node/2820315.
    */
   protected function getExpectedUnauthorizedAccessCacheability() {
-    // @see \Drupal\block\BlockAccessControlHandler::checkAccess()
-    return parent::getExpectedUnauthorizedAccessCacheability()
-      ->setCacheTags([
-        '4xx-response',
-        'config:block.block.llama',
-        'http_response',
-        static::$auth ? 'user:2' : 'user:0',
-      ])
+    return (new CacheableMetadata())
+      ->setCacheTags(['4xx-response', 'http_response'])
       ->setCacheContexts(['user.roles']);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getExpectedUnauthorizedEntityAccessCacheability($is_authenticated) {
+    // @see \Drupal\block\BlockAccessControlHandler::checkAccess()
+    return parent::getExpectedUnauthorizedEntityAccessCacheability($is_authenticated)
+      ->addCacheTags([
+        'config:block.block.llama',
+        $is_authenticated ? 'user:2' : 'user:0',
+      ]);
   }
 
 }

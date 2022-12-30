@@ -14,25 +14,24 @@ use Drupal\search_api\SearchApiException;
 use Drupal\search_api\Utility\Utility;
 
 /**
- * Returns HTML for a fields form table.
+ * Prepares variables for search_api_admin_fields_table form templates.
  *
- * @param array $variables
- *   An associative array containing:
- *   - element: A render element representing the form.
+ * Default template: search-api-admin-fields-table.html.twig.
  *
- * @return string
- *   The rendered HTML for a fields form table.
- *
- * @ingroup themeable
+ * @param array &$variables
+ *   Associative array of template variables, with the following structure:
+ *   - element: Associative array with the following keys:
+ *     - form: A render element representing the form.
+ *     - note: The table note.
  */
-function theme_search_api_admin_fields_table(array $variables) {
+function template_preprocess_search_api_admin_fields_table(array &$variables) {
   $form = $variables['element'];
   $rows = [];
   if (!empty($form['fields'])) {
     foreach (Element::children($form['fields']) as $name) {
       $row = [];
       foreach (Element::children($form['fields'][$name]) as $field) {
-        if ($cell = render($form['fields'][$name][$field])) {
+        if ($cell = \Drupal::service('renderer')->render($form['fields'][$name][$field])) {
           $row[] = $cell;
         }
       }
@@ -47,32 +46,23 @@ function theme_search_api_admin_fields_table(array $variables) {
     }
   }
 
-  $note = isset($form['note']) ? $form['note'] : '';
+  $variables['note'] = $form['note'] ?? '';
   unset($form['note'], $form['submit']);
-  $output = '';
-  foreach (Element::children($form) as $key) {
-    if (!empty($form[$key])) {
-      $output .= render($form[$key]);
-    }
-  }
 
-  $build = [
+  $variables['table'] = [
     '#theme' => 'table',
     '#header' => $form['#header'],
     '#rows' => $rows,
     '#empty' => t('No fields have been added for this datasource.'),
   ];
-
-  $output .= render($build);
-  $output .= render($note);
-
-  return $output;
 }
 
 /**
- * Returns HTML for the data type overview table.
+ * Prepares variables for search_api_admin_data_type_table form templates.
  *
- * @param array $variables
+ * Default template: search-api-admin-data-type-table.html.twig.
+ *
+ * @param array &$variables
  *   An associative array containing:
  *   - data_types: An associative array of data types, keyed by data type ID and
  *     containing associative arrays with information about the data type:
@@ -81,13 +71,9 @@ function theme_search_api_admin_fields_table(array $variables) {
  *     - fallback: The type ID of the fallback type.
  *   - fallback_mapping: array of fallback data types for unsupported data
  *     types.
- *
- * @return string
- *   The rendered HTML for a fields form table.
- *
- * @ingroup themeable
+ *   - table: The data types table.
  */
-function theme_search_api_admin_data_type_table(array $variables) {
+function template_preprocess_search_api_admin_data_type_table(array &$variables) {
   $data_types = $variables['data_types'];
   $fallback_mapping = $variables['fallback_mapping'];
   $header = [
@@ -131,68 +117,54 @@ function theme_search_api_admin_data_type_table(array $variables) {
     $rows[] = $row;
   }
 
-  $build = [
+  $variables['table'] = [
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
   ];
-
-  return render($build);
 }
 
 /**
- * Returns HTML for a list of form items.
+ * Prepares variables for search_api_form_item_list form templates.
  *
- * Wrapper around the "item_list" theme which uses the child elements as the
- * list items instead of the "#items" key.
+ * Default template: search-api-form-item-list.html.twig.
  *
- * @param array $variables
- *   An associative array containing a single value, "element", containing the
- *   element to be rendered.
- *
- * @return string
- *   The rendered HTML for the list.
- *
- * @ingroup themeable
+ * @param array &$variables
+ *   Associative array of template variables, with the following structure:
+ *   - element: The element to be rendered, as an array, potentially containing
+ *     a "#title" key, plus the list items as its children.
  */
-function theme_search_api_form_item_list(array $variables) {
+function template_preprocess_search_api_form_item_list(array &$variables) {
   $element = $variables['element'];
 
-  $build = [
+  $variables['items'] = [
     '#theme' => 'item_list',
   ];
   if (!empty($element['#title'])) {
-    $build['#title'] = $element['#title'];
+    $variables['items']['#title'] = $element['#title'];
   }
   foreach (Element::children($element) as $key) {
-    $build['#items'][$key] = $element[$key];
+    $variables['items']['#items'][$key] = $element[$key];
   }
-
-  return render($build);
 }
 
 /**
- * Returns HTML for a search server.
+ * Prepares variables for search_api_server form templates.
  *
- * @param array $variables
+ * Default template: search-api-server.html.twig.
+ *
+ * @param array &$variables
  *   An associative array containing:
  *   - server: The server that should be displayed.
- *
- * @return string
- *   The rendered HTML for a search server.
- *
- * @ingroup themeable
  */
-function theme_search_api_server(array $variables) {
+function template_preprocess_search_api_server(array &$variables) {
   // Get the search server.
   /** @var \Drupal\search_api\ServerInterface $server */
   $server = $variables['server'];
 
-  $output = '';
-
   if (($description = $server->getDescription())) {
     // Sanitize the description and append to the output.
-    $output .= '<p class="description">' . nl2br(Html::escape($description)) . '</p>';
+    $variables['description'] = $description;
   }
 
   // Initialize the $rows variable which will hold the different parts of server
@@ -259,7 +231,7 @@ function theme_search_api_server(array $variables) {
   // Check if the indexes variable contains links.
   if ($indexes['#links']) {
     $label = t('Search indexes');
-    $info = render($indexes);
+    $info = \Drupal::service('renderer')->render($indexes);
     $classes[] = 'search-api-server-summary--indexes';
     $rows[] = Utility::deepCopy($row);
     $classes = [];
@@ -278,7 +250,7 @@ function theme_search_api_server(array $variables) {
   }
 
   // Append the server info table to the output.
-  $server_info_table = [
+  $variables['server_info_table'] = [
     '#theme' => 'table',
     '#rows' => $rows,
     '#attributes' => [
@@ -287,60 +259,27 @@ function theme_search_api_server(array $variables) {
       ],
     ],
   ];
-  $output .= render($server_info_table);
-
-  return $output;
 }
 
 /**
- * Implements hook_preprocess_search_api_index().
- */
-function search_api_preprocess_search_api_index(array &$variables) {
-  /** @var \Drupal\search_api\IndexInterface $index */
-  $index = $variables['index'];
-
-  if ($index->status()) {
-    try {
-      $variables['server_count'] = $index->query()
-        ->setProcessingLevel(QueryInterface::PROCESSING_NONE)
-        ->addTag('server_index_status')
-        ->range(0, 0)
-        ->execute()
-        ->getResultCount();
-    }
-    catch (SearchApiException $e) {
-      $variables['server_count_error'] = $e->getMessage();
-    }
-  }
-}
-
-/**
- * Returns HTML for a search index.
+ * Prepares variables for search_api_index templates.
  *
- * @param array $variables
+ * Default template: search-api-index.html.twig.
+ *
+ * @param array &$variables
  *   An associative array containing:
  *   - index: The search index to display.
- *   - server_count: The count of items on the server for this index.
- *   - server_count_error: If set, the error that occurred while trying to get
- *     the server items count.
- *
- * @return string
- *   The rendered HTML for a search index.
- *
- * @ingroup themeable
  */
-function theme_search_api_index(array $variables) {
+function template_preprocess_search_api_index(array &$variables) {
   // Get the index.
   /** @var \Drupal\search_api\IndexInterface $index */
   $index = $variables['index'];
   $server = $index->hasValidServer() ? $index->getServerInstance() : NULL;
   $tracker = $index->hasValidTracker() ? $index->getTrackerInstance() : NULL;
 
-  $output = '';
-
   if (($description = $index->getDescription())) {
     // Sanitize the description and append to the output.
-    $output .= '<p class="description">' . nl2br(Html::escape($description)) . '</p>';
+    $variables['description'] = $description;
   }
 
   // Initialize the $rows variable which will hold the different parts of server
@@ -362,6 +301,18 @@ function theme_search_api_index(array $variables) {
 
   // Check if the index is enabled.
   if ($index->status()) {
+    try {
+      $variables['server_count'] = $index->query()
+        ->setProcessingLevel(QueryInterface::PROCESSING_NONE)
+        ->addTag('server_index_status')
+        ->range(0, 0)
+        ->execute()
+        ->getResultCount();
+    }
+    catch (SearchApiException $e) {
+      $variables['server_count_error'] = $e->getMessage();
+    }
+
     $classes[] = 'ok';
     $info = t('enabled (<a href=":url">disable</a>)', [':url' => $index->toUrl('disable')->toString()]);
   }
@@ -480,18 +431,16 @@ function theme_search_api_index(array $variables) {
       $indexed_count = $tracker->getIndexedItemsCount();
       $total_count = $tracker->getTotalItemsCount();
 
-      $index_progress = [
+      $variables['index_progress'] = [
         '#theme' => 'progress_bar',
         '#percent' => $total_count ? (int) (100 * $indexed_count / $total_count) : 100,
         '#message' => t('@indexed/@total indexed', ['@indexed' => $indexed_count, '@total' => $total_count]),
       ];
-      $output .= '<h3>' . t('Index status') . '</h3>';
-      $output .= '<div class="search-api-index-status">' . render($index_progress) . '</div>';
     }
   }
 
   // Append the index info table to the output.
-  $index_info_table = [
+  $variables['table'] = [
     '#theme' => 'table',
     '#rows' => $rows,
     '#attributes' => [
@@ -500,7 +449,4 @@ function theme_search_api_index(array $variables) {
       ],
     ],
   ];
-  $output .= render($index_info_table);
-
-  return $output;
 }

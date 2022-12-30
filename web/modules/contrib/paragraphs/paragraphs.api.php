@@ -41,6 +41,8 @@ function hook_paragraphs_behavior_info_alter(&$paragraphs_behavior) {
  *   - form_state: The current state of the form.
  *   - paragraphs_entity: the paragraphs entity for this widget. Might be
  *     unsaved, if we have just added a new item to the widget.
+ *   - is_translating: Boolean if the widget is translating.
+ *   - allow_reference_changes: Boolean if changes to structure are OK.
  */
 function hook_paragraphs_widget_actions_alter(array &$widget_actions, array &$context) {
 }

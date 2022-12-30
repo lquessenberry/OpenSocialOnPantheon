@@ -1,0 +1,4 @@
+/build
+/vendor
+/website/.docusaurus
+/website/node_modules

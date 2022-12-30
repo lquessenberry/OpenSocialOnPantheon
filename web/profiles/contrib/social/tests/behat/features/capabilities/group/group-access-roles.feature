@@ -7,14 +7,12 @@ Feature: Group access roles
   Scenario: Successfully access a group I'm not a member of
     Given users:
       | name           | mail                     | status | roles              |
-      | Group User One | group_user_1@example.com | 1      |                    |
+      | Group User One | group_user_1@example.com | 1      | verified           |
       | Group User Two | group_user_2@example.com | 1      | sitemanager        |
   # Create a closed group to test the leaving of a closed group
     When I am logged in as "Group User One"
-    And I am on "user"
-    And I click "Groups"
-    And I click "Add a group"
-    Then I click radio button "Closed group This is a closed group. Users can only join by invitation and all content added in this group will be hidden for non members." with the id "edit-group-type-closed-group"
+    And I am on "group/add"
+    Then I click radio button "Closed group This is a closed group. Users can only join by invitation and the content in the group is hidden from non members." with the id "edit-group-type-closed-group"
     And I press "Continue"
     When I fill in "Title" with "Test closed group 3"
     And I fill in the "edit-field-group-description-0-value" WYSIWYG editor with "Description text"
@@ -23,25 +21,22 @@ Feature: Group access roles
     And I wait for AJAX to finish
     Then I should see "City"
     And I fill in the following:
-    | City | Hengelo |
+    | City           | Hengelo         |
     | Street address | Padangstraat 11 |
-    | Postal code | 7556SP |
+    | Postal code    | 7556SP          |
     And I press "Save"
     Then I should see "Test closed group 3" in the "Main content"
 
   # Create a topic inside the closed group
-    When I am on "user"
-    And I click "Groups"
-    And I click "Test closed group 3"
-    When I click "Topics"
-    And I should see the link "Create Topic" in the "Sidebar second"
-    And I click "Create Topic"
-    When I fill in the following:
+    Given I click "Topics"
+    Then I should see the link "Create Topic" in the "Sidebar second"
+    When I click "Create Topic"
+    And I fill in the following:
       | Title | Test closed group 3 topic |
     And I fill in the "edit-body-0-value" WYSIWYG editor with "Body description text"
-    And I click radio button "Discussion"
-    And I press "Save"
-    And I should see "Test closed group 3 topic"
+    And I check the box "News"
+    And I press "Create topic"
+    Then I should see "Test closed group 3 topic"
 
   # As a outsider with the role CM+ I should be able to see and manage content from a closed group
     Given I am logged in as a user with the "contentmanager" role
@@ -56,21 +51,20 @@ Feature: Group access roles
     Given I am logged in as a user with the "sitemanager" role
     Then I open and check the access of content in group "Test closed group 3" and I expect access "allowed"
     When I am on "stream"
+    # This should be present in the sidebar.
     Then I should see "Test closed group 3 topic"
     When I am on "/all-topics"
     Then I should see "Test closed group 3 topic"
     When I am on "/all-groups"
     And I click "Test closed group 3"
 
-  # DS-647 As a LU I want to join a group
-    Then I should see the link "Join" in the "Hero block"
+  # DS-647 As a Verified I want to join a group
+    Then I should see the link "Join"
     And I click "Join"
     And I should see "Join group Test closed group 3"
     And I should see the button "Cancel"
-    And I should see the button "Join group"
     And I press "Join group"
-    And I am on "user"
-    And I click "Groups"
+    And I am on "/my-groups"
     Then I click "Test closed group 3"
     And I should see the button "Joined"
 
@@ -80,7 +74,7 @@ Feature: Group access roles
   # As a CM+ member of this closed group I want to leave the group
     When I click "Test closed group 3"
     Then I should see the button "Joined"
-    And I click the element with css selector "#hero .dropdown-toggle"
+    And I press "Joined"
     And I should see the link "Leave group"
     And I click "Leave group"
     And I should see "This action cannot be undone."
@@ -94,7 +88,17 @@ Feature: Group access roles
     When I am logged in as "Group User One"
     And I am on the stream of group "Test closed group 3"
     And I click "Manage members"
-    And I click "Add members"
-    And I fill in "Group User Two" for "Select members to add"
+    And I click the group member dropdown
+    And I click "Add directly"
+    And I fill in select2 input ".form-type-select" with "Group User Two" and select "Group User Two"
     And I press "Save"
+    And I click "Manage members"
     Then I should see "Group Admin"
+
+    # LU should not be able to create groups.
+    Given I disable that the registered users to be verified immediately
+    When I am logged in as an "authenticated user"
+      And I am on "group/add"
+    Then I should see "Access denied"
+      And I should see "You are not authorized to access this page."
+      And I enable that the registered users to be verified immediately

@@ -2,7 +2,6 @@
 
 namespace Drupal\image_effects\Element;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element\FormElement;
 use Drupal\image_effects\Component\ColorUtility;
@@ -48,10 +47,10 @@ class ImageEffectsColor extends FormElement {
         return '';
       }
       elseif ($element['#allow_null'] || $element['#allow_opacity']) {
-        $val = Unicode::strtoupper($input['container']['hex']);
+        $val = mb_strtoupper($input['container']['hex']);
       }
       else {
-        $val = Unicode::strtoupper($input['hex']);
+        $val = mb_strtoupper($input['hex']);
       }
       if ($val[0] <> '#') {
         $val = '#' . $val;
@@ -97,7 +96,7 @@ class ImageEffectsColor extends FormElement {
     // values (white, fully opaque) so that if transparency is unchecked,
     // we have a starting value.
     $transparent = empty($element['#default_value']) ? TRUE : FALSE;
-    $hex = $transparent ? '#FFFFFF' : Unicode::substr($element['#default_value'], 0, 7);
+    $hex = $transparent ? '#FFFFFF' : mb_substr($element['#default_value'], 0, 7);
     $opacity = $transparent ? 100 : ColorUtility::rgbaToOpacity($element['#default_value']);
 
     $colorPlugin = \Drupal::service('plugin.manager.image_effects.color_selector')->getPlugin();

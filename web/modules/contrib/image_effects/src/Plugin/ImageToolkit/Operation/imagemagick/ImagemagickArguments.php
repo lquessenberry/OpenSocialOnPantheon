@@ -25,7 +25,7 @@ class ImagemagickArguments extends ImagemagickImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     // Add argument.
-    $this->getToolkit()->addArgument($arguments['command_line']);
+    $this->addArgument($arguments['command_line']);
 
     // Set dimensions.
     $this->getToolkit()

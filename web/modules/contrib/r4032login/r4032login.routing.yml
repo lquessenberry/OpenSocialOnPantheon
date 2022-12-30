@@ -1,0 +1,23 @@
+r4032login.settings.form:
+  path: '/admin/config/system/r4032login/settings'
+  defaults:
+    _form: '\Drupal\r4032login\Form\SettingsForm'
+    _title: 'r4032login settings'
+  requirements:
+    _permission: 'administer r4032login'
+
+r4032login.anonymous_settings.form:
+  path: '/admin/config/system/r4032login/settings/anonymous'
+  defaults:
+    _form: '\Drupal\r4032login\Form\AnonymousSettingsForm'
+    _title: 'r4032login anonymous behavior'
+  requirements:
+    _permission: 'administer r4032login'
+
+r4032login.authenticated_settings.form:
+  path: '/admin/config/system/r4032login/settings/authenticated'
+  defaults:
+    _form: '\Drupal\r4032login\Form\AuthenticatedSettingsForm'
+    _title: 'r4032login authenticated behavior'
+  requirements:
+    _permission: 'administer r4032login'

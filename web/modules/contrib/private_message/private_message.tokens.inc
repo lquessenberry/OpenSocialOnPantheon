@@ -106,6 +106,8 @@ function private_message_tokens($type, $tokens, array $data, array $options, Bub
   // Replace private message tokens.
   if ($type == 'private_message' && !empty($data['private_message'])) {
 
+
+    /** @var \Drupal\private_message\Entity\PrivateMessageInterface $private_message */
     $private_message = $data['private_message'];
 
     foreach ($tokens as $name => $original) {
@@ -125,12 +127,12 @@ function private_message_tokens($type, $tokens, array $data, array $options, Bub
           break;
 
         case 'url':
-          $replacements[$original] = $private_message->url('canonical', $url_options);
+          $replacements[$original] = $private_message->toUrl('canonical', $url_options);
 
         case 'created':
           $date_format = DateFormat::load('medium');
           $bubbleable_metadata->addCacheableDependency($date_format);
-          $replacements[$original] = format_date($private_message->getCreatedTime(), 'medium', '', NULL, $langcode);
+          $replacements[$original] = \Drupal::service('date.formatter')->format($private_message->getCreatedTime(), 'medium', '', NULL, $langcode);
           break;
       }
     }
@@ -151,13 +153,13 @@ function private_message_tokens($type, $tokens, array $data, array $options, Bub
           break;
 
         case 'url':
-          $replacements[$original] = Url::fromRoute('private_message.private_message_page', ['private_message_thread' => $private_message_thread->id()], $url_options)->toString();
+          $replacements[$original] = Url::fromRoute('entity.private_message_thread.canonical', ['private_message_thread' => $private_message_thread->id()], $url_options)->toString();
           break;
 
         case 'updated':
           $date_format = DateFormat::load('medium');
           $bubbleable_metadata->addCacheableDependency($date_format);
-          $replacements[$original] = format_date($private_message_thread->getUpdatedTime(), 'medium', '', NULL, $langcode);
+          $replacements[$original] = \Drupal::service('date.formatter')->format($private_message_thread->getUpdatedTime(), 'medium', '', NULL, $langcode);
           break;
       }
     }

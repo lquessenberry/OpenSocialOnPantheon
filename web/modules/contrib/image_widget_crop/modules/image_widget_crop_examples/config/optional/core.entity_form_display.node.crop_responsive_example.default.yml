@@ -2,16 +2,16 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.field.node.crop_responsive_example.body
-    - field.field.node.crop_responsive_example.field_image_crop_simple
-    - image.style.thumbnail
-    - node.type.crop_responsive_example
+  - field.field.node.crop_responsive_example.body
+  - field.field.node.crop_responsive_example.field_image_crop_simple
+  - image.style.thumbnail
+  - node.type.crop_responsive_example
   module:
-    - image_widget_crop
-    - path
-    - text
+  - image_widget_crop
+  - path
+  - text
 _core:
-  default_config_hash: LLxYXZcZ4QCPuFF4MUDzvdngoUrwR7vrAv-tp3JY7qY
+  default_config_hash: '--2jOGUBwm24Xva7PFKixTfz5BIhRlWmr-SjYp2maI8'
 id: node.crop_responsive_example.default
 targetEntityType: node
 bundle: crop_responsive_example
@@ -37,23 +37,18 @@ content:
     settings:
       show_default_crop: true
       warn_multiple_usages: true
+      crop_types_required:
+      - crop_16_9
       preview_image_style: thumbnail
       crop_preview_image_style: crop_thumbnail
       crop_list:
-        - crop_16_9
-        - crop_4_3
-        - crop_free_ratio
+      - crop_16_9
+      - crop_4_3
+      - crop_free_ratio
       progress_indicator: throbber
       show_crop_area: false
     third_party_settings: {  }
     type: image_widget_crop
-    region: content
-  langcode:
-    type: language_select
-    weight: 2
-    settings:
-      include_locked: true
-    third_party_settings: {  }
     region: content
   path:
     type: path
@@ -68,6 +63,13 @@ content:
     weight: 6
     third_party_settings: {  }
     region: content
+  status:
+    type: boolean_checkbox
+    settings:
+      display_label: true
+    weight: 120
+    region: content
+    third_party_settings: {  }
   sticky:
     type: boolean_checkbox
     settings:

@@ -29,8 +29,8 @@ class TwigMarkupInterfaceTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
-    'language'
+  protected static $modules = [
+    'language',
   ];
 
   /**
@@ -45,11 +45,10 @@ class TwigMarkupInterfaceTest extends KernelTestBase {
    */
   public function providerTestMarkupInterfaceEmpty() {
     return [
-      // @codingStandardsIgnoreStart
       // The first argument to \Drupal\Core\StringTranslation\TranslatableMarkup
       // is not supposed to be an empty string.
+      // phpcs:ignore Drupal.Semantics.FunctionT.EmptyString
       'empty TranslatableMarkup' => ['', new TranslatableMarkup('')],
-      // @codingStandardsIgnoreEnd
       'non-empty TranslatableMarkup' => ['<span>test</span>', new TranslatableMarkup('test')],
       'empty FormattableMarkup' => ['', new FormattableMarkup('', ['@foo' => 'bar'])],
       'non-empty FormattableMarkup' => ['<span>bar</span>', new FormattableMarkup('@foo', ['@foo' => 'bar'])],
@@ -63,7 +62,7 @@ class TwigMarkupInterfaceTest extends KernelTestBase {
   }
 
   /**
-   * Tests behaviour if a string is translated to become an empty string.
+   * Tests behavior if a string is translated to become an empty string.
    */
   public function testEmptyTranslation() {
     $settings = Settings::getAll();
@@ -99,7 +98,7 @@ class TwigMarkupInterfaceTest extends KernelTestBase {
 }
 
 /**
- * Implements MarkupInterface without implementing \Countable
+ * Implements MarkupInterface without implementing \Countable.
  */
 class SafeMarkupTestMarkup implements MarkupInterface {
   use MarkupTrait;

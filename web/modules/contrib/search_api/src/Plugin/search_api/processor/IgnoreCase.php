@@ -2,7 +2,6 @@
 
 namespace Drupal\search_api\Plugin\search_api\processor;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\search_api\Item\FieldInterface;
 use Drupal\search_api\Plugin\search_api\data_type\value\TextValueInterface;
 use Drupal\search_api\Processor\FieldsProcessorPluginBase;
@@ -40,10 +39,7 @@ class IgnoreCase extends FieldsProcessorPluginBase {
    * {@inheritdoc}
    */
   protected function process(&$value) {
-    // We don't touch integers, NULL values or the like.
-    if (is_string($value)) {
-      $value = Unicode::strtolower($value);
-    }
+    $value = mb_strtolower($value);
   }
 
 }

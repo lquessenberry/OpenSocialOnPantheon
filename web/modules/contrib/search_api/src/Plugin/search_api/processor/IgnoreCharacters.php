@@ -35,21 +35,16 @@ class IgnoreCharacters extends FieldsProcessorPluginBase {
   public function defaultConfiguration() {
     $configuration = parent::defaultConfiguration();
 
-    // @todo As elsewhere, the "character_sets" setting should only contain the
-    //   enabled classes, in a numeric array.
-    // @todo Also, nesting this setting makes no sense.
     $configuration += [
       'ignorable' => "['¿¡!?,.:;]",
-      'strip' => [
-        'character_sets' => [
-          'Pc' => 'Pc',
-          'Pd' => 'Pd',
-          'Pe' => 'Pe',
-          'Pf' => 'Pf',
-          'Pi' => 'Pi',
-          'Po' => 'Po',
-          'Ps' => 'Ps',
-        ],
+      'ignorable_classes' => [
+        'Pc',
+        'Pd',
+        'Pe',
+        'Pf',
+        'Pi',
+        'Po',
+        'Ps',
       ],
     ];
 
@@ -65,7 +60,7 @@ class IgnoreCharacters extends FieldsProcessorPluginBase {
     $form['ignorable'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Strip by regular expression'),
-      '#description' => $this->t('Specify characters which should be removed from fulltext fields and search strings, as a <a href=":url">PCRE regular expression</a>.', [':url' => Url::fromUri('http://php.net/manual/reference.pcre.pattern.syntax.php')->toString()]),
+      '#description' => $this->t('Specify characters which should be removed from fulltext fields and search strings, as a <a href=":url">PCRE regular expression</a>.', [':url' => Url::fromUri('https://secure.php.net/manual/reference.pcre.pattern.syntax.php')->toString()]),
       '#default_value' => $this->configuration['ignorable'],
       '#maxlength' => 1000,
     ];
@@ -74,16 +69,17 @@ class IgnoreCharacters extends FieldsProcessorPluginBase {
     $form['strip'] = [
       '#type' => 'details',
       '#title' => $this->t('Strip by character property'),
-      '#description' => $this->t('Specify <a href=":url">Unicode character properties</a> of characters to be ignored.', [':url' => Url::fromUri('http://www.fileformat.info/info/unicode/category/index.htm')->toString()]),
+      '#description' => $this->t('Specify <a href=":url">Unicode character properties</a> of characters to be ignored.', [':url' => Url::fromUri('https://en.wikipedia.org/wiki/Unicode_character_property')->toString()]),
       '#open' => FALSE,
       '#maxlength' => 300,
 
     ];
+    $classes = $this->configuration['ignorable_classes'];
     $form['strip']['character_sets'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Ignored character properties'),
       '#options' => $character_sets,
-      '#default_value' => $this->configuration['strip']['character_sets'],
+      '#default_value' => array_combine($classes, $classes),
       '#multiple' => TRUE,
     ];
 
@@ -96,11 +92,23 @@ class IgnoreCharacters extends FieldsProcessorPluginBase {
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::validateConfigurationForm($form, $form_state);
 
-    $ignorable = str_replace('/', '\/', $form_state->getValues()['ignorable']);
+    $ignorable = str_replace('/', '\/', $form_state->getValue('ignorable', ''));
     if ($ignorable !== '' && @preg_match('/(' . $ignorable . ')+/u', '') === FALSE) {
       $el = $form['ignorable'];
       $form_state->setError($el, $el['#title'] . ': ' . $this->t('The entered text is no valid regular expression.'));
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
+    $config = $form_state->getValues();
+    unset($config['strip']);
+    // Get our own version of 'ignorable_classes' from form values.
+    $classes = $form_state->getValue(['strip', 'character_sets'], []);
+    $config['ignorable_classes'] = array_values(array_filter($classes));
+    $this->setConfiguration($config);
   }
 
   /**
@@ -115,7 +123,7 @@ class IgnoreCharacters extends FieldsProcessorPluginBase {
     }
 
     // Loop over the character sets and strip the characters from the text.
-    foreach ($this->configuration['strip']['character_sets'] as $character_set) {
+    foreach ($this->configuration['ignorable_classes'] as $character_set) {
       $regex = $this->getFormatRegularExpression($character_set);
       if ($regex) {
         $value = preg_replace('/[' . $regex . ']+/u', '', $value);

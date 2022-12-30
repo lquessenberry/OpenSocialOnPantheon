@@ -1,5 +1,6 @@
 langcode: en
 status: true
+dependencies: {  }
 name: 'Block node'
 type: block_node
 description: ''

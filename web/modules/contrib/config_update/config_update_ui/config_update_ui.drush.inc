@@ -2,10 +2,10 @@
 
 /**
  * @file
- * Drush commands for the Configuration Update Reports module.
+ * Drush 8 commands for the Configuration Update Reports module.
  */
 
-use Drupal\Component\Diff\DiffFormatter;
+use Drupal\config_update_ui\Logger\ConfigUpdateUiDrush8Logger;
 
 /**
  * Implements hook_drush_command().
@@ -148,12 +148,12 @@ function config_update_ui_drush_command() {
 
 /**
  * Lists available config types.
+ *
+ * @return array
+ *   An array of configuration types.
  */
 function drush_config_update_ui_config_list_types() {
-  $list = [];
-
-  $definitions = \Drupal::service('config_update.config_list')->listTypes();
-  return array_keys($definitions);
+  return drush_config_update_ui_cli_service()->listTypes();
 }
 
 /**
@@ -161,18 +161,12 @@ function drush_config_update_ui_config_list_types() {
  *
  * @param string $name
  *   Type of config to report on.
+ *
+ * @return array
+ *   An array of added configuration items.
  */
 function drush_config_update_ui_config_added_report($name) {
-  list($active_list, $install_list, $optional_list) = \Drupal::service('config_update.config_list')->listConfig('type', $name);
-
-  $added = array_diff($active_list, $install_list, $optional_list);
-
-  if (!count($added)) {
-    drush_print(dt('No added config'), 0, STDERR);
-  }
-
-  sort($added);
-  return $added;
+  return drush_config_update_ui_cli_service()->addedReport($name);
 }
 
 /**
@@ -182,17 +176,12 @@ function drush_config_update_ui_config_added_report($name) {
  *   Type of report to run: 'type', 'module', 'theme', or 'profile'.
  * @param string $name
  *   Machine name of item to report on.
+ *
+ * @return array
+ *   An array of missing configuration items.
  */
 function drush_config_update_ui_config_missing_report($type, $name) {
-  list($active_list, $install_list, $optional_list) = \Drupal::service('config_update.config_list')->listConfig($type, $name);
-
-  $missing = array_diff($install_list, $active_list);
-  if (!count($missing)) {
-    drush_print(dt('No missing config'), 0, STDERR);
-  }
-
-  sort($missing);
-  return $missing;
+  return drush_config_update_ui_cli_service()->missingReport($type, $name);
 }
 
 /**
@@ -202,17 +191,12 @@ function drush_config_update_ui_config_missing_report($type, $name) {
  *   Type of report to run: 'type', 'module', 'theme', or 'profile'.
  * @param string $name
  *   Machine name of item to report on.
+ *
+ * @return array
+ *   An array of inactive configuration items.
  */
 function drush_config_update_ui_config_inactive_report($type, $name) {
-  list($active_list, $install_list, $optional_list) = \Drupal::service('config_update.config_list')->listConfig($type, $name);
-
-  $missing = array_diff($optional_list, $active_list);
-  if (!count($missing)) {
-    drush_print(dt('No inactive config'), 0, STDERR);
-  }
-
-  sort($missing);
-  return $missing;
+  return drush_config_update_ui_cli_service()->inactiveReport($type, $name);
 }
 
 /**
@@ -222,30 +206,12 @@ function drush_config_update_ui_config_inactive_report($type, $name) {
  *   Type of report to run: 'type', 'module', 'theme', or 'profile'.
  * @param string $name
  *   Machine name of item to report on.
+ *
+ * @return array
+ *   An array of differing configuration items.
  */
 function drush_config_update_ui_config_different_report($type, $name) {
-  list($active_list, $install_list, $optional_list) = \Drupal::service('config_update.config_list')->listConfig($type, $name);
-
-  $reverter = \Drupal::service('config_update.config_update');
-  $differ = \Drupal::service('config_update.config_diff');
-
-  $added = array_diff($active_list, $install_list, $optional_list);
-  $both = array_diff($active_list, $added);
-  $different = [];
-  foreach ($both as $name) {
-    $active = $reverter->getFromActive('', $name);
-    $extension = $reverter->getFromExtension('', $name);
-    if (!$differ->same($active, $extension)) {
-      $different[] = $name;
-    }
-  }
-
-  if (!count($different)) {
-    drush_print(dt('No different config'), 0, STDERR);
-  }
-
-  sort($different);
-  return $different;
+  return drush_config_update_ui_cli_service()->differentReport($type, $name);
 }
 
 /**
@@ -253,23 +219,12 @@ function drush_config_update_ui_config_different_report($type, $name) {
  *
  * @param string $name
  *   Config item to diff.
+ *
+ * @return string
+ *   The formatted diff output.
  */
 function drush_config_update_ui_config_diff($name) {
-  $reverter = \Drupal::service('config_update.config_update');
-  $differ = \Drupal::service('config_update.config_diff');
-  $formatter = new DiffFormatter();
-
-  $extension = $reverter->getFromExtension('', $name);
-  $active = $reverter->getFromActive('', $name);
-  if ($extension && $active) {
-    $diff = $differ->diff($extension, $active);
-    $output = $formatter->format($diff);
-    return $output;
-  }
-  else {
-    drush_print(dt('Config is missing, cannot diff'), 0, STDERR);
-    return '';
-  }
+  return drush_config_update_ui_cli_service()->diff($name);
 }
 
 /**
@@ -279,27 +234,7 @@ function drush_config_update_ui_config_diff($name) {
  *   Config item to revert.
  */
 function drush_config_update_ui_config_revert($name) {
-  $lister = \Drupal::service('config_update.config_list');
-  $reverter = \Drupal::service('config_update.config_update');
-  $manager = \Drupal::service('entity.manager');
-
-  // The revert command needs the type and the unprefixed name.
-  $type = $lister->getTypeNameByConfigName($name);
-  $shortname = $name;
-  if ($type && $type != 'system.simple') {
-    $definition = $manager->getDefinition($type);
-    $prefix = $definition->getConfigPrefix() . '.';
-    if (strpos($name, $prefix) === 0) {
-      $shortname = substr($name, strlen($prefix));
-    }
-  }
-
-  if ($reverter->revert($type, $shortname)) {
-    drush_print(dt('The configuration item @name was reverted to its source.', ['@name' => $name]));
-  }
-  else {
-    drush_print(dt('There was an error and the configuration item @name was not reverted.', ['@name' => $name]), 0, STDERR);
-  }
+  return drush_config_update_ui_cli_service()->revert($name);
 }
 
 /**
@@ -309,28 +244,7 @@ function drush_config_update_ui_config_revert($name) {
  *   Name of config item to import, without prefix.
  */
 function drush_config_update_ui_config_import_missing($name) {
-  $lister = \Drupal::service('config_update.config_list');
-  $reverter = \Drupal::service('config_update.config_update');
-  $manager = \Drupal::service('entity.manager');
-
-  // The import command needs the type and the unprefixed name.
-  $type = $lister->getTypeNameByConfigName($name);
-  $shortname = $name;
-  if ($type && $type != 'system.simple') {
-    $definition = $manager->getDefinition($type);
-    $prefix = $definition->getConfigPrefix() . '.';
-    if (strpos($name, $prefix) === 0) {
-      $shortname = substr($name, strlen($prefix));
-    }
-  }
-
-  if ($reverter->import($type, $shortname)) {
-    drush_print(dt('The configuration item @name was imported from its source.', ['@name' => $name]));
-  }
-  else {
-    drush_print(dt('There was an error and the configuration item @name was not imported.', ['@name' => $name]), 0, STDERR);
-    drush_print(dt('The configuration was imported from its source.'));
-  }
+  return drush_config_update_ui_cli_service()->importMissing($name);
 }
 
 /**
@@ -342,10 +256,17 @@ function drush_config_update_ui_config_import_missing($name) {
  *   Machine name of type to revert.
  */
 function drush_config_update_ui_config_revert_multiple($type, $name) {
-  // This command will print an error if there are no items to revert.
-  $different = drush_config_update_ui_config_different_report($type, $name);
-  foreach ($different as $name) {
-    // This command will print a message if it succeeds or fails for each item.
-    drush_config_update_ui_config_revert($name);
-  }
+  return drush_config_update_ui_cli_service()->revertMultiple($type, $name);
+}
+
+/**
+ * Instantiates and returns the Drush Commands CLI service for Drush 8.
+ */
+function drush_config_update_ui_cli_service() {
+  /** @var \Drupal\config_update_ui\ConfigUpdateUiCliService $config_update_ui_service */
+  $config_update_ui_service = \Drupal::service('config_update_ui.cli');
+  $logger = new ConfigUpdateUiDrush8Logger(\Drupal::service('logger.log_message_parser'));
+  $config_update_ui_service->setLogger($logger);
+
+  return $config_update_ui_service;
 }

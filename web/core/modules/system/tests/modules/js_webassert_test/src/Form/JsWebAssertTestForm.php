@@ -7,7 +7,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
 /**
- * Test form for JSWebAssert JavaScriptTestBase.
+ * Test form for JSWebAssert WebDriverTestBase.
  *
  * @internal
  */
@@ -113,6 +113,22 @@ class JsWebAssertTestForm extends FormBase {
         'wrapper' => 'js_webassert_test_form_wrapper',
       ],
     ];
+
+    // Button to test the assertNoElementAfterWait() assertion, will pass.
+    $form['test_assert_no_element_after_wait_pass'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Test assertNoElementAfterWait: pass'),
+      '#button_type' => 'primary',
+      '#attached' => ['library' => 'js_webassert_test/no_element_after_wait'],
+    ];
+
+    // Button to test the assertNoElementAfterWait() assertion, will fail.
+    $form['test_assert_no_element_after_wait_fail'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Test assertNoElementAfterWait: fail'),
+      '#button_type' => 'primary',
+    ];
+
     return $form;
   }
 
@@ -135,10 +151,11 @@ class JsWebAssertTestForm extends FormBase {
     $form['added_link'] = [
       '#title' => 'Added link',
       '#type' => 'link',
-      '#url' => Url::fromRoute('js_webassert_test.js_webassert_test_form')
+      '#url' => Url::fromRoute('js_webassert_test.js_webassert_test_form'),
     ];
     return $form;
   }
+
   /**
    * Ajax callback for the "Add field" button.
    */
@@ -178,7 +195,6 @@ class JsWebAssertTestForm extends FormBase {
 
     return $form;
   }
-
 
   /**
    * Ajax callback for the "Test waitForElementVisible" button.

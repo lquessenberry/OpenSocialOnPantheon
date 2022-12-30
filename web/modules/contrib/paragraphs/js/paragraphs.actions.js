@@ -3,7 +3,7 @@
  * Paragraphs actions JS code for paragraphs actions button.
  */
 
-(function ($, Drupal) {
+(function ($, Drupal, once) {
 
   'use strict';
 
@@ -17,7 +17,7 @@
    */
   Drupal.behaviors.paragraphsActions = {
     attach: function (context, settings) {
-      var $actionsElement = $(context).find('.paragraphs-dropdown').once('paragraphs-dropdown');
+      var $actionsElement = $(once('paragraphs-dropdown', '.paragraphs-dropdown', context));
       // Attach event handlers to toggle button.
       $actionsElement.each(function () {
         var $this = $(this);
@@ -28,11 +28,16 @@
           $this.toggleClass('open');
         });
 
-        $toggle.on('focusout', function (e) {
-          $this.removeClass('open');
+        $this.on('focusout', function (e) {
+          setTimeout(function () {
+            if ($this.has(document.activeElement).length == 0) {
+              // The focus left the action button group, hide actions.
+              $this.removeClass('open');
+            }
+          }, 1);
         });
       });
     }
   };
 
-})(jQuery, Drupal);
+})(jQuery, Drupal, once);

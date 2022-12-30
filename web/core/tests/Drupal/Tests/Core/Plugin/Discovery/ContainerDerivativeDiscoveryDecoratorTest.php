@@ -15,9 +15,9 @@ class ContainerDerivativeDiscoveryDecoratorTest extends UnitTestCase {
    * @covers ::getDefinitions
    */
   public function testGetDefinitions() {
-    $example_service = $this->getMock('Symfony\Component\EventDispatcher\EventDispatcherInterface');
+    $example_service = $this->createMock('Symfony\Contracts\EventDispatcher\EventDispatcherInterface');
     $example_container = $this->getMockBuilder('Symfony\Component\DependencyInjection\ContainerBuilder')
-      ->setMethods(['get'])
+      ->onlyMethods(['get'])
       ->getMock();
     $example_container->expects($this->once())
       ->method('get')
@@ -36,7 +36,7 @@ class ContainerDerivativeDiscoveryDecoratorTest extends UnitTestCase {
       'deriver' => '\Drupal\Tests\Core\Plugin\Discovery\TestDerivativeDiscovery',
     ];
 
-    $discovery_main = $this->getMock('Drupal\Component\Plugin\Discovery\DiscoveryInterface');
+    $discovery_main = $this->createMock('Drupal\Component\Plugin\Discovery\DiscoveryInterface');
     $discovery_main->expects($this->any())
       ->method('getDefinitions')
       ->will($this->returnValue($definitions));
@@ -45,7 +45,7 @@ class ContainerDerivativeDiscoveryDecoratorTest extends UnitTestCase {
     $definitions = $discovery->getDefinitions();
 
     // Ensure that both the instances from container and non-container test derivatives got added.
-    $this->assertEquals(4, count($definitions));
+    $this->assertCount(4, $definitions);
   }
 
 }

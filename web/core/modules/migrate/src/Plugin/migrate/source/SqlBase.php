@@ -14,6 +14,8 @@ use Drupal\migrate\Plugin\MigrateIdMapInterface;
 use Drupal\migrate\Plugin\RequirementsInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+// cspell:ignore destid sourceid
+
 /**
  * Sources whose data may be fetched via a database connection.
  *
@@ -264,9 +266,6 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
     if ($this->batch == 0) {
       $this->prepareQuery();
 
-      // Get the key values, for potential use in joining to the map table.
-      $keys = [];
-
       // The rules for determining what conditions to add to the query are as
       // follows (applying first applicable rule):
       // 1. If the map is joinable, join it. We will want to accept all rows
@@ -276,11 +275,11 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
       //    conditions, so we need to OR them together (but AND with any existing
       //    conditions in the query). So, ultimately the SQL condition will look
       //    like (original conditions) AND (map IS NULL OR map needs update
-      //      OR above high water).
+      //    OR above high water).
       $conditions = $this->query->orConditionGroup();
       $condition_added = FALSE;
       $added_fields = [];
-      if (empty($this->configuration['ignore_map']) && $this->mapJoinable()) {
+      if ($this->mapJoinable()) {
         // Build the join to the map table. Because the source key could have
         // multiple fields, we need to build things up.
         $count = 1;
@@ -322,7 +321,9 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
       if ($this->getHighWaterProperty()) {
         $high_water_field = $this->getHighWaterField();
         $high_water = $this->getHighWater();
-        if ($high_water) {
+        // We check against NULL because 0 is an acceptable value for the high
+        // water mark.
+        if ($high_water !== NULL) {
           $conditions->condition($high_water_field, $high_water, '>');
           $condition_added = TRUE;
         }
@@ -381,9 +382,9 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
   abstract public function query();
 
   /**
-   * {@inheritdoc}
+   * Gets the source count using countQuery().
    */
-  public function count($refresh = FALSE) {
+  protected function doCount() {
     return (int) $this->query()->countQuery()->execute()->fetchField();
   }
 
@@ -397,6 +398,24 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
    *   TRUE if we can join against the map table otherwise FALSE.
    */
   protected function mapJoinable() {
+
+    // Do not join map if explicitly configured not to.
+    if (isset($this->configuration['ignore_map'])  && $this->configuration['ignore_map']) {
+      return FALSE;
+    }
+
+    // If we are using high water, but haven't yet set a high water mark, do not
+    // join the map table, as we want to get all available records.
+    if ($this->getHighWaterProperty() && $this->getHighWater() === NULL) {
+      return FALSE;
+    }
+
+    // If we are tracking changes, we also need to retrieve all rows to compare
+    // hashes
+    if ($this->trackChanges) {
+      return FALSE;
+    }
+
     if (!$this->getIds()) {
       return FALSE;
     }
@@ -432,13 +451,20 @@ abstract class SqlBase extends SourcePluginBase implements ContainerFactoryPlugi
     }
 
     foreach (['username', 'password', 'host', 'port', 'namespace', 'driver'] as $key) {
-      if (isset($source_database_options[$key])) {
+      if (isset($source_database_options[$key]) && isset($id_map_database_options[$key])) {
         if ($id_map_database_options[$key] != $source_database_options[$key]) {
           return FALSE;
         }
       }
     }
     return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __sleep() {
+    return array_diff(parent::__sleep(), ['database']);
   }
 
 }

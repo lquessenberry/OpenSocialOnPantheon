@@ -2,11 +2,13 @@
 
 namespace Drupal\migrate\Plugin\migrate\process;
 
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\MigrateException;
+use Drupal\migrate\MigrateLookupInterface;
 use Drupal\migrate\MigrateSkipProcessException;
-use Drupal\migrate\Plugin\MigratePluginManagerInterface;
-use Drupal\migrate\Plugin\MigrationPluginManagerInterface;
-use Drupal\migrate\Plugin\MigrateIdMapInterface;
+use Drupal\migrate\MigrateSkipRowException;
+use Drupal\migrate\MigrateStubInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\MigrateExecutableInterface;
@@ -56,14 +58,32 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * process:
  *   uid:
  *     plugin: migration_lookup
- *       migration:
- *         - users
- *         - members
- *       source_ids:
- *         users:
- *           - author
- *         members:
- *           - id
+ *     migration:
+ *       - users
+ *       - members
+ *     source_ids:
+ *       users:
+ *         - author
+ *       members:
+ *         - id
+ * @endcode
+ *
+ * It's not required to describe source identifiers for each migration. If the
+ * source identifier for a migration is not specified, the default source value
+ * will be used. In the example below, the 'author' source property will be used
+ * to do a lookup in the 'users' migration, and the 'uid' property in the
+ * 'members' migration.
+ * @code
+ * process:
+ *   uid:
+ *     plugin: migration_lookup
+ *     source: uid
+ *     migration:
+ *       - users
+ *       - members
+ *     source_ids:
+ *       users:
+ *         - author
  * @endcode
  *
  * If the migration_lookup plugin does not find the source ID in the migration
@@ -93,6 +113,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *     source: author
  * @endcode
  *
+ * If the source value passed in to the plugin is NULL, boolean FALSE, an empty
+ * array or an empty string, the plugin will throw a
+ * MigrateSkipProcessException, causing further plugins in the process to be
+ * skipped.
+ *
  * @see \Drupal\migrate\Plugin\MigrateProcessInterface
  *
  * @MigrateProcessPlugin(
@@ -102,20 +127,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class MigrationLookup extends ProcessPluginBase implements ContainerFactoryPluginInterface {
 
   /**
-   * The process plugin manager.
-   *
-   * @var \Drupal\migrate\Plugin\MigratePluginManager
-   */
-  protected $processPluginManager;
-
-  /**
-   * The migration plugin manager.
-   *
-   * @var \Drupal\migrate\Plugin\MigrationPluginManagerInterface
-   */
-  protected $migrationPluginManager;
-
-  /**
    * The migration to be executed.
    *
    * @var \Drupal\migrate\Plugin\MigrationInterface
@@ -123,13 +134,40 @@ class MigrationLookup extends ProcessPluginBase implements ContainerFactoryPlugi
   protected $migration;
 
   /**
-   * {@inheritdoc}
+   * The migrate lookup service.
+   *
+   * @var \Drupal\migrate\MigrateLookupInterface
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, MigrationPluginManagerInterface $migration_plugin_manager, MigratePluginManagerInterface $process_plugin_manager) {
+  protected $migrateLookup;
+
+  /**
+   * The migrate stub service.
+   *
+   * @var \Drupal\migrate\MigrateStubInterface
+   */
+  protected $migrateStub;
+
+  /**
+   * Constructs a MigrationLookup object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\migrate\Plugin\MigrationInterface $migration
+   *   The Migration the plugin is being used in.
+   * @param \Drupal\migrate\MigrateLookupInterface $migrate_lookup
+   *   The migrate lookup service.
+   * @param \Drupal\migrate\MigrateStubInterface $migrate_stub
+   *   The migrate stub service.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, MigrateLookupInterface $migrate_lookup, MigrateStubInterface $migrate_stub) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->migrationPluginManager = $migration_plugin_manager;
     $this->migration = $migration;
-    $this->processPluginManager = $process_plugin_manager;
+    $this->migrateLookup = $migrate_lookup;
+    $this->migrateStub = $migrate_stub;
   }
 
   /**
@@ -141,41 +179,51 @@ class MigrationLookup extends ProcessPluginBase implements ContainerFactoryPlugi
       $plugin_id,
       $plugin_definition,
       $migration,
-      $container->get('plugin.manager.migration'),
-      $container->get('plugin.manager.migrate.process')
+      $container->get('migrate.lookup'),
+      $container->get('migrate.stub')
     );
   }
 
   /**
    * {@inheritdoc}
+   *
+   * @throws \Drupal\migrate\MigrateSkipProcessException
+   * @throws \Drupal\migrate\MigrateException
    */
   public function transform($value, MigrateExecutableInterface $migrate_executable, Row $row, $destination_property) {
-    $migration_ids = $this->configuration['migration'];
-    if (!is_array($migration_ids)) {
-      $migration_ids = [$migration_ids];
-    }
+    $lookup_migration_ids = (array) $this->configuration['migration'];
     $self = FALSE;
-    /** @var \Drupal\migrate\Plugin\MigrationInterface[] $migrations */
     $destination_ids = NULL;
     $source_id_values = [];
-    $migrations = $this->migrationPluginManager->createInstances($migration_ids);
-    foreach ($migrations as $migration_id => $migration) {
-      if ($migration_id == $this->migration->id()) {
+    foreach ($lookup_migration_ids as $lookup_migration_id) {
+      $lookup_value = $value;
+      if ($lookup_migration_id == $this->migration->id()) {
         $self = TRUE;
       }
-      if (isset($this->configuration['source_ids'][$migration_id])) {
-        $configuration = ['source' => $this->configuration['source_ids'][$migration_id]];
-        $value = $this->processPluginManager
-          ->createInstance('get', $configuration, $this->migration)
-          ->transform(NULL, $migrate_executable, $row, $destination_property);
+      if (isset($this->configuration['source_ids'][$lookup_migration_id])) {
+        $lookup_value = array_values($row->getMultiple($this->configuration['source_ids'][$lookup_migration_id]));
       }
-      if (!is_array($value)) {
-        $value = [$value];
+      $lookup_value = (array) $lookup_value;
+      $this->skipInvalid($lookup_value);
+      $source_id_values[$lookup_migration_id] = $lookup_value;
+
+      // Re-throw any PluginException as a MigrateException so the executable
+      // can shut down the migration.
+      try {
+        $destination_id_array = $this->migrateLookup->lookup($lookup_migration_id, $lookup_value);
       }
-      $this->skipOnEmpty($value);
-      $source_id_values[$migration_id] = $value;
-      // Break out of the loop as soon as a destination ID is found.
-      if ($destination_ids = $migration->getIdMap()->lookupDestinationId($source_id_values[$migration_id])) {
+      catch (PluginNotFoundException $e) {
+        $destination_id_array = [];
+      }
+      catch (MigrateException $e) {
+        throw $e;
+      }
+      catch (\Exception $e) {
+        throw new MigrateException(sprintf('A %s was thrown while processing this migration lookup', gettype($e)), $e->getCode(), $e);
+      }
+
+      if ($destination_id_array) {
+        $destination_ids = array_values(reset($destination_id_array));
         break;
       }
     }
@@ -184,45 +232,38 @@ class MigrationLookup extends ProcessPluginBase implements ContainerFactoryPlugi
       return NULL;
     }
 
-    if (!$destination_ids && ($self || isset($this->configuration['stub_id']) || count($migrations) == 1)) {
+    if (!$destination_ids && ($self || isset($this->configuration['stub_id']) || count($lookup_migration_ids) == 1)) {
       // If the lookup didn't succeed, figure out which migration will do the
       // stubbing.
       if ($self) {
-        $migration = $this->migration;
+        $stub_migration = $this->migration->id();
       }
       elseif (isset($this->configuration['stub_id'])) {
-        $migration = $migrations[$this->configuration['stub_id']];
+        $stub_migration = $this->configuration['stub_id'];
       }
       else {
-        $migration = reset($migrations);
+        $stub_migration = reset($lookup_migration_ids);
       }
-      $destination_plugin = $migration->getDestinationPlugin(TRUE);
-      // Only keep the process necessary to produce the destination ID.
-      $process = $migration->getProcess();
-
-      // We already have the source ID values but need to key them for the Row
-      // constructor.
-      $source_ids = $migration->getSourcePlugin()->getIds();
-      $values = [];
-      foreach (array_keys($source_ids) as $index => $source_id) {
-        $values[$source_id] = $source_id_values[$migration->id()][$index];
-      }
-
-      $stub_row = $this->createStubRow($values + $migration->getSourceConfiguration(), $source_ids);
-
-      // Do a normal migration with the stub row.
-      $migrate_executable->processRow($stub_row, $process);
-      $destination_ids = [];
-      $id_map = $migration->getIdMap();
+      // Rethrow any exception as a MigrateException so the executable can shut
+      // down the migration.
       try {
-        $destination_ids = $destination_plugin->import($stub_row);
+        $destination_ids = $this->migrateStub->createStub($stub_migration, $source_id_values[$stub_migration], [], FALSE);
+      }
+      catch (\LogicException $e) {
+        // For BC reasons, we must allow attempting to stub a derived migration.
+      }
+      catch (PluginNotFoundException $e) {
+        // For BC reasons, we must allow attempting to stub a non-existent
+        // migration.
+      }
+      catch (MigrateException $e) {
+        throw $e;
+      }
+      catch (MigrateSkipRowException $e) {
+        throw $e;
       }
       catch (\Exception $e) {
-        $id_map->saveMessage($stub_row->getSourceIdValues(), $e->getMessage());
-      }
-
-      if ($destination_ids) {
-        $id_map->saveIdMapping($stub_row, $destination_ids, MigrateIdMapInterface::STATUS_NEEDS_UPDATE);
+        throw new MigrateException(sprintf('%s was thrown while attempting to stub: %s', get_class($e), $e->getMessage()), $e->getCode(), $e);
       }
     }
     if ($destination_ids) {
@@ -236,36 +277,32 @@ class MigrationLookup extends ProcessPluginBase implements ContainerFactoryPlugi
   }
 
   /**
-   * Skips the migration process entirely if the value is FALSE.
+   * Skips the migration process entirely if the value is invalid.
    *
-   * @param mixed $value
-   *   The incoming value to transform.
+   * @param array $value
+   *   The incoming value to check.
    *
    * @throws \Drupal\migrate\MigrateSkipProcessException
    */
-  protected function skipOnEmpty(array $value) {
-    if (!array_filter($value)) {
+  protected function skipInvalid(array $value) {
+    if (!array_filter($value, [$this, 'isValid'])) {
       throw new MigrateSkipProcessException();
     }
   }
 
   /**
-   * Create a stub row source for later import as stub data.
+   * Determines if the value is valid for lookup.
    *
-   * This simple wrapper of the Row constructor allows sub-classing plugins to
-   * have more control over the row.
+   * The only values considered invalid are: NULL, FALSE, [] and "".
    *
-   * @param array $values
-   *   An array of values to add as properties on the object.
-   * @param array $source_ids
-   *   An array containing the IDs of the source using the keys as the field
-   *   names.
+   * @param string $value
+   *   The value to test.
    *
-   * @return \Drupal\migrate\Row
-   *   The stub row.
+   * @return bool
+   *   Return true if the value is valid.
    */
-  protected function createStubRow(array $values, array $source_ids) {
-    return new Row($values, $source_ids, TRUE);
+  protected function isValid($value) {
+    return !in_array($value, [NULL, FALSE, [], ""], TRUE);
   }
 
 }

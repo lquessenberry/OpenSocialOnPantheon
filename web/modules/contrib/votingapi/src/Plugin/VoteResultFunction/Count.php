@@ -21,4 +21,5 @@ class Count extends VoteResultFunctionBase {
   public function calculateResult($votes) {
     return count($votes);
   }
+
 }

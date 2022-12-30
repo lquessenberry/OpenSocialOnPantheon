@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\views_ui\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\views\Views;
 
@@ -20,11 +21,16 @@ class StorageTest extends UITestBase {
   public static $testViews = ['test_view'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['views_ui', 'language'];
+  protected static $modules = ['views_ui', 'language'];
 
   /**
    * Tests changing label, description and tag.
@@ -43,13 +49,14 @@ class StorageTest extends UITestBase {
       'langcode' => 'fr',
     ];
 
-    $this->drupalPostForm("admin/structure/views/nojs/edit-details/$view_name/default", $edit, t('Apply'));
-    $this->drupalPostForm(NULL, [], t('Save'));
+    $this->drupalGet("admin/structure/views/nojs/edit-details/{$view_name}/default");
+    $this->submitForm($edit, 'Apply');
+    $this->submitForm([], 'Save');
 
     $view = Views::getView($view_name);
 
     foreach (['label', 'tag', 'description', 'langcode'] as $property) {
-      $this->assertEqual($view->storage->get($property), $edit[$property], format_string('Make sure the property @property got probably saved.', ['@property' => $property]));
+      $this->assertEquals($edit[$property], $view->storage->get($property), new FormattableMarkup('Make sure the property @property got probably saved.', ['@property' => $property]));
     }
   }
 

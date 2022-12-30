@@ -2,7 +2,6 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.storage.event_enrollment.field_email
     - field.storage.event_enrollment.field_first_name
     - field.storage.event_enrollment.field_last_name
   module:
@@ -16,7 +15,6 @@ description: ''
 tag: ''
 base_table: event_enrollment_field_data
 base_field: id
-core: 8.x
 display:
   default:
     display_plugin: default
@@ -41,7 +39,7 @@ display:
       exposed_form:
         type: basic
         options:
-          submit_button: Apply
+          submit_button: Filter
           reset_button: false
           reset_button_label: Reset
           exposed_sorts_label: 'Sort by'
@@ -449,7 +447,7 @@ display:
       path: node/%node/manage-enrollments
       menu:
         type: tab
-        title: 'Anonymous enrollments'
+        title: 'Guest enrollments'
         description: ''
         expanded: false
         parent: ''

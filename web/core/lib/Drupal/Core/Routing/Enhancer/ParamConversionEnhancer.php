@@ -5,11 +5,11 @@ namespace Drupal\Core\Routing\Enhancer;
 use Drupal\Core\ParamConverter\ParamConverterManagerInterface;
 use Drupal\Core\ParamConverter\ParamNotConvertedException;
 use Drupal\Core\Routing\EnhancerInterface;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 
@@ -56,7 +56,7 @@ class ParamConversionEnhancer implements EnhancerInterface, EventSubscriberInter
    * @return \Symfony\Component\HttpFoundation\ParameterBag
    */
   protected function copyRawVariables(array $defaults) {
-    /** @var $route \Symfony\Component\Routing\Route */
+    /** @var \Symfony\Component\Routing\Route $route */
     $route = $defaults[RouteObjectInterface::ROUTE_OBJECT];
     $variables = array_flip($route->compile()->getVariables());
     // Foreach will copy the values from the array it iterates. Even if they
@@ -72,12 +72,13 @@ class ParamConversionEnhancer implements EnhancerInterface, EventSubscriberInter
   /**
    * Catches failed parameter conversions and throw a 404 instead.
    *
-   * @param \Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ExceptionEvent $event
+   *   The event.
    */
-  public function onException(GetResponseForExceptionEvent $event) {
-    $exception = $event->getException();
+  public function onException(ExceptionEvent $event) {
+    $exception = $event->getThrowable();
     if ($exception instanceof ParamNotConvertedException) {
-      $event->setException(new NotFoundHttpException($exception->getMessage(), $exception));
+      $event->setThrowable(new NotFoundHttpException($exception->getMessage(), $exception));
     }
   }
 

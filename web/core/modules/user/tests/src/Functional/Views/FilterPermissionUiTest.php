@@ -3,7 +3,6 @@
 namespace Drupal\Tests\user\Functional\Views;
 
 use Drupal\Tests\views\Functional\ViewTestBase;
-use Drupal\views\Tests\ViewTestData;
 
 /**
  * Tests the permission field handler ui.
@@ -25,12 +24,16 @@ class FilterPermissionUiTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['user', 'user_test_views', 'views_ui'];
+  protected static $modules = ['user', 'user_test_views', 'views_ui'];
 
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
-    ViewTestData::createTestViews(get_class($this), ['user_test_views']);
+  protected function setUp($import_test_views = TRUE, $modules = ['user_test_views']): void {
+    parent::setUp($import_test_views, $modules);
+
     $this->enableViewsTestModule();
   }
 
@@ -38,16 +41,19 @@ class FilterPermissionUiTest extends ViewTestBase {
    * Tests basic filter handler settings in the UI.
    */
   public function testHandlerUI() {
-    $this->drupalLogin($this->drupalCreateUser(['administer views', 'administer users']));
+    $this->drupalLogin($this->drupalCreateUser([
+      'administer views',
+      'administer users',
+    ]));
 
     $this->drupalGet('admin/structure/views/view/test_filter_permission/edit/default');
     // Verify that the handler summary is correctly displaying the selected
     // permission.
-    $this->assertLink('User: Permission (= View user information)');
-    $this->drupalPostForm(NULL, [], 'Save');
+    $this->assertSession()->linkExists('User: Permission (= View user information)');
+    $this->submitForm([], 'Save');
     // Verify that we can save the view.
-    $this->assertNoText('No valid values found on filter: User: Permission.');
-    $this->assertText('The view test_filter_permission has been saved.');
+    $this->assertSession()->pageTextNotContains('No valid values found on filter: User: Permission.');
+    $this->assertSession()->pageTextContains('The view test_filter_permission has been saved.');
 
     // Verify that the handler summary is also correct when multiple values are
     // selected in the filter.
@@ -57,12 +63,13 @@ class FilterPermissionUiTest extends ViewTestBase {
         'administer views',
       ],
     ];
-    $this->drupalPostForm('admin/structure/views/nojs/handler/test_filter_permission/default/filter/permission', $edit, 'Apply');
-    $this->assertLink('User: Permission (or View us…)');
-    $this->drupalPostForm(NULL, [], 'Save');
+    $this->drupalGet('admin/structure/views/nojs/handler/test_filter_permission/default/filter/permission');
+    $this->submitForm($edit, 'Apply');
+    $this->assertSession()->linkExists('User: Permission (or View us…)');
+    $this->submitForm([], 'Save');
     // Verify that we can save the view.
-    $this->assertNoText('No valid values found on filter: User: Permission.');
-    $this->assertText('The view test_filter_permission has been saved.');
+    $this->assertSession()->pageTextNotContains('No valid values found on filter: User: Permission.');
+    $this->assertSession()->pageTextContains('The view test_filter_permission has been saved.');
   }
 
 }

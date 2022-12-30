@@ -45,7 +45,7 @@ class LanguageKernelTest extends KernelTestBase {
    *
    * @var string[]
    */
-  public static $modules = [
+  protected static $modules = [
     'search_api',
     'search_api_test',
     'language',
@@ -65,7 +65,7 @@ class LanguageKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     // Enable translation for the entity_test module.
@@ -165,7 +165,7 @@ class LanguageKernelTest extends KernelTestBase {
     $entity_1->save();
     $entity_1->set('link', $entity_1->id());
     $this->assertEquals('en', $entity_1->language()->getId(), new FormattableMarkup('%entity_type: Entity language set to site default.', ['%entity_type' => $this->testEntityTypeId]));
-    $this->assertFalse($entity_1->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: No translations are available', ['%entity_type' => $this->testEntityTypeId]));
+    $this->assertEmpty($entity_1->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: No translations are available', ['%entity_type' => $this->testEntityTypeId]));
 
     /** @var \Drupal\entity_test\Entity\EntityTestMulRevChanged $entity_2 */
     $entity_2 = EntityTestMulRevChanged::create([
@@ -175,7 +175,7 @@ class LanguageKernelTest extends KernelTestBase {
     ]);
     $entity_2->save();
     $this->assertEquals('en', $entity_2->language()->getId(), new FormattableMarkup('%entity_type: Entity language set to site default.', ['%entity_type' => $this->testEntityTypeId]));
-    $this->assertFalse($entity_2->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: No translations are available', ['%entity_type' => $this->testEntityTypeId]));
+    $this->assertEmpty($entity_2->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: No translations are available', ['%entity_type' => $this->testEntityTypeId]));
 
     // Test that the datasource returns the correct item IDs.
     $datasource = $this->index->getDatasource('entity:' . $this->testEntityTypeId);
@@ -198,7 +198,7 @@ class LanguageKernelTest extends KernelTestBase {
     $entity_1->get('langcode')->setValue($default_langcode);
     $entity_1->save();
     $this->assertEquals(\Drupal::languageManager()->getLanguage($this->langcodes[0]), $entity_1->language(), new FormattableMarkup('%entity_type: Entity language retrieved.', ['%entity_type' => $this->testEntityTypeId]));
-    $this->assertFalse($entity_1->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: No translations are available', ['%entity_type' => $this->testEntityTypeId]));
+    $this->assertEmpty($entity_1->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: No translations are available', ['%entity_type' => $this->testEntityTypeId]));
 
     // Test that the datasource returns the correct item IDs.
     $datasource_item_ids = $datasource->getItemIds();
@@ -224,7 +224,7 @@ class LanguageKernelTest extends KernelTestBase {
     $translation->set('name', 'test 1 - ' . $this->langcodes[2]);
     $translation->set('link', $entity_1->id());
     $translation->save();
-    $this->assertTrue($entity_1->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: Translations are available', ['%entity_type' => $this->testEntityTypeId]));
+    $this->assertNotEmpty($entity_1->getTranslationLanguages(FALSE), new FormattableMarkup('%entity_type: Translations are available', ['%entity_type' => $this->testEntityTypeId]));
 
     $datasource_item_ids = $datasource->getItemIds();
     sort($datasource_item_ids);

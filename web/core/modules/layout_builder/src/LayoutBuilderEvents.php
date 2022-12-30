@@ -6,11 +6,6 @@ namespace Drupal\layout_builder;
  * Defines events for the layout_builder module.
  *
  * @see \Drupal\layout_builder\Event\SectionComponentBuildRenderArrayEvent
- *
- * @internal
- *   Layout Builder is currently experimental and should only be leveraged by
- *   experimental modules and development releases of contributed modules.
- *   See https://www.drupal.org/core/experimental for more information.
  */
 final class LayoutBuilderEvents {
 
@@ -30,5 +25,18 @@ final class LayoutBuilderEvents {
    * @var string
    */
   const SECTION_COMPONENT_BUILD_RENDER_ARRAY = 'section_component.build.render_array';
+
+  /**
+   * Name of the event fired in when preparing a layout builder element.
+   *
+   * This event allows modules to collaborate on creating the sections used in
+   * \Drupal\layout_builder\Element\LayoutBuilder during #pre_render.
+   *
+   * @see \Drupal\layout_builder\Event\PrepareLayoutEvent
+   * @see \Drupal\layout_builder\Element\LayoutBuilder
+   *
+   * @var string
+   */
+  const PREPARE_LAYOUT = 'prepare_layout';
 
 }

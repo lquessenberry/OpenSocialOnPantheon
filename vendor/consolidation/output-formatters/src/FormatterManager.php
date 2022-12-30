@@ -1,4 +1,5 @@
 <?php
+
 namespace Consolidation\OutputFormatters;
 
 use Consolidation\OutputFormatters\Exception\IncompatibleDataException;
@@ -19,6 +20,9 @@ use Consolidation\OutputFormatters\Validate\ValidationInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Consolidation\OutputFormatters\StructuredData\OriginalDataInterface;
+use Consolidation\OutputFormatters\StructuredData\ListDataFromKeys;
+use Consolidation\OutputFormatters\StructuredData\ConversionInterface;
+use Consolidation\OutputFormatters\Formatters\HumanReadableFormat;
 
 /**
  * Manage a collection of formatters; return one on request.
@@ -37,6 +41,7 @@ class FormatterManager
     public function addDefaultFormatters()
     {
         $defaultFormatters = [
+            'null' => '\Consolidation\OutputFormatters\Formatters\NoOutputFormatter',
             'string' => '\Consolidation\OutputFormatters\Formatters\StringFormatter',
             'yaml' => '\Consolidation\OutputFormatters\Formatters\YamlFormatter',
             'xml' => '\Consolidation\OutputFormatters\Formatters\XmlFormatter',
@@ -54,7 +59,7 @@ class FormatterManager
              $defaultFormatters['var_dump'] = '\Consolidation\OutputFormatters\Formatters\VarDumpFormatter';
         }
         foreach ($defaultFormatters as $id => $formatterClassname) {
-            $formatter = new $formatterClassname;
+            $formatter = new $formatterClassname();
             $this->addFormatter($id, $formatter);
         }
         $this->addFormatter('', $this->formatters['string']);
@@ -121,11 +126,18 @@ class FormatterManager
             $automaticOptions[FormatterOptions::FORMAT] = new InputOption(FormatterOptions::FORMAT, '', InputOption::VALUE_REQUIRED, $description, $defaultFormat);
         }
 
+        $dataTypeClass = ($dataType instanceof \ReflectionClass) ? $dataType : new \ReflectionClass($dataType);
+
         if ($availableFields) {
             $defaultFields = $options->get(FormatterOptions::DEFAULT_FIELDS, [], '');
             $description = 'Available fields: ' . implode(', ', $this->availableFieldsList($availableFields));
             $automaticOptions[FormatterOptions::FIELDS] = new InputOption(FormatterOptions::FIELDS, '', InputOption::VALUE_REQUIRED, $description, $defaultFields);
-            $automaticOptions[FormatterOptions::FIELD] = new InputOption(FormatterOptions::FIELD, '', InputOption::VALUE_REQUIRED, "Select just one field, and force format to 'string'.", '');
+        } elseif ($dataTypeClass->implementsInterface('Consolidation\OutputFormatters\StructuredData\RestructureInterface')) {
+            $automaticOptions[FormatterOptions::FIELDS] = new InputOption(FormatterOptions::FIELDS, '', InputOption::VALUE_REQUIRED, 'Limit output to only the listed elements. Name top-level elements by key, e.g. "--fields=name,date", or use dot notation to select a nested element, e.g. "--fields=a.b.c as example".', []);
+        }
+
+        if (isset($automaticOptions[FormatterOptions::FIELDS])) {
+            $automaticOptions[FormatterOptions::FIELD] = new InputOption(FormatterOptions::FIELD, '', InputOption::VALUE_REQUIRED, "Select just one field, and force format to *string*.", '');
         }
 
         return $automaticOptions;
@@ -203,7 +215,17 @@ class FormatterManager
      */
     public function write(OutputInterface $output, $format, $structuredOutput, FormatterOptions $options)
     {
+        // Convert the data to another format (e.g. converting from RowsOfFields to
+        // UnstructuredListData when the fields indicate an unstructured transformation
+        // is requested).
+        $structuredOutput = $this->convertData($structuredOutput, $options);
+
+        // TODO: If the $format is the default format (not selected by the user), and
+        // if `convertData` switched us to unstructured data, then select a new default
+        // format (e.g. yaml) if the selected format cannot render the converted data.
         $formatter = $this->getFormatter((string)$format);
+
+        // If the data format is not applicable for the selected formatter, throw an error.
         if (!is_string($structuredOutput) && !$this->isValidFormat($formatter, $structuredOutput)) {
             $validFormats = $this->validFormats($structuredOutput);
             throw new InvalidFormatException((string)$format, $structuredOutput, $validFormats);
@@ -356,6 +378,17 @@ class FormatterManager
     }
 
     /**
+     * Convert from one format to another if necessary prior to restructuring.
+     */
+    public function convertData($structuredOutput, FormatterOptions $options)
+    {
+        if ($structuredOutput instanceof ConversionInterface) {
+            return $structuredOutput->convert($options);
+        }
+        return $structuredOutput;
+    }
+
+    /**
      * Restructure the data as necessary (e.g. to select or reorder fields).
      *
      * @param mixed $structuredOutput
@@ -399,6 +432,11 @@ class FormatterManager
      */
     public function overrideOptions(FormatterInterface $formatter, $structuredOutput, FormatterOptions $options)
     {
+        // Set the "Human Readable" option if the formatter has the HumanReadable marker interface
+        if ($formatter instanceof HumanReadableFormat) {
+            $options->setHumanReadable();
+        }
+        // The formatter may also make dynamic adjustment to the options.
         if ($formatter instanceof OverrideOptionsInterface) {
             return $formatter->overrideOptions($structuredOutput, $options);
         }

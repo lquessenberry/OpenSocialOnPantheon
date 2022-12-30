@@ -17,17 +17,17 @@ class UserFieldsTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['user', 'system'];
+  protected static $modules = ['user', 'system'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('user');
 
     // Set up a test theme that prints the user's mail field.
-    \Drupal::service('theme_handler')->install(['user_test_theme']);
+    \Drupal::service('theme_installer')->install(['user_test_theme']);
     \Drupal::theme()->setActiveTheme(\Drupal::service('theme.initialization')->initTheme('user_test_theme'));
     // Clear the theme registry.
     $this->container->set('theme.registry', NULL);
@@ -42,7 +42,9 @@ class UserFieldsTest extends KernelTestBase {
       'name' => 'foobar',
       'mail' => 'foobar@example.com',
     ]);
-    $build = user_view($user);
+    $build = \Drupal::entityTypeManager()
+      ->getViewBuilder('user')
+      ->view($user);
     $output = \Drupal::service('renderer')->renderRoot($build);
     $this->setRawContent($output);
     $userEmail = $user->getEmail();

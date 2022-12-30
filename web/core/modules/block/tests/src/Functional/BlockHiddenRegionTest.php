@@ -22,9 +22,14 @@ class BlockHiddenRegionTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['block', 'block_test', 'search'];
+  protected static $modules = ['block', 'block_test', 'search'];
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
 
     // Create administrative user.
@@ -47,13 +52,13 @@ class BlockHiddenRegionTest extends BrowserTestBase {
 
     // Ensure that the search form block is displayed.
     $this->drupalGet('');
-    $this->assertText('Search', 'Block was displayed on the front page.');
+    $this->assertSession()->pageTextContains('Search');
 
     // Install "block_test_theme" and set it as the default theme.
     $theme = 'block_test_theme';
     // We need to install a non-hidden theme so that there is more than one
     // local task.
-    \Drupal::service('theme_handler')->install([$theme, 'stark']);
+    \Drupal::service('theme_installer')->install([$theme, 'stark']);
     $this->config('system.theme')
       ->set('default', $theme)
       ->save();
@@ -63,11 +68,11 @@ class BlockHiddenRegionTest extends BrowserTestBase {
 
     // Ensure that "block_test_theme" is set as the default theme.
     $this->drupalGet('admin/structure/block');
-    $this->assertText('Block test theme(' . t('active tab') . ')', 'Default local task on blocks admin page is the block test theme.');
+    $this->assertSession()->pageTextContains('Block test theme(active tab)');
 
     // Ensure that the search form block is displayed.
     $this->drupalGet('');
-    $this->assertText('Search', 'Block was displayed on the front page.');
+    $this->assertSession()->pageTextContains('Search');
   }
 
 }

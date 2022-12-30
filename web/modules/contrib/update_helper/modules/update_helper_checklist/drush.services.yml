@@ -1,0 +1,8 @@
+services:
+  update_helper_checklist.command_gcu_subscriber:
+    class: Drupal\update_helper_checklist\Events\CommandGcuSubscriber
+    arguments: ['@update_helper_checklist.update_checklist', '@module_handler']
+    tags:
+      - { name: event_subscriber }
+
+

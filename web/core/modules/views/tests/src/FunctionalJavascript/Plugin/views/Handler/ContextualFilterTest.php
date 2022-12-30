@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\views\FunctionalJavascript\Plugin\views\Handler;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\views\Tests\ViewTestData;
 
 /**
@@ -10,12 +10,22 @@ use Drupal\views\Tests\ViewTestData;
  *
  * @group views
  */
-class ContextualFilterTest extends JavascriptTestBase {
+class ContextualFilterTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'views', 'views_ui', 'views_test_config'];
+  protected static $modules = [
+    'node',
+    'views',
+    'views_ui',
+    'views_test_config',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -27,10 +37,10 @@ class ContextualFilterTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    ViewTestData::createTestViews(get_class($this), ['views_test_config']);
+    ViewTestData::createTestViews(static::class, ['views_test_config']);
 
     // Always show advanced column.
     \Drupal::configFactory()->getEditable('views.settings')->set('ui.show.advanced_column', TRUE)->save();
@@ -45,7 +55,7 @@ class ContextualFilterTest extends JavascriptTestBase {
   }
 
   /**
-   * Test adding a contextual filter handler through the UI.
+   * Tests adding a contextual filter handler through the UI.
    */
   public function testAddContextualFilterUI() {
     $this->drupalGet('/admin/structure/views/view/test_field_body');

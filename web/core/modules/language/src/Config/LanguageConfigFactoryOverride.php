@@ -11,7 +11,7 @@ use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Language\LanguageDefault;
 use Drupal\Core\Language\LanguageInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
@@ -48,7 +48,7 @@ class LanguageConfigFactoryOverride extends ConfigFactoryOverrideBase implements
   /**
    * An event dispatcher instance to use for configuration events.
    *
-   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   * @var \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
 
@@ -64,7 +64,7 @@ class LanguageConfigFactoryOverride extends ConfigFactoryOverrideBase implements
    *
    * @param \Drupal\Core\Config\StorageInterface $storage
    *   The configuration storage engine.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $event_dispatcher
    *   An event dispatcher instance to use for configuration events.
    * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config
    *   The typed configuration manager.
@@ -75,7 +75,7 @@ class LanguageConfigFactoryOverride extends ConfigFactoryOverrideBase implements
     $this->baseStorage = $storage;
     $this->eventDispatcher = $event_dispatcher;
     $this->typedConfigManager = $typed_config;
-    // Prior to negiotiation the override language should be the default
+    // Prior to negotiation the override language should be the default
     // language.
     $this->language = $default_language->get();
   }
@@ -140,14 +140,6 @@ class LanguageConfigFactoryOverride extends ConfigFactoryOverrideBase implements
    */
   public function setLanguage(LanguageInterface $language = NULL) {
     $this->language = $language;
-    return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setLanguageFromDefault(LanguageDefault $language_default = NULL) {
-    $this->language = $language_default ? $language_default->get() : NULL;
     return $this;
   }
 

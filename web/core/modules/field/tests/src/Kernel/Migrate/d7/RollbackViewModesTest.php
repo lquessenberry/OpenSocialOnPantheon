@@ -13,6 +13,11 @@ use Drupal\migrate\MigrateExecutable;
 class RollbackViewModesTest extends MigrateViewModesTest {
 
   /**
+   * {@inheritdoc}
+   */
+  protected static $modules = ['text'];
+
+  /**
    * Tests migrating D7 view modes, then rolling back.
    */
   public function testMigration() {

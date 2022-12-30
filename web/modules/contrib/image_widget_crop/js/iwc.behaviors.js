@@ -20,8 +20,10 @@
     attach: function (context) {
       this.createInstances(context);
     },
-    detach: function (context) {
-      this.destroyInstances(context);
+    detach: function (context, settings, trigger) {
+      if (trigger === "unload") {
+        this.destroyInstances(context);
+      }
     },
 
     /**

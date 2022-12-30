@@ -74,7 +74,7 @@ class EntityAccessControlHandler extends EntityHandlerBase implements EntityAcce
     // individual revisions to have specific access control and be cached
     // separately.
     if ($entity instanceof RevisionableInterface) {
-      /** @var $entity \Drupal\Core\Entity\RevisionableInterface */
+      /** @var \Drupal\Core\Entity\RevisionableInterface $entity */
       $cid .= ':' . $entity->getRevisionId();
     }
 
@@ -321,13 +321,13 @@ class EntityAccessControlHandler extends EntityHandlerBase implements EntityAcce
       if ($field_definition->getName() === $this->entityType->getKey('id')) {
         // String IDs can be set when creating the entity.
         if (!($entity->isNew() && $field_definition->getType() === 'string')) {
-          return $return_as_object ? AccessResult::forbidden('The entity ID cannot be changed')->addCacheableDependency($entity) : FALSE;
+          return $return_as_object ? AccessResult::forbidden('The entity ID cannot be changed.')->addCacheableDependency($entity) : FALSE;
         }
       }
       elseif ($field_definition->getName() === $this->entityType->getKey('uuid')) {
         // UUIDs can be set when creating an entity.
         if (!$entity->isNew()) {
-          return $return_as_object ? AccessResult::forbidden('The entity UUID cannot be changed')->addCacheableDependency($entity) : FALSE;
+          return $return_as_object ? AccessResult::forbidden('The entity UUID cannot be changed.')->addCacheableDependency($entity) : FALSE;
         }
       }
     }
@@ -340,12 +340,16 @@ class EntityAccessControlHandler extends EntityHandlerBase implements EntityAcce
     $default = $default->andIf($entity_default);
 
     // Invoke hook and collect grants/denies for field access from other
-    // modules. Our default access flag is masked under the ':default' key.
-    $grants = [':default' => $default];
-    $hook_implementations = $this->moduleHandler()->getImplementations('entity_field_access');
-    foreach ($hook_implementations as $module) {
-      $grants = array_merge($grants, [$module => $this->moduleHandler()->invoke($module, 'entity_field_access', [$operation, $field_definition, $account, $items])]);
-    }
+    // modules.
+    $grants = [];
+    $this->moduleHandler()->invokeAllWith(
+      'entity_field_access',
+      function (callable $hook, string $module) use ($operation, $field_definition, $account, $items, &$grants) {
+        $grants[] = [$module => $hook($operation, $field_definition, $account, $items)];
+      }
+    );
+    // Our default access flag is masked under the ':default' key.
+    $grants = array_merge([':default' => $default], ...$grants);
 
     // Also allow modules to alter the returned grants/denies.
     $context = [

@@ -3,7 +3,6 @@ type: module
 description: 'Provides a local task for testing.'
 package: Testing
 version: VERSION
-core: 8.x
 dependencies:
-  - content_moderation
-  - node
+  - drupal:content_moderation
+  - drupal:node

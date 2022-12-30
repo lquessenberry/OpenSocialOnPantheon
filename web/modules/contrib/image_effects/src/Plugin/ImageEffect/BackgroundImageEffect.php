@@ -6,13 +6,14 @@ use Drupal\Core\Image\ImageInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\image\ConfigurableImageEffectBase;
+use Drupal\image_effects\Component\ImageUtility;
 use Drupal\image_effects\Plugin\ImageEffectsPluginBaseInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Image\ImageFactory;
 
 /**
- * Class BackgroundImageEffect.
+ * Places the source image anywhere over a selected background image.
  *
  * @ImageEffect(
  *   id = "image_effects_background",
@@ -186,8 +187,8 @@ class BackgroundImageEffect extends ConfigurableImageEffectBase implements Conta
       return FALSE;
     }
     list($x, $y) = explode('-', $this->configuration['placement']);
-    $x_pos = image_filter_keyword($x, $background_image->getWidth(), $image->getWidth());
-    $y_pos = image_filter_keyword($y, $background_image->getHeight(), $image->getHeight());
+    $x_pos = ImageUtility::getKeywordOffset($x, $background_image->getWidth(), $image->getWidth());
+    $y_pos = ImageUtility::getKeywordOffset($y, $background_image->getHeight(), $image->getHeight());
     return $image->apply('background', [
       'x_offset' => $x_pos + $this->configuration['x_offset'],
       'y_offset' => $y_pos + $this->configuration['y_offset'],

@@ -1,0 +1,25 @@
+{% block file_methods %}
+{% if not file_exists %}
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall module functions.
+ */
+
+{% endif -%}
+
+/**
+ * {{ description }}
+ */
+function {{ update_hook_name }}() {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('{{ module }}', '{{ update_hook_name }}');
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+{% endblock %}

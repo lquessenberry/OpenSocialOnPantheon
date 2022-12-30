@@ -5,12 +5,19 @@ namespace Drupal\bootstrap;
 use Drupal\bootstrap\Plugin\AlterManager;
 use Drupal\bootstrap\Plugin\FormManager;
 use Drupal\bootstrap\Plugin\PreprocessManager;
+use Drupal\bootstrap\Utility\Crypt;
 use Drupal\bootstrap\Utility\Element;
 use Drupal\bootstrap\Utility\Unicode;
-use Drupal\Component\Utility\Html;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Extension\ThemeHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Markup;
+use Drupal\Core\Render\RenderContext;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Psr7\Request;
 
 /**
  * The primary class for the Drupal Bootstrap base theme.
@@ -61,14 +68,14 @@ class Bootstrap {
    *
    * @var string
    */
-  const FRAMEWORK_VERSION = '3.3.7';
+  const FRAMEWORK_VERSION = '3.4.1';
 
   /**
    * The Bootstrap Framework documentation site.
    *
    * @var string
    */
-  const FRAMEWORK_HOMEPAGE = 'https://getbootstrap.com/docs/3.3/';
+  const FRAMEWORK_HOMEPAGE = 'https://getbootstrap.com/docs/3.4/';
 
   /**
    * The Bootstrap Framework repository.
@@ -92,11 +99,55 @@ class Bootstrap {
   const PROJECT_DOCUMENTATION = 'https://drupal-bootstrap.org';
 
   /**
+   * The project API search URL.
+   *
+   * @var string
+   *
+   * @todo Enable constant once PHP 5.5 is no longer supported.
+   */
+  // Const PROJECT_API_SEARCH_URL = self::PROJECT_DOCUMENTATION . '/api/bootstrap/' . self::PROJECT_BRANCH . '/search/@query';.
+
+  /**
    * The Drupal Bootstrap project page.
    *
    * @var string
    */
   const PROJECT_PAGE = 'https://www.drupal.org/project/bootstrap';
+
+  /**
+   * The File System service, if it exists.
+   *
+   * @var \Drupal\Core\File\FileSystemInterface|false
+   */
+  protected static $fileSystem;
+
+  /**
+   * The Messenger service, if it exists.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface|false
+   */
+  protected static $messenger;
+
+  /**
+   * The Renderer service.
+   *
+   * @var \Drupal\Core\Render\Renderer
+   */
+  protected static $renderer;
+
+  /**
+   * The Theme Registry service.
+   *
+   * @var \Drupal\Core\Theme\Registry
+   */
+  protected static $themeRegistry;
+
+  /**
+   * The Twig service.
+   *
+   * @var \Drupal\Core\Template\TwigEnvironment
+   */
+  protected static $twig;
 
   /**
    * Adds a callback to an array.
@@ -183,13 +234,13 @@ class Bootstrap {
       $drupal_static_fast['form_managers'] = &drupal_static(__METHOD__ . '__formManagers', []);
     }
 
-    /* @var \Drupal\bootstrap\Plugin\AlterManager[] $alter_managers */
+    /** @var \Drupal\bootstrap\Plugin\AlterManager[] $alter_managers */
     $alter_managers = &$drupal_static_fast['alter_managers'];
     if (!isset($alter_managers[$theme_name])) {
       $alter_managers[$theme_name] = new AlterManager($theme);
     }
 
-    /* @var \Drupal\bootstrap\Plugin\FormManager[] $form_managers */
+    /** @var \Drupal\bootstrap\Plugin\FormManager[] $form_managers */
     $form_managers = &$drupal_static_fast['form_managers'];
     if (!isset($form_managers[$theme_name])) {
       $form_managers[$theme_name] = new FormManager($theme);
@@ -260,11 +311,14 @@ class Bootstrap {
    * @param string $query
    *   The query to search for.
    *
-   * @return string
+   * @return \Drupal\Component\Render\FormattableMarkup
    *   The complete URL to the documentation site.
    */
   public static function apiSearchUrl($query = '') {
-    return self::PROJECT_DOCUMENTATION . '/api/bootstrap/' . self::PROJECT_BRANCH . '/search/' . Html::escape($query);
+    // @todo Move to a constant once PHP 5.5 is no longer supported.
+    return new FormattableMarkup(self::PROJECT_DOCUMENTATION . '/api/bootstrap/' . self::PROJECT_BRANCH . '/search/@query', [
+      '@query' => $query,
+    ]);
   }
 
   /**
@@ -301,6 +355,98 @@ class Bootstrap {
    */
   public static function autoloadFixInclude() {
     return static::getTheme('bootstrap')->getPath() . '/autoload-fix.php';
+  }
+
+  /**
+   * Checks whether a specific URL is reachable.
+   *
+   * @param string $url
+   *   The URL to check.
+   * @param array $options
+   *   Additional options to pass to the HTTP client.
+   * @param \Exception|null $exception
+   *   Any Exceptions throw, passed by reference.
+   *
+   * @return \Drupal\bootstrap\SerializedResponse
+   *   A SerializedResponse object.
+   */
+  public static function checkUrlIsReachable($url, array $options = [], &$exception = NULL) {
+    $options['method'] = 'HEAD';
+    $options['ttl'] = 0;
+    return static::request($url, $options, $exception);
+  }
+
+  /**
+   * Retrieves a response from a URL, using cached response if available.
+   *
+   * @param string $url
+   *   The URL to retrieve.
+   * @param array $options
+   *   The options to pass to the HTTP client.
+   * @param \Exception|null $exception
+   *   The exception thrown if there was an error, passed by reference.
+   *
+   * @return \Drupal\bootstrap\SerializedResponse
+   *   A Response object.
+   */
+  public static function request($url, array $options = [], &$exception = NULL) {
+    $options += [
+      'method' => 'GET',
+      'headers' => [
+        'User-Agent' => 'Drupal Bootstrap ' . static::PROJECT_BRANCH . ' (' . static::PROJECT_PAGE . ')',
+      ],
+    ];
+
+    // Determine if a custom TTL value was set.
+    $ttl = isset($options['ttl']) ? $options['ttl'] : NULL;
+    unset($options['ttl']);
+
+    $cache = \Drupal::keyValueExpirable('theme:' . static::getTheme()->getName() . ':http');
+
+    // The URL cannot be part of the prefix as the "name" field of
+    // "key_value_expire" has a max length of 128.
+    $hash = Crypt::generateBase64HashIdentifier(['url' => $url] + $options, 'request');
+    $response = $cache->get($hash);
+
+    if (!isset($response)) {
+      /** @var \GuzzleHttp\Client $client */
+      $client = \Drupal::service('http_client_factory')->fromOptions($options);
+      $request = new Request($options['method'], $url, $options['headers']);
+
+      try {
+        $response = SerializedResponse::createFromGuzzleResponse($client->send($request, $options), $request);
+      }
+      catch (GuzzleException $e) {
+        $exception = $e;
+        $response = SerializedResponse::createFromException($e, $request);
+      }
+      catch (\Exception $e) {
+        $exception = $e;
+        $response = SerializedResponse::createFromException($e, $request);
+      }
+
+      // Only cache if a maximum age has been detected.
+      $maxAge = (int) isset($ttl) ? $ttl : $response->getMaxAge();
+      if ($response->getStatusCode() == 200 && $maxAge > 0) {
+        // Due to key_value_expire setting the "expire" field to "INT(11)", it
+        // is technically limited to a 32bit max value (Y2K38 bug).
+        // @todo Remove this once this is no longer an issue.
+        // @see https://www.drupal.org/project/drupal/issues/65474
+        // @see https://www.drupal.org/project/drupal/issues/1003692
+        $requestTime = \Drupal::time()->getRequestTime();
+        if (($requestTime + $maxAge) > 2147483647) {
+          $maxAge = 2147483647 - $requestTime;
+        }
+        try {
+          $cache->setWithExpire($hash, $response, $maxAge);
+        }
+        catch (\Exception $e) {
+          // Intentionally do nothing, tried to cache response... it failed.
+        }
+      }
+    }
+
+    return $response;
   }
 
   /**
@@ -361,6 +507,7 @@ class Bootstrap {
           // Danger class.
           t('Delete')->render()             => 'danger',
           t('Remove')->render()             => 'danger',
+          t('Reset')->render()              => 'danger',
           t('Uninstall')->render()          => 'danger',
 
           // Success class.
@@ -401,7 +548,7 @@ class Bootstrap {
             break;
 
           case 'contains':
-            if (strpos(Unicode::strtolower($string), Unicode::strtolower($text)) !== FALSE) {
+            if (strpos(mb_strtolower($string), mb_strtolower($text)) !== FALSE) {
               return $class;
             }
             break;
@@ -415,28 +562,54 @@ class Bootstrap {
 
   /**
    * Logs and displays a warning about a deprecated function/method being used.
+   *
+   * @param string $caller
+   *   Optional. The function or Class::method that should be shown as
+   *   deprecated. If not set, it will be extrapolated automatically from
+   *   the backtrace. This is primarily used when this method is being invoked
+   *   from inside another method that isn't technically deprecated but has to
+   *   support deprecated functionality.
+   * @param bool $show_message
+   *   Flag indicating whether to show a message to the user. If TRUE, it will
+   *   force show the message. If FALSE, it will only log the message. If not
+   *   set, the message will be shown based on whether the current user is an
+   *   administrator and if the theme has suppressed deprecated warnings.
+   * @param \Drupal\Core\StringTranslation\TranslatableMarkup $message
+   *   Optional. The message to show/log. If not set, it will be determined
+   *   automatically based on the caller.
    */
-  public static function deprecated() {
-    // Log backtrace.
+  public static function deprecated($caller = NULL, $show_message = NULL, TranslatableMarkup $message = NULL) {
     $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-    \Drupal::logger('bootstrap')->warning('<pre><code>' . print_r($backtrace, TRUE) . '</code></pre>');
-
-    if (!self::getTheme()->getSetting('suppress_deprecated_warnings')) {
-      return;
-    }
 
     // Extrapolate the caller.
-    $caller = $backtrace[1];
-    $class = '';
-    if (isset($caller['class'])) {
-      $parts = explode('\\', $caller['class']);
-      $class = array_pop($parts) . '::';
+    if (!isset($caller) && !empty($backtrace[1]) && ($info = $backtrace[1])) {
+      $caller = (!empty($info['class']) ? $info['class'] . '::' : '') . $info['function'];
     }
-    drupal_set_message(t('The following function(s) or method(s) have been deprecated, please check the logs for a more detailed backtrace on where these are being invoked. Click on the function or method link to search the documentation site for a possible replacement or solution.'), 'warning');
-    drupal_set_message(t('<a href=":url" target="_blank">@title</a>.', [
-      ':url' => self::apiSearchUrl($class . $caller['function']),
-      '@title' => ($class ? $caller['class'] . $caller['type'] : '') . $caller['function'] . '()',
-    ]), 'warning');
+
+    // Remove class namespace.
+    $method = FALSE;
+    if (is_string($caller) && strpos($caller, '::') !== FALSE && ($parts = explode('\\', $caller))) {
+      $method = TRUE;
+      $caller = array_pop($parts);
+    }
+
+    if (!isset($message)) {
+      $message = t('The following @type has been deprecated: <a href=":url" target="_blank">@title</a>. Please check the logs for a more detailed backtrace on where it is being invoked.', [
+        '@type' => $method ? 'method' : 'function',
+        ':url' => static::apiSearchUrl($caller),
+        '@title' => $caller,
+      ]);
+    }
+
+    if ($show_message || (!isset($show_message) && static::isAdmin() && !static::getTheme()->getSetting('suppress_deprecated_warnings', FALSE))) {
+      \Drupal::messenger()->addMessage($message, 'warning');
+    }
+
+    // Log message and accompanying backtrace.
+    \Drupal::logger('bootstrap')->warning('<div>@message</div><pre><code>@backtrace</code></pre>', [
+      '@message' => $message,
+      '@backtrace' => Markup::create(print_r($backtrace, TRUE)),
+    ]);
   }
 
   /**
@@ -455,6 +628,31 @@ class Bootstrap {
       'icon_position' => 'before',
       'icon_only' => FALSE,
     ];
+  }
+
+  /**
+   * Retrieves the File System service, if it exists.
+   *
+   * @param string $method
+   *   Optional. A specific method on the file system service to check for
+   *   its existance.
+   *
+   * @return \Drupal\Core\File\FileSystemInterface
+   *   The File System service, if it exists and if $method exists if it was
+   *   passed.
+   *
+   * @deprecated in bootstrap:8.x-3.22 and is removed from bootstrap:5.0.0.
+   *   Use the "file_system" service instead.
+   * @see https://www.drupal.org/project/bootstrap/issues/3096963
+   */
+  public static function fileSystem($method = NULL) {
+    if (!isset(static::$fileSystem)) {
+      static::$fileSystem = \Drupal::hasService('file_system') ? \Drupal::service('file_system') : FALSE;
+    }
+    if ($method) {
+      return static::$fileSystem && method_exists(static::$fileSystem, $method) ? static::$fileSystem : FALSE;
+    }
+    return static::$fileSystem;
   }
 
   /**
@@ -537,9 +735,11 @@ class Bootstrap {
       'variables' => [
         'alignment' => 'down',
         'attributes' => [],
+        'default_button' => TRUE,
         'items' => [],
         'split' => FALSE,
         'toggle' => NULL,
+        'toggle_label' => NULL,
       ],
     ];
 
@@ -675,6 +875,7 @@ class Bootstrap {
           t('Cancel')->render()     => 'remove',
           t('Delete')->render()     => 'trash',
           t('Remove')->render()     => 'trash',
+          t('Reset')->render()      => 'trash',
           t('Search')->render()     => 'search',
           t('Upload')->render()     => 'upload',
           t('Preview')->render()    => 'eye-open',
@@ -701,7 +902,7 @@ class Bootstrap {
             break;
 
           case 'contains':
-            if (strpos(Unicode::strtolower($string), Unicode::strtolower($text)) !== FALSE) {
+            if (strpos(mb_strtolower($string), mb_strtolower($text)) !== FALSE) {
               return self::glyphicon($icon, $default);
             }
             break;
@@ -1009,6 +1210,8 @@ class Bootstrap {
       $versions['3.3.5'] = $versions['3.3.4'];
       $versions['3.3.6'] = $versions['3.3.5'];
       $versions['3.3.7'] = $versions['3.3.6'];
+      $versions['3.4.0'] = $versions['3.3.7'];
+      $versions['3.4.1'] = $versions['3.4.0'];
     }
 
     // Return a specific versions icon set.
@@ -1062,6 +1265,32 @@ class Bootstrap {
   }
 
   /**
+   * Checks whether a user is an administrator.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   Optional. A specific account to check. If not set, the currently logged
+   *   in user account will be used.
+   *
+   * @return bool
+   *   TRUE or FALSE
+   */
+  public static function isAdmin(AccountInterface $account = NULL) {
+    static $admins = [];
+
+    // Use the currently logged in user if no account was explicitly specified.
+    if (!$account) {
+      $account = \Drupal::currentUser();
+    }
+
+    $id = (int) $account->id();
+    if (!isset($admins[$id])) {
+      $admins[$id] = $account->hasPermission('access administration pages');
+    }
+
+    return $admins[$id];
+  }
+
+  /**
    * Determines if the current path is the "front" page.
    *
    * *Note:* This method will not return `TRUE` if there is not a proper
@@ -1095,6 +1324,46 @@ class Bootstrap {
   }
 
   /**
+   * Wrapper to use new Messenger service or the legacy procedural function.
+   *
+   * This is to help support older installations without trigger deprecation
+   * notices for newer installations.
+   *
+   * @param string|\Drupal\Component\Render\MarkupInterface $message
+   *   (optional) The translated message to be displayed to the user. For
+   *   consistency with other messages, it should begin with a capital letter
+   *   and end with a period.
+   * @param string $type
+   *   (optional) The message's type. Defaults to 'status'. These values are
+   *   supported:
+   *   - 'status'
+   *   - 'warning'
+   *   - 'error'.
+   * @param bool $repeat
+   *   (optional) If this is FALSE and the message is already set, then the
+   *   message won't be repeated. Defaults to FALSE.
+   *
+   * @see \Drupal\Core\Messenger\MessengerInterface
+   * @see drupal_set_message()
+   * @see https://www.drupal.org/node/2774931
+   *
+   * @deprecated in 8.x-3.18 and will be removed in a future release.
+   *   Use \Drupal\Core\Messenger\MessengerInterface::addMessage() instead.
+   * @see https://www.drupal.org/project/bootstrap/issues/3096963
+   */
+  public static function message($message, $type = 'status', $repeat = FALSE) {
+    if (!isset(static::$messenger)) {
+      static::$messenger = \Drupal::hasService('messenger') ? \Drupal::service('messenger') : FALSE;
+    }
+    if (static::$messenger) {
+      static::$messenger->addMessage($message, $type, $repeat);
+    }
+    else {
+      drupal_set_message($message, $type, $repeat);
+    }
+  }
+
+  /**
    * Preprocess theme hook variables.
    *
    * @param array $variables
@@ -1116,7 +1385,7 @@ class Bootstrap {
       $drupal_static_fast['theme_info'] = &drupal_static(__METHOD__ . '__themeInfo', []);
     }
 
-    /* @var \Drupal\bootstrap\Plugin\PreprocessManager[] $preprocess_managers */
+    /** @var \Drupal\bootstrap\Plugin\PreprocessManager[] $preprocess_managers */
     $preprocess_managers = &$drupal_static_fast['preprocess_managers'];
     if (!isset($preprocess_managers[$theme_name])) {
       $preprocess_managers[$theme_name] = new PreprocessManager($theme);
@@ -1138,6 +1407,11 @@ class Bootstrap {
 
     // Retrieve the preprocess manager for this theme.
     $preprocess_manager = $preprocess_managers[$theme_name];
+
+    // Add a global "is_admin" variable back to all templates.
+    if (!isset($variables['is_admin'])) {
+      $variables['is_admin'] = static::isAdmin();
+    }
 
     // Adds a global "is_front" variable back to all templates.
     // @see https://www.drupal.org/node/2829585
@@ -1172,6 +1446,135 @@ class Bootstrap {
   }
 
   /**
+   * Renders a custom Twig template not registered in the theme system.
+   *
+   * Note: any template ending in .html.twig will be registered with the theme
+   * system automatically (that is simply how it works). For HTML based
+   * standalone Twig templates, just use .twig (without the .html prefix). For
+   * other file types, you may still use a prefix for the IDE to recognize the
+   * file type (e.g. .css.twig).
+   *
+   * @param string $path
+   *   The path to the template.
+   * @param array $variables
+   *   The variables to pass to the template.
+   * @param \Drupal\Core\Render\RenderContext $renderContext
+   *   Optional. A RenderContext object to pass to the renderer.
+   *
+   * @return \Drupal\Component\Render\MarkupInterface
+   *   The rendered template.
+   *
+   * @throws \RuntimeException
+   *   If $path does not exist.
+   * @throws \InvalidArgumentException
+   *   If $path references a Twig template already registered in the theme
+   *   system.
+   */
+  public static function renderCustomTemplate($path, array $variables = [], RenderContext $renderContext = NULL) {
+    $realpath = realpath($path);
+    if (!file_exists($realpath)) {
+      throw new \RuntimeException(sprintf('Template does not exist: %s', $realpath));
+    }
+
+    // Ensure provided template isn't actually registered in the theme system.
+    $registry = static::themeRegistry()->get();
+    foreach ($registry as $hook => $info) {
+      // Only process template based theme hooks.
+      if (!isset($info['path']) || !isset($info['template'])) {
+        continue;
+      }
+      $registered = realpath($info['path'] . '/' . $info['template'] . '.html.twig');
+      if ($registered === $realpath) {
+        $basename = basename($path);
+        $example = "\n\n\$build = [\n  '#theme' => '$hook',\n  /* Other properties */\n];\n\Drupal::service('renderer')->renderPlain(\$build);\n\n";
+        throw new \InvalidArgumentException(sprintf('The template provided is not a standalone Twig template: "%s". This template is already registered in Drupal\'s Theme System as "%s". If this template is intended to be truly standalone, you can change the file extension from ".html.twig" to just ".twig". Otherwise, if this is a properly registered template in the Theme System, you should render it using Drupal\'s existing Render API and not this method: %s', $basename, $hook, $example));
+      }
+    }
+
+    $template = file_get_contents($realpath);
+    if (!isset($renderContext)) {
+      $renderContext = new RenderContext();
+    }
+
+    // Render the template.
+    $output = static::renderer()->executeInRenderContext($renderContext, function () use ($template, $variables) {
+      return static::twig()->createTemplate($template)->render($variables);
+    });
+
+    return Markup::create($output);
+  }
+
+  /**
+   * Helper function for writing data to the file system.
+   *
+   * Note: this is specifically designed with replacing chunks of existing
+   * data in mind.
+   *
+   * @param string $path
+   *   The path to the file where the data will be written.
+   * @param string $data
+   *   The data to write to $file.
+   * @param string $start
+   *   Optional. A marker determining where to begin injecting $data.
+   *   Note: this value is used within a regular expression.
+   * @param string $end
+   *   Optional. A marker determining where to stop injecting $data. This is
+   *   primarily useful for replacing a "chunk" of data within a file.
+   *   Note: this value is used within a regular expression.
+   *
+   * @return bool
+   *   TRUE if the file was successfully written, FALSE otherwise.
+   */
+  public static function putContents($path, $data, $start = NULL, $end = NULL) {
+    $realpath = realpath($path) ?: $path;
+
+    // Markers used, build regular expression to split any existing content.
+    if ($start || $end) {
+      $regExp = [];
+      if ($start) {
+        $regExp[] = preg_quote($start, '/');
+      }
+      if ($end) {
+        $regExp[] = preg_quote($end, '/');
+      }
+      $regExp = implode('|', $regExp);
+      $parts = @preg_split("/$regExp/", @file_get_contents($realpath) ?: '') ?: [];
+      $replaced = isset($parts[0]) ? trim($parts[0]) . "\n" : '';
+      $replaced .= "$data\n";
+      $replaced .= isset($parts[2]) ? trim($parts[2]) . "\n" : '';
+      $data = $replaced;
+    }
+
+    return !!file_put_contents($realpath, $data) !== FALSE;
+  }
+
+  /**
+   * Retrieves the Renderer service.
+   *
+   * @return \Drupal\Core\Render\Renderer
+   *   The Renderer service.
+   */
+  public static function renderer() {
+    if (!isset(static::$renderer)) {
+      static::$renderer = \Drupal::service('renderer');
+    }
+    return static::$renderer;
+  }
+
+  /**
+   * Retrieves the Theme Registry service.
+   *
+   * @return \Drupal\Core\Theme\Registry
+   *   The Theme Registry service.
+   */
+  public static function themeRegistry() {
+    if (!isset(static::$themeRegistry)) {
+      static::$themeRegistry = \Drupal::service('theme.registry');
+    }
+    return static::$themeRegistry;
+  }
+
+  /**
    * Ensures a value is typecast to a string, rendering an array if necessary.
    *
    * @param string|array $value
@@ -1182,6 +1585,19 @@ class Bootstrap {
    */
   public static function toString(&$value) {
     return (string) (Element::isRenderArray($value) ? Element::create($value)->renderPlain() : $value);
+  }
+
+  /**
+   * Retrieves the Twig service.
+   *
+   * @return \Drupal\Core\Template\TwigEnvironment
+   *   The Twig service.
+   */
+  public static function twig() {
+    if (!isset(static::$twig)) {
+      static::$twig = \Drupal::service('twig');
+    }
+    return static::$twig;
   }
 
 }

@@ -2,10 +2,10 @@
 
 namespace Drupal\Core\Entity;
 
-use Drupal\Core\Controller\ControllerResolverInterface;
 use Drupal\Core\Controller\FormController;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface;
 
 /**
  * Wrapping controller for entity forms that serve as the main page body.
@@ -13,25 +13,25 @@ use Drupal\Core\Routing\RouteMatchInterface;
 class HtmlEntityFormController extends FormController {
 
   /**
-   * The entity manager service.
+   * The entity type manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a new \Drupal\Core\Routing\Enhancer\FormEnhancer object.
    *
-   * @param \Drupal\Core\Controller\ControllerResolverInterface $resolver
-   *   The controller resolver.
+   * @param \Symfony\Component\HttpKernel\Controller\ArgumentResolverInterface $argument_resolver
+   *   The argument resolver.
    * @param \Drupal\Core\Form\FormBuilderInterface $form_builder
    *   The form builder.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
    */
-  public function __construct(ControllerResolverInterface $resolver, FormBuilderInterface $form_builder, EntityManagerInterface $manager) {
-    parent::__construct($resolver, $form_builder);
-    $this->entityManager = $manager;
+  public function __construct(ArgumentResolverInterface $argument_resolver, FormBuilderInterface $form_builder, EntityTypeManagerInterface $entity_type_manager) {
+    parent::__construct($argument_resolver, $form_builder);
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -64,9 +64,9 @@ class HtmlEntityFormController extends FormController {
   protected function getFormObject(RouteMatchInterface $route_match, $form_arg) {
     // If no operation is provided, use 'default'.
     $form_arg .= '.default';
-    list ($entity_type_id, $operation) = explode('.', $form_arg);
+    [$entity_type_id, $operation] = explode('.', $form_arg);
 
-    $form_object = $this->entityManager->getFormObject($entity_type_id, $operation);
+    $form_object = $this->entityTypeManager->getFormObject($entity_type_id, $operation);
 
     // Allow the entity form to determine the entity object from a given route
     // match.

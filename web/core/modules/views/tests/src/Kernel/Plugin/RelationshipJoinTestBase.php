@@ -18,7 +18,7 @@ abstract class RelationshipJoinTestBase extends PluginKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['system', 'user', 'field'];
+  protected static $modules = ['system', 'user', 'field'];
 
   /**
    * @var \Drupal\user\Entity\User
@@ -55,7 +55,7 @@ abstract class RelationshipJoinTestBase extends PluginKernelTestBase {
       'type' => 'int',
       'unsigned' => TRUE,
       'not null' => TRUE,
-      'default' => 0
+      'default' => 0,
     ];
 
     return $schema;
@@ -74,8 +74,8 @@ abstract class RelationshipJoinTestBase extends PluginKernelTestBase {
       'relationship' => [
         'id' => 'standard',
         'base' => 'users_field_data',
-        'base field' => 'uid'
-      ]
+        'base field' => 'uid',
+      ],
     ];
 
     return $data;

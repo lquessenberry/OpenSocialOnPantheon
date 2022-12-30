@@ -14,3 +14,9 @@ search_api.settings:
     tracking_page_size:
       type: integer
       label: 'The number of entities loaded at once when adding items to the tracker for a newly created index'
+    boost_factors:
+      type: sequence
+      label: 'The boost factors available for selection in forms'
+      sequence:
+        type: float
+        label: 'The boost factor'

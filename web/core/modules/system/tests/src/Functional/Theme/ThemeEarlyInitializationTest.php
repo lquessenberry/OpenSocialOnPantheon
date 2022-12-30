@@ -17,18 +17,23 @@ class ThemeEarlyInitializationTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['theme_test'];
+  protected static $modules = ['theme_test'];
 
   /**
-   * Test that the theme system can generate output in a request listener.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'classy';
+
+  /**
+   * Tests that the theme system can generate output in a request listener.
    */
   public function testRequestListener() {
     $this->drupalGet('theme-test/request-listener');
     // Verify that themed output generated in the request listener appears.
-    $this->assertRaw('Themed output generated in a KernelEvents::REQUEST listener');
+    $this->assertSession()->responseContains('Themed output generated in a KernelEvents::REQUEST listener');
     // Verify that the default theme's CSS still appears even though the theme
     // system was initialized early.
-    $this->assertRaw('classy/css/components/action-links.css');
+    $this->assertSession()->responseContains('classy/css/components/action-links.css');
   }
 
 }

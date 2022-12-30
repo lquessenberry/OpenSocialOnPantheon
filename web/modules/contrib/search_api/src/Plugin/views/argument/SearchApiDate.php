@@ -3,7 +3,6 @@
 namespace Drupal\search_api\Plugin\views\argument;
 
 use Drupal\Component\Render\FormattableMarkup;
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -130,10 +129,10 @@ class SearchApiDate extends SearchApiStandard {
           $dates[] = $date_string;
         }
       }
-      return $dates ? implode(', ', $dates) : Html::escape($this->argument);
+      return $dates ? implode(', ', $dates) : $this->argument;
     }
 
-    return Html::escape($this->argument);
+    return $this->argument;
   }
 
   /**

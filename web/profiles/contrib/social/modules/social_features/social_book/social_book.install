@@ -5,7 +5,12 @@
  * Install, update and uninstall functions for the social_book module.
  */
 
+use Drupal\Core\Config\FileStorage;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\search_api\Entity\Index;
 use Drupal\user\Entity\Role;
+use Drupal\user\RoleInterface;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Implements hook_install().
@@ -13,65 +18,78 @@ use Drupal\user\Entity\Role;
  * Perform actions related to the installation of social_book.
  */
 function social_book_install() {
-
-  // Set some default permissions.
-  _social_book_set_permissions();
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view node.book.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view node.book.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'view node.book.field_content_visibility:community content',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'create new books',
+      'add content to books',
+      'create book content',
+      'delete any book content',
+      'delete own book content',
+      'delete book revisions',
+      'revert book revisions',
+      'edit any book content',
+      'edit own book content',
+      'view book revisions',
+      'translate book node',
+      'view node.book.field_content_visibility:community content',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'create new books',
+      'add content to books',
+      'create book content',
+      'delete any book content',
+      'delete own book content',
+      'delete book revisions',
+      'revert book revisions',
+      'edit any book content',
+      'edit own book content',
+      'view book revisions',
+      'translate book node',
+      'administer visibility settings',
+      'view node.book.field_content_visibility:community content',
+    ]
+  );
 }
 
 /**
- * Function to set permissions.
+ * Implements hook_update_dependencies().
  */
-function _social_book_set_permissions() {
-  $roles = Role::loadMultiple();
+function social_book_update_dependencies() {
+  // Run the config update after the final features removal ran.
+  $dependencies['social_book'][8801] = [
+    'social_core' => 8802,
+  ];
 
-  /** @var \Drupal\user\Entity\Role $role */
-  foreach ($roles as $role) {
-    if ($role->id() === 'administrator') {
-      continue;
-    }
+  // Ensure update helper dependant hooks run after update helper
+  // is enabled.
+  $dependencies['social_book'][8802] = [
+    'social_core' => 8805,
+  ];
 
-    $permissions = _social_book_get_permissions($role->id());
-    user_role_grant_permissions($role->id(), $permissions);
-  }
-}
-
-/**
- * Build the permissions.
- *
- * @param string $role
- *   The role.
- *
- * @return array
- *   Returns an array containing the permissions.
- */
-function _social_book_get_permissions($role) {
-  // Anonymous.
-  $permissions['anonymous'] = ['view node.book.field_content_visibility:public content'];
-
-  // Authenticated.
-  $permissions['authenticated'] = array_merge($permissions['anonymous'], ['view node.book.field_content_visibility:community content']);
-
-  // Content manager.
-  $permissions['contentmanager'] = array_merge($permissions['authenticated'], [
-    'create new books',
-    'add content to books',
-    'create book content',
-    'delete any book content',
-    'delete own book content',
-    'delete book revisions',
-    'revert book revisions',
-    'edit any book content',
-    'edit own book content',
-    'view book revisions',
-  ]);
-
-  // Site manager.
-  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], ['administer visibility settings']);
-
-  if (isset($permissions[$role])) {
-    return $permissions[$role];
-  }
-  return [];
+  return $dependencies;
 }
 
 /**
@@ -100,4 +118,174 @@ function social_book_update_8001() {
     }
   }
 
+}
+
+/**
+ * Config import social_book default configs.
+ *
+ * The feature removal script did not succeed for social_book.
+ * Import the configs in an update hook.
+ */
+function social_book_update_8801() {
+  $config_files = [
+    'core.base_field_override.node.book.promote',
+    'core.entity_form_display.node.book.default',
+    'core.entity_view_display.node.book.activity_comment',
+    'core.entity_view_display.node.book.activity',
+    'core.entity_view_display.node.book.default',
+    'core.entity_view_display.node.book.hero',
+    'core.entity_view_display.node.book.search_index',
+    'core.entity_view_display.node.book.teaser',
+  ];
+
+  foreach ($config_files as $config_file) {
+    $config = \Drupal::service('extension.list.module')->getPath('social_book') . '/config/features_removal/' . $config_file . '.yml';
+
+    if (is_file($config)) {
+      $settings = Yaml::parse(file_get_contents($config));
+      if (is_array($settings)) {
+        $update_config = \Drupal::configFactory()
+          ->getEditable($config_file);
+
+        $update_config->setData($settings)->save(TRUE);
+      }
+    }
+  }
+}
+
+/**
+ * Hide image label in teasers.
+ */
+function social_book_update_8802() {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_book', 'social_book_update_8802');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update search all with book pages.
+ */
+function social_book_update_8803() {
+  // If the search module is enabled trigger updating of the indexes affected
+  // by the book update in config override.
+  try {
+    $index = Index::load('social_all');
+    if ($index !== NULL && $index->status()) {
+      $index->save();
+      $index->clear();
+      $index->reindex();
+    }
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('social_book')->info($e->getMessage());
+  }
+}
+
+/**
+ * Hide image label in hero.
+ */
+function social_book_update_8804() {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_book', 'social_book_update_8804');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update Books to the new Config Form Open Social style.
+ */
+function social_book_update_8901() {
+  $config_file = \Drupal::service('extension.list.module')->getPath('social_book') . '/config/static/social_book_static_update_8901.yml';
+
+  if (is_file($config_file)) {
+    $settings = Yaml::parse(file_get_contents($config_file));
+    if (is_array($settings)) {
+      $config = \Drupal::configFactory()
+        ->getEditable('core.entity_form_display.node.book.default');
+
+      $config->setData($settings)->save(TRUE);
+    }
+  }
+}
+
+/**
+ * Update labels and settings for node book body field.
+ */
+function social_book_update_8902() {
+  // Load the existing configuration.
+  $config_name = 'field.field.node.book.body';
+  $config = \Drupal::configFactory()->getEditable($config_name);
+  $config_data = $config->getRawData();
+
+  if (!empty($config_data['settings']['display_summary'])) {
+    $config_data['settings']['display_summary'] = FALSE;
+  }
+
+  if (!empty($config_data['label'])) {
+    $config_data['label'] = 'Description';
+  }
+
+  $config->setData($config_data)->save();
+  // Make sure we clear cached definitions for the fields.
+  \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
+}
+
+/**
+ * Add small_teaser view mode for book.
+ */
+function social_book_update_8903() {
+  $config_path = \Drupal::service('extension.list.module')->getPath('social_book') . '/config/static';
+  $source = new FileStorage($config_path);
+  /** @var \Drupal\Core\Config\StorageInterface $config_storage */
+  $config_storage = \Drupal::service('config.storage');
+  $config_storage->write(
+    'core.entity_view_display.node.book.small_teaser',
+    $source->read('social_book_static_update_8903')
+  );
+}
+
+/**
+ * Updated book form labels.
+ */
+function social_book_update_10201() {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_book', 'social_book_update_10201');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Allow CM+ translate "Book Page" node type.
+ */
+function social_book_update_10301() {
+  foreach (['sitemanager', 'contentmanager'] as $role_id) {
+    user_role_grant_permissions($role_id, ['translate book node']);
+  }
+}
+
+/**
+ * Hide book image field labels in view displays.
+ */
+function social_book_update_11401(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_book', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
 }

@@ -3,14 +3,16 @@
 namespace Drupal\activity_basics\Plugin\ActivityContext;
 
 use Drupal\activity_creator\Plugin\ActivityContextBase;
+use Drupal\comment\CommentInterface;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\group\Entity\GroupContent;
 
 /**
- * Provides a 'CommunityActivityContext' acitivy context.
+ * Provides a 'CommunityActivityContext' activity context.
  *
  * @ActivityContext(
- *  id = "community_activity_context",
- *  label = @Translation("Community activity context"),
+ *   id = "community_activity_context",
+ *   label = @Translation("Community activity context"),
  * )
  */
 class CommunityActivityContext extends ActivityContextBase {
@@ -18,7 +20,7 @@ class CommunityActivityContext extends ActivityContextBase {
   /**
    * {@inheritdoc}
    */
-  public function getRecipients(array $data, $last_uid, $limit) {
+  public function getRecipients(array $data, int $last_id, int $limit): array {
     // Always return empty array here. Since community does not have specific
     // recipients.
     return [];
@@ -27,9 +29,9 @@ class CommunityActivityContext extends ActivityContextBase {
   /**
    * {@inheritdoc}
    */
-  public function isValidEntity($entity) {
+  public function isValidEntity(EntityInterface $entity): bool {
     // Special cases for comments.
-    if ($entity->getEntityTypeId() === 'comment') {
+    if ($entity instanceof CommentInterface) {
       // Returns the entity to which the comment is attached.
       $entity = $entity->getCommentedEntity();
     }
@@ -38,18 +40,20 @@ class CommunityActivityContext extends ActivityContextBase {
       return FALSE;
     }
 
-    // Check if it's placed in a group (regardless off content type).
+    // Check if the content is placed in a group (regardless of content type).
     if (GroupContent::loadByEntity($entity)) {
       return FALSE;
     }
+
     if ($entity->getEntityTypeId() === 'post') {
-      if (!empty($entity->get('field_recipient_group')->getValue())) {
+      if (!$entity->field_recipient_group->isEmpty()) {
         return FALSE;
       }
-      elseif (!empty($entity->get('field_recipient_user')->getValue())) {
+      elseif (!$entity->field_recipient_user->isEmpty()) {
         return FALSE;
       }
     }
+
     return TRUE;
   }
 

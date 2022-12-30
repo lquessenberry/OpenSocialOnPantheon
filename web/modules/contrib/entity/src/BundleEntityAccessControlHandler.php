@@ -28,7 +28,7 @@ class BundleEntityAccessControlHandler extends CoreEntityAccessControlHandler {
       $bundle = $entity->id();
       $entity_type_id = $this->entityType->getBundleOf();
       $permissions = [
-        "administer $entity_type_id",
+        $this->entityType->getAdminPermission() ?: "administer $entity_type_id",
         // View permissions provided by EntityPermissionProvider.
         "view $entity_type_id",
         "view $bundle $entity_type_id",

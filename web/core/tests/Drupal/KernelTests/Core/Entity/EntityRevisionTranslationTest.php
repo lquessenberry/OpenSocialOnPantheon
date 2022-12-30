@@ -16,12 +16,12 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['language'];
+  protected static $modules = ['language'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Enable some additional languages.
@@ -51,8 +51,11 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
     $translation->setNewRevision();
     $translation->save();
 
-    $this->assertTrue($translation->getRevisionId() > $old_rev_id, 'The saved translation in new revision has a newer revision id.');
-    $this->assertTrue($this->reloadEntity($entity)->getRevisionId() > $old_rev_id, 'The entity from the storage has a newer revision id.');
+    // Verify that the saved translation for the new translation has a newer
+    // revision ID.
+    $this->assertGreaterThan($old_rev_id, $translation->getRevisionId());
+    // Verify that the entity from the storage has a newer revision ID.
+    $this->assertGreaterThan($old_rev_id, $this->reloadEntity($entity)->getRevisionId());
   }
 
   /**
@@ -60,7 +63,7 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
    */
   public function testRevertRevisionAfterTranslation() {
     $user = $this->createUser();
-    $storage = $this->entityManager->getStorage('entity_test_mulrev');
+    $storage = $this->entityTypeManager->getStorage('entity_test_mulrev');
 
     // Create a test entity.
     $entity = EntityTestMulRev::create([
@@ -95,7 +98,7 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
    */
   public function testTranslationValuesWhenSavingPendingRevisions() {
     $user = $this->createUser();
-    $storage = $this->entityManager->getStorage('entity_test_mulrev');
+    $storage = $this->entityTypeManager->getStorage('entity_test_mulrev');
 
     // Create a test entity and a translation for it.
     $entity = EntityTestMulRev::create([
@@ -131,8 +134,8 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
 
     $pending_revision = $storage->loadRevision($pending_revision_id);
 
-    $this->assertEquals($pending_revision->name->value, 'updated pending revision - en');
-    $this->assertEquals($pending_revision->getTranslation('de')->name->value, 'pending revision - de');
+    $this->assertEquals('updated pending revision - en', $pending_revision->name->value);
+    $this->assertEquals('pending revision - de', $pending_revision->getTranslation('de')->name->value);
   }
 
   /**
@@ -161,7 +164,7 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
   }
 
   /**
-   * @covers \Drupal\Core\Entity\RevisionableInterface::setNewRevision
+   * @covers \Drupal\Core\Entity\ContentEntityBase::setNewRevision
    */
   public function testSetNewRevision() {
     $user = $this->createUser();
@@ -169,8 +172,9 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
     // All revisionable entity variations have to have the same results.
     foreach (entity_test_entity_types(ENTITY_TEST_TYPES_REVISABLE) as $entity_type) {
       $this->installEntitySchema($entity_type);
+      $storage = \Drupal::entityTypeManager()->getStorage($entity_type);
 
-      $entity = entity_create($entity_type, [
+      $entity = $storage->create([
         'name' => 'foo',
         'user_id' => $user->id(),
       ]);
@@ -178,12 +182,12 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
       $entity->save();
       $entity_id = $entity->id();
       $entity_rev_id = $entity->getRevisionId();
-      $entity = entity_load($entity_type, $entity_id, TRUE);
+      $entity = $storage->loadUnchanged($entity_id);
 
       $entity->setNewRevision(TRUE);
       $entity->setNewRevision(FALSE);
       $entity->save();
-      $entity = entity_load($entity_type, $entity_id, TRUE);
+      $entity = $storage->loadUnchanged($entity_id);
 
       $this->assertEquals($entity_rev_id, $entity->getRevisionId(), 'A new entity revision was not created.');
     }
@@ -196,7 +200,7 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
    */
   public function testIsAnyStoredRevisionTranslated() {
     /** @var \Drupal\Core\Entity\ContentEntityStorageInterface $storage */
-    $storage = $this->entityManager->getStorage('entity_test_mul');
+    $storage = $this->entityTypeManager->getStorage('entity_test_mul');
     $method = new \ReflectionMethod(get_class($storage), 'isAnyStoredRevisionTranslated');
     $method->setAccessible(TRUE);
 
@@ -241,7 +245,7 @@ class EntityRevisionTranslationTest extends EntityKernelTestBase {
     $this->assertTrue($method->invoke($storage, $entity));
 
     /** @var \Drupal\Core\Entity\ContentEntityStorageInterface $storage */
-    $storage = $this->entityManager->getStorage('entity_test_mulrev');
+    $storage = $this->entityTypeManager->getStorage('entity_test_mulrev');
 
     // Check that a revisionable new entity is handled correctly.
     $entity = EntityTestMulRev::create();

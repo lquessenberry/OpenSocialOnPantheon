@@ -6,8 +6,9 @@ use Drupal\aggregator\FeedStorageInterface;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\ClientInterface;
 
 /**
@@ -49,7 +50,7 @@ class OpmlFeedAdd extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity.manager')->getStorage('aggregator_feed'),
+      $container->get('entity_type.manager')->getStorage('aggregator_feed'),
       $container->get('http_client')
     );
   }
@@ -84,7 +85,7 @@ class OpmlFeedAdd extends FormBase {
       '#title' => $this->t('Update interval'),
       '#default_value' => 3600,
       '#options' => $period,
-      '#description' => $this->t('The length of time between feed updates. Requires a correctly configured <a href=":cron">cron maintenance task</a>.', [':cron' => $this->url('system.status')]),
+      '#description' => $this->t('The length of time between feed updates. Requires a correctly configured <a href=":cron">cron maintenance task</a>.', [':cron' => Url::fromRoute('system.status')->toString()]),
     ];
 
     $form['actions'] = ['#type' => 'actions'];
@@ -121,16 +122,16 @@ class OpmlFeedAdd extends FormBase {
         $response = $this->httpClient->get($form_state->getValue('remote'));
         $data = (string) $response->getBody();
       }
-      catch (RequestException $e) {
+      catch (TransferException $e) {
         $this->logger('aggregator')->warning('Failed to download OPML file due to "%error".', ['%error' => $e->getMessage()]);
-        drupal_set_message($this->t('Failed to download OPML file due to "%error".', ['%error' => $e->getMessage()]));
+        $this->messenger()->addStatus($this->t('Failed to download OPML file due to "%error".', ['%error' => $e->getMessage()]));
         return;
       }
     }
 
     $feeds = $this->parseOpml($data);
     if (empty($feeds)) {
-      drupal_set_message($this->t('No new feed has been added.'));
+      $this->messenger()->addStatus($this->t('No new feed has been added.'));
       return;
     }
 
@@ -138,12 +139,12 @@ class OpmlFeedAdd extends FormBase {
     foreach ($feeds as $feed) {
       // Ensure URL is valid.
       if (!UrlHelper::isValid($feed['url'], TRUE)) {
-        drupal_set_message($this->t('The URL %url is invalid.', ['%url' => $feed['url']]), 'warning');
+        $this->messenger()->addWarning($this->t('The URL %url is invalid.', ['%url' => $feed['url']]));
         continue;
       }
 
       // Check for duplicate titles or URLs.
-      $query = $this->feedStorage->getQuery();
+      $query = $this->feedStorage->getQuery()->accessCheck(FALSE);
       $condition = $query->orConditionGroup()
         ->condition('title', $feed['title'])
         ->condition('url', $feed['url']);
@@ -153,11 +154,11 @@ class OpmlFeedAdd extends FormBase {
       $result = $this->feedStorage->loadMultiple($ids);
       foreach ($result as $old) {
         if (strcasecmp($old->label(), $feed['title']) == 0) {
-          drupal_set_message($this->t('A feed named %title already exists.', ['%title' => $old->label()]), 'warning');
+          $this->messenger()->addWarning($this->t('A feed named %title already exists.', ['%title' => $old->label()]));
           continue 2;
         }
         if (strcasecmp($old->getUrl(), $feed['url']) == 0) {
-          drupal_set_message($this->t('A feed with the URL %url already exists.', ['%url' => $old->getUrl()]), 'warning');
+          $this->messenger()->addWarning($this->t('A feed with the URL %url already exists.', ['%url' => $old->getUrl()]));
           continue 2;
         }
       }

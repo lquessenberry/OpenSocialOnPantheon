@@ -5,9 +5,29 @@
  * This module provides 2 voting widgets: Like and Dislike.
  */
 
-use \Drupal\Core\Entity\EntityInterface;
-use \Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_help().
+ */
+function like_and_dislike_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the 'Like & Dislike' module.
+    case 'help.page.like_and_dislike':
+      $output = '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('"This module provides "like" and "dislike" widgets for contents inside Drupal, making it easiers to promote features as the one seem on many social network websites.') . '</p>';
+      $output .= '<p>' . t('Technically speaking, the module provides 2 tags for Voting API, "like" and "dislike", working in a different way from Vote Up/Down, that is like a "plus or minus" approach. Likes are separate from Dislikes here.') . '</p>';
+      $output .= '<h3>' . t('How it works') . '</h3>';
+      $output .= '<p>' . t('Like/Dislike widget works for any Entity Types and Bundles, and includes a settings page to specify on which bundles the user wants the widgets available(node types, comments, files, users, etc). By default, none of them are available, so it is needed to go to "<a href=:like_dislike_settings>:like_dislike_settings</a>" and enable the wanted ones.', [
+        ':like_dislike_settings' => Url::fromRoute('like_and_dislike.admin_settings')->toString(),
+      ]) . '</p>';
+      return $output;
+  }
+}
 
 /**
  * Returns a flag whether given entity is enabled for likes and dislikes.
@@ -42,11 +62,11 @@ function like_and_dislike_get_votes(EntityInterface $entity) {
   $vote_result_storage = \Drupal::entityTypeManager()->getStorage('vote_result');
 
   // Get like votes.
-  $like = $vote_result_storage->getEntityResults($entity->getEntityTypeId(), $entity->id(), 'like', 'vote_count');
+  $like = $vote_result_storage->getEntityResults($entity->getEntityTypeId(), $entity->id(), 'like', 'vote_sum');
   $likes = !empty($like) ? (int) current($like)->getValue() : 0;
 
   // Get dislike votes.
-  $dislike = $vote_result_storage->getEntityResults($entity->getEntityTypeId(), $entity->id(), 'dislike', 'vote_count');
+  $dislike = $vote_result_storage->getEntityResults($entity->getEntityTypeId(), $entity->id(), 'dislike', 'vote_sum');
   $dislikes = !empty($dislike) ? (int) current($dislike)->getValue() : 0;
 
   return [$likes, $dislikes];
@@ -56,7 +76,8 @@ function like_and_dislike_get_votes(EntityInterface $entity) {
  * Renders the like/dislike buttons if the user has permission to see it.
  */
 function like_and_dislike_entity_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
-  if (!$display->getComponent('like_and_dislike')) {
+  // If we are in preview mode we don't have the $entity->id().
+  if (!$display->getComponent('like_and_dislike') || !$entity->id()) {
     return;
   }
 
@@ -94,6 +115,8 @@ function like_and_dislike_can_vote(AccountInterface $account, $vote_type_id, Ent
  * Insert the like/dislike value if the user has select it.
  */
 function like_and_dislike_vote_insert(EntityInterface $vote) {
+  $vote_type_to_delete = '';
+
   switch ($vote->bundle()) {
     case 'like':
       $vote_type_to_delete = 'dislike';
@@ -103,13 +126,16 @@ function like_and_dislike_vote_insert(EntityInterface $vote) {
       $vote_type_to_delete = 'like';
       break;
   }
-  $vote_storage = \Drupal::entityManager()->getStorage('vote');
-  $vote_storage->deleteUserVotes(
-    $vote->getOwnerId(),
-    $vote_type_to_delete,
-    $vote->getVotedEntityType(),
-    $vote->getVotedEntityId()
-  );
+
+  if (!empty($vote_type_to_delete)) {
+    $vote_storage = \Drupal::entityTypeManager()->getStorage('vote');
+    $vote_storage->deleteUserVotes(
+      $vote->getOwnerId(),
+      $vote_type_to_delete,
+      $vote->getVotedEntityType(),
+      $vote->getVotedEntityId()
+    );
+  }
 }
 
 /**
@@ -147,10 +173,7 @@ function like_and_dislike_theme() {
     'variables' => [
       'entity_id' => NULL,
       'entity_type' => NULL,
-      'likes' => 0,
-      'dislikes' => 0,
-      'like_attributes' => NULL,
-      'dislike_attributes' => NULL,
+      'icons' => [],
     ],
   ];
   return $info;

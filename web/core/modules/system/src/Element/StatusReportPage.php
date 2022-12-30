@@ -17,7 +17,7 @@ class StatusReportPage extends RenderElement {
    * {@inheritdoc}
    */
   public function getInfo() {
-    $class = get_class($this);
+    $class = static::class;
     return [
       '#theme' => 'status_report_page',
       '#pre_render' => [
@@ -86,8 +86,8 @@ class StatusReportPage extends RenderElement {
       ],
       'checked' => [
         'amount' => 0,
-        'text' => t('Checked'),
-        'text_plural' => t('Checked'),
+        'text' => t('Checked', [], ['context' => 'Examined']),
+        'text_plural' => t('Checked', [], ['context' => 'Examined']),
       ],
     ];
 

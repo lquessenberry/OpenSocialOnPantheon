@@ -88,7 +88,8 @@ class EntityReferenceRevisionsSaveTest extends KernelTestBase {
       'type' => 'article',
       'composite_reference' => $entity_test,
     ]);
-    // Check the name is properly set.
+    // Check the name is properly set and that getValue() returns the entity
+    // when it is marked as needs save."
     $values = $node->composite_reference->getValue();
     $this->assertTrue(isset($values[0]['entity']));
     static::assertEquals($values[0]['entity']->name->value, $text);
@@ -102,20 +103,22 @@ class EntityReferenceRevisionsSaveTest extends KernelTestBase {
     static::assertEquals($entity_test_after->name->value, $text);
 
     $new_text = 'Dummy text again';
-    // Set the name again.
-    $entity_test->name = $new_text;
-    $entity_test->setNeedsSave(FALSE);
+    // Set another name and save the node without marking it as needs saving.
+    $entity_test_after->name = $new_text;
+    $entity_test_after->setNeedsSave(FALSE);
 
-    // Load the Node and check the composite reference field is not set.
+    // Load the Node and check the composite reference entity is not returned
+    // from getValue() if it is not marked as needs saving.
     $node = Node::load($node->id());
     $values = $node->composite_reference->getValue();
     $this->assertFalse(isset($values[0]['entity']));
-    $node->composite_reference = $entity_test;
+    $node->composite_reference = $entity_test_after;
     $node->save();
 
     // Check the name is not updated.
+    \Drupal::entityTypeManager()->getStorage('entity_test_composite')->resetCache();
     $entity_test_after = EntityTestCompositeRelationship::load($entity_test->id());
-    static::assertEquals($entity_test_after->name->value, $text);
+    static::assertEquals($text, $entity_test_after->name->value);
 
     // Test if after delete the referenced entity there are no problems setting
     // the referencing values to the parent.
@@ -263,4 +266,56 @@ class EntityReferenceRevisionsSaveTest extends KernelTestBase {
     $this->assertEquals($dependencies['config'][1], 'node.type.article');
     $this->assertEquals($dependencies['module'][0], 'entity_reference_revisions');
   }
+
+  /**
+   * Tests FieldType\EntityReferenceRevisionsItem::deleteRevision
+   */
+  public function testEntityReferenceRevisionsDeleteHandleDeletedChild() {
+    $field_storage = FieldStorageConfig::create([
+      'field_name' => 'field_reference',
+      'entity_type' => 'node',
+      'type' => 'entity_reference_revisions',
+      'settings' => [
+        'target_type' => 'node',
+      ],
+    ]);
+    $field_storage->save();
+    $field = FieldConfig::create([
+      'field_storage' => $field_storage,
+      'bundle' => 'article',
+    ]);
+    $field->save();
+
+    $child = Node::create([
+      'type' => 'article',
+      'title' => 'Child node',
+    ]);
+    $child->save();
+
+    $node = Node::create([
+      'type' => 'article',
+      'title' => 'Parent node',
+      'field_reference' => [
+        [
+          'target_id' => $child->id(),
+          'target_revision_id' => $child->getRevisionId(),
+        ]
+      ],
+    ]);
+
+    // Create two revisions.
+    $node->save();
+    $revisionId = $node->getRevisionId();
+    $node->setNewRevision(TRUE);
+    $node->save();
+
+    // Force delete the child Paragraph.
+    // Core APIs allow this although it is an inconsistent storage situation
+    // for Paragraphs.
+    $child->delete();
+
+    // Previously deleting a revision with a lost child failed fatal.
+    \Drupal::entityTypeManager()->getStorage('node')->deleteRevision($revisionId);
+  }
+
 }

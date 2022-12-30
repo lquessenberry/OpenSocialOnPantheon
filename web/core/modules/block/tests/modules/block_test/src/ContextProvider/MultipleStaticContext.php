@@ -3,10 +3,9 @@
 namespace Drupal\block_test\ContextProvider;
 
 use Drupal\Core\Cache\CacheableMetadata;
-use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Plugin\Context\Context;
-use Drupal\Core\Plugin\Context\ContextDefinition;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\Context\ContextProviderInterface;
+use Drupal\Core\Plugin\Context\EntityContext;
 use Drupal\Core\Session\AccountInterface;
 
 /**
@@ -33,12 +32,12 @@ class MultipleStaticContext implements ContextProviderInterface {
    *
    * @param \Drupal\Core\Session\AccountInterface $account
    *   The current user.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(AccountInterface $account, EntityManagerInterface $entity_manager) {
+  public function __construct(AccountInterface $account, EntityTypeManagerInterface $entity_type_manager) {
     $this->account = $account;
-    $this->userStorage = $entity_manager->getStorage('user');
+    $this->userStorage = $entity_type_manager->getStorage('user');
   }
 
   /**
@@ -47,9 +46,8 @@ class MultipleStaticContext implements ContextProviderInterface {
   public function getRuntimeContexts(array $unqualified_context_ids) {
     $current_user = $this->userStorage->load($this->account->id());
 
-    $context1 = new Context(new ContextDefinition('entity:user', 'User A'), $current_user);
-
-    $context2 = new Context(new ContextDefinition('entity:user', 'User B'), $current_user);
+    $context1 = EntityContext::fromEntity($current_user, 'User A');
+    $context2 = EntityContext::fromEntity($current_user, 'User B');
 
     $cacheability = new CacheableMetadata();
     $cacheability->setCacheContexts(['user']);

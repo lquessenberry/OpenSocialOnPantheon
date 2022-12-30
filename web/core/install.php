@@ -21,12 +21,16 @@ $root_path = realpath('');
  */
 define('MAINTENANCE_MODE', 'install');
 
-// Exit early if running an incompatible PHP version to avoid fatal errors.
-// The minimum version is specified explicitly, as DRUPAL_MINIMUM_PHP is not
-// yet available. It is defined in bootstrap.inc, but it is not possible to
-// load that file yet as it would cause a fatal error on older versions of PHP.
-if (version_compare(PHP_VERSION, '5.5.9') < 0) {
-  print 'Your PHP installation is too old. Drupal requires at least PHP 5.5.9. See the <a href="https://www.drupal.org/requirements">system requirements</a> page for more information.';
+// Exit early if an incompatible PHP version is in use, so that the user sees a
+// helpful error message rather than a white screen from any fatal errors due to
+// the incompatible version. The minimum version is also hardcoded (instead of
+// \Drupal::MINIMUM_PHP), to avoid any fatal errors that might result from
+// loading the autoloader or core/lib/Drupal.php. Note: Remember to update the
+// hardcoded minimum PHP version below (both in the version_compare() call and
+// in the printed message to the user) whenever \Drupal::MINIMUM_PHP is
+// updated.
+if (version_compare(PHP_VERSION, '7.3.0') < 0) {
+  print 'Your PHP installation is too old. Drupal requires at least PHP 7.3.0. See <a href="http://php.net/supported-versions.php">PHP\'s version support documentation</a> and the <a href="https://www.drupal.org/docs/system-requirements/php-requirements">Drupal PHP requirements</a> page for more information.';
   exit;
 }
 

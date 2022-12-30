@@ -97,6 +97,11 @@ class TestTextColorBehavior extends ParagraphsBehaviorBase {
    */
   public function settingsSummary(Paragraph $paragraph) {
     $text_color = $paragraph->getBehaviorSetting($this->pluginId, 'text_color');
-    return [$this->t('Text color: @color', ['@color' => $text_color])];
+    return [
+      [
+        'label' => $this->t('Text color'),
+        'value' => $text_color
+      ]
+    ];
   }
 }

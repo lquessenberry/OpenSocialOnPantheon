@@ -2,18 +2,23 @@
 
 namespace Drupal\social_demo;
 
+use Drupal\Core\File\FileSystem;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\block_content\Entity\BlockContent;
 use Drupal\Core\Asset\CssOptimizer;
 use Drupal\Core\Config\ConfigFactory;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Field\FieldItemList;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\file\Entity\File;
 use Drupal\file\FileStorageInterface;
 use Drupal\social_font\Entity\Font;
+use Drupal\taxonomy\TermStorageInterface;
+use Drupal\user\UserStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Class DemoSystem.
+ * Creates different system contents, for example, blocks.
  *
  * @package Drupal\social_demo
  */
@@ -38,18 +43,46 @@ abstract class DemoSystem extends DemoContent {
    *
    * @var \Drupal\file\FileStorageInterface
    */
-  protected $fileStorage;
+  protected FileStorageInterface $fileStorage;
+
+  /**
+   * The file storage.
+   *
+   * @var \Drupal\Core\File\FileSystem
+   */
+  protected $fileSystem;
 
   /**
    * DemoComment constructor.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, DemoContentParserInterface $parser, EntityStorageInterface $block_storage, ConfigFactory $config_factory, FileStorageInterface $file_storage) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition);
-
-    $this->parser = $parser;
+  public function __construct(
+    array $configuration,
+          $plugin_id,
+          $plugin_definition,
+    DemoContentParserInterface $parser,
+    UserStorageInterface $user_storage,
+    EntityStorageInterface $group_storage,
+    FileStorageInterface $file_storage,
+    TermStorageInterface $term_storage,
+    LoggerChannelFactoryInterface $logger_channel_factory,
+    EntityStorageInterface $block_storage,
+    ConfigFactory $config_factory,
+    FileSystem $file_system
+  ) {
+    parent::__construct(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $parser,
+      $user_storage,
+      $group_storage,
+      $file_storage,
+      $term_storage,
+      $logger_channel_factory
+    );
     $this->blockStorage = $block_storage;
     $this->configFactory = $config_factory;
-    $this->fileStorage = $file_storage;
+    $this->fileSystem = $file_system;
   }
 
   /**
@@ -61,18 +94,26 @@ abstract class DemoSystem extends DemoContent {
       $plugin_id,
       $plugin_definition,
       $container->get('social_demo.yaml_parser'),
-      $container->get('entity.manager')->getStorage('block_content'),
+      $container->get('entity_type.manager')->getStorage('user'),
+      $container->get('entity_type.manager')->getStorage('group'),
+      $container->get('entity_type.manager')->getStorage('file'),
+      $container->get('entity_type.manager')->getStorage('taxonomy_term'),
+      $container->get('logger.factory'),
+      $container->get('entity_type.manager')->getStorage('block_content'),
       $container->get('config.factory'),
-      $container->get('entity.manager')->getStorage('file')
+      $container->get('file_system')
     );
   }
 
   /**
    * {@inheritdoc}
    */
-  public function createContent() {
+  public function createContent($generate = FALSE, $max = NULL) {
     // Fetch data from yml file.
     $data = $this->fetchData();
+    if ($generate === TRUE) {
+      $data = $this->scrambleData($data, $max);
+    }
 
     // First let's load the active theme.
     $active_theme = \Drupal::theme()->getActiveTheme()->getName();
@@ -125,7 +166,7 @@ abstract class DemoSystem extends DemoContent {
       if ($logo instanceof File) {
         $theme_logo = [
           'path' => $logo->getFileUri(),
-          'url' => file_create_url($logo->getFileUri()),
+          'url' => \Drupal::service('file_url_generator')->generateAbsoluteString($logo->getFileUri()),
           'use_default' => FALSE,
         ];
         // Store the array.
@@ -176,12 +217,12 @@ abstract class DemoSystem extends DemoContent {
       $paths['target'] = $paths['color'] . '/' . $id;
 
       foreach ($paths as $path) {
-        file_prepare_directory($path, FILE_CREATE_DIRECTORY);
+        \Drupal::service('file_system')->prepareDirectory($path, FileSystemInterface::CREATE_DIRECTORY);
       }
 
       $paths['target'] = $paths['target'] . '/';
       $paths['id'] = $id;
-      $paths['source'] = drupal_get_path('theme', $active_theme) . '/';
+      $paths['source'] = \Drupal::service('extension.list.theme')->getPath($active_theme) . '/';
       $paths['files'] = $paths['map'] = [];
 
       $css = [];
@@ -205,10 +246,17 @@ abstract class DemoSystem extends DemoContent {
           $css_optimizer->rewriteFileURIBasePath = base_path() . dirname($paths['source'] . $file) . '/';
 
           // Prefix all paths within this CSS file, ignoring absolute paths.
-          $style = preg_replace_callback('/url\([\'"]?(?![a-z]+:|\/+)([^\'")]+)[\'"]?\)/i', [$css_optimizer, 'rewriteFileURI'], $style);
+          $style = preg_replace_callback(
+            '/url\([\'"]?(?![a-z]+:|\/+)([^\'")]+)[\'"]?\)/i',
+            [
+              $css_optimizer,
+              'rewriteFileURI',
+            ],
+            $style
+          );
           // Rewrite stylesheet with new colors.
           $style = _color_rewrite_stylesheet($active_theme, $info, $paths, $palette, $style);
-          $base_file = drupal_basename($file);
+          $base_file = $this->fileSystem->basename($file);
           $css[] = $paths['target'] . $base_file;
 
           _color_save_stylesheet($paths['target'] . $base_file, $style, $paths);
@@ -230,7 +278,7 @@ abstract class DemoSystem extends DemoContent {
    * {@inheritdoc}
    */
   public function getEntry(array $item) {
-    // TODO: Implement getEntry() method.
+    // @todo Implement getEntry() method.
   }
 
   /**
@@ -273,7 +321,7 @@ abstract class DemoSystem extends DemoContent {
     }
 
     // Ok, so it doesn't exist.
-    /* @var Font $font */
+    /** @var \Drupal\social_font\Entity\Font $font */
     $font = Font::create([
       'name' => $fontName,
       'user_id' => 1,
@@ -301,7 +349,7 @@ abstract class DemoSystem extends DemoContent {
       'format' => 'full_html',
     ];
 
-    /* @var \Drupal\file\Entity\File $file */
+    /** @var \Drupal\file\Entity\File $file */
     $block_image = $this->prepareImage($data['image'], 'Anonymous front page image homepage');
     // Insert is in the hero image field.
     $block->field_hero_image = $block_image;

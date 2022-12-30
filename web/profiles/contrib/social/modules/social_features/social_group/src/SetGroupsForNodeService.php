@@ -47,6 +47,7 @@ class SetGroupsForNodeService {
    *
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Core\Entity\EntityStorageException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function setGroupsForNode(NodeInterface $node, array $groups_to_remove, array $groups_to_add, array $original_groups = [], $is_new = FALSE) {
     $moved = FALSE;
@@ -103,21 +104,39 @@ class SetGroupsForNodeService {
         $controller = $this->entityTypeManager->getStorage('activity');
         $controller->delete($controller->loadMultiple($ids));
       }
+
+      // Make sure to delete all activity items connected to the moved content
+      // template.
+      if ($moved) {
+        $messages = $this->entityTypeManager->getStorage('message')
+          ->loadByProperties(['template' => 'moved_content_between_groups']);
+
+        // Make sure we have a message template to work with.
+        if ($messages) {
+          $entity_query->condition('field_activity_message.target_id', array_keys($messages), 'IN');
+        }
+
+        // Delete all activity items connected to our query.
+        if (!empty($ids = $entity_query->execute())) {
+          $controller = $this->entityTypeManager->getStorage('activity');
+          $controller->delete($controller->loadMultiple($ids));
+        }
+      }
     }
 
     // Remove all the group content references from the Group as well if we
     // moved it out of the group.
     if (!empty($groups_to_remove)) {
-      foreach ($groups_to_remove as $group_id) {
-        $group = Group::load($group_id);
+      $groups = Group::loadMultiple($groups_to_remove);
+      foreach ($groups as $group) {
         self::removeGroupContent($node, $group);
       }
     }
 
     // Add the content to the Group if we placed it in a group.
     if (!empty($groups_to_add)) {
-      foreach ($groups_to_add as $group_id) {
-        $group = Group::load($group_id);
+      $groups = Group::loadMultiple($groups_to_add);
+      foreach ($groups as $group) {
         self::addGroupContent($node, $group);
       }
     }
@@ -126,7 +145,13 @@ class SetGroupsForNodeService {
     if ($moved && !$is_new) {
       $hook = 'social_group_move';
 
-      foreach ($this->moduleHandler->getImplementations($hook) as $module) {
+      // Get a list of hook implementors.
+      $implementors = [];
+      $this->moduleHandler->invokeAllWith($hook, function (callable $hook, string $module) use (&$implementors) {
+        $implementors[] = $module;
+      });
+
+      foreach ($implementors as $module) {
         $function = $module . '_' . $hook;
         $function($node);
       }
@@ -144,9 +169,12 @@ class SetGroupsForNodeService {
    *   Object of a group.
    */
   public static function addGroupContent(NodeInterface $node, Group $group) {
-    // TODO Check if group plugin id exists.
+    // @todo Check if group plugin id exists.
     $plugin_id = 'group_node:' . $node->bundle();
-    $group->addContent($node, $plugin_id, ['uid' => $node->getOwnerId()]);
+    $group_contents = GroupContent::loadByEntity($node);
+    if (empty($group_contents)) {
+      $group->addContent($node, $plugin_id, ['uid' => $node->getOwnerId()]);
+    }
   }
 
   /**
@@ -159,12 +187,10 @@ class SetGroupsForNodeService {
    */
   public static function removeGroupContent(NodeInterface $node, Group $group) {
     // Try to load group content from entity.
-    if ($group_contents = GroupContent::loadByEntity($node)) {
-      /* @var @param \Drupal\group\Entity\GroupContent $group_content */
-      foreach ($group_contents as $group_content) {
-        if ($group->id() === $group_content->getGroup()->id()) {
-          $group_content->delete();
-        }
+    $group_contents = GroupContent::loadByEntity($node);
+    foreach ($group_contents as $group_content) {
+      if ($group->id() === $group_content->getGroup()->id()) {
+        $group_content->delete();
       }
     }
   }

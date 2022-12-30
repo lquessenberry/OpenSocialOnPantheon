@@ -20,7 +20,7 @@ use Drupal\bootstrap\Plugin\Setting\SettingBase;
  *     "button" = @Translation("Buttons"),
  *   },
  *   see = {
- *     "https://getbootstrap.com/docs/3.3/css/#buttons" = @Translation("Buttons"),
+ *     "https://getbootstrap.com/docs/3.4/css/#buttons" = @Translation("Buttons"),
  *     "https://drupal-bootstrap.org/apis/hook_bootstrap_colorize_text_alter" = @Translation("hook_bootstrap_colorize_text_alter()"),
  *   },
  * )

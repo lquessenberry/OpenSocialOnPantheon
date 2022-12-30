@@ -1,4 +1,11 @@
 # Schema for the configuration files of the Comment module.
+comment.settings:
+  type: config_object
+  label: 'Comment settings'
+  mapping:
+    log_ip_addresses:
+      type: boolean
+      label: 'Whether to log IP addresses with comments or not.'
 
 field.formatter.settings.comment_default:
   type: mapping
@@ -15,18 +22,6 @@ field.widget.settings.comment_default:
   type: mapping
   label: 'Comment display format settings'
 
-# @deprecated in Drupal 8.5.x, to be removed before Drupal 9.0.0.
-# @see https://www.drupal.org/node/2919303
-action.configuration.comment_publish_action:
-  type: action_configuration_default
-  label: 'Publish comment configuration'
-
-# @deprecated in Drupal 8.5.x, to be removed before Drupal 9.0.0.
-# @see https://www.drupal.org/node/2919303
-action.configuration.comment_save_action:
-  type: action_configuration_default
-  label: 'Save comment configuration'
-
 action.configuration.comment_unpublish_by_keyword_action:
   type: mapping
   label: 'Unpublish comment containing keyword(s) configuration'
@@ -37,16 +32,6 @@ action.configuration.comment_unpublish_by_keyword_action:
       sequence:
         type: string
         label: 'Keyword'
-
-# @deprecated in Drupal 8.5.x, to be removed before Drupal 9.0.0.
-# @see https://www.drupal.org/node/2919303
-action.configuration.comment_unpublish_action:
-  type: action_configuration_default
-  label: 'Unpublish comment configuration'
-
-action.configuration.comment_delete_action:
-  type: action_configuration_default
-  label: 'Delete comment configuration'
 
 comment.type.*:
   type: config_entity

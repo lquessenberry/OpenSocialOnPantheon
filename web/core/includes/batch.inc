@@ -42,8 +42,8 @@ function _batch_page(Request $request) {
   if (!$batch) {
     $batch = \Drupal::service('batch.storage')->load($request_id);
     if (!$batch) {
-      drupal_set_message(t('No active batch.'), 'error');
-      return new RedirectResponse(\Drupal::url('<front>', [], ['absolute' => TRUE]));
+      \Drupal::messenger()->addError(t('No active batch.'));
+      return new RedirectResponse(Url::fromRoute('<front>', [], ['absolute' => TRUE])->toString());
     }
   }
 
@@ -134,7 +134,7 @@ function _batch_needs_update($new_value = NULL) {
  */
 function _batch_do() {
   // Perform actual processing.
-  list($percentage, $message, $label) = _batch_process();
+  [$percentage, $message, $label] = _batch_process();
 
   return new JsonResponse(['status' => TRUE, 'percentage' => $percentage, 'message' => $message, 'label' => $label]);
 }
@@ -179,11 +179,11 @@ function _batch_progress_page() {
     // Just use the content of the response.
     $fallback = $response->getContent();
 
-    list($fallback) = explode('<!--partial-->', $fallback);
+    [$fallback] = explode('<!--partial-->', $fallback);
     print $fallback;
 
     // Perform actual processing.
-    list($percentage, $message, $label) = _batch_process($batch);
+    [$percentage, $message, $label] = _batch_process($batch);
     if ($percentage == 100) {
       $new_op = 'finished';
     }
@@ -253,6 +253,7 @@ function _batch_process() {
   $current_set = &_batch_current_set();
   // Indicate that this batch set needs to be initialized.
   $set_changed = TRUE;
+  $task_message = '';
 
   // If this batch was marked for progressive execution (e.g. forms submitted by
   // \Drupal::formBuilder()->submitForm(), initialize a timer to determine
@@ -276,13 +277,13 @@ function _batch_process() {
       include_once \Drupal::root() . '/' . $current_set['file'];
     }
 
-    $task_message = $label = '';
+    $task_message = '';
     // Assume a single pass operation and set the completion level to 1 by
     // default.
     $finished = 1;
 
     if ($item = $queue->claimItem()) {
-      list($callback, $args) = $item->data;
+      [$callback, $args] = $item->data;
 
       // Build the 'context' array and execute the function call.
       $batch_context = [
@@ -353,22 +354,19 @@ function _batch_process() {
     // completion level of the current operation.
     $current    = $total - $remaining + $finished;
     $percentage = _batch_api_percentage($total, $current);
-    $elapsed    = isset($current_set['elapsed']) ? $current_set['elapsed'] : 0;
+    $elapsed    = $current_set['elapsed'] ?? 0;
     $values     = [
       '@remaining'  => $remaining,
       '@total'      => $total,
       '@current'    => floor($current),
       '@percentage' => $percentage,
-      '@elapsed'    => \Drupal::service('date.formatter')->formatInterval($elapsed / 1000),
+      '@elapsed'    => \Drupal::service('date.formatter')->formatInterval((int) ($elapsed / 1000)),
       // If possible, estimate remaining processing time.
-      '@estimate'   => ($current > 0) ? \Drupal::service('date.formatter')->formatInterval(($elapsed * ($total - $current) / $current) / 1000) : '-',
+      '@estimate'   => ($current > 0) ? \Drupal::service('date.formatter')->formatInterval((int) (($elapsed * ($total - $current) / $current) / 1000)) : '-',
     ];
-    $message = strtr($progress_message, $values);
-    if (!empty($task_message)) {
-      $label = $task_message;
-    }
+    $message    = strtr($progress_message, $values);
 
-    return [$percentage, $message, $label];
+    return [$percentage, $message, $task_message];
   }
   else {
     // If we are not in progressive mode, the entire batch has been processed.
@@ -420,8 +418,10 @@ function &_batch_current_set() {
  */
 function _batch_next_set() {
   $batch = &batch_get();
-  if (isset($batch['sets'][$batch['current_set'] + 1])) {
-    $batch['current_set']++;
+  $set_indexes = array_keys($batch['sets']);
+  $current_set_index_key = array_search($batch['current_set'], $set_indexes);
+  if (isset($set_indexes[$current_set_index_key + 1])) {
+    $batch['current_set'] = $set_indexes[$current_set_index_key + 1];
     $current_set = &_batch_current_set();
     if (isset($current_set['form_submit']) && ($callback = $current_set['form_submit']) && is_callable($callback)) {
       // We use our stored copies of $form and $form_state to account for
@@ -453,7 +453,7 @@ function _batch_finished() {
       if (is_callable($batch_set['finished'])) {
         $queue = _batch_queue($batch_set);
         $operations = $queue->getAllItems();
-        $batch_set_result = call_user_func_array($batch_set['finished'], [$batch_set['success'], $batch_set['results'], $operations, \Drupal::service('date.formatter')->formatInterval($batch_set['elapsed'] / 1000)]);
+        $batch_set_result = call_user_func_array($batch_set['finished'], [$batch_set['success'], $batch_set['results'], $operations, \Drupal::service('date.formatter')->formatInterval((int) ($batch_set['elapsed'] / 1000))]);
         // If a batch 'finished' callback requested a redirect after the batch
         // is complete, save that for later use. If more than one batch set
         // returned a redirect, the last one is used.

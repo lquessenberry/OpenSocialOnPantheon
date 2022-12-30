@@ -1,0 +1,65 @@
+<?php
+
+/**
+ * @file
+ * Install/Uninstall/Update hooks for social_group_request module.
+ */
+
+use Drupal\group\Entity\GroupType;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Implements hook_install().
+ */
+function social_group_request_install() {
+  // Set some default permissions.
+  _social_group_request_set_permissions();
+
+  module_set_weight('social_group_request', 6);
+}
+
+/**
+ * Assign group request permission for closed and flexible group types.
+ */
+function _social_group_request_set_permissions() {
+
+  if (\Drupal::moduleHandler()->moduleExists('social_group_flexible_group')) {
+    $group_type = GroupType::load('flexible_group');
+    $group_type->getOutsiderRole()->grantPermissions(['request group membership'])->save();
+  }
+
+  $group_type = GroupType::load('closed_group');
+  $group_type->getOutsiderRole()->grantPermissions(['request group membership'])->save();
+}
+
+/**
+ * Update the listed below message template files as per new email style.
+ *
+ * 1. message.template.approve_request_join_group
+ * 2. message.template.request_to_join_a_group.
+ *
+ * Added new 'preview' and 'cta_button' tokens to these templates.
+ */
+function social_group_request_update_10301() {
+  // Prepare the path.
+  $path = \Drupal::service('extension.list.module')->getPath('social_group_request') . '/config/static/';
+
+  $message_templates = [
+    'message.template.approve_request_join_group' => $path . 'message.template.approve_request_join_group_10301.yml',
+    'message.template.request_to_join_a_group' => $path . 'message.template.request_to_join_a_group_10301.yml',
+  ];
+
+  // Retrieves the configuration factory.
+  $config_factory = \Drupal::configFactory();
+
+  // Update each template file.
+  foreach ($message_templates as $key => $config_file) {
+    if (is_file($config_file)) {
+      $settings = Yaml::parse(file_get_contents($config_file));
+      if (is_array($settings)) {
+        $config = $config_factory->getEditable($key);
+        $config->setData($settings)->save(TRUE);
+      }
+    }
+  }
+}

@@ -133,14 +133,6 @@ interface ProcessorInterface extends IndexPluginInterface {
   public function isLocked();
 
   /**
-   * Determines whether this processor should be hidden from the user.
-   *
-   * @return bool
-   *   TRUE if this processor should be hidden from the user; FALSE otherwise.
-   */
-  public function isHidden();
-
-  /**
    * Retrieves the properties this processor defines for the given datasource.
    *
    * Property names have to start with a letter or an underscore, followed by

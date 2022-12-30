@@ -1,5 +1,64 @@
 # Changelog
 
+### 2.1.2
+
+* Upgrade to grasmash/expander ^3
+
+### 2.1.1 2022-06-22
+
+* PHP 8.2 compatibility: ${} string interpolation deprecated (#56)
+
+### 2.1.0 2022-02-23
+
+* Remove direct dependency on psr/log. Drop support for grasmash/expander versions prior to 2.0.1; 1.x has not been needed since the 2.0.0 release of consolidation/config, as 2.x supports all of the php versions we need.
+
+### 2.0.6 2022-02-21
+
+* Symfony 6
+
+### 2.0.5 2022-02-20
+
+* B/C FIX: Convert null to empty array before passing to dflydev/dot-access-data
+
+### 2.0.4 2022-02-15
+
+* BUFIX: Fixed fatal error when using dflydev/dot-access-data ^3
+
+### 2.0.3 2022-02-13
+
+* Allow dflydev/dot-access-data ^2 and ^3 (#48)
+
+### 2.0.2 2021-12-29
+
+* PHP 8.1
+
+### 2.0.1 2020-12-10
+
+* PHP 8
+
+### 2.0.0 2020-05-27
+
+* Symfony 5 support
+* Test with PHP 7.4
+* Drop support for older versions of PHP
+
+### 1.2.1 2019-03-03
+
+* Add ConfigRuntimeInterface, and implement it in ConfigOverlay (#27)
+* Add ConfigOverlay::exportAll()
+
+### 1.2.0 2019-02-15
+
+* Add ConfigAwareInterface / ConfigAwareTrait
+
+### 1.1.1 2018-10-24
+
+* Add interpolation to Config objects (#23)
+
+### 1.1.0 2018-08-07
+
+* Selective distinct/combine merge strategy. (#22)
+
 ### 1.0.11 2018-05-26
 
 * BUGFIX: Ensure that duplicate keys added to different contexts in a config overlay only appear once in the final export. (#21)

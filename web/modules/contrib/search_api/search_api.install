@@ -6,9 +6,12 @@
  */
 
 use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Component\Render\MarkupInterface;
+use Drupal\Core\Database\DatabaseException;
+use Drupal\Core\Entity\Sql\SqlContentEntityStorageSchema;
 use Drupal\Core\Link;
-use Drupal\search_api\Entity\Server;
 use Drupal\Core\Url;
+use Drupal\search_api\Entity\Server;
 
 /**
  * Implements hook_schema().
@@ -101,8 +104,8 @@ function search_api_requirements($phase) {
             'The following search servers are not available: @servers',
             ['@servers' => implode(', ', $unavailable_servers)]
           ),
-          'severity' => REQUIREMENT_ERROR
-        ]
+          'severity' => REQUIREMENT_ERROR,
+        ],
       ];
     }
 
@@ -189,8 +192,7 @@ function search_api_update_8102() {
     if ($displays['default']['display_options']['query']['type'] === 'search_api_query') {
       $change = FALSE;
       foreach ($displays as $id => $display) {
-        if (!empty($display['display_options']['cache']['type']) && in_array($display['display_options']['cache']['type'], ['tag', 'time'])
-        ) {
+        if (in_array($display['display_options']['cache']['type'] ?? '', ['tag', 'time'])) {
           $displays[$id]['display_options']['cache']['type'] = 'none';
           $change = TRUE;
         }
@@ -258,7 +260,7 @@ function search_api_update_8104() {
 
     $updated = FALSE;
     foreach ($displays as $id => $display) {
-      if (!empty($display['display_options']['cache']['type']) && $display['display_options']['cache']['type'] === 'search_api') {
+      if (($display['display_options']['cache']['type'] ?? '') === 'search_api') {
         $displays[$id]['display_options']['cache']['type'] = 'search_api_time';
         $updated = TRUE;
       }
@@ -278,4 +280,139 @@ function search_api_update_8104() {
   }
 
   return NULL;
+}
+
+/**
+ * Update the configuration schema of the "Ignore characters" processor.
+ */
+function search_api_update_8105() {
+  // This update function updates search indexes for the change from
+  // https://www.drupal.org/node/3007933.
+  $config_factory = \Drupal::configFactory();
+
+  $changes = FALSE;
+  foreach ($config_factory->listAll('search_api.index.') as $index_id) {
+    $index = $config_factory->getEditable($index_id);
+    $processors = $index->get('processor_settings');
+
+    if (isset($processors['ignore_character'])) {
+      $classes = $processors['ignore_character']['strip']['character_sets'];
+      $classes = array_values(array_filter($classes));
+      $processors['ignore_character']['ignorable_classes'] = $classes;
+      unset($processors['ignore_character']['strip']);
+      $index->set('processor_settings', $processors);
+      // Mark the resulting configuration as trusted data. This avoids issues
+      // with future schema changes.
+      $index->save(TRUE);
+      $changes = TRUE;
+    }
+  }
+
+  if ($changes) {
+    return t('Updated the configuration schema of the "Ignore characters" processor.');
+  }
+  return NULL;
+}
+
+/**
+ * Remove remnants of the search_api_views_taxonomy module.
+ */
+function search_api_update_8106() {
+  try {
+    \Drupal::database()
+      ->delete('key_value')
+      ->condition('collection', 'system.schema')
+      ->condition('name', 'search_api_views_taxonomy')
+      ->execute();
+  }
+  catch (DatabaseException $e) {
+    // The admin might have done this already to get rid of the warning
+    // themselves. It's not really important enough to fail on this, in any
+    // case. In the worst case, the warning just remains. So, just ignore any
+    // exception. (Site could also use an alternate key/value store.)
+  }
+}
+
+/**
+ * Add a unique index to the task entity type's storage.
+ */
+function search_api_update_8107() {
+  // This function body was removed since it was out-dated.
+  // See search_api_update_8110().
+}
+
+/**
+ * Add configuration for boost factors.
+ */
+function search_api_update_8108() {
+  $settings = \Drupal::configFactory()->getEditable('search_api.settings');
+  $data = $settings->getRawData();
+  $data += [
+    'boost_factors' => [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0,
+      1.1,
+      1.2,
+      1.3,
+      1.4,
+      1.5,
+      2.0,
+      3.0,
+      5.0,
+      8.0,
+      13.0,
+      21.0,
+    ],
+  ];
+  $settings->setData($data)->save(TRUE);
+}
+
+/**
+ * Enable index entity references option by default on existing indexes.
+ */
+function search_api_update_8109(): MarkupInterface {
+  // This update function updates search indexes for the change from
+  // https://www.drupal.org/project/search_api/issues/3178307.
+  $config_factory = \Drupal::configFactory();
+
+  foreach ($config_factory->listAll('search_api.index.') as $index_id) {
+    $index = $config_factory->getEditable($index_id);
+    $options = $index->get('options');
+    $options['track_changes_in_references'] = TRUE;
+    $index->set('options', $options);
+
+    // Mark the resulting configuration as trusted data. This avoids issues
+    // with future schema changes.
+    $index->save(TRUE);
+  }
+
+  return t('Enabled "Track changes in referenced entities" on all existing search indexes.');
+}
+
+/**
+ * Remove the unique index from the task entity type's storage.
+ */
+function search_api_update_8110() {
+  $manager = \Drupal::entityDefinitionUpdateManager();
+  $entity_type = $manager->getEntityType('search_api_task');
+  // Apparently, getEntityType() can return NULL under some circumstances.
+  if (!$entity_type) {
+    return;
+  }
+  // Do not bother resetting the storage schema handler in case it was not set
+  // in the first place.
+  $handler = $entity_type->getHandlerClass('storage_schema');
+  if (in_array($handler, [SqlContentEntityStorageSchema::class, NULL], TRUE)) {
+    return;
+  }
+  $entity_type->setHandlerClass('storage_schema', SqlContentEntityStorageSchema::class);
+  $manager->updateEntityType($entity_type);
 }

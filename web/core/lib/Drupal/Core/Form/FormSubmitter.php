@@ -28,11 +28,12 @@ class FormSubmitter implements FormSubmitterInterface {
   protected $requestStack;
 
   /**
-   * Constructs a new FormValidator.
+   * Constructs a new FormSubmitter.
    *
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
    *   The request stack.
    * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
+   *   The URL generator.
    */
   public function __construct(RequestStack $request_stack, UrlGeneratorInterface $url_generator) {
     $this->requestStack = $request_stack;
@@ -60,7 +61,9 @@ class FormSubmitter implements FormSubmitterInterface {
 
       $batch['progressive'] = !$form_state->isProgrammed();
       $response = batch_process();
-      if ($batch['progressive']) {
+      // If the batch has been completed and _batch_finished() called then
+      // $batch will be NULL.
+      if ($batch && $batch['progressive']) {
         return $response;
       }
 
@@ -99,7 +102,7 @@ class FormSubmitter implements FormSubmitterInterface {
       // Check if a previous _submit handler has set a batch, but make sure we
       // do not react to a batch that is already being processed (for instance
       // if a batch operation performs a
-      //  \Drupal\Core\Form\FormBuilderInterface::submitForm()).
+      // \Drupal\Core\Form\FormBuilderInterface::submitForm()).
       if (($batch = &$this->batchGet()) && !isset($batch['id'])) {
         // Some previous submit handler has set a batch. To ensure correct
         // execution order, store the call in a special 'control' batch set.
@@ -141,15 +144,6 @@ class FormSubmitter implements FormSubmitterInterface {
       // @see http://tools.ietf.org/html/rfc7231#section-6.4.4
       return new RedirectResponse($url, Response::HTTP_SEE_OTHER);
     }
-  }
-
-  /**
-   * Wraps drupal_installation_attempted().
-   *
-   * @return bool
-   */
-  protected function drupalInstallationAttempted() {
-    return drupal_installation_attempted();
   }
 
   /**

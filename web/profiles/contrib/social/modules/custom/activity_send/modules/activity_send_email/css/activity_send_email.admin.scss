@@ -1,0 +1,71 @@
+.user-form {
+  .form-email-notification {
+
+    .icon {
+      width: 24px;
+      height: 24px;
+    }
+
+   .form-fieldset {
+      box-shadow: none;
+      border-radius: 0;
+      margin-bottom: 1rem;
+
+      &:last-child {
+        margin-bottom: 0;
+
+        .card__title {
+          border-bottom: none;
+        }
+
+      }
+
+      .card__title {
+        border-bottom-color: #f3f3f3;
+        padding: 0;
+
+        a {
+          padding: 0 0 1rem;
+          display: block;
+          position: relative;
+        }
+
+        svg {
+          top: -3px;
+          right: -5px;
+          transform: none;
+          position: absolute;
+
+          [dir='rtl'] & {
+            right: auto;
+            left: -5px;
+          }
+        }
+      }
+
+      .card__block {
+        padding: 1.5rem;
+        margin-bottom: .5rem;
+        background-color: #f3f3f3;
+
+        .form-item {
+          margin-bottom: 1.25rem;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+    }
+
+    &.form-horizontal .control-label--wide {
+
+      @media(min-width: 1200px) {
+        flex-basis: 70%;
+      }
+
+    }
+
+  }
+
+}

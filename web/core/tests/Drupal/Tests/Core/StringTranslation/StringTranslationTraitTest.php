@@ -25,14 +25,14 @@ class StringTranslationTraitTest extends UnitTestCase {
    * The mock under test that uses StringTranslationTrait.
    *
    * @var object
-   * @see PHPUnit_Framework_MockObject_Generator::getObjectForTrait()
+   * @see \PHPUnit\Framework\MockObject\Generator::getObjectForTrait()
    */
   protected $translation;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->translation = $this->getObjectForTrait('\Drupal\Core\StringTranslation\StringTranslationTrait');
     $mock = $this->prophesize(TranslationInterface::class);
     $mock->translate(Argument::cetera())->shouldNotBeCalled();

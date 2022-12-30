@@ -26,24 +26,24 @@ implementation called `ExampleMailSystem` should add the following in its
      * Implements hook_enable().
      */
     function example_enable() {
-      mailsystem_set(array('example' => 'ExampleMailSystem'));
+      mailsystem_set(['example' => 'ExampleMailSystem']);
     }
 
     /**
      * Implements hook_disable().
      */
     function example_disable() {
-      mailsystem_clear(array('example' => 'ExampleMailSystem'));
+      mailsystem_clear(['example' => 'ExampleMailSystem']);
     }
 
 The above settings allow mail sent by `example` to use `ExampleMailSystem`.  To make
 `ExampleMailSystem` the site-wide default for sending mail:
 
-    mailsystem_set(array(mailsystem_default_id() => 'ExampleMailSystem'));
+    mailsystem_set([mailsystem_default_id() => 'ExampleMailSystem']);
 
 To restore the default mail system:
 
-    mailsystem_set(array(mailsystem_default_id() => mailsystem_default_value()));
+    mailsystem_set([mailsystem_default_id() => mailsystem_default_value()]);
 
 Or simply:
 
@@ -56,14 +56,14 @@ the `example.install` code should like like this:
      * Implements hook_enable().
      */
     function example_enable() {
-      mailsystem_set(array('example' => 'FooMailSystem'));
+      mailsystem_set(['example' => 'FooMailSystem']);
     }
 
     /**
      * Implements hook_disable().
      */
     function example_disable() {
-      mailsystem_clear(array('example' => ''));
+      mailsystem_clear(['example' => '']);
     }
 
 If module `example` only wants to use `FooMailSystem` when sending emails with a key
@@ -73,14 +73,14 @@ of `examail`, then the `example.install` code should look like this:
      * Implements hook_enable().
      */
     function example_enable() {
-      mailsystem_set(array('example_examail' => 'FooMailSystem'));
+      mailsystem_set(['example_examail' => 'FooMailSystem']);
     }
 
     /**
      * Implements hook_disable().
      */
     function example_disable() {
-      mailsystem_clear(array('example_examail' => ''));
+      mailsystem_clear(['example_examail' => '']);
     }
 
 #### *(New in 2.x branch)*
@@ -88,22 +88,22 @@ of `examail`, then the `example.install` code should look like this:
 To change the site-wide defaults to use the `FooMailSystem` for formatting messages and the `BarMailSystem` for sending them:
 
     mailsystem_set(
-      array(
-        mailsystem_default_id() => array(
+      [
+        mailsystem_default_id() => [
           'format' => 'FooMailSystem',
           'mail' => 'BarMailSystem',
-        ),
-      )
+        ],
+      ]
     );
 
 To change the site-wide defaults to use the `FooMailSystem` for sending messages, while continuing to use the current system for formatting them:
 
     mailsystem_set(
-      array(
-        mailsystem_default_id() => array(
+      [
+        mailsystem_default_id() => [
           'mail' => 'FooMailsystem',
-        ),
-      )
+        ],
+      ]
     );
 
 ### References

@@ -1,0 +1,14 @@
+/**
+ * Action link layout styles.
+ */
+.local-actions {
+  font-size: 0; // Chrome fix.
+  margin: 1rem -.25rem .5rem;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    display: inline-block;
+    margin: 0 .25rem .5rem;
+  }
+}

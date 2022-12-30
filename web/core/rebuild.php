@@ -25,7 +25,6 @@ require_once __DIR__ . '/includes/utility.inc';
 
 $request = Request::createFromGlobals();
 // Manually resemble early bootstrap of DrupalKernel::boot().
-require_once __DIR__ . '/includes/bootstrap.inc';
 DrupalKernel::bootEnvironment();
 
 try {
@@ -39,19 +38,18 @@ catch (HttpExceptionInterface $e) {
 
 if (Settings::get('rebuild_access', FALSE) ||
   ($request->query->get('token') && $request->query->get('timestamp') &&
-    ((REQUEST_TIME - $request->query->get('timestamp')) < 300) &&
-    Crypt::hashEquals(Crypt::hmacBase64($request->query->get('timestamp'), Settings::get('hash_salt')), $request->query->get('token'))
+    (($request->server->getInt('REQUEST_TIME') - $request->query->get('timestamp')) < 300) &&
+    hash_equals(Crypt::hmacBase64($request->query->get('timestamp'), Settings::get('hash_salt')), $request->query->get('token'))
   )) {
   // Clear user cache for all major platforms.
   $user_caches = [
     'apcu_clear_cache',
     'wincache_ucache_clear',
-    'xcache_clear_cache',
   ];
   array_map('call_user_func', array_filter($user_caches, 'is_callable'));
 
   drupal_rebuild($autoloader, $request);
-  drupal_set_message('Cache rebuild complete.');
+  \Drupal::messenger()->addStatus('Cache rebuild complete.');
 }
-$base_path = dirname(dirname($request->getBaseUrl()));
-header('Location: ' . $base_path);
+$base_path = dirname($request->getBaseUrl(), 2);
+header('Location: ' . $request->getSchemeAndHttpHost() . $base_path);

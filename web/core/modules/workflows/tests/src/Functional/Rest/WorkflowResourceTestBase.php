@@ -2,18 +2,18 @@
 
 namespace Drupal\Tests\workflows\Functional\Rest;
 
-use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
+use Drupal\Tests\rest\Functional\EntityResource\ConfigEntityResourceTestBase;
 use Drupal\workflows\Entity\Workflow;
 
 /**
  * ResourceTestBase for Workflow entity.
  */
-abstract class WorkflowResourceTestBase extends EntityResourceTestBase {
+abstract class WorkflowResourceTestBase extends ConfigEntityResourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'workflows',
     'workflow_type_test',
   ];
@@ -48,7 +48,7 @@ abstract class WorkflowResourceTestBase extends EntityResourceTestBase {
   protected function createEntity() {
     $workflow = Workflow::create([
       'id' => 'rest_workflow',
-      'label' => 'REST Worklow',
+      'label' => 'REST Workflow',
       'type' => 'workflow_type_complex_test',
     ]);
     $workflow
@@ -74,7 +74,7 @@ abstract class WorkflowResourceTestBase extends EntityResourceTestBase {
         ],
       ],
       'id' => 'rest_workflow',
-      'label' => 'REST Worklow',
+      'label' => 'REST Workflow',
       'langcode' => 'en',
       'status' => TRUE,
       'type' => 'workflow_type_complex_test',
@@ -102,6 +102,7 @@ abstract class WorkflowResourceTestBase extends EntityResourceTestBase {
    */
   protected function getNormalizedPostEntity() {
     // @todo Update in https://www.drupal.org/node/2300677.
+    return [];
   }
 
 }

@@ -21,19 +21,26 @@
         const $checkbox = $(checkbox);
         // Get the language detection type such as Interface text language
         // detection or Content language detection.
-        $checkbox.closest('.table-language-group')
+        $checkbox
+          .closest('.table-language-group')
           .find('table, .tabledrag-toggle-weight')
           .toggle($checkbox.prop('checked'));
       }
 
       // Bind hide/show and rearrange customization checkboxes.
-      $configForm.once('negotiation-language-admin-bind').on('change', inputSelector, (event) => {
-        toggleTable(event.target);
-      });
+      $(once('negotiation-language-admin-bind', $configForm)).on(
+        'change',
+        inputSelector,
+        (event) => {
+          toggleTable(event.target);
+        },
+      );
       // Initially, hide language detection types that are not customized.
-      $configForm.find(`${inputSelector}:not(:checked)`).each((index, element) => {
-        toggleTable(element);
-      });
+      $configForm
+        .find(`${inputSelector}:not(:checked)`)
+        .each((index, element) => {
+          toggleTable(element);
+        });
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

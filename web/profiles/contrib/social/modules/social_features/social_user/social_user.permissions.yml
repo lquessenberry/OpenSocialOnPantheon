@@ -8,5 +8,15 @@ block users:
   description: 'Allow to access the administration form to block some users.'
   restrict access: true
 
+view blocked user:
+  title: 'View blocked user'
+  description: 'Allow to access blocked users pages'
+  restrict access: true
+
 administer navigation settings:
   title: 'Administer Navigation Settings'
+
+administer social_user settings:
+  title: 'Administer User Settings'
+  description: 'Allow access to the user settings form to configure general user options.'
+  restrict access: true

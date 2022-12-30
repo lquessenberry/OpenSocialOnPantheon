@@ -5,6 +5,8 @@ namespace Drupal\group\Entity;
 use Drupal\user\EntityOwnerInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityChangedInterface;
+use Drupal\Core\Entity\EntityPublishedInterface;
+use Drupal\Core\Entity\RevisionLogInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\user\UserInterface;
 
@@ -13,7 +15,7 @@ use Drupal\user\UserInterface;
  *
  * @ingroup group
  */
-interface GroupInterface extends ContentEntityInterface, EntityOwnerInterface, EntityChangedInterface {
+interface GroupInterface extends ContentEntityInterface, EntityOwnerInterface, EntityChangedInterface, EntityPublishedInterface, RevisionLogInterface {
 
   /**
    * Gets the group creation timestamp.

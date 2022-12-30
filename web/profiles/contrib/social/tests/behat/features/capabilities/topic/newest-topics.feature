@@ -1,22 +1,28 @@
-@api @topic @stability @perfect @community @newest @overview @block @LU @critical @DS-1057 @stability-3 @newest-topics
+@api @topic @stability @perfect @community @newest @overview @block @verified @critical @DS-1057 @stability-3 @newest-topics
 Feature: See newest topics in the community
   Benefit: In order to discover content
-  Role: LU
+  Role: As a Verified
   Goal/desire: I want to see newest topics block and overview
 
-  Scenario: Successfully show my upcoming events as a LU
+  Scenario: Successfully show my upcoming events as a Verified
 #    TODO: Test visibility settings (Public, Community)
 
-    Given I am on the homepage
+    Given "topic_types" terms:
+      | name          |
+      | Blog          |
+      | News          |
+      | Article       |
+
+    Given I am on "/stream"
     Then I should not see "Behat Topic 1"
     And I should not see "Behat Topic 2"
 
-    Given topic content:
+    Given "topic" content:
       | title         | field_topic_type | status | field_content_visibility |
       | Behat Topic 1 | Blog             | 1      | public                   |
       | Behat Topic 2 | News             | 1      | public                   |
 
-    Given I am on the homepage
+    Given I am on "/stream"
 
     Then I should see "All topics"
     And I should see "Behat Topic 1"
@@ -27,7 +33,8 @@ Feature: See newest topics in the community
     And I should see "Behat Topic 2"
     And I should see "All topics"
 
-    Given I am logged in as an "authenticated user"
+    Given I am logged in as an "verified"
+    And I am on "/stream"
     Then I should see "Behat Topic 1"
     And I should see "Behat Topic 2"
 

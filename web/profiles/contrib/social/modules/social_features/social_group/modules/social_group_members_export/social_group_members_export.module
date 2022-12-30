@@ -1,0 +1,23 @@
+<?php
+
+/**
+ * @file
+ * The Social Group Members Export module.
+ */
+
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
+
+/**
+ * Implements hook_file_download().
+ */
+function social_group_members_export_file_download($uri) {
+  $scheme = StreamWrapperManager::getScheme($uri);
+  $target = StreamWrapperManager::getTarget($uri);
+  $access = \Drupal::currentUser()->hasPermission('administer users');
+
+  if ($scheme === 'private' && preg_match('/^csv\/export-members-([a-f0-9]{12})\.csv$/i', $target) && $access) {
+    return [
+      'Content-disposition' => 'attachment; filename="' . basename($target) . '"',
+    ];
+  }
+}

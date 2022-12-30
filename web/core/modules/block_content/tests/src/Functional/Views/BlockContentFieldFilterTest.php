@@ -15,7 +15,12 @@ class BlockContentFieldFilterTest extends BlockContentTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['language'];
+  protected static $modules = ['language'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -31,12 +36,11 @@ class BlockContentFieldFilterTest extends BlockContentTestBase {
    */
   public $blockContentInfos = [];
 
-
   /**
    * {@inheritdoc}
    */
-  public function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  public function setUp($import_test_views = TRUE, $modules = ['block_content_test_views']): void {
+    parent::setUp($import_test_views, $modules);
 
     // Add two new languages.
     ConfigurableLanguage::createFromLangcode('fr')->save();
@@ -52,7 +56,7 @@ class BlockContentFieldFilterTest extends BlockContentTestBase {
     $this->blockContentInfos = [
       'en' => 'Food in Paris',
       'es' => 'Comida en Paris',
-      'fr' => 'Nouriture en Paris',
+      'fr' => 'Nourriture en Paris',
     ];
 
     // Create block_content with translations.
@@ -95,14 +99,16 @@ class BlockContentFieldFilterTest extends BlockContentTestBase {
    *   that translation should be shown on the given page.
    * @param string $message
    *   Message suffix to display.
+   *
+   * @internal
    */
-  protected function assertPageCounts($path, $counts, $message) {
+  protected function assertPageCounts(string $path, array $counts, string $message): void {
     // Get the text of the page.
     $this->drupalGet($path);
     $text = $this->getTextContent();
 
     foreach ($counts as $langcode => $count) {
-      $this->assertEqual(substr_count($text, $this->blockContentInfos[$langcode]), $count, 'Translation ' . $langcode . ' has count ' . $count . ' with ' . $message);
+      $this->assertEquals($count, substr_count($text, $this->blockContentInfos[$langcode]), 'Translation ' . $langcode . ' has count ' . $count . ' with ' . $message);
     }
   }
 

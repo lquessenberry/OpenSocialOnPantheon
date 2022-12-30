@@ -2,8 +2,7 @@
 
 namespace Drupal\Tests\flag\Functional;
 
-use Behat\Mink\Session;
-use Drupal\Core\Session\AccountInterface;
+use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Url;
 use Drupal\flag\Entity\Flag;
 use Drupal\flag\Entity\Flagging;
@@ -16,6 +15,11 @@ use Drupal\user\Entity\Role;
  * @group flag
  */
 class AnonymousFlagTest extends BrowserTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * {@inheritdoc}
@@ -52,13 +56,13 @@ class AnonymousFlagTest extends BrowserTestBase {
       'flagTypeConfig' => [],
       'linkTypeConfig' => [],
       'flag_short' => 'switch_this_on',
-      'unflag_short' => 'switch_this_off'
+      'unflag_short' => 'switch_this_off',
     ]);
     $this->flag->save();
 
     Role::load(Role::ANONYMOUS_ID)
-      ->grantPermission('flag '. $flag_id)
-      ->grantPermission('unflag '. $flag_id)
+      ->grantPermission('flag ' . $flag_id)
+      ->grantPermission('unflag ' . $flag_id)
       ->save();
   }
 
@@ -67,6 +71,11 @@ class AnonymousFlagTest extends BrowserTestBase {
    */
   public function testAnonymousFlagging() {
     $this->drupalGet(Url::fromRoute('entity.node.canonical', ['node' => $this->node->id()]));
+
+    // Assert that just visiting a page as anonymous user does not initialize
+    // the session.
+    $this->assertEmpty($this->getSession()->getCookie($this->getSessionName()));
+
     $this->getSession()->getPage()->clickLink('switch_this_on');
     $this->assertNotEmpty($this->getSession()->getPage()->findLink('switch_this_off'));
     // Warning: $this->getDatabaseConnection() is the original database
@@ -75,10 +84,12 @@ class AnonymousFlagTest extends BrowserTestBase {
     $this->assertNotEmpty($flagging_id);
 
     $flagging = Flagging::load($flagging_id);
-    // Check that the session ID value in the flagging is the same as the user's
-    // cookie ID.
-    $session_id = $this->getSession()->getCookie($this->getSessionName());
-    $this->assertEqual($flagging->get('session_id')->value, $session_id, "The flagging entity has the session ID set.");
+    // Check that the session of the user contains the generated flag session
+    // id and that matches the flagging.
+    $session_id = $this->getFlagSessionIdFromSession();
+
+    $this->assertNotEmpty($session_id);
+    $this->assertEquals($session_id, $flagging->get('session_id')->value, "The flagging entity has the session ID set.");
 
     // Try another anonymous user.
     $old_mink = $this->mink;
@@ -97,6 +108,30 @@ class AnonymousFlagTest extends BrowserTestBase {
 
     $flagging = Flagging::load($flagging_id);
     $this->assertEmpty($flagging, "The first user's flagging was deleted.");
+  }
+
+  /**
+   * Returns the flag session ID based on the current session cookie.
+   *
+   * @return string|null
+   *   The flag session ID.
+   */
+  public function getFlagSessionIdFromSession() {
+    $session_id = $this->getSession()->getCookie($this->getSessionName());
+    if (!$session_id) {
+      return NULL;
+    }
+
+    $session_data = \Drupal::database()
+      ->query('SELECT session FROM {sessions} WHERE sid = :sid', [':sid' => Crypt::hashBase64($session_id)])
+      ->fetchField();
+
+    // PHP uses a custom serialize function for session data, parse out the
+    // flag session id with a regular expression.
+    if (preg_match('/"flag\.session_id";s:\d+:"(.[^"]+)"/', $session_data, $match)) {
+      return $match[1];
+    }
+    return NULL;
   }
 
 }

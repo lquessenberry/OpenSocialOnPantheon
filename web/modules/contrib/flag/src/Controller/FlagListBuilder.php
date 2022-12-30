@@ -5,7 +5,6 @@ namespace Drupal\flag\Controller;
 use Drupal\Core\Config\Entity\DraggableListBuilder;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\flag\FlagInterface;
-use Drupal\Core\Url;
 
 /**
  * Provides a entity list page for Flags.

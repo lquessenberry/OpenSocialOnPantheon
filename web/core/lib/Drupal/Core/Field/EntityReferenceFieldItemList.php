@@ -6,7 +6,7 @@ use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
- * Defines a item list class for entity reference fields.
+ * Defines an item list class for entity reference fields.
  */
 class EntityReferenceFieldItemList extends FieldItemList implements EntityReferenceFieldItemListInterface {
 
@@ -43,7 +43,7 @@ class EntityReferenceFieldItemList extends FieldItemList implements EntityRefere
     // Load and add the existing entities.
     if ($ids) {
       $target_type = $this->getFieldDefinition()->getSetting('target_type');
-      $entities = \Drupal::entityManager()->getStorage($target_type)->loadMultiple($ids);
+      $entities = \Drupal::entityTypeManager()->getStorage($target_type)->loadMultiple($ids);
       foreach ($ids as $delta => $target_id) {
         if (isset($entities[$target_id])) {
           $target_entities[$delta] = $entities[$target_id];
@@ -73,9 +73,10 @@ class EntityReferenceFieldItemList extends FieldItemList implements EntityRefere
       if ($uuids) {
         $target_type = $definition->getSetting('target_type');
         $entity_ids = \Drupal::entityQuery($target_type)
+          ->accessCheck(TRUE)
           ->condition('uuid', $uuids, 'IN')
           ->execute();
-        $entities = \Drupal::entityManager()
+        $entities = \Drupal::entityTypeManager()
           ->getStorage($target_type)
           ->loadMultiple($entity_ids);
 
@@ -117,7 +118,7 @@ class EntityReferenceFieldItemList extends FieldItemList implements EntityRefere
       }
       $ids[] = $default_value[$delta]['target_id'];
     }
-    $entities = \Drupal::entityManager()
+    $entities = \Drupal::entityTypeManager()
       ->getStorage($this->getSetting('target_type'))
       ->loadMultiple($ids);
 

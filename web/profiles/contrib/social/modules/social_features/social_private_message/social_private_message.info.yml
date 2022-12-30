@@ -1,8 +1,10 @@
 name: Social Private Message
 type: module
 description: Allow users to send private messages to each other
-core: 8.x
-package: Social (experimental)
+core_version_requirement: ^9
+package: Social
 dependencies:
   - private_message:private_message
-  - social_profile:social_profile
+  - private_message_notify:private_message_notify
+  - social:social_editor
+  - social:social_profile

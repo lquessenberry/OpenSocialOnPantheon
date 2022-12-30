@@ -44,8 +44,6 @@ class MigrateFieldGroupTest extends MigrateDrupal7TestBase {
       'd7_taxonomy_vocabulary',
       'd7_view_modes',
       'd7_field',
-      'd7_field_instance',
-      'd7_field_formatter_settings',
       'd7_field_group',
     ]);
   }
@@ -117,4 +115,5 @@ class MigrateFieldGroupTest extends MigrateDrupal7TestBase {
     $field_group_settings = $entity->getThirdPartySettings('field_group');
     $this->assertEmpty($field_group_settings);
   }
+
 }

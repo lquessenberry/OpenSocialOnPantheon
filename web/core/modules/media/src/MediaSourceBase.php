@@ -258,7 +258,7 @@ abstract class MediaSourceBase extends PluginBase implements MediaSourceInterfac
       // Even if we do know the name of the source field, there's no
       // guarantee that it exists.
       $fields = $this->entityFieldManager->getFieldStorageDefinitions('media');
-      return isset($fields[$field]) ? $fields[$field] : NULL;
+      return $fields[$field] ?? NULL;
     }
     return NULL;
   }
@@ -273,7 +273,7 @@ abstract class MediaSourceBase extends PluginBase implements MediaSourceInterfac
       // Even if we do know the name of the source field, there is no
       // guarantee that it already exists.
       $fields = $this->entityFieldManager->getFieldDefinitions('media', $type->id());
-      return isset($fields[$field]) ? $fields[$field] : NULL;
+      return $fields[$field] ?? NULL;
     }
     return NULL;
   }
@@ -301,7 +301,9 @@ abstract class MediaSourceBase extends PluginBase implements MediaSourceInterfac
    *   returned. Otherwise, a new, unused one is generated.
    */
   protected function getSourceFieldName() {
-    $base_id = 'field_media_' . $this->getPluginId();
+    // Some media sources are using a deriver, so their plugin IDs may contain
+    // a separator (usually ':') which is not allowed in field names.
+    $base_id = 'field_media_' . str_replace(static::DERIVATIVE_SEPARATOR, '_', $this->getPluginId());
     $tries = 0;
     $storage = $this->entityTypeManager->getStorage('field_storage_config');
 
@@ -328,8 +330,12 @@ abstract class MediaSourceBase extends PluginBase implements MediaSourceInterfac
       throw new \RuntimeException('Source field for media source is not defined.');
     }
 
-    /** @var \Drupal\Core\Field\FieldItemInterface $field_item */
-    $field_item = $media->get($source_field)->first();
+    $items = $media->get($source_field);
+    if ($items->isEmpty()) {
+      return NULL;
+    }
+
+    $field_item = $items->first();
     return $field_item->{$field_item->mainPropertyName()};
   }
 
@@ -337,7 +343,9 @@ abstract class MediaSourceBase extends PluginBase implements MediaSourceInterfac
    * {@inheritdoc}
    */
   public function prepareViewDisplay(MediaTypeInterface $type, EntityViewDisplayInterface $display) {
-    $display->setComponent($this->getSourceFieldDefinition($type)->getName());
+    $display->setComponent($this->getSourceFieldDefinition($type)->getName(), [
+      'label' => 'visually_hidden',
+    ]);
   }
 
   /**

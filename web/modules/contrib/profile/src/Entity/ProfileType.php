@@ -3,7 +3,7 @@
 namespace Drupal\profile\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityBundleBase;
-use Drupal\Core\Entity\EntityDescriptionInterface;
+use Drupal\Core\Entity\Entity\EntityFormDisplay;
 use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
@@ -12,16 +12,27 @@ use Drupal\Core\Entity\EntityStorageInterface;
  * @ConfigEntityType(
  *   id = "profile_type",
  *   label = @Translation("Profile type"),
+ *   label_collection = @Translation("Profile types"),
+ *   label_singular = @Translation("profile type"),
+ *   label_plural = @Translation("profile types"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count profile type",
+ *     plural = "@count profile types",
+ *   ),
  *   handlers = {
  *     "list_builder" = "Drupal\profile\ProfileTypeListBuilder",
  *     "form" = {
  *       "default" = "Drupal\profile\Form\ProfileTypeForm",
  *       "add" = "Drupal\profile\Form\ProfileTypeForm",
  *       "edit" = "Drupal\profile\Form\ProfileTypeForm",
+ *       "duplicate" = "Drupal\profile\Form\ProfileTypeForm",
  *       "delete" = "Drupal\profile\Form\ProfileTypeDeleteForm"
  *     },
+ *     "local_task_provider" = {
+ *       "default" = "Drupal\entity\Menu\DefaultEntityLocalTaskProvider",
+ *     },
  *     "route_provider" = {
- *       "html" = "Drupal\Core\Entity\Routing\DefaultHtmlRouteProvider",
+ *       "html" = "Drupal\entity\Routing\DefaultHtmlRouteProvider",
  *     },
  *   },
  *   admin_permission = "administer profile types",
@@ -34,88 +45,109 @@ use Drupal\Core\Entity\EntityStorageInterface;
  *   config_export = {
  *     "id",
  *     "label",
- *     "registration",
+ *     "display_label",
  *     "multiple",
+ *     "registration",
  *     "roles",
- *     "weight",
- *     "status",
- *     "langcode",
- *     "use_revisions",
- *     "description"
+ *     "allow_revisions",
+ *     "new_revision",
  *   },
  *   links = {
- *     "add-form" = "/admin/config/people/profiles/add",
- *     "delete-form" = "/admin/config/people/profiles/manage/{profile_type}/delete",
- *     "edit-form" = "/admin/config/people/profiles/manage/{profile_type}",
- *     "admin-form" = "/admin/config/people/profiles/manage/{profile_type}",
- *     "collection" = "/admin/config/people/profiles"
+ *     "add-form" = "/admin/config/people/profile-types/add",
+ *     "edit-form" = "/admin/config/people/profile-types/manage/{profile_type}",
+ *     "duplicate-form" = "/admin/config/people/profile-types/manage/{profile_type}/duplicate",
+ *     "delete-form" = "/admin/config/people/profile-types/manage/{profile_type}/delete",
+ *     "collection" = "/admin/config/people/profile-types"
  *   }
  * )
  */
 class ProfileType extends ConfigEntityBundleBase implements ProfileTypeInterface {
 
   /**
-   * The primary identifier of the profile type.
+   * The profile type ID.
    *
    * @var int
    */
   protected $id;
 
   /**
-   * The universally unique identifier of the profile type.
-   *
-   * @var string
-   */
-  protected $uuid;
-
-  /**
-   * The human-readable name of the profile type.
+   * The profile type label.
    *
    * @var string
    */
   protected $label;
 
   /**
-   * A brief description of the profile type.
+   * The profile type display label.
    *
    * @var string
    */
-  protected $description;
+  protected $display_label;
 
   /**
-   * Whether the profile type is shown during registration.
-   *
-   * @var bool
-   */
-  protected $registration = FALSE;
-
-  /**
-   * Whether the profile type allows multiple profiles.
+   * Whether a user can have multiple profiles of this type.
    *
    * @var bool
    */
   protected $multiple = FALSE;
 
   /**
-   * Which roles a user needs to have to attach profiles of this type.
+   * Whether a profile of this type should be created during registration.
+   *
+   * @var bool
+   */
+  protected $registration = FALSE;
+
+  /**
+   * The user roles allowed to have profiles of this type.
    *
    * @var array
    */
   protected $roles = [];
 
   /**
-   * The weight of the profile type compared to others.
+   * Whether profiles of this type allow revisions.
    *
-   * @var int
+   * @var bool
    */
-  protected $weight = 0;
+  protected $allow_revisions = FALSE;
 
   /**
    * Should profiles of this type always generate revisions.
    *
    * @var bool
    */
-  protected $use_revisions = FALSE;
+  protected $new_revision = FALSE;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getDisplayLabel() {
+    return $this->display_label;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setDisplayLabel($display_label) {
+    $this->display_label = $display_label;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function allowsMultiple() {
+    return $this->multiple;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setMultiple($multiple) {
+    $this->multiple = $multiple;
+    return $this;
+  }
 
   /**
    * {@inheritdoc}
@@ -129,21 +161,6 @@ class ProfileType extends ConfigEntityBundleBase implements ProfileTypeInterface
    */
   public function setRegistration($registration) {
     $this->registration = $registration;
-    return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getMultiple() {
-    return $this->multiple;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setMultiple($multiple) {
-    $this->multiple = $multiple;
     return $this;
   }
 
@@ -165,38 +182,31 @@ class ProfileType extends ConfigEntityBundleBase implements ProfileTypeInterface
   /**
    * {@inheritdoc}
    */
-  public function getWeight() {
-    return $this->weight;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setWeight($weight) {
-    $this->weight = $weight;
-    return $this;
+  public function allowsRevisions() {
+    return $this->allow_revisions;
   }
 
   /**
    * {@inheritdoc}
    */
   public function shouldCreateNewRevision() {
-    return $this->use_revisions;
+    return $this->allowsRevisions() && $this->new_revision;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getDescription() {
-    return $this->description;
+  public function showRevisionUi() {
+    return $this->allowsRevisions() && $this->entityTypeManager()->getDefinition('profile')->showRevisionUi();
   }
 
   /**
    * {@inheritdoc}
    */
-  public function setDescription($description) {
-    $this->description = $description;
-    return $this;
+  public function preSave(EntityStorageInterface $storage) {
+    if ($this->shouldCreateNewRevision() && !$this->allowsRevisions()) {
+      $this->set('new_revision', FALSE);
+    }
   }
 
   /**
@@ -205,9 +215,40 @@ class ProfileType extends ConfigEntityBundleBase implements ProfileTypeInterface
   public function postSave(EntityStorageInterface $storage, $update = TRUE) {
     parent::postSave($storage, $update);
 
-    // Rebuild module data to generate bundle permissions and link tasks.
-    if (!$update) {
-      system_rebuild_module_data();
+    // Rebuild the user page tab.
+    \Drupal::service('router.builder')->setRebuildNeeded();
+    // Update the "register" form display, if needed.
+    $original_registration = isset($this->original) ? $this->original->getRegistration() : FALSE;
+    $registration = $this->getRegistration();
+    if ($original_registration != $registration) {
+      $register_display = EntityFormDisplay::load('user.user.register');
+      if (!$register_display) {
+        // The "register" form mode isn't customized by default.
+        $default_display = EntityFormDisplay::load('user.user.default');
+        if (!$default_display) {
+          // @todo Remove once we require Drupal 8.8. See #2835616.
+          $default_display = EntityFormDisplay::create([
+            'targetEntityType' => 'user',
+            'bundle' => 'user',
+            'mode' => 'default',
+            'status' => TRUE,
+          ]);
+        }
+        $register_display = $default_display->createCopy('register');
+      }
+
+      if ($registration) {
+        $register_display->setComponent($this->id() . '_profiles', [
+          'type' => 'profile_form',
+          'weight' => 90,
+        ]);
+      }
+      else {
+        $register_display->removeComponent($this->id() . '_profiles');
+      }
+      $register_display->setStatus(TRUE);
+      $register_display->save();
     }
   }
+
 }

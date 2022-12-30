@@ -2,6 +2,7 @@
 
 namespace Drupal\KernelTests\Core\Asset;
 
+use Drupal\Core\Extension\ExtensionLifecycle;
 use Drupal\KernelTests\KernelTestBase;
 
 /**
@@ -61,6 +62,7 @@ class ResolvedLibraryDefinitionsFilesMatchTest extends KernelTestBase {
   protected $allThemes = [
     'bartik',
     'classy',
+    'olivero',
     'seven',
     'stable',
     'stark',
@@ -74,6 +76,8 @@ class ResolvedLibraryDefinitionsFilesMatchTest extends KernelTestBase {
   protected $librariesToSkip = [
     // Locale has a "dummy" library that does not actually exist.
     'locale/translations',
+    // Core has a "dummy" library that does not actually exist.
+    'core/ckeditor5.translations',
   ];
 
   /**
@@ -86,36 +90,60 @@ class ResolvedLibraryDefinitionsFilesMatchTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system'];
+  protected static $modules = ['system', 'user', 'path_alias'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    // Install all core themes.
-    sort($this->allThemes);
-    $this->container->get('theme_installer')->install($this->allThemes);
-
     // Enable all core modules.
-    $all_modules = system_rebuild_module_data();
+    $all_modules = $this->container->get('extension.list.module')->getList();
     $all_modules = array_filter($all_modules, function ($module) {
       // Filter contrib, hidden, already enabled modules and modules in the
       // Testing package.
-      if ($module->origin !== 'core' || !empty($module->info['hidden']) || $module->status == TRUE || $module->info['package'] == 'Testing') {
+      if ($module->origin !== 'core'
+        || !empty($module->info['hidden'])
+        || $module->status == TRUE
+        || $module->info['package'] == 'Testing'
+        || $module->info[ExtensionLifecycle::LIFECYCLE_IDENTIFIER] === ExtensionLifecycle::EXPERIMENTAL
+        || $module->info[ExtensionLifecycle::LIFECYCLE_IDENTIFIER] === ExtensionLifecycle::DEPRECATED) {
         return FALSE;
       }
       return TRUE;
     });
+
+    // Install the System module configuration as Olivero's block configuration
+    // depends on the system menus.
+    // @todo Remove this in https://www.drupal.org/node/3219959
+    $this->installConfig('system');
+    // Install the 'user' entity schema because the workspaces module's install
+    // hook creates a workspace with default uid of 1. Then the layout_builder
+    // module's implementation of hook_entity_presave will cause
+    // \Drupal\Core\TypedData\Validation\RecursiveValidator::validate() to run
+    // on the workspace which will fail because the user table is not present.
+    // @todo Remove this in https://www.drupal.org/node/3039217.
+    $this->installEntitySchema('user');
+
     // Remove demo_umami_content module as its install hook creates content
     // that relies on the presence of entity tables and various other elements
     // not present in a kernel test.
     unset($all_modules['demo_umami_content']);
     $this->allModules = array_keys($all_modules);
     $this->allModules[] = 'system';
+    $this->allModules[] = 'user';
+    $this->allModules[] = 'path_alias';
+    $database_module = \Drupal::database()->getProvider();
+    if ($database_module !== 'core') {
+      $this->allModules[] = $database_module;
+    }
     sort($this->allModules);
     $this->container->get('module_installer')->install($this->allModules);
+
+    // Install all core themes.
+    sort($this->allThemes);
+    $this->container->get('theme_installer')->install($this->allThemes);
 
     $this->themeHandler = $this->container->get('theme_handler');
     $this->themeInitialization = $this->container->get('theme.initialization');
@@ -149,7 +177,6 @@ class ResolvedLibraryDefinitionsFilesMatchTest extends KernelTestBase {
    *   so on.
    */
   protected function verifyLibraryFilesExist($library_definitions) {
-    $root = \Drupal::root();
     foreach ($library_definitions as $extension => $libraries) {
       foreach ($libraries as $library_name => $library) {
         if (in_array("$extension/$library_name", $this->librariesToSkip)) {
@@ -160,10 +187,10 @@ class ResolvedLibraryDefinitionsFilesMatchTest extends KernelTestBase {
         foreach (['css', 'js'] as $asset_type) {
           foreach ($library[$asset_type] as $asset) {
             $file = $asset['data'];
-            $path = $root . '/' . $file;
+            $path = $this->root . '/' . $file;
             // Only check and assert each file path once.
             if (!isset($this->pathsChecked[$path])) {
-              $this->assertTrue(is_file($path), "$file file referenced from the $extension/$library_name library exists.");
+              $this->assertFileExists($path, "$file file referenced from the $extension/$library_name library does not exist.");
               $this->pathsChecked[$path] = TRUE;
             }
           }
@@ -182,20 +209,19 @@ class ResolvedLibraryDefinitionsFilesMatchTest extends KernelTestBase {
     $extensions = $modules;
     $module_list = array_keys($modules);
     sort($module_list);
-    $this->assertEqual($this->allModules, $module_list, 'All core modules are installed.');
+    $this->assertEquals($this->allModules, $module_list, 'All core modules are installed.');
 
     $themes = $this->themeHandler->listInfo();
     $extensions += $themes;
     $theme_list = array_keys($themes);
     sort($theme_list);
-    $this->assertEqual($this->allThemes, $theme_list, 'All core themes are installed.');
+    $this->assertEquals($this->allThemes, $theme_list, 'All core themes are installed.');
 
     $libraries['core'] = $this->libraryDiscovery->getLibrariesByExtension('core');
 
-    $root = \Drupal::root();
     foreach ($extensions as $extension_name => $extension) {
       $library_file = $extension->getPath() . '/' . $extension_name . '.libraries.yml';
-      if (is_file($root . '/' . $library_file)) {
+      if (is_file($this->root . '/' . $library_file)) {
         $libraries[$extension_name] = $this->libraryDiscovery->getLibrariesByExtension($extension_name);
       }
     }

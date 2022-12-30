@@ -1,0 +1,14 @@
+name: 'Update Helper Checklist'
+description: 'Provide integration of Update Helper module with checklist.'
+type: module
+core: 8.x
+core_version_requirement: ^8 || ^9
+dependencies:
+  - update_helper:update_helper
+  - checklistapi:checklistapi
+package: Configuration
+
+# Information added by Drupal.org packaging script on 2022-05-24
+version: '3.0.3'
+project: 'update_helper'
+datestamp: 1653397663

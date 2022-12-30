@@ -28,6 +28,10 @@ class SiteAliasFileDiscovery
 
     public function __construct($searchLocations = [], $depth = '<= 1', $locationFilter = null)
     {
+        // TODO: Change the default parameter value from 'null' to an empty string
+        if ($locationFilter === null) {
+            $locationFilter = '';
+        }
         $this->locationFilter = $locationFilter;
         $this->searchLocations = $searchLocations;
         $this->depth = $depth;
@@ -136,7 +140,8 @@ class SiteAliasFileDiscovery
     {
         return array_merge(
             $this->searchForAliasFiles('*.alias.drushrc.php'),
-            $this->searchForAliasFiles('*.aliases.drushrc.php')
+            $this->searchForAliasFiles('*.aliases.drushrc.php'),
+            $this->searchForAliasFiles('aliases.drushrc.php')
         );
     }
 
@@ -168,22 +173,41 @@ class SiteAliasFileDiscovery
         if (empty($this->searchLocations)) {
             return [];
         }
+        list($match, $site) = $this->splitLocationFromSite($this->locationFilter);
+        if (!empty($site)) {
+            $searchPattern = str_replace('*', $site, $searchPattern);
+        }
         $finder = $this->createFinder($searchPattern);
         $result = [];
         foreach ($finder as $file) {
             $path = $file->getRealPath();
             $result[] = $path;
         }
+        // Find every location where the parent directory name matches
+        // with the first part of the search pattern.
         // In theory we can use $finder->path() instead. That didn't work well,
         // in practice, though; had trouble correctly escaping the path separators.
         if (!empty($this->locationFilter)) {
-            $result = array_filter($result, function ($path) {
-                return SiteAliasName::locationFromPath($path) === $this->locationFilter;
+            $result = array_filter($result, function ($path) use ($match) {
+                return SiteAliasName::locationFromPath($path) === $match;
             });
         }
 
         return $result;
     }
+
+    /**
+     * splitLocationFromSite returns the part of 'site' before the first
+     * '.' as the "path match" component, and the part after the first
+     * '.' as the "site" component.
+     */
+    protected function splitLocationFromSite($site)
+    {
+        $parts = explode('.', $site, 3) + ['', '', ''];
+
+        return array_slice($parts, 0, 2);
+    }
+
 
     // TODO: Seems like this could just be basename()
     protected function extractKey($basename, $filenameExensions)

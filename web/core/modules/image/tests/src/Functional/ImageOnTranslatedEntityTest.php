@@ -20,7 +20,12 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['language', 'content_translation', 'field_ui'];
+  protected static $modules = ['language', 'content_translation', 'field_ui'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * The name of the image field used in the test.
@@ -32,7 +37,7 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // This test expects unused managed files to be marked as a temporary file.
@@ -43,7 +48,7 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     //   https://www.drupal.org/node/1239558.
     $this->drupalCreateContentType(['type' => 'basicpage', 'name' => 'Basic page', 'new_revision' => FALSE]);
 
-    // Create a image field on the "Basic page" node type.
+    // Create an image field on the "Basic page" node type.
     $this->fieldName = strtolower($this->randomMachineName());
     $this->createImageField($this->fieldName, 'basicpage', [], ['title_field' => 1]);
 
@@ -66,11 +71,13 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     // Add a second and third language.
     $edit = [];
     $edit['predefined_langcode'] = 'fr';
-    $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add language'));
+    $this->drupalGet('admin/config/regional/language/add');
+    $this->submitForm($edit, 'Add language');
 
     $edit = [];
     $edit['predefined_langcode'] = 'nl';
-    $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add language'));
+    $this->drupalGet('admin/config/regional/language/add');
+    $this->submitForm($edit, 'Add language');
   }
 
   /**
@@ -88,11 +95,12 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
       "settings[node][basicpage][columns][$this->fieldName][alt]" => FALSE,
       "settings[node][basicpage][columns][$this->fieldName][title]" => FALSE,
     ];
-    $this->drupalPostForm('admin/config/regional/content-language', $edit, 'Save configuration');
+    $this->drupalGet('admin/config/regional/content-language');
+    $this->submitForm($edit, 'Save configuration');
 
     // Verify that the image field on the "Basic basic" node type is
     // translatable.
-    $definitions = \Drupal::entityManager()->getFieldDefinitions('node', 'basicpage');
+    $definitions = \Drupal::service('entity_field.manager')->getFieldDefinitions('node', 'basicpage');
     $this->assertTrue($definitions[$this->fieldName]->isTranslatable(), 'Node image field is translatable.');
 
     // Create a default language node.
@@ -102,34 +110,36 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     $edit = [];
     $name = 'files[' . $this->fieldName . '_0]';
     $edit[$name] = \Drupal::service('file_system')->realpath($this->drupalGetTestFiles('image')[0]->uri);
-    $this->drupalPostForm('node/' . $default_language_node->id() . '/edit', $edit, t('Save'));
+    $this->drupalGet('node/' . $default_language_node->id() . '/edit');
+    $this->submitForm($edit, 'Save');
     $edit = [$this->fieldName . '[0][alt]' => 'Lost in translation image', $this->fieldName . '[0][title]' => 'Lost in translation image title'];
-    $this->drupalPostForm(NULL, $edit, t('Save'));
+    $this->submitForm($edit, 'Save');
     $first_fid = $this->getLastFileId();
 
     // Translate the node into French: remove the existing file.
-    $this->drupalPostForm('node/' . $default_language_node->id() . '/translations/add/en/fr', [], t('Remove'));
+    $this->drupalGet('node/' . $default_language_node->id() . '/translations/add/en/fr');
+    $this->submitForm([], 'Remove');
 
     // Upload a different file.
     $edit = [];
     $edit['title[0][value]'] = 'Scarlett Johansson';
     $name = 'files[' . $this->fieldName . '_0]';
     $edit[$name] = \Drupal::service('file_system')->realpath($this->drupalGetTestFiles('image')[1]->uri);
-    $this->drupalPostForm(NULL, $edit, t('Save (this translation)'));
+    $this->submitForm($edit, 'Save (this translation)');
     $edit = [$this->fieldName . '[0][alt]' => 'Scarlett Johansson image', $this->fieldName . '[0][title]' => 'Scarlett Johansson image title'];
-    $this->drupalPostForm(NULL, $edit, t('Save (this translation)'));
+    $this->submitForm($edit, 'Save (this translation)');
     // This inspects the HTML after the post of the translation, the image
     // should be displayed on the original node.
-    $this->assertRaw('alt="Lost in translation image"');
-    $this->assertRaw('title="Lost in translation image title"');
+    $this->assertSession()->responseContains('alt="Lost in translation image"');
+    $this->assertSession()->responseContains('title="Lost in translation image title"');
     $second_fid = $this->getLastFileId();
     // View the translated node.
     $this->drupalGet('fr/node/' . $default_language_node->id());
-    $this->assertRaw('alt="Scarlett Johansson image"');
+    $this->assertSession()->responseContains('alt="Scarlett Johansson image"');
 
     \Drupal::entityTypeManager()->getStorage('file')->resetCache();
 
-    /* @var $file \Drupal\file\FileInterface */
+    /** @var \Drupal\file\FileInterface $file */
 
     // Ensure the file status of the first file permanent.
     $file = File::load($first_fid);
@@ -140,16 +150,17 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     $this->assertTrue($file->isPermanent());
 
     // Translate the node into dutch: remove the existing file.
-    $this->drupalPostForm('node/' . $default_language_node->id() . '/translations/add/en/nl', [], t('Remove'));
+    $this->drupalGet('node/' . $default_language_node->id() . '/translations/add/en/nl');
+    $this->submitForm([], 'Remove');
 
     // Upload a different file.
     $edit = [];
     $edit['title[0][value]'] = 'Akiko Takeshita';
     $name = 'files[' . $this->fieldName . '_0]';
     $edit[$name] = \Drupal::service('file_system')->realpath($this->drupalGetTestFiles('image')[2]->uri);
-    $this->drupalPostForm(NULL, $edit, t('Save (this translation)'));
+    $this->submitForm($edit, 'Save (this translation)');
     $edit = [$this->fieldName . '[0][alt]' => 'Akiko Takeshita image', $this->fieldName . '[0][title]' => 'Akiko Takeshita image title'];
-    $this->drupalPostForm(NULL, $edit, t('Save (this translation)'));
+    $this->submitForm($edit, 'Save (this translation)');
     $third_fid = $this->getLastFileId();
 
     \Drupal::entityTypeManager()->getStorage('file')->resetCache();
@@ -159,12 +170,12 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     $this->assertTrue($file->isPermanent(), 'First file still exists and is permanent.');
     // This inspects the HTML after the post of the translation, the image
     // should be displayed on the original node.
-    $this->assertRaw('alt="Lost in translation image"');
-    $this->assertRaw('title="Lost in translation image title"');
+    $this->assertSession()->responseContains('alt="Lost in translation image"');
+    $this->assertSession()->responseContains('title="Lost in translation image title"');
     // View the translated node.
     $this->drupalGet('nl/node/' . $default_language_node->id());
-    $this->assertRaw('alt="Akiko Takeshita image"');
-    $this->assertRaw('title="Akiko Takeshita image title"');
+    $this->assertSession()->responseContains('alt="Akiko Takeshita image"');
+    $this->assertSession()->responseContains('title="Akiko Takeshita image title"');
 
     // Ensure the file status of the second file is permanent.
     $file = File::load($second_fid);
@@ -175,18 +186,19 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     $this->assertTrue($file->isPermanent());
 
     // Edit the second translation: remove the existing file.
-    $this->drupalPostForm('fr/node/' . $default_language_node->id() . '/edit', [], t('Remove'));
+    $this->drupalGet('fr/node/' . $default_language_node->id() . '/edit');
+    $this->submitForm([], 'Remove');
 
     // Upload a different file.
     $edit = [];
     $edit['title[0][value]'] = 'Giovanni Ribisi';
     $name = 'files[' . $this->fieldName . '_0]';
     $edit[$name] = \Drupal::service('file_system')->realpath($this->drupalGetTestFiles('image')[3]->uri);
-    $this->drupalPostForm(NULL, $edit, t('Save (this translation)'));
+    $this->submitForm($edit, 'Save (this translation)');
     $name = $this->fieldName . '[0][alt]';
 
     $edit = [$name => 'Giovanni Ribisi image'];
-    $this->drupalPostForm(NULL, $edit, t('Save (this translation)'));
+    $this->submitForm($edit, 'Save (this translation)');
     $replaced_second_fid = $this->getLastFileId();
 
     \Drupal::entityTypeManager()->getStorage('file')->resetCache();
@@ -203,7 +215,8 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     $this->assertTrue($file->isPermanent());
 
     // Delete the third translation.
-    $this->drupalPostForm('nl/node/' . $default_language_node->id() . '/delete', [], t('Delete Dutch translation'));
+    $this->drupalGet('nl/node/' . $default_language_node->id() . '/delete');
+    $this->submitForm([], 'Delete Dutch translation');
 
     \Drupal::entityTypeManager()->getStorage('file')->resetCache();
 
@@ -219,7 +232,8 @@ class ImageOnTranslatedEntityTest extends ImageFieldTestBase {
     $this->assertTrue($file->isTemporary());
 
     // Delete the all translations.
-    $this->drupalPostForm('node/' . $default_language_node->id() . '/delete', [], t('Delete all translations'));
+    $this->drupalGet('node/' . $default_language_node->id() . '/delete');
+    $this->submitForm([], 'Delete all translations');
 
     \Drupal::entityTypeManager()->getStorage('file')->resetCache();
 

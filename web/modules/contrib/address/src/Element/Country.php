@@ -91,6 +91,8 @@ class Country extends FormElement {
       $element['country_code'] = [
         '#type' => 'select',
         '#title' => $element['#title'],
+        '#title_display' => $element['#title_display'],
+        '#description_display' => $element['#description_display'],
         '#options' => $country_list,
         '#default_value' => $element['#default_value'],
         '#required' => $element['#required'],

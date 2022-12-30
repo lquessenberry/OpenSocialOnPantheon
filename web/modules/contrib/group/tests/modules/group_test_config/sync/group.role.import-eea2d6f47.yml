@@ -1,0 +1,17 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - group.type.import
+  enforced:
+    config:
+      - user.role.import
+id: import-eea2d6f47
+label: Import
+weight: 98
+internal: true
+audience: outsider
+group_type: import
+permissions_ui: false
+permissions:
+  - 'view group'

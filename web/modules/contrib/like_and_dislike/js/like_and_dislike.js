@@ -4,10 +4,13 @@
  */
 (function ($, Drupal) {
 
-    Drupal.behaviors.likeAndDislike = {
-      attach: function(context, settings) {
-        $('.vote-like a').unbind('click');
-        $('.vote-like a').click(function() {
+  'use strict';
+
+  Drupal.behaviors.likeAndDislike = {
+    attach: function(context, settings) {
+      $('.vote-widget--like-and-dislike').once('like-and-dislike').each(function () {
+        var $widget = $(this);
+        $widget.find('.vote-like a').click(function() {
           var entity_id, entity_type;
           if (!$(this).hasClass('disable-status')) {
             entity_id = $(this).data('entity-id');
@@ -15,8 +18,7 @@
             likeAndDislikeService.vote(entity_id, entity_type, 'like');
           }
         });
-        $('.vote-dislike a').unbind('click');
-        $('.vote-dislike a').click(function() {
+        $widget.find('.vote-dislike a').click(function() {
           var entity_id, entity_type;
           if (!$(this).hasClass('disable-status')) {
             entity_id = $(this).data('entity-id');
@@ -24,7 +26,8 @@
             likeAndDislikeService.vote(entity_id, entity_type, 'dislike');
           }
         });
-      }
-    };
+      });
+    }
+  };
 
 })(jQuery, Drupal);

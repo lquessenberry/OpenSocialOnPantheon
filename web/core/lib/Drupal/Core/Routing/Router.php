@@ -3,10 +3,6 @@
 namespace Drupal\Core\Routing;
 
 use Drupal\Core\Path\CurrentPathStack;
-use Drupal\Core\Routing\Enhancer\RouteEnhancerInterface;
-use Symfony\Cmf\Component\Routing\LazyRouteCollection;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
-use Symfony\Cmf\Component\Routing\RouteProviderInterface as BaseRouteProviderInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Exception\MethodNotAllowedException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
@@ -31,22 +27,13 @@ use Symfony\Component\Routing\RouterInterface;
  *    regex. See ::matchCollection().
  * 4. Enhance the list of route attributes, for example loading entity objects.
  *    See ::applyRouteEnhancers().
- *
- * This implementation uses ideas of the following routers:
- * - \Symfony\Cmf\Component\Routing\DynamicRouter
- * - \Drupal\Core\Routing\UrlMatcher
- * - \Symfony\Cmf\Component\Routing\NestedMatcher\NestedMatcher
- *
- * @see \Symfony\Cmf\Component\Routing\DynamicRouter
- * @see \Drupal\Core\Routing\UrlMatcher
- * @see \Symfony\Cmf\Component\Routing\NestedMatcher\NestedMatcher
  */
 class Router extends UrlMatcher implements RequestMatcherInterface, RouterInterface {
 
   /**
    * The route provider responsible for the first-pass match.
    *
-   * @var \Symfony\Cmf\Component\Routing\RouteProviderInterface
+   * @var \Drupal\Core\Routing\RouteProviderInterface
    */
   protected $routeProvider;
 
@@ -74,14 +61,14 @@ class Router extends UrlMatcher implements RequestMatcherInterface, RouterInterf
   /**
    * Constructs a new Router.
    *
-   * @param \Symfony\Cmf\Component\Routing\RouteProviderInterface $route_provider
+   * @param \Drupal\Core\Routing\RouteProviderInterface $route_provider
    *   The route provider.
    * @param \Drupal\Core\Path\CurrentPathStack $current_path
    *   The current path stack.
    * @param \Symfony\Component\Routing\Generator\UrlGeneratorInterface $url_generator
    *   The URL generator.
    */
-  public function __construct(BaseRouteProviderInterface $route_provider, CurrentPathStack $current_path, BaseUrlGeneratorInterface $url_generator) {
+  public function __construct(RouteProviderInterface $route_provider, CurrentPathStack $current_path, BaseUrlGeneratorInterface $url_generator) {
     parent::__construct($current_path);
     $this->routeProvider = $route_provider;
     $this->urlGenerator = $url_generator;
@@ -110,7 +97,7 @@ class Router extends UrlMatcher implements RequestMatcherInterface, RouterInterf
   /**
    * {@inheritdoc}
    */
-  public function match($pathinfo) {
+  public function match($pathinfo): array {
     $request = Request::create($pathinfo);
 
     return $this->matchRequest($request);
@@ -119,12 +106,25 @@ class Router extends UrlMatcher implements RequestMatcherInterface, RouterInterf
   /**
    * {@inheritdoc}
    */
-  public function matchRequest(Request $request) {
-    $collection = $this->getInitialRouteCollection($request);
+  public function matchRequest(Request $request): array {
+    try {
+      $collection = $this->getInitialRouteCollection($request);
+    }
+    // PHP 7.4 introduces changes to its serialization format, which mean that
+    // older versions of PHP are unable to unserialize data that is serialized
+    // in PHP 7.4. If the site's version of PHP has been downgraded, then
+    // attempting to unserialize routes from the database will fail, and so the
+    // router needs to be rebuilt on the current PHP version.
+    // See https://www.php.net/manual/en/migration74.incompatible.php.
+    catch (\TypeError $e) {
+      \Drupal::service('router.builder')->rebuild();
+      $collection = $this->getInitialRouteCollection($request);
+    }
     if ($collection->count() === 0) {
       throw new ResourceNotFoundException(sprintf('No routes found for "%s".', $this->currentPath->getPath()));
     }
     $collection = $this->applyRouteFilters($collection, $request);
+    $collection = $this->applyFitOrder($collection);
 
     if ($ret = $this->matchCollection(rawurldecode($this->currentPath->getPath($request)), $collection)) {
       return $this->applyRouteEnhancers($ret, $request);
@@ -253,9 +253,6 @@ class Router extends UrlMatcher implements RequestMatcherInterface, RouterInterf
    */
   protected function applyRouteEnhancers($defaults, Request $request) {
     foreach ($this->enhancers as $enhancer) {
-      if ($enhancer instanceof RouteEnhancerInterface && !$enhancer->applies($defaults[RouteObjectInterface::ROUTE_OBJECT])) {
-        continue;
-      }
       $defaults = $enhancer->enhance($defaults, $request);
     }
 
@@ -287,17 +284,55 @@ class Router extends UrlMatcher implements RequestMatcherInterface, RouterInterf
   }
 
   /**
+   * Reapplies the fit order to a RouteCollection object.
+   *
+   * Route filters can reorder route collections. For example, routes with an
+   * explicit _format requirement will be preferred. This can result in a less
+   * fit route being used. For example, as a result of filtering /user/% comes
+   * before /user/login. In order to not break this fundamental property of
+   * routes, we need to reapply the fit order. We also need to ensure that order
+   * within each group of the same fit is preserved.
+   *
+   * @param \Symfony\Component\Routing\RouteCollection $collection
+   *   The route collection.
+   *
+   * @return \Symfony\Component\Routing\RouteCollection
+   *   The reordered route collection.
+   */
+  protected function applyFitOrder(RouteCollection $collection) {
+    $buckets = [];
+    // Sort all the routes by fit descending.
+    foreach ($collection->all() as $name => $route) {
+      $fit = $route->compile()->getFit();
+      $buckets += [$fit => []];
+      $buckets[$fit][] = [$name, $route];
+    }
+    krsort($buckets);
+
+    $flattened = array_reduce($buckets, 'array_merge', []);
+
+    // Add them back onto a new route collection.
+    $collection = new RouteCollection();
+    foreach ($flattened as $pair) {
+      $name = $pair[0];
+      $route = $pair[1];
+      $collection->add($name, $route);
+    }
+    return $collection;
+  }
+
+  /**
    * {@inheritdoc}
    */
-  public function getRouteCollection() {
+  public function getRouteCollection(): RouteCollection {
     return new LazyRouteCollection($this->routeProvider);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function generate($name, $parameters = [], $referenceType = self::ABSOLUTE_PATH) {
-    @trigger_error('Use the \Drupal\Core\Url object instead', E_USER_DEPRECATED);
+  public function generate($name, $parameters = [], $referenceType = self::ABSOLUTE_PATH): string {
+    @trigger_error(__METHOD__ . '() is deprecated in drupal:8.3.0 and will throw an exception from drupal:10.0.0. Use the \Drupal\Core\Url object instead. See https://www.drupal.org/node/2820197', E_USER_DEPRECATED);
     return $this->urlGenerator->generate($name, $parameters, $referenceType);
   }
 

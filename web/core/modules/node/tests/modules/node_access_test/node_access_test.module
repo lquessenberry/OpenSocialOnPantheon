@@ -52,11 +52,11 @@ use Drupal\node\NodeInterface;
 function node_access_test_node_grants($account, $op) {
   $grants = [];
   $grants['node_access_test_author'] = [$account->id()];
-  if ($op == 'view' && $account->hasPermission('node test view', $account)) {
+  if ($op == 'view' && $account->hasPermission('node test view')) {
     $grants['node_access_test'] = [8888, 8889];
   }
 
-  $no_access_uid = \Drupal::state()->get('node_access_test.no_access_uid') ?: 0;
+  $no_access_uid = \Drupal::state()->get('node_access_test.no_access_uid', 0);
   if ($op == 'view' && $account->id() == $no_access_uid) {
     $grants['node_access_all'] = [0];
   }
@@ -79,7 +79,7 @@ function node_access_test_node_grants($account, $op) {
 function node_access_test_node_access_records(NodeInterface $node) {
   $grants = [];
   // For NodeAccessBaseTableTestCase, only set records for private nodes.
-  if (!\Drupal::state()->get('node_access_test.private') || $node->private->value) {
+  if (!\Drupal::state()->get('node_access_test.private') || (isset($node->private) && $node->private->value)) {
     // Groups 8888 and 8889 for the node_access_test realm both receive a view
     // grant for all controlled nodes. See node_access_test_node_grants().
     $grants[] = [
@@ -99,7 +99,7 @@ function node_access_test_node_access_records(NodeInterface $node) {
       'priority' => 0,
     ];
     // For the author realm, the group ID is equivalent to a user ID, which
-    // means there are many many groups of just 1 user.
+    // means there are many groups of just 1 user.
     $grants[] = [
       'realm' => 'node_access_test_author',
       'gid' => $node->getOwnerId(),
@@ -135,7 +135,8 @@ function node_access_test_add_field(NodeTypeInterface $type) {
   $field->save();
 
   // Assign widget settings for the 'default' form mode.
-  entity_get_form_display('node', $type->id(), 'default')
+  \Drupal::service('entity_display.repository')
+    ->getFormDisplay('node', $type->id())
     ->setComponent('private', [
       'type' => 'number',
     ])

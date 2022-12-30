@@ -62,12 +62,7 @@ class RandomTest extends TestCase {
     // There are fewer than 100 possibilities so an exception should occur to
     // prevent infinite loops.
     $random = new Random();
-    if (method_exists($this, 'expectException')) {
-      $this->expectException(\RuntimeException::class);
-    }
-    else {
-      $this->setExpectedException(\RuntimeException::class);
-    }
+    $this->expectException(\RuntimeException::class);
     for ($i = 0; $i <= 100; $i++) {
       $str = $random->name(1, TRUE);
       $names[$str] = TRUE;
@@ -83,12 +78,7 @@ class RandomTest extends TestCase {
     // There are fewer than 100 possibilities so an exception should occur to
     // prevent infinite loops.
     $random = new Random();
-    if (method_exists($this, 'expectException')) {
-      $this->expectException(\RuntimeException::class);
-    }
-    else {
-      $this->setExpectedException(\RuntimeException::class);
-    }
+    $this->expectException(\RuntimeException::class);
     for ($i = 0; $i <= 100; $i++) {
       $str = $random->string(1, TRUE);
       $names[$str] = TRUE;
@@ -136,7 +126,7 @@ class RandomTest extends TestCase {
     $random = new Random();
     for ($i = 0; $i <= 1; $i++) {
       $obj = $random->object($i);
-      $this->assertEquals($i, count(get_object_vars($obj)), 'Generated random object has expected number of properties');
+      $this->assertCount($i, get_object_vars($obj), 'Generated random object has expected number of properties');
     }
   }
 
@@ -150,6 +140,26 @@ class RandomTest extends TestCase {
     $this->firstStringGenerated = '';
     $str = $random->string(1, TRUE, [$this, '_RandomStringValidate']);
     $this->assertNotEquals($this->firstStringGenerated, $str);
+  }
+
+  /**
+   * Tests random word.
+   *
+   * @covers ::word
+   */
+  public function testRandomWordValidator() {
+    $random = new Random();
+    // Without a seed, test a different word is returned each time.
+    $this->firstStringGenerated = $random->word(5);
+    $next_str = $random->word(5);
+    $this->assertNotEquals($this->firstStringGenerated, $next_str);
+
+    // With a seed, test the same word is returned each time.
+    mt_srand(0);
+    $this->firstStringGenerated = $random->word(5);
+    mt_srand(0);
+    $next_str = $random->word(5);
+    $this->assertEquals($this->firstStringGenerated, $next_str);
   }
 
   /**

@@ -1,0 +1,396 @@
+<?php
+
+/**
+ * @file
+ * Contains ginvite.module.
+ */
+
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+use Drupal\ginvite\Event\UserRegisteredFromInvitationEvent;
+use Drupal\ginvite\Plugin\GroupContentEnabler\GroupInvitation;
+use Drupal\group\Access\GroupAccessResult;
+use Drupal\group\Entity\GroupContentInterface;
+use Drupal\user\UserInterface;
+
+/**
+ * Implements hook_help().
+ */
+function ginvite_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.ginvite':
+      $text = file_get_contents(__DIR__ . '/README.md');
+      if (!\Drupal::moduleHandler()->moduleExists('markdown')) {
+        return '<pre>' . Html::escape($text) . '</pre>';
+      }
+      else {
+        // Use the Markdown filter to render the README.
+        $filter_manager = \Drupal::service('plugin.manager.filter');
+        $settings = \Drupal::configFactory()->get('markdown.settings')->getRawData();
+        $config = ['settings' => $settings];
+        $filter = $filter_manager->createInstance('markdown', $config);
+        return $filter->process($text, 'en');
+      }
+  }
+  return NULL;
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for group_content_form.
+ */
+function ginvite_form_group_content_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  /** @var \Drupal\Core\Entity\ContentEntityFormInterface $formObject */
+  $formObject = $form_state->getFormObject();
+  /** @var \Drupal\group\Entity\GroupContentInterface $group_content */
+  $group_content = $formObject->getEntity();
+  $content_plugin = $group_content->getContentPlugin();
+  if ($content_plugin->getPluginId() === 'group_invitation') {
+    $form += [
+      // Reference to Anonymous user by default.
+      'entity_id' => [
+        '#type' => 'value',
+        '#value' => 0,
+      ],
+    ];
+
+    // Forbid users without the permission to assign roles to users they are
+    // inviting.
+    if (!GroupAccessResult::allowedIfHasGroupPermission($group_content->getGroup(), \Drupal::currentUser(), 'administer members')->isAllowed()) {
+      $form['group_roles']['#access'] = FALSE;
+    }
+  }
+}
+
+/**
+ * Sends email when invitation created for not registered user.
+ *
+ * Implements hook_ENTITY_TYPE_insert().
+ */
+function ginvite_group_content_insert(GroupContentInterface $group_content) {
+  $type = $group_content->getContentPlugin()->getPluginId();
+  $messenger = \Drupal::messenger();
+
+  if ($type == 'group_invitation') {
+    $mail = $group_content->get('invitee_mail')->getString();
+
+    $mailManager = \Drupal::service('plugin.manager.mail');
+    $from = $group_content->getEntity();
+    $group = $group_content->getGroup();
+    $params = [
+      'user' => $from,
+      'group' => $group,
+      'group_content' => $group_content,
+      'existing_user' => FALSE,
+    ];
+    $langcode = $from->getPreferredLangcode();
+
+    // Load plugin configuration.
+    $group_plugin_collection = \Drupal::service('plugin.manager.group_content_enabler')->getInstalled($group->getGroupType());
+    $group_invite_config = $group_plugin_collection->getConfiguration()['group_invitation'];
+
+    if ($invitee = user_load_by_mail($mail)) {
+      $group_content->set('entity_id', $invitee);
+
+      // Check if we should send a email to existing user.
+      if ($group_invite_config['send_email_existing_users']) {
+        $params['existing_user'] = TRUE;
+        $mailManager->mail('ginvite', 'invite', $mail, $langcode, $params, NULL, TRUE);
+        $messenger->addMessage(t('Invite sent to %invitee', ['%invitee' => $invitee->getDisplayName()]));
+      }
+      else {
+        $messenger->addMessage(t('Invitation has been created.'));
+      }
+    }
+    else {
+      $mailManager->mail('ginvite', 'invite', $mail, $langcode, $params, NULL, TRUE);
+      $messenger->addMessage(t('Invite sent to %mail', ['%mail' => $mail]));
+    }
+
+    $group_content->set('invitation_status', GroupInvitation::INVITATION_PENDING);
+    $group_content->save();
+  }
+  // If new membership is created, check related invitation exists.
+  elseif ($type == 'group_membership') {
+    $properties = [
+      'entity_id' => $group_content->getEntity()->id(),
+      'gid' => $group_content->getGroup()->id(),
+      'invitation_status' => GroupInvitation::INVITATION_PENDING,
+    ];
+
+    $invitations = \Drupal::service('ginvite.invitation_loader')->loadByProperties($properties);
+    if (!empty($invitations)) {
+      foreach ($invitations as $invitation) {
+        // Mark invitation as accepted.
+        $invitation->getGroupContent()->set('invitation_status', GroupInvitation::INVITATION_ACCEPTED)->save();
+      }
+
+      $messenger->addMessage(t('You have accepted the invitation.'));
+    }
+  }
+}
+
+/**
+ * Send cancellation email when the invitation is removed.
+ *
+ * Implements hook_ENTITY_TYPE_delete().
+ */
+function ginvite_group_content_delete(GroupContentInterface $group_content) {
+  if ($group_content->getContentPlugin()->getPluginId() == 'group_invitation') {
+    $group = $group_content->getGroup();
+    // Load plugin configuration.
+    $group_plugin_collection = \Drupal::service('plugin.manager.group_content_enabler')->getInstalled($group->getGroupType());
+    $group_invite_config = $group_plugin_collection->getConfiguration()['group_invitation'];
+
+    if ($group_invite_config['send_cancel_email']) {
+      $mail = $group_content->get('invitee_mail')->getString();
+      $mailManager = \Drupal::service('plugin.manager.mail');
+      $from = $group_content->getEntity();
+
+      if ($from instanceof UserInterface) {
+        $params = [
+          'user' => $from,
+          'group' => $group,
+          'group_content' => $group_content,
+        ];
+        $langcode = $from->getPreferredLangcode();
+        $mailManager->mail('ginvite', 'cancel', $mail, $langcode, $params, NULL, TRUE);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_mail().
+ *
+ * This mail is sent when people who do not have an account on the website yet
+ * are invited into a group. It is sent in the language the inviter was using
+ * the website in.
+ *
+ * @see ginvite_group_content_insert()
+ */
+function ginvite_mail($key, &$message, $params) {
+  if ($key == 'invite') {
+
+    $token_service = \Drupal::token();
+    $language_manager = \Drupal::languageManager();
+
+    // Get email from GroupInvitation.
+    $group = $params['group'];
+    $langcode = $message['langcode'];
+
+    $language = $language_manager->getLanguage($langcode);
+    $original_language = $language_manager->getConfigOverrideLanguage();
+    $language_manager->setConfigOverrideLanguage($language);
+
+    // Load plugin configuration.
+    $group_plugin_collection = \Drupal::service('plugin.manager.group_content_enabler')->getInstalled($group->getGroupType());
+    $group_invite_config = $group_plugin_collection->getConfiguration()['group_invitation'];
+
+    $invitation_subject = (!$params['existing_user']) ? $group_invite_config["invitation_subject"] : $group_invite_config["existing_user_invitation_subject"];
+    $invitation_body = (!$params['existing_user']) ? $group_invite_config["invitation_body"] : $group_invite_config["existing_user_invitation_body"];
+
+    unset($params['existing_user']);
+
+    $body = $token_service->replace($invitation_body, $params);
+    $subject = $token_service->replace($invitation_subject, $params);
+
+    $message['subject'] = $subject;
+    $message['body'][] = $body;
+
+    $language_manager->setConfigOverrideLanguage($original_language);
+
+  }
+
+  if ($key == 'cancel') {
+    $token_service = \Drupal::token();
+    $language_manager = \Drupal::languageManager();
+
+    // Get email from GroupInvitation.
+    $group = $params['group'];
+    $langcode = $message['langcode'];
+
+    $language = $language_manager->getLanguage($langcode);
+    $original_language = $language_manager->getConfigOverrideLanguage();
+    $language_manager->setConfigOverrideLanguage($language);
+
+    // Load plugin configuration.
+    $group_plugin_collection = \Drupal::service('plugin.manager.group_content_enabler')->getInstalled($group->getGroupType());
+    $group_invite_config = $group_plugin_collection->getConfiguration()['group_invitation'];
+
+    $cancel_subject = $group_invite_config["cancel_user_invitation_subject"];
+    $cancel_body = $group_invite_config["cancel_user_invitation_body"];
+
+    $body = $token_service->replace($cancel_body, $params);
+    $subject = $token_service->replace($cancel_subject, $params);
+
+    $message['subject'] = $subject;
+    $message['body'][] = $body;
+
+    $language_manager->setConfigOverrideLanguage($original_language);
+  }
+}
+
+/**
+ * Set referenced entity to Invitation when invited user registered.
+ *
+ * Implements hook_ENTITY_TYPE_insert().
+ */
+function ginvite_user_insert(UserInterface $user) {
+  // If a user is created without e-mail (because the field is optional or
+  // because they are created through SSO) then we can not use the mail to check
+  // for pending invites so we exit early.
+  // TODO: Fix automatic group joining for invites leading to SSO registration.
+  if ($user->get('mail')->isEmpty()) {
+    return;
+  }
+
+  $properties = [
+    'invitee_mail' => $user->getEmail(),
+    'invitation_status' => GroupInvitation::INVITATION_PENDING,
+  ];
+
+  $invitations = \Drupal::service('ginvite.invitation_loader')->loadByProperties($properties);
+  /** @var \Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher $event_dispatcher */
+  $event_dispatcher = \Drupal::service('event_dispatcher');
+  foreach ($invitations as $invitation) {
+    $group_content = $invitation->getGroupContent();
+    $group_content->set('entity_id', $user);
+    $group_content->save();
+    // Dispatch an event when the user is registered from an invitation.
+    $event = new UserRegisteredFromInvitationEvent($invitation);
+    $event_dispatcher->dispatch(UserRegisteredFromInvitationEvent::EVENT_NAME, $event);
+  }
+}
+
+/**
+ * Add Constraint to prevent duplicated invitations.
+ *
+ * Implements hook_entity_type_alter().
+ */
+function ginvite_entity_type_alter(array &$entity_types) {
+  $group_content = $entity_types['group_content'];
+  $group_content->addConstraint('PreventDuplicated', []);
+}
+
+/**
+ * Add token to register url.
+ *
+ * Implements hook_token_info().
+ */
+function ginvite_token_info() {
+  $tokens['register_link'] = [
+    'name' => t('Register Link'),
+    'description' => t('Url to register page with prefilled email address.'),
+  ];
+  $tokens['my_invitations_link'] = [
+    'name' => t('My Invitations Link'),
+    'description' => t('Url to user list of invitations.'),
+  ];
+
+  return [
+    'tokens' => ['group_content' => $tokens],
+  ];
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function ginvite_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
+  $replacements = [];
+  if ($type == 'group_content' && !empty($data[$type])) {
+    /** @var \Drupal\group\Entity\GroupContentInterface $group_content */
+    $group_content = $data['group_content'];
+
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'register_link':
+          $mail = $group_content->get('invitee_mail')->getString();
+          $search = ['+', '/', '='];
+          $replace = ['-', '_', ''];
+          $mail_encoded = str_replace($search, $replace, base64_encode($mail));
+          $params = ['invitee_mail' => $mail_encoded];
+          $options = ['absolute' => TRUE];
+          $register_link = Url::fromRoute('user.register', $params, $options)->toString();
+          $replacements[$original] = $register_link;
+          break;
+
+        case 'my_invitations_link':
+          $user = user_load_by_mail($group_content->get('invitee_mail')->getString());
+          $my_invitations_link = Url::fromRoute('view.my_invitations.page_1', ['user' => $user->id()], ['absolute' => TRUE])->toString();
+          $replacements[$original] = $my_invitations_link;
+      }
+    }
+  }
+  return $replacements;
+}
+
+/**
+ * Prefill email address when user comes from ginvite registrarion url.
+ *
+ * Implements hook_form_FORM_ID_alter().
+ */
+function ginvite_form_user_register_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $invitee_mail = \Drupal::request()->query->get("invitee_mail");
+  if (isset($invitee_mail)) {
+    $search = ['-', '_'];
+    $replace = ['+', '/'];
+    $invitee_mail = base64_decode(str_replace($search, $replace, $invitee_mail));
+    if (\Drupal::service('email.validator')->isValid($invitee_mail)) {
+      $form["account"]["mail"]["#default_value"] = $invitee_mail;
+      $form["account"]["mail"]["#disabled"] = TRUE;
+    }
+  }
+}
+
+/**
+ * Remove invites that are expired based on group type configuration.
+ *
+ * Implements hook_cron().
+ */
+function ginvite_cron() {
+  $last_check = \Drupal::state()->get('ginvite.last_expire_removal', 0);
+  $interval = 60 * 60 * 24;
+  $request_time = \Drupal::time()->getRequestTime();
+
+  // Only run this once a day.
+  if (($request_time - $last_check) < $interval) {
+    return;
+  }
+
+  $group_type_storage = \Drupal::entityTypeManager()->getStorage('group_type');
+  /** @var \Drupal\group\Entity\GroupTypeInterface $group_type */
+  foreach ($group_type_storage->loadMultiple() as $group_type_id => $group_type) {
+    // Foreach group type get the configuration for the invites expired time.
+    $group_plugin_collection = \Drupal::service('plugin.manager.group_content_enabler')->getInstalled($group_type);
+    $days = isset($group_plugin_collection->getConfiguration()['group_invitation']['invitation_expire']) ? $group_plugin_collection->getConfiguration()['group_invitation']['invitation_expire'] : NULL;
+
+    // Nothing configured? Skip.
+    if (!$days) {
+      continue;
+    }
+
+    // Query for all the invites that are expired for this group type.
+    $group_content_storage = \Drupal::entityTypeManager()->getStorage('group_content');
+    $expired_invites = $group_content_storage->getQuery()
+      ->condition('type', $group_type_id . '-' . 'group_invitation')
+      ->condition('invitation_status', GroupInvitation::INVITATION_PENDING)
+      ->condition('created', $request_time - ($days * $interval), '<')
+      ->execute();
+
+    // No expired invites? Skip.
+    if (empty($expired_invites)) {
+      continue;
+    }
+
+    // Permanently remove all expired invites.
+    $group_invitations = $group_content_storage->loadMultiple($expired_invites);
+    $group_content_storage->delete($group_invitations);
+  }
+
+  // Set the time that we removed the expired invites so we don't do it too
+  // often.
+  \Drupal::state()->set('ginvite.last_expire_removal', $request_time);
+}

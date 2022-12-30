@@ -139,8 +139,6 @@ class Random {
    * @return string
    */
   public function word($length) {
-    mt_srand((double) microtime() * 1000000);
-
     $vowels = ["a", "e", "i", "o", "u"];
     $cons = ["b", "c", "d", "g", "h", "j", "k", "l", "m", "n", "p", "r", "s", "t", "u", "v", "w", "tr",
       "cr", "br", "fr", "th", "dr", "ch", "ph", "wr", "st", "sp", "sw", "pr",
@@ -164,7 +162,7 @@ class Random {
    * @param int $size
    *   The number of random keys to add to the object.
    *
-   * @return \stdClass
+   * @return object
    *   The generated object, with the specified number of random keys. Each key
    *   has a random string value.
    */
@@ -192,6 +190,7 @@ class Random {
    *   Nonsense latin words which form sentence(s).
    */
   public function sentences($min_word_count, $capitalize = FALSE) {
+    // cSpell:disable
     $dictionary = ["abbas", "abdo", "abico", "abigo", "abluo", "accumsan",
       "acsi", "ad", "adipiscing", "aliquam", "aliquip", "amet", "antehabeo",
       "appellatio", "aptent", "at", "augue", "autem", "bene", "blandit",
@@ -223,6 +222,7 @@ class Random {
       "virtus", "voco", "volutpat", "vulpes", "vulputate", "wisi", "ymo",
       "zelus",
     ];
+    // cSpell:enable
     $dictionary_flipped = array_flip($dictionary);
     $greeking = '';
 
@@ -249,6 +249,8 @@ class Random {
    * Generate paragraphs separated by double new line.
    *
    * @param int $paragraph_count
+   *   The number of paragraphs to create. Defaults to 12.
+   *
    * @return string
    */
   public function paragraphs($paragraph_count = 12) {
@@ -259,14 +261,15 @@ class Random {
     return $output;
   }
 
-
   /**
    * Create a placeholder image.
    *
    * @param string $destination
    *   The absolute file path where the image should be stored.
-   * @param int $min_resolution
-   * @param int $max_resolution
+   * @param string $min_resolution
+   *   The minimum resolution for the image. For example, '400x300'.
+   * @param string $max_resolution
+   *   The maximum resolution for the image. For example, '800x600'.
    *
    * @return string
    *   Path to image file.
@@ -285,13 +288,13 @@ class Random {
       $color = imagecolorallocate($im, rand(0, 255), rand(0, 255), rand(0, 255));
       $x = $width / 2 * ($n % 2);
       $y = $height / 2 * (int) ($n >= 2);
-      imagefilledrectangle($im, $x, $y, $x + $width / 2, $y + $height / 2, $color);
+      imagefilledrectangle($im, (int) $x, (int) $y, (int) ($x + $width / 2), (int) ($y + $height / 2), $color);
     }
 
     // Make a perfect circle in the image middle.
     $color = imagecolorallocate($im, rand(0, 255), rand(0, 255), rand(0, 255));
     $smaller_dimension = min($width, $height);
-    imageellipse($im, $width / 2, $height / 2, $smaller_dimension, $smaller_dimension, $color);
+    imageellipse($im, (int) ($width / 2), (int) ($height / 2), $smaller_dimension, $smaller_dimension, $color);
 
     $save_function = 'image' . ($extension == 'jpg' ? 'jpeg' : $extension);
     $save_function($im, $destination);

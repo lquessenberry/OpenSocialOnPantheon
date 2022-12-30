@@ -1,0 +1,12 @@
+name: jQuery UI Slider
+type: module
+description: 'Provides jQuery UI Slider library.'
+package: jQuery UI
+core_version_requirement: ^8 || ^9
+dependencies:
+  - jquery_ui:jquery_ui
+
+# Information added by Drupal.org packaging script on 2020-03-13
+version: '8.x-1.1'
+project: 'jquery_ui_slider'
+datestamp: 1584107819

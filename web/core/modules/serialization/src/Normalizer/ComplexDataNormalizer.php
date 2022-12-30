@@ -18,11 +18,9 @@ use Drupal\Core\TypedData\TypedDataInternalPropertiesHelper;
 class ComplexDataNormalizer extends NormalizerBase {
 
   /**
-   * The interface or class that this Normalizer supports.
-   *
-   * @var string
+   * {@inheritdoc}
    */
-  protected $supportedInterfaceOrClass = 'Drupal\Core\TypedData\ComplexDataInterface';
+  protected $supportedInterfaceOrClass = ComplexDataInterface::class;
 
   /**
    * {@inheritdoc}
@@ -34,13 +32,23 @@ class ComplexDataNormalizer extends NormalizerBase {
     // Other normalizers that extend this class may only provide $object that
     // implements \Traversable.
     if ($object instanceof ComplexDataInterface) {
-      $object = TypedDataInternalPropertiesHelper::getNonInternalProperties($object);
+      // If there are no properties to normalize, just normalize the value.
+      $object = !empty($object->getProperties(TRUE))
+        ? TypedDataInternalPropertiesHelper::getNonInternalProperties($object)
+        : $object->getValue();
     }
     /** @var \Drupal\Core\TypedData\TypedDataInterface $property */
     foreach ($object as $name => $property) {
       $attributes[$name] = $this->serializer->normalize($property, $format, $context);
     }
     return $attributes;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function hasCacheableSupportsMethod(): bool {
+    return TRUE;
   }
 
 }

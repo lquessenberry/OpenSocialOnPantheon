@@ -52,20 +52,6 @@ interface ForumManagerInterface {
   public function resetCache();
 
   /**
-   * Fetches the parent forums for a given forum.
-   *
-   * @param int $tid
-   *   Term ID.
-   *
-   * @return array
-   *   Array of parent terms.
-   *
-   * @deprecated Scheduled to be removed in 9.0.x, see
-   *   https://www.drupal.org/node/2371593.
-   */
-  public function getParents($tid);
-
-  /**
    * Checks whether a node can be used in a forum, based on its content type.
    *
    * @param \Drupal\node\NodeInterface $node

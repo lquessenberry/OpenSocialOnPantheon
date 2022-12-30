@@ -17,5 +17,7 @@ translatable: false
 default_value: {  }
 default_value_callback: ''
 settings:
-  plugin_ids: {  }
+  selection: blocks
+  selection_settings:
+    plugin_ids: {  }
 field_type: block_field

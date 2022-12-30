@@ -6,8 +6,11 @@ use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 class TreeBuilder implements TreeBuilderInterface {
+
+  use StringTranslationTrait;
 
   /**
    * @var \Drupal\token\Token
@@ -61,18 +64,14 @@ class TreeBuilder implements TreeBuilderInterface {
       $token_types = array_merge($token_types, $this->tokenService->getGlobalTokenTypes());
     }
 
-    $element = array(
-      /*'#cache' => array(
-        'cid' => 'tree-rendered:' . hash('sha256', serialize(array('token_types' => $token_types, 'global_types' => NULL) + $variables)),
-        'tags' => array(Token::TOKEN_INFO_CACHE_TAG),
-      ),*/
-    );
+    $element = [
+      /*'#cache' => [
+        'cid' => 'tree-rendered:' . hash('sha256', serialize(['token_types' => $token_types, 'global_types' => NULL] + $variables)),
+        'tags' => [Token::TOKEN_INFO_CACHE_TAG],
+      ],*/
+    ];
 
     // @todo Find a way to use the render cache for this.
-    /*if ($cached_output = token_render_cache_get($element)) {
-      return $cached_output;
-    }*/
-
     $tree_options = [
       'flat' => TRUE,
       'restricted' => $options['show_restricted'],
@@ -97,7 +96,7 @@ class TreeBuilder implements TreeBuilderInterface {
       '#show_nested' => $options['show_nested'],
       '#click_insert' => $options['click_insert'],
       '#columns' => ['name', 'token', 'description'],
-      '#empty' => t('No tokens available'),
+      '#empty' => $this->t('No tokens available'),
     ];
 
     return $element;
@@ -229,7 +228,8 @@ class TreeBuilder implements TreeBuilderInterface {
         // parent.
         $token_parents[] = $token_type;
       }
-      elseif (in_array($token, array_slice($token_parents, 1), TRUE)) {
+      // The 'entity' token will be repeated on nested entity reference fields.
+      elseif ($token !== 'entity' && in_array($token, array_slice($token_parents, 1), TRUE)) {
         // Prevent duplicate recursive tokens. For example, this will prevent
         // the tree from generating the following tokens or deeper:
         // [comment:parent:parent]

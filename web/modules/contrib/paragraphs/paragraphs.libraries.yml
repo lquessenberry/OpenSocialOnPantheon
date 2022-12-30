@@ -1,12 +1,11 @@
 drupal.paragraphs.admin:
   dependencies:
-      - core/jquery
-      - core/drupal
-      - core/drupalSettings
-      - core/jquery.once
-      - core/jquery.form
-      - core/drupal.ajax
-      - core/drupal.dropbutton
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+    - core/drupal.ajax
+    - core/drupal.dropbutton
   css:
     theme:
       css/paragraphs.admin.css: {}
@@ -16,15 +15,28 @@ drupal.paragraphs.widget:
     - core/jquery
     - core/drupal
     - core/drupalSettings
-    - core/jquery.once
-    - core/jquery.form
+    - core/once
     - core/drupal.ajax
     - core/drupal.dropbutton
+    - paragraphs/drupal.paragraphs.summary
   css:
     theme:
       css/paragraphs.widget.css: {}
   js:
     js/paragraphs.admin.js: {}
+
+drupal.paragraphs.add_above_button:
+  css:
+    theme:
+      css/paragraphs.actions.css: {}
+  js:
+    js/paragraphs.add_above_button.js: {}
+  dependencies:
+    - core/drupalSettings
+    - core/once
+    - core/jquery
+    - core/drupal.ajax
+    - core/drupal
 
 drupal.paragraphs.actions:
   css:
@@ -34,9 +46,8 @@ drupal.paragraphs.actions:
     js/paragraphs.actions.js: {}
   dependencies:
     - core/drupalSettings
-    - core/jquery.once
+    - core/once
     - core/jquery
-    - core/jquery.form
     - core/drupal.ajax
     - core/drupal
 
@@ -53,17 +64,9 @@ drupal.paragraphs.modal:
     theme:
       css/paragraphs.modal.css: {}
   dependencies:
+    - core/drupal.dialog
     - core/drupal.dialog.ajax
-    - core/jquery.once
-    - core/jquery.ui.tabs
-
-sortable:
-  website: https://github.com/RubaXa/Sortable
-  license:
-    name: MIT
-    url: https://github.com/RubaXa/Sortable/blob/master/README.md
-    gpl-compatible: true
-  js: { }
+    - core/once
 
 paragraphs-dragdrop:
   css:
@@ -74,4 +77,21 @@ paragraphs-dragdrop:
   dependencies:
     - core/jquery
     - core/drupal
-    - paragraphs/sortable
+    - core/sortable
+
+drupal.paragraphs.formatter:
+  css:
+    theme:
+      css/paragraphs.formatter.css: {}
+  dependencies:
+    - paragraphs/drupal.paragraphs.summary
+
+drupal.paragraphs.unpublished:
+  css:
+    theme:
+      css/paragraphs.unpublished.css: {}
+
+paragraphs.seven:
+  css:
+    theme:
+      css/paragraphs.seven.css: {}

@@ -3,12 +3,27 @@
 namespace Drupal\Core\Layout;
 
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Plugin\ContextAwarePluginAssignmentTrait;
+use Drupal\Core\Plugin\ContextAwarePluginTrait;
 use Drupal\Core\Plugin\PluginBase;
+use Drupal\Core\Plugin\PluginFormInterface;
+use Drupal\Core\Plugin\PreviewAwarePluginInterface;
 
 /**
  * Provides a default class for Layout plugins.
  */
-class LayoutDefault extends PluginBase implements LayoutInterface {
+class LayoutDefault extends PluginBase implements LayoutInterface, PluginFormInterface, PreviewAwarePluginInterface {
+
+  use ContextAwarePluginAssignmentTrait;
+  use ContextAwarePluginTrait;
+
+  /**
+   * Whether the plugin is being rendered in preview mode.
+   *
+   * @var bool
+   */
+  protected $inPreview = FALSE;
 
   /**
    * The layout definition.
@@ -63,7 +78,9 @@ class LayoutDefault extends PluginBase implements LayoutInterface {
    * {@inheritdoc}
    */
   public function defaultConfiguration() {
-    return [];
+    return [
+      'label' => '',
+    ];
   }
 
   /**
@@ -80,6 +97,40 @@ class LayoutDefault extends PluginBase implements LayoutInterface {
    */
   public function getPluginDefinition() {
     return parent::getPluginDefinition();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+    $form['label'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Administrative label'),
+      '#default_value' => $this->configuration['label'],
+    ];
+    $contexts = $form_state->getTemporaryValue('gathered_contexts') ?: [];
+    $form['context_mapping'] = $this->addContextAssignmentElement($this, $contexts);
+    return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
+    $this->configuration['label'] = $form_state->getValue('label');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setInPreview(bool $in_preview): void {
+    $this->inPreview = $in_preview;
   }
 
 }

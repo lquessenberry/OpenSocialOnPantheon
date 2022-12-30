@@ -2,7 +2,7 @@
 
 namespace Drupal\address\Event;
 
-use Symfony\Component\EventDispatcher\Event;
+use Drupal\Component\EventDispatcher\Event;
 
 /**
  * Defines the address format event.

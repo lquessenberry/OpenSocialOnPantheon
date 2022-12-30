@@ -5,7 +5,7 @@ namespace Drupal\Core\Render\Element;
 /**
  * Provides a messages element.
  *
- * Used to display results of drupal_set_message() calls.
+ * Used to display results of \Drupal::messenger()->addMessage() calls.
  *
  * Usage example:
  * @code
@@ -32,6 +32,7 @@ class StatusMessages extends RenderElement {
       '#pre_render' => [
         get_class() . '::generatePlaceholder',
       ],
+      '#include_fallback' => FALSE,
     ];
   }
 
@@ -45,7 +46,7 @@ class StatusMessages extends RenderElement {
    *   The updated renderable array containing the placeholder.
    */
   public static function generatePlaceholder(array $element) {
-    $element = [
+    $build = [
       '#lazy_builder' => [get_class() . '::renderMessages', [$element['#display']]],
       '#create_placeholder' => TRUE,
     ];
@@ -53,7 +54,17 @@ class StatusMessages extends RenderElement {
     // Directly create a placeholder as we need this to be placeholdered
     // regardless if this is a POST or GET request.
     // @todo remove this when https://www.drupal.org/node/2367555 lands.
-    return \Drupal::service('render_placeholder_generator')->createPlaceholder($element);
+    $build = \Drupal::service('render_placeholder_generator')->createPlaceholder($build);
+
+    if ($element['#include_fallback']) {
+      return [
+        'fallback' => [
+          '#markup' => '<div data-drupal-messages-fallback class="hidden"></div>',
+        ],
+        'messages' => $build,
+      ];
+    }
+    return $build;
   }
 
   /**
@@ -61,7 +72,8 @@ class StatusMessages extends RenderElement {
    *
    * @param string|null $type
    *   Limit the messages returned by type. Defaults to NULL, meaning all types.
-   *   Passed on to drupal_get_messages(). These values are supported:
+   *   Passed on to \Drupal\Core\Messenger\Messenger::deleteByType(). These
+   *   values are supported:
    *   - NULL
    *   - 'status'
    *   - 'warning'
@@ -70,16 +82,23 @@ class StatusMessages extends RenderElement {
    * @return array
    *   A renderable array containing the messages.
    *
-   * @see drupal_get_messages()
+   * @see \Drupal\Core\Messenger\Messenger::deleteByType()
    */
-  public static function renderMessages($type) {
+  public static function renderMessages($type = NULL) {
     $render = [];
-    $messages = drupal_get_messages($type);
+    if (isset($type)) {
+      $messages = [
+        $type => \Drupal::messenger()->deleteByType($type),
+      ];
+    }
+    else {
+      $messages = \Drupal::messenger()->deleteAll();
+    }
+
     if ($messages) {
       // Render the messages.
       $render = [
         '#theme' => 'status_messages',
-        // @todo Improve when https://www.drupal.org/node/2278383 lands.
         '#message_list' => $messages,
         '#status_headings' => [
           'status' => t('Status message'),

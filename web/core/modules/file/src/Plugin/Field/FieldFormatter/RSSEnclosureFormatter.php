@@ -24,14 +24,15 @@ class RSSEnclosureFormatter extends FileFormatterBase {
     $entity = $items->getEntity();
     // Add the first file as an enclosure to the RSS item. RSS allows only one
     // enclosure per item. See: http://wikipedia.org/wiki/RSS_enclosure
-    foreach ($this->getEntitiesToView($items, $langcode) as $delta => $file) {
+    foreach ($this->getEntitiesToView($items, $langcode) as $file) {
+      /** @var \Drupal\file\FileInterface $file */
       $entity->rss_elements[] = [
         'key' => 'enclosure',
         'attributes' => [
           // In RSS feeds, it is necessary to use absolute URLs. The 'url.site'
           // cache context is already associated with RSS feed responses, so it
           // does not need to be specified here.
-          'url' => file_create_url($file->getFileUri()),
+          'url' => $file->createFileUrl(FALSE),
           'length' => $file->getSize(),
           'type' => $file->getMimeType(),
         ],

@@ -6,7 +6,6 @@ use Drupal\Component\Serialization\Json;
 use Drupal\Core\Url;
 use Drupal\Tests\BrowserTestBase;
 use Drupal\Tests\system\Functional\Cache\AssertPageCacheContextsAndTagsTrait;
-use GuzzleHttp\Cookie\CookieJar;
 
 /**
  * Tests the History endpoints.
@@ -22,7 +21,12 @@ class HistoryTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'history'];
+  protected static $modules = ['node', 'history'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * The main user for testing.
@@ -38,30 +42,18 @@ class HistoryTest extends BrowserTestBase {
    */
   protected $testNode;
 
-  /**
-   * The cookie jar holding the testing session cookies for Guzzle requests.
-   *
-   * @var \GuzzleHttp\Client;
-   */
-  protected $client;
-
-  /**
-   * The Guzzle HTTP client.
-   *
-   * @var \GuzzleHttp\Cookie\CookieJar;
-   */
-  protected $cookies;
-
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->drupalCreateContentType(['type' => 'page', 'name' => 'Basic page']);
 
-    $this->user = $this->drupalCreateUser(['create page content', 'access content']);
+    $this->user = $this->drupalCreateUser([
+      'create page content',
+      'edit own page content',
+      'access content',
+    ]);
     $this->drupalLogin($this->user);
     $this->testNode = $this->drupalCreateNode(['type' => 'page', 'uid' => $this->user->id()]);
-
-    $this->client = $this->getHttpClient();
   }
 
   /**
@@ -75,16 +67,14 @@ class HistoryTest extends BrowserTestBase {
    */
   protected function getNodeReadTimestamps(array $node_ids) {
     // Perform HTTP request.
+    $http_client = $this->getHttpClient();
     $url = Url::fromRoute('history.get_last_node_view')
       ->setAbsolute()
       ->toString();
-    return $this->client->post($url, [
-      'body' => http_build_query(['node_ids' => $node_ids]),
-      'cookies' => $this->cookies,
-      'headers' => [
-        'Accept' => 'application/json',
-        'Content-Type' => 'application/x-www-form-urlencoded',
-      ],
+
+    return $http_client->request('POST', $url, [
+      'form_params' => ['node_ids' => $node_ids],
+      'cookies' => $this->getSessionCookies(),
       'http_errors' => FALSE,
     ]);
   }
@@ -99,12 +89,11 @@ class HistoryTest extends BrowserTestBase {
    *   The response body.
    */
   protected function markNodeAsRead($node_id) {
+    $http_client = $this->getHttpClient();
     $url = Url::fromRoute('history.read_node', ['node' => $node_id], ['absolute' => TRUE])->toString();
-    return $this->client->post($url, [
-      'cookies' => $this->cookies,
-      'headers' => [
-        'Accept' => 'application/json',
-      ],
+
+    return $http_client->request('POST', $url, [
+      'cookies' => $this->getSessionCookies(),
       'http_errors' => FALSE,
     ]);
   }
@@ -115,11 +104,16 @@ class HistoryTest extends BrowserTestBase {
   public function testHistory() {
     $nid = $this->testNode->id();
 
+    // Verify that previews of new entities do not create the history.
+    $this->drupalGet("node/add/page");
+    $this->submitForm(['title[0][value]' => 'Unsaved page'], 'Preview');
+    $this->assertArrayNotHasKey('ajaxPageState', $this->getDrupalSettings());
+
     // Retrieve "last read" timestamp for test node, for the current user.
     $response = $this->getNodeReadTimestamps([$nid]);
     $this->assertEquals(200, $response->getStatusCode());
     $json = Json::decode($response->getBody());
-    $this->assertIdentical([1 => 0], $json, 'The node has not yet been read.');
+    $this->assertSame([1 => 0], $json, 'The node has not yet been read.');
 
     // View the node.
     $this->drupalGet('node/' . $nid);
@@ -127,24 +121,29 @@ class HistoryTest extends BrowserTestBase {
     // JavaScript present to record the node read.
     $settings = $this->getDrupalSettings();
     $libraries = explode(',', $settings['ajaxPageState']['libraries']);
-    $this->assertTrue(in_array('history/mark-as-read', $libraries), 'history/mark-as-read library is present.');
-    $this->assertEqual([$nid => TRUE], $settings['history']['nodesToMarkAsRead'], 'drupalSettings to mark node as read are present.');
+    $this->assertContains('history/mark-as-read', $libraries, 'history/mark-as-read library is present.');
+    $this->assertEquals([$nid => TRUE], $settings['history']['nodesToMarkAsRead'], 'drupalSettings to mark node as read are present.');
 
     // Simulate JavaScript: perform HTTP request to mark node as read.
     $response = $this->markNodeAsRead($nid);
     $this->assertEquals(200, $response->getStatusCode());
     $timestamp = Json::decode($response->getBody());
-    $this->assertTrue(is_numeric($timestamp), 'Node has been marked as read. Timestamp received.');
+    $this->assertIsNumeric($timestamp);
 
     // Retrieve "last read" timestamp for test node, for the current user.
     $response = $this->getNodeReadTimestamps([$nid]);
     $this->assertEquals(200, $response->getStatusCode());
     $json = Json::decode($response->getBody());
-    $this->assertIdentical([1 => $timestamp], $json, 'The node has been read.');
+    $this->assertSame([1 => $timestamp], $json, 'The node has been read.');
 
     // Failing to specify node IDs for the first endpoint should return a 404.
     $response = $this->getNodeReadTimestamps([]);
     $this->assertEquals(404, $response->getStatusCode());
+
+    // Verify that previews of existing entities do not update the history.
+    $this->drupalGet("node/$nid/edit");
+    $this->submitForm([], 'Preview');
+    $this->assertArrayNotHasKey('ajaxPageState', $this->getDrupalSettings());
 
     // Accessing either endpoint as the anonymous user should return a 403.
     $this->drupalLogout();
@@ -154,21 +153,13 @@ class HistoryTest extends BrowserTestBase {
     $this->assertEquals(403, $response->getStatusCode());
     $response = $this->markNodeAsRead($nid);
     $this->assertEquals(403, $response->getStatusCode());
-  }
 
-  /**
-   * Obtain the HTTP client and set the cookies.
-   *
-   * @return \GuzzleHttp\Client
-   *   The client with BrowserTestBase configuration.
-   */
-  protected function getHttpClient() {
-    // Similar code is also employed to test CSRF tokens.
-    // @see \Drupal\Tests\system\Functional\CsrfRequestHeaderTest::testRouteAccess()
-    $domain = parse_url($this->getUrl(), PHP_URL_HOST);
-    $session_id = $this->getSession()->getCookie($this->getSessionName());
-    $this->cookies = CookieJar::fromArray([$this->getSessionName() => $session_id], $domain);
-    return $this->getSession()->getDriver()->getClient()->getClient();
+    // Additional check to ensure that we did not forget to verify anything.
+    $rows = \Drupal::database()->query('SELECT * FROM {history}')->fetchAll();
+    $this->assertCount(1, $rows);
+    $this->assertSame($this->user->id(), $rows[0]->uid);
+    $this->assertSame($this->testNode->id(), $rows[0]->nid);
+    $this->assertSame($timestamp, (int) $rows[0]->timestamp);
   }
 
 }

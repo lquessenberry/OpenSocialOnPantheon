@@ -9,6 +9,7 @@ use Drupal\Core\Ajax\AddCssCommand;
 use Drupal\Core\Ajax\AfterCommand;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\AlertCommand;
+use Drupal\Core\Ajax\AnnounceCommand;
 use Drupal\Core\Ajax\AppendCommand;
 use Drupal\Core\Ajax\BeforeCommand;
 use Drupal\Core\Ajax\ChangedCommand;
@@ -41,6 +42,35 @@ function ajax_forms_test_advanced_commands_alert_callback($form, FormStateInterf
   $response = new AjaxResponse();
   $response->addCommand(new AlertCommand('Alert'));
   return $response;
+}
+
+/**
+ * Ajax form callback: Selects 'announce' with no priority specified.
+ */
+function ajax_forms_test_advanced_commands_announce_callback($form, FormStateInterface $form_state) {
+  return (new AjaxResponse())->addCommand(new AnnounceCommand('Default announcement.'));
+}
+
+/**
+ * Ajax form callback: Selects 'announce' with 'polite' priority.
+ */
+function ajax_forms_test_advanced_commands_announce_polite_callback($form, FormStateInterface $form_state) {
+  return (new AjaxResponse())->addCommand(new AnnounceCommand('Polite announcement.', 'polite'));
+}
+
+/**
+ * Ajax form callback: Selects 'announce' with 'assertive' priority.
+ */
+function ajax_forms_test_advanced_commands_announce_assertive_callback($form, FormStateInterface $form_state) {
+  return (new AjaxResponse())->addCommand(new AnnounceCommand('Assertive announcement.', 'assertive'));
+}
+
+/**
+ * Ajax form callback: Selects 'announce' with two announce commands returned.
+ */
+function ajax_forms_test_advanced_commands_double_announce_callback($form, FormStateInterface $form_state) {
+  return (new AjaxResponse())->addCommand(new AnnounceCommand('Assertive announcement.', 'assertive'))
+    ->addCommand(new AnnounceCommand('Another announcement.'));
 }
 
 /**
@@ -180,8 +210,8 @@ function ajax_forms_test_advanced_commands_add_css_callback($form, FormStateInte
  * Ajax form callback: Selects the 'drivertext' element of the validation form.
  */
 function ajax_forms_test_validation_form_callback($form, FormStateInterface $form_state) {
-  drupal_set_message("ajax_forms_test_validation_form_callback invoked");
-  drupal_set_message(t("Callback: drivertext=%drivertext, spare_required_field=%spare_required_field", ['%drivertext' => $form_state->getValue('drivertext'), '%spare_required_field' => $form_state->getValue('spare_required_field')]));
+  \Drupal::messenger()->addStatus("ajax_forms_test_validation_form_callback invoked");
+  \Drupal::messenger()->addStatus(t("Callback: drivertext=%drivertext, spare_required_field=%spare_required_field", ['%drivertext' => $form_state->getValue('drivertext'), '%spare_required_field' => $form_state->getValue('spare_required_field')]));
   return ['#markup' => '<div id="message_area">ajax_forms_test_validation_form_callback at ' . date('c') . '</div>'];
 }
 
@@ -189,8 +219,8 @@ function ajax_forms_test_validation_form_callback($form, FormStateInterface $for
  * Ajax form callback: Selects the 'drivernumber' element of the validation form.
  */
 function ajax_forms_test_validation_number_form_callback($form, FormStateInterface $form_state) {
-  drupal_set_message("ajax_forms_test_validation_number_form_callback invoked");
-  drupal_set_message(t("Callback: drivernumber=%drivernumber, spare_required_field=%spare_required_field", ['%drivernumber' => $form_state->getValue('drivernumber'), '%spare_required_field' => $form_state->getValue('spare_required_field')]));
+  \Drupal::messenger()->addStatus("ajax_forms_test_validation_number_form_callback invoked");
+  \Drupal::messenger()->addStatus(t("Callback: drivernumber=%drivernumber, spare_required_field=%spare_required_field", ['%drivernumber' => $form_state->getValue('drivernumber'), '%spare_required_field' => $form_state->getValue('spare_required_field')]));
   return ['#markup' => '<div id="message_area_number">ajax_forms_test_validation_number_form_callback at ' . date('c') . '</div>'];
 }
 

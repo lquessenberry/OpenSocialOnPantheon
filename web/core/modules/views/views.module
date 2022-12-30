@@ -5,7 +5,6 @@
  * Primarily Drupal hooks and global API functions to manipulate views.
  */
 
-use Drupal\Component\Render\MarkupInterface;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Database\Query\AlterableInterface;
 use Drupal\Core\Entity\EntityInterface;
@@ -16,8 +15,8 @@ use Drupal\views\Plugin\Derivative\ViewsLocalTask;
 use Drupal\views\ViewEntityInterface;
 use Drupal\views\ViewExecutable;
 use Drupal\views\Entity\View;
-use Drupal\views\Render\ViewsRenderPipelineMarkup;
 use Drupal\views\Views;
+use Drupal\views\ViewsConfigUpdater;
 
 /**
  * Implements hook_help().
@@ -29,7 +28,7 @@ function views_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('The Views module provides a back end to fetch information from content, user accounts, taxonomy terms, and other entities from the database and present it to the user as a grid, HTML list, table, unformatted list, etc. The resulting displays are known generally as <em>views</em>.') . '</p>';
       $output .= '<p>' . t('For more information, see the <a href=":views">online documentation for the Views module</a>.', [':views' => 'https://www.drupal.org/documentation/modules/views']) . '</p>';
-      $output .= '<p>' . t('In order to create and modify your own views using the administration and configuration user interface, you will need to enable either the Views UI module in core or a contributed module that provides a user interface for Views. See the <a href=":views-ui">Views UI module help page</a> for more information.', [':views-ui' => (\Drupal::moduleHandler()->moduleExists('views_ui')) ? \Drupal::url('help.page', ['name' => 'views_ui']) : '#']) . '</p>';
+      $output .= '<p>' . t('In order to create and modify your own views using the administration and configuration user interface, you will need to enable either the Views UI module in core or a contributed module that provides a user interface for Views. See the <a href=":views-ui">Views UI module help page</a> for more information.', [':views-ui' => (\Drupal::moduleHandler()->moduleExists('views_ui')) ? Url::fromRoute('help.page', ['name' => 'views_ui'])->toString() : '#']) . '</p>';
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
       $output .= '<dt>' . t('Adding functionality to administrative pages') . '</dt>';
@@ -54,13 +53,13 @@ function views_views_pre_render($view) {
   // If using AJAX, send identifying data about this view.
   if ($view->ajaxEnabled() && empty($view->is_attachment) && empty($view->live_preview)) {
     $view->element['#attached']['drupalSettings']['views'] = [
-      'ajax_path' => \Drupal::url('views.ajax'),
+      'ajax_path' => Url::fromRoute('views.ajax')->toString(),
       'ajaxViews' => [
         'views_dom_id:' . $view->dom_id => [
           'view_name' => $view->storage->id(),
           'view_display_id' => $view->current_display,
           'view_args' => Html::escape(implode('/', $view->args)),
-          'view_path' => Html::escape(Url::fromRoute('<current>')->toString()),
+          'view_path' => Html::escape(\Drupal::service('path.current')->getPath()),
           'view_base_path' => $view->getPath(),
           'view_dom_id' => $view->dom_id,
           // To fit multiple views on a page, the programmer may have
@@ -89,7 +88,7 @@ function views_theme($existing, $type, $theme, $path) {
     'file' => 'views.theme.inc',
   ];
 
-  // Our extra version of pager from pager.inc
+  // Our extra version of pager
   $hooks['views_mini_pager'] = $base + [
     'variables' => ['tags' => [], 'quantity' => 9, 'element' => 0, 'parameters' => []],
   ];
@@ -173,7 +172,7 @@ function views_theme($existing, $type, $theme, $path) {
       ];
 
       // We always use the module directory as base dir.
-      $module_dir = drupal_get_path('module', $def['provider']);
+      $module_dir = \Drupal::service('extension.list.module')->getPath($def['provider']);
       $hooks[$def['theme']]['path'] = $module_dir;
 
       // For the views module we ensure views.theme.inc is included.
@@ -399,7 +398,7 @@ function views_add_contextual_links(&$render_element, $location, $display_id, ar
         $args = [];
         $valid = TRUE;
         if (!empty($link['route_parameters_names'])) {
-          $view_storage = \Drupal::entityManager()
+          $view_storage = \Drupal::entityTypeManager()
             ->getStorage('view')
             ->load($view_id);
           foreach ($link['route_parameters_names'] as $parameter_name => $property) {
@@ -502,7 +501,9 @@ function views_invalidate_cache() {
 }
 
 /**
- * Set the current 'current view' that is being built/rendered so that it is
+ * Set the current view.
+ *
+ * Set the current view that is being built/rendered so that it is
  * easy for other modules or items in drupal_eval to identify
  *
  * @return \Drupal\views\ViewExecutable
@@ -616,47 +617,6 @@ function views_enable_view(View $view) {
  */
 function views_disable_view(View $view) {
   $view->disable()->save();
-}
-
-/**
- * Replaces views substitution placeholders.
- *
- * @param array $element
- *   An associative array containing the properties of the element.
- *   Properties used: #substitutions, #children.
- * @return array
- *   The $element with prepared variables ready for #theme 'form'
- *   in views_form_views_form.
- */
-function views_pre_render_views_form_views_form($element) {
-  // Placeholders and their substitutions (usually rendered form elements).
-  $search = [];
-  $replace = [];
-
-  // Add in substitutions provided by the form.
-  foreach ($element['#substitutions']['#value'] as $substitution) {
-    $field_name = $substitution['field_name'];
-    $row_id = $substitution['row_id'];
-
-    $search[] = $substitution['placeholder'];
-    $replace[] = isset($element[$field_name][$row_id]) ? \Drupal::service('renderer')->render($element[$field_name][$row_id]) : '';
-  }
-  // Add in substitutions from hook_views_form_substitutions().
-  $substitutions = \Drupal::moduleHandler()->invokeAll('views_form_substitutions');
-  foreach ($substitutions as $placeholder => $substitution) {
-    $search[] = Html::escape($placeholder);
-    // Ensure that any replacements made are safe to make.
-    if (!($substitution instanceof MarkupInterface)) {
-      $substitution = Html::escape($substitution);
-    }
-    $replace[] = $substitution;
-  }
-
-  // Apply substitutions to the rendered output.
-  $output = str_replace($search, $replace, \Drupal::service('renderer')->render($element['output']));
-  $element['output'] = ['#markup' => ViewsRenderPipelineMarkup::create($output)];
-
-  return $element;
 }
 
 /**
@@ -790,14 +750,15 @@ function views_embed_view($name, $display_id = 'default') {
  * @param string $name
  *   The name of the view to retrieve the data from.
  * @param string $display_id
- *   The display id. On the edit page for the view in question, you'll find
- *   a list of displays at the left side of the control area. "Master"
- *   will be at the top of that list. Hover your cursor over the name of the
- *   display you want to use. A URL will appear in the status bar of your
- *   browser. This is usually at the bottom of the window, in the chrome.
- *   Everything after #views-tab- is the display ID, e.g. page_1.
+ *   The display ID. On the edit page for the view in question, you'll find a
+ *   list of displays at the left side of the control area. "Default" will be at
+ *   the top of that list. Hover your cursor over the name of the display you
+ *   want to use. A URL will appear in the status bar of your browser. This is
+ *   usually at the bottom of the window, in the chrome. Everything after
+ *   #views-tab- is the display ID, e.g. page_1.
  * @param ...
  *   Any additional parameters will be passed as arguments.
+ *
  * @return array
  *   An array containing an object for each view item.
  */
@@ -864,38 +825,10 @@ function views_view_delete(EntityInterface $entity) {
 }
 
 /**
- * Implements hook_view_presave().
- *
- * Provides a BC layer for modules providing old configurations.
+ * Implements hook_ENTITY_TYPE_presave().
  */
 function views_view_presave(ViewEntityInterface $view) {
-  $displays = $view->get('display');
-  $changed = FALSE;
-  foreach ($displays as $display_name => &$display) {
-    if (isset($display['display_options']['fields'])) {
-      foreach ($display['display_options']['fields'] as $field_name => &$field) {
-        if (isset($field['plugin_id']) && $field['plugin_id'] === 'entity_link') {
-          // Add any missing settings for entity_link.
-          if (!isset($field['output_url_as_text'])) {
-            $field['output_url_as_text'] = FALSE;
-            $changed = TRUE;
-          }
-          if (!isset($field['absolute'])) {
-            $field['absolute'] = FALSE;
-            $changed = TRUE;
-          }
-        }
-        elseif (isset($field['plugin_id']) && $field['plugin_id'] === 'node_path') {
-          // Convert the use of node_path to entity_link.
-          $field['plugin_id'] = 'entity_link';
-          $field['field'] = 'view_node';
-          $field['output_url_as_text'] = TRUE;
-          $changed = TRUE;
-        }
-      }
-    }
-  }
-  if ($changed) {
-    $view->set('display', $displays);
-  }
+  /** @var \Drupal\views\ViewsConfigUpdater $config_updater */
+  $config_updater = \Drupal::classResolver(ViewsConfigUpdater::class);
+  $config_updater->updateAll($view);
 }

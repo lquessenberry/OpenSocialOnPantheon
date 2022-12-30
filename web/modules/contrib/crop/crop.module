@@ -6,15 +6,16 @@
  *
  * Provides storage and API for image crops.
  */
+
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\crop\Entity\Crop;
 use Drupal\image\Entity\ImageStyle;
-use Drupal\media\Entity\MediaType;
+use Drupal\media\MediaSourceInterface;
 use Drupal\media\MediaTypeInterface;
-use Drupal\media_entity\MediaBundleInterface;
 use Drupal\file\FileInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
 
 /**
  * Implements hook_theme().
@@ -25,6 +26,47 @@ function crop_theme() {
       'variables' => ['data' => [], 'effect' => []],
     ],
   ];
+}
+
+/**
+ * Implements hook_help().
+ */
+function crop_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.crop':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t("<a href=':crop'>Crop</a> provides basic API for image cropping. This module won't do much by itself. Users should pick one of UI modules that utilize this API.</a>",
+          [
+            ':crop' => 'http://drupal.org/project/crop',
+          ]
+        ) . '</p>';
+
+      $output .= '<h3>' . t('Configuration') . '</h3>';
+      $output .= '<p>' . t('This is API module. In order to crop your images you need a UI module. There are currently two UI modules that use Crop API:') . '</p>';
+
+      $output .= '<ul>';
+      $output .= '<li>' . t('<a href=":image_widget_crop">Image widget crop</a>',
+          [
+            ':image_widget_crop' => 'https://www.drupal.org/project/image_widget_crop',
+          ]
+        ) . '</li>';
+      $output .= '<li>' . t('<a href=":focal_point">Focal point</a>',
+          [
+            ':focal_point' => 'https://www.drupal.org/project/focal_point',
+          ]
+        ) . '</li>';
+      $output .= '</ul>';
+
+      $output .= '<h3>' . t('Technical details') . '</h3>';
+      $output .= '<p>' . t('Initial discussion can be found on <a href=":manual">manual crop issue queue</a>.',
+          [
+            ':manual' => 'https://www.drupal.org/node/2368945',
+          ]
+        ) . '</p>';
+
+      return $output;
+  }
 }
 
 /**
@@ -42,28 +84,10 @@ function template_preprocess_crop_crop_summary(&$variables) {
 /**
  * Implements hook_form_FORM_ID_alter().
  *
- * Adds crop configuration fields to media type form.
+ * Adds crop configuration fields to media form.
  */
 function crop_form_media_type_edit_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
-  _crop_media_provider_form($form, $form_state);
-}
-
-/**
- * Implements hook_form_FORM_ID_alter().
- *
- * Adds crop configuration fields to media bundle form.
- */
-function crop_form_media_bundle_edit_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
-  _crop_media_provider_form($form, $form_state);
-}
-
-/**
- * Helper function to avoid uneeded code duplication.
- *
- * @todo Delete this and media entity fallback when media is stable.
- */
-function _crop_media_provider_form(array &$form, FormStateInterface $form_state) {
-  /** @var \Drupal\Core\Config\Entity\ConfigEntityBundleBase $entity_type */
+  /** @var \Drupal\media\Entity\MediaType $entity_type */
   $entity_type = $form_state->getFormObject()->getEntity();
   $options = [];
   $allowed_field_types = ['file', 'image'];
@@ -76,14 +100,7 @@ function _crop_media_provider_form(array &$form, FormStateInterface $form_state)
     }
   }
 
-  // Maintain compatibility with Media Entity.
-  if ($entity_type instanceof MediaType) {
-    $form['#entity_builders'][] = 'crop_media_type_form_builder';
-  }
-  else {
-    $form['#entity_builders'][] = 'crop_media_bundle_form_builder';
-  }
-
+  $form['#entity_builders'][] = 'crop_media_type_form_builder';
   $form['crop'] = [
     '#type' => 'fieldset',
     '#title' => t('Crop configuration'),
@@ -109,22 +126,9 @@ function _crop_media_provider_form(array &$form, FormStateInterface $form_state)
     '#default_value' => $entity_type->getThirdPartySetting('crop', 'image_field'),
     '#options' => $options,
     '#empty_option' => t('- Skip field -'),
-    '#empty_value' => '_none',
+    '#empty_value' => MediaSourceInterface::METADATA_FIELD_EMPTY,
     '#description' => t('Select field that stores image which needs to be cropped.'),
   ];
-
-  return $form;
-}
-
-/**
- * Entity builder for Media bundle.
- *
- * Adds third party settings to Media bundle config entity.
- *
- * @see crop_form_media_bundle_form_alter()
- */
-function crop_media_bundle_form_builder($entity_type, MediaBundleInterface $bundle, &$form, FormStateInterface $form_state) {
-  $bundle->setThirdPartySetting('crop', 'image_field', $form_state->getValue('image_field'));
 }
 
 /**
@@ -162,7 +166,7 @@ function crop_file_url_alter(&$uri) {
   if (strpos($uri, '/styles/') !== FALSE && preg_match('/\/styles\/(.*?)\/(.*?)\/(.+)/', $uri, $match)) {
     // Match image style, schema, file subdirectory and file name.
     // Get the image style ID.
-    $image_style = $match[1];
+    $image_style_id = $match[1];
     // Get the file path without query parameter.
     $parsed_uri = UrlHelper::parse($match[3]);
     // Get the file URI using parsed schema and file path.
@@ -174,12 +178,7 @@ function crop_file_url_alter(&$uri) {
       return;
     }
 
-    /** @var \Drupal\image\Entity\ImageStyle $image_style */
-    if (!$image_style = ImageStyle::load($image_style)) {
-      return;
-    }
-
-    if ($crop = Crop::getCropFromImageStyle($file_uri, $image_style)) {
+    if ($crop = Crop::getCropFromImageStyleId($file_uri, $image_style_id)) {
       // Found a crop for this image, append a hash of it to the URL,
       // so that browsers reload the image and CDNs and proxies can be bypassed.
       $shortened_hash = substr(md5(implode($crop->position()) . implode($crop->anchor())), 0, 8);
@@ -188,7 +187,7 @@ function crop_file_url_alter(&$uri) {
       // the URI to the external URL. Otherwise the appended query argument
       // will be encoded.
       // @see file_create_url()
-      $scheme = \Drupal::service('file_system')->uriScheme($uri);
+      $scheme = StreamWrapperManager::getScheme($uri);
       if ($scheme && !in_array($scheme, ['http', 'https', 'data'])) {
         if ($wrapper = \Drupal::service('stream_wrapper_manager')->getViaUri($uri)) {
           $uri = $wrapper->getExternalUrl();

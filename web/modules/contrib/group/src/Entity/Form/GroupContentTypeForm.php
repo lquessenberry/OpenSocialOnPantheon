@@ -142,12 +142,12 @@ class GroupContentTypeForm extends EntityForm {
       /** @var \Drupal\group\Entity\Storage\GroupContentTypeStorageInterface $storage */
       $storage = $this->entityTypeManager->getStorage('group_content_type');
       $storage->createFromPlugin($group_type, $plugin->getPluginId(), $config)->save();
-      drupal_set_message($this->t('The content plugin was installed on the group type.'));
+      $this->messenger()->addStatus($this->t('The content plugin was installed on the group type.'));
     }
     // Otherwise, we update the existing group content type's configuration.
     else {
       $group_content_type->updateContentPlugin($config);
-      drupal_set_message($this->t('The content plugin configuration was saved.'));
+      $this->messenger()->addStatus($this->t('The content plugin configuration was saved.'));
     }
 
     $form_state->setRedirect('entity.group_type.content_plugins', ['group_type' => $group_type->id()]);

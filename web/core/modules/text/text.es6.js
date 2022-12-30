@@ -14,8 +14,8 @@
    */
   Drupal.behaviors.textSummary = {
     attach(context, settings) {
-      $(context).find('.js-text-summary').once('text-summary').each(function () {
-        const $widget = $(this).closest('.js-text-format-wrapper');
+      once('text-summary', '.js-text-summary', context).forEach((summary) => {
+        const $widget = $(summary).closest('.js-text-format-wrapper');
 
         const $summary = $widget.find('.js-text-summary-wrapper');
         const $summaryLabel = $summary.find('label').eq(0);
@@ -28,30 +28,46 @@
           $fullLabel = $('<label></label>').prependTo($full);
         }
 
+        // To ensure the summary toggle is shown in case the label is hidden
+        // (in multivalue fields in particular), show the label but hide
+        // the original text of the label.
+        if ($fullLabel.hasClass('visually-hidden')) {
+          $fullLabel.html(
+            (index, oldHtml) =>
+              `<span class="visually-hidden">${oldHtml}</span>`,
+          );
+          $fullLabel.removeClass('visually-hidden');
+        }
+
         // Set up the edit/hide summary link.
-        const $link = $(`<span class="field-edit-link"> (<button type="button" class="link link-edit-summary">${Drupal.t('Hide summary')}</button>)</span>`);
+        const $link = $(
+          `<span class="field-edit-link"> (<button type="button" class="link link-edit-summary">${Drupal.t(
+            'Hide summary',
+          )}</button>)</span>`,
+        );
         const $button = $link.find('button');
         let toggleClick = true;
-        $link.on('click', (e) => {
-          if (toggleClick) {
-            $summary.hide();
-            $button.html(Drupal.t('Edit summary'));
-            $link.appendTo($fullLabel);
-          }
-          else {
-            $summary.show();
-            $button.html(Drupal.t('Hide summary'));
-            $link.appendTo($summaryLabel);
-          }
-          e.preventDefault();
-          toggleClick = !toggleClick;
-        }).appendTo($summaryLabel);
+        $link
+          .on('click', (e) => {
+            if (toggleClick) {
+              $summary.hide();
+              $button.html(Drupal.t('Edit summary'));
+              $link.appendTo($fullLabel);
+            } else {
+              $summary.show();
+              $button.html(Drupal.t('Hide summary'));
+              $link.appendTo($summaryLabel);
+            }
+            e.preventDefault();
+            toggleClick = !toggleClick;
+          })
+          .appendTo($summaryLabel);
 
         // If no summary is set, hide the summary field.
-        if ($widget.find('.js-text-summary').val() === '') {
+        if (summary.value === '') {
           $link.trigger('click');
         }
       });
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

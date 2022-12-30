@@ -6,7 +6,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 
 /**
- * List controller for profile types.
+ * Defines the list builder for profile types.
  */
 class ProfileTypeListBuilder extends ConfigEntityListBuilder {
 
@@ -15,7 +15,6 @@ class ProfileTypeListBuilder extends ConfigEntityListBuilder {
    */
   public function buildHeader() {
     $header['type'] = $this->t('Profile type');
-    $header['description'] = $this->t('Description');
     $header['registration'] = $this->t('Registration');
     $header['multiple'] = $this->t('Allow multiple profiles');
     return $header + parent::buildHeader();
@@ -25,10 +24,10 @@ class ProfileTypeListBuilder extends ConfigEntityListBuilder {
    * {@inheritdoc}
    */
   public function buildRow(EntityInterface $entity) {
+    /** @var \Drupal\profile\Entity\ProfileTypeInterface $entity */
     $row['type'] = $entity->toLink(NULL, 'edit-form');
-    $row['description'] = $entity->getDescription();
     $row['registration'] = $entity->getRegistration() ? $this->t('Yes') : $this->t('No');
-    $row['multiple'] = $entity->getMultiple() ? $this->t('Yes') : $this->t('No');
+    $row['multiple'] = $entity->allowsMultiple() ? $this->t('Yes') : $this->t('No');
     return $row + parent::buildRow($entity);
   }
 

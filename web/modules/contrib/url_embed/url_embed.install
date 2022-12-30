@@ -24,6 +24,28 @@ function url_embed_requirements($phase) {
       ];
     }
   }
+  elseif ($phase == 'runtime') {
+    $requirements['url_embed']['title'] = t('Url Embed: Facebook/Instagram App');
+    $config = \Drupal::service('config.factory')->get('url_embed.settings');
+    if (empty($config->get('facebook_app_id')) || empty($config->get('facebook_app_secret'))) {
+      $requirements['url_embed']['value'] = t('Missing Facebook app credentials.');
+      $requirements['url_embed']['description'] = t('In order to embed Facebook and Instagram posts you must create a <a href="@facebook_url">live facebook app with oEmbed enabled</a> and add the app ID and Secret to the <a href="@settings_url">Url Embed settings page</a>.',
+        [
+          '@facebook_url' => 'https://developers.facebook.com/docs/plugins/oembed',
+          '@settings_url' => '/admin/config/media/url_embed',
+        ]);
+      $requirements['url_embed']['severity'] = REQUIREMENT_WARNING;
+    }
+    else {
+      $access_token = url_embed_debug_facebook_access_token($config->get('facebook_app_id') . '|' . $config->get('facebook_app_secret'));
+      $is_valid = !empty($access_token['is_valid']);
+      $requirements['url_embed']['value'] = $is_valid ? t('Active') : t('Invalid Facebook app credentials provided.');
+      $requirements['url_embed']['severity'] = $is_valid ? REQUIREMENT_INFO : REQUIREMENT_ERROR;
+      if (!$is_valid) {
+        $requirements['url_embed']['description'] = t('Check that you have entered your app credentials correctly and that it is live. <a href="@settings_url">Edit settings</a>', ['@settings_url' => '/admin/config/media/url_embed']);
+      }
+    }
+  }
 
   return $requirements;
 }
@@ -63,7 +85,7 @@ function url_embed_update_8002() {
   $config_factory = \Drupal::configFactory();
   $config = $config_factory->getEditable('url_embed.settings');
   if ($config->isNew()) {
-    $data = ['cache_expiration' => 3600];
-    $config->setData($data)->save();
+    $config->set('cache_expiration', 3600);
+    $config->save();
   }
 }

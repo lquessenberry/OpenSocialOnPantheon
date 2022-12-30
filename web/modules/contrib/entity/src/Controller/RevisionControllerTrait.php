@@ -99,6 +99,7 @@ trait RevisionControllerTrait {
       ->allRevisions()
       ->condition($entity_type->getKey('id'), $entity->id())
       ->sort($entity_type->getKey('revision'), 'DESC')
+      ->accessCheck(TRUE)
       ->execute();
     return array_keys($result);
   }
@@ -120,13 +121,14 @@ trait RevisionControllerTrait {
     $entity_storage = $this->entityTypeManager()->getStorage($entity->getEntityTypeId());
     $revision_ids = $this->revisionIds($entity);
     $entity_revisions = $entity_storage->loadMultipleRevisions($revision_ids);
+    $translatable = $entity->getEntityType()->isTranslatable();
 
     $header = [$this->t('Revision'), $this->t('Operations')];
     $rows = [];
     foreach ($entity_revisions as $revision) {
       $row = [];
       /** @var \Drupal\Core\Entity\ContentEntityInterface $revision */
-      if ($revision->hasTranslation($langcode) && $revision->getTranslation($langcode)->isRevisionTranslationAffected()) {
+      if (!$translatable || ($revision->hasTranslation($langcode) && $revision->getTranslation($langcode)->isRevisionTranslationAffected())) {
         $row[] = $this->getRevisionDescription($revision, $revision->isDefaultRevision());
 
         if ($revision->isDefaultRevision()) {

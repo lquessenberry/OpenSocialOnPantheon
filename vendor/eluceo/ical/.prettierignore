@@ -1,0 +1,9 @@
+/.github
+/build
+/composer.lock
+/node_modules
+/report
+/vendor
+/website/.docusaurus
+/website/build
+/website/node_modules

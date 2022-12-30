@@ -15,24 +15,24 @@
  * Implements hook_enable().
  */
 function example_enable() {
-  mailsystem_set(array('example' =&gt; 'ExampleMailSystem'));
+  mailsystem_set(['example' =&gt; 'ExampleMailSystem']);
 }
 /**
  * Implements hook_disable().
  */
 function example_disable() {
-  mailsystem_clear(array('example' =&gt; 'ExampleMailSystem'));
+  mailsystem_clear(['example' =&gt; 'ExampleMailSystem']);
 }
 </code>
 </pre>
 <p>The above settings allow mail sent by <code>example</code> to use <code>ExampleMailSystem</code>. To make <code>ExampleMailSystem</code> the site-wide default for sending mail:</p>
 <pre>
-<code>mailsystem_set(array(mailsystem_default_id() =&gt; 'ExampleMailSystem'));
+<code>mailsystem_set([mailsystem_default_id() =&gt; 'ExampleMailSystem']);
 </code>
 </pre>
 <p>To restore the default mail system:</p>
 <pre>
-<code>mailsystem_set(array(mailsystem_default_id() =&gt; mailsystem_default_value()));
+<code>mailsystem_set([mailsystem_default_id() =&gt; mailsystem_default_value()]);
 </code>
 </pre>
 <p>Or simply:</p>
@@ -46,13 +46,13 @@ function example_disable() {
  * Implements hook_enable().
  */
 function example_enable() {
-  mailsystem_set(array('example' =&gt; 'FooMailSystem'));
+  mailsystem_set(['example' =&gt; 'FooMailSystem']);
 }
 /**
  * Implements hook_disable().
  */
 function example_disable() {
-  mailsystem_clear(array('example' =&gt; ''));
+  mailsystem_clear(['example' =&gt; '']);
 }
 </code>
 </pre>
@@ -62,13 +62,13 @@ function example_disable() {
  * Implements hook_enable().
  */
 function example_enable() {
-  mailsystem_set(array('example_examail' =&gt; 'FooMailSystem'));
+  mailsystem_set(['example_examail' =&gt; 'FooMailSystem']);
 }
 /**
  * Implements hook_disable().
  */
 function example_disable() {
-  mailsystem_clear(array('example_examail' =&gt; ''));
+  mailsystem_clear(['example_examail' =&gt; '']);
 }
 </code>
 </pre>
@@ -76,23 +76,23 @@ function example_disable() {
 <p>To change the site-wide defaults to use the <code>FooMailSystem</code> for formatting messages and the <code>BarMailSystem</code> for sending them:</p>
 <pre>
 <code>mailsystem_set(
-  array(
-    mailsystem_default_id() =&gt; array(
+  [
+    mailsystem_default_id() =&gt; [
       'format' =&gt; 'FooMailSystem',
       'mail' =&gt; 'BarMailSystem',
-    ),
-  )
+    ],
+  ]
 );
 </code>
 </pre>
 <p>To change the site-wide defaults to use the <code>FooMailSystem</code> for sending messages, while continuing to use the current system for formatting them:</p>
 <pre>
 <code>mailsystem_set(
-  array(
-    mailsystem_default_id() =&gt; array(
+  [
+    mailsystem_default_id() =&gt; [
       'mail' =&gt; 'FooMailsystem',
-    ),
-  )
+    ],
+  ]
 );
 </code>
 </pre>

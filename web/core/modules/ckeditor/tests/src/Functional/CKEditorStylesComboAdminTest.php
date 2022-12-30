@@ -18,7 +18,12 @@ class CKEditorStylesComboAdminTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['filter', 'editor', 'ckeditor'];
+  protected static $modules = ['filter', 'editor', 'ckeditor'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with the 'administer filters' permission.
@@ -35,9 +40,16 @@ class CKEditorStylesComboAdminTest extends BrowserTestBase {
   protected $format;
 
   /**
+   * The default editor settings.
+   *
+   * @var array
+   */
+  protected $defaultSettings;
+
+  /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->format = strtolower($this->randomMachineName());
@@ -47,9 +59,16 @@ class CKEditorStylesComboAdminTest extends BrowserTestBase {
       'filters' => [],
     ]);
     $filter_format->save();
+    $ckeditor = $this->container->get('plugin.manager.editor')->createInstance('ckeditor');
+    $this->defaultSettings = $ckeditor->getDefaultSettings();
+    $this->defaultSettings['toolbar']['rows'][0][] = [
+      'name' => 'Styles dropdown',
+      'items' => ['Styles'],
+    ];
     $editor = Editor::create([
       'format' => $this->format,
       'editor' => 'ckeditor',
+      'settings' => $this->defaultSettings,
     ]);
     $editor->save();
 
@@ -60,27 +79,24 @@ class CKEditorStylesComboAdminTest extends BrowserTestBase {
    * Tests StylesCombo settings for an existing text format.
    */
   public function testExistingFormat() {
-    $ckeditor = $this->container->get('plugin.manager.editor')->createInstance('ckeditor');
-    $default_settings = $ckeditor->getDefaultSettings();
-
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('admin/config/content/formats/manage/' . $this->format);
 
     // Ensure an Editor config entity exists, with the proper settings.
-    $expected_settings = $default_settings;
+    $expected_settings = $this->defaultSettings;
     $editor = Editor::load($this->format);
-    $this->assertEqual($expected_settings, $editor->getSettings(), 'The Editor config entity has the correct settings.');
+    $this->assertEquals($expected_settings, $editor->getSettings(), 'The Editor config entity has the correct settings.');
 
     // Case 1: Configure the Styles plugin with different labels for each style,
     // and ensure the updated settings are saved.
     $this->drupalGet('admin/config/content/formats/manage/' . $this->format);
     $edit = [
-      'editor[settings][plugins][stylescombo][styles]' => "h1.title|Title\np.callout|Callout\n\n",
+      'editor[settings][plugins][stylescombo][styles]' => "h1.title|Title\np.callout|Callout\ndrupal-entity.has-dashes|Allowing Dashes\n\n",
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
-    $expected_settings['plugins']['stylescombo']['styles'] = "h1.title|Title\np.callout|Callout\n\n";
+    $this->submitForm($edit, 'Save configuration');
+    $expected_settings['plugins']['stylescombo']['styles'] = "h1.title|Title\np.callout|Callout\ndrupal-entity.has-dashes|Allowing Dashes\n\n";
     $editor = Editor::load($this->format);
-    $this->assertEqual($expected_settings, $editor->getSettings(), 'The Editor config entity has the correct settings.');
+    $this->assertEquals($expected_settings, $editor->getSettings(), 'The Editor config entity has the correct settings.');
 
     // Case 2: Configure the Styles plugin with same labels for each style, and
     // ensure that an error is displayed and that the updated settings are not
@@ -89,11 +105,10 @@ class CKEditorStylesComboAdminTest extends BrowserTestBase {
     $edit = [
       'editor[settings][plugins][stylescombo][styles]' => "h1.title|Title\np.callout|Title\n\n",
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
-    $this->assertRaw(t('Each style must have a unique label.'));
-    $expected_settings['plugins']['stylescombo']['styles'] = "h1.title|Title\np.callout|Callout\n\n";
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->pageTextContains('Each style must have a unique label.');
     $editor = Editor::load($this->format);
-    $this->assertEqual($expected_settings, $editor->getSettings(), 'The Editor config entity has the correct settings.');
+    $this->assertEquals($expected_settings, $editor->getSettings(), 'The Editor config entity has the correct settings.');
   }
 
 }

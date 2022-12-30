@@ -2,12 +2,22 @@
 
 namespace Drupal\FunctionalTests\Image;
 
-use Drupal\Component\Utility\SafeMarkup;
+@trigger_error('The ' . __NAMESPACE__ . '\ToolkitTestBase class is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. . There is no replacement provided as functional test base class because toolkit operations should be tested as kernel tests. \Drupal\KernelTests\Core\Image\ToolkitTestTrait trait has been added to provide a similar functionality for toolkit kernel tests. See https://www.drupal.org/node/3035573.', E_USER_DEPRECATED);
+
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Tests\BrowserTestBase;
 use Drupal\Tests\TestFileCreationTrait;
 
 /**
  * Base class for image manipulation testing.
+ *
+ * @deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. There is
+ *   no replacement provided as functional test base class because toolkit
+ *   operations should be tested as kernel tests. ToolkitTestTrait trait has
+ *   been added to provide a similar functionality for toolkit kernel tests.
+ *
+ * @see https://www.drupal.org/node/3035573
+ * @see \Drupal\Tests\Traits\Core\Image\ToolkitTestTrait
  */
 abstract class ToolkitTestBase extends BrowserTestBase {
 
@@ -19,7 +29,7 @@ abstract class ToolkitTestBase extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['image_test'];
+  protected static $modules = ['image_test'];
 
   /**
    * The URI for the file.
@@ -73,7 +83,7 @@ abstract class ToolkitTestBase extends BrowserTestBase {
 
   /**
    * Assert that all of the specified image toolkit operations were called
-   * exactly once once, other values result in failure.
+   * exactly once, other values result in failure.
    *
    * @param $expected
    *   Array with string containing with the operation name, e.g. 'load',
@@ -103,10 +113,10 @@ abstract class ToolkitTestBase extends BrowserTestBase {
     // Determine if there were any expected that were not called.
     $uncalled = array_diff($expected, $actual);
     if (count($uncalled)) {
-      $this->assertTrue(FALSE, SafeMarkup::format('Expected operations %expected to be called but %uncalled was not called.', ['%expected' => implode(', ', $expected), '%uncalled' => implode(', ', $uncalled)]));
+      $this->assertTrue(FALSE, new FormattableMarkup('Expected operations %expected to be called but %uncalled was not called.', ['%expected' => implode(', ', $expected), '%uncalled' => implode(', ', $uncalled)]));
     }
     else {
-      $this->assertTrue(TRUE, SafeMarkup::format('All the expected operations were called: %expected', ['%expected' => implode(', ', $expected)]));
+      $this->assertTrue(TRUE, new FormattableMarkup('All the expected operations were called: %expected', ['%expected' => implode(', ', $expected)]));
     }
 
     // Determine if there were any unexpected calls.
@@ -114,7 +124,7 @@ abstract class ToolkitTestBase extends BrowserTestBase {
     // count it as an error.
     $unexpected = array_diff($actual, $expected);
     if (count($unexpected) && (!in_array('apply', $expected) || count(array_intersect($unexpected, $operations)) !== count($unexpected))) {
-      $this->assertTrue(FALSE, SafeMarkup::format('Unexpected operations were called: %unexpected.', ['%unexpected' => implode(', ', $unexpected)]));
+      $this->assertTrue(FALSE, new FormattableMarkup('Unexpected operations were called: %unexpected.', ['%unexpected' => implode(', ', $unexpected)]));
     }
     else {
       $this->assertTrue(TRUE, 'No unexpected operations were called.');
@@ -152,7 +162,7 @@ abstract class ToolkitTestBase extends BrowserTestBase {
    *   parameters passed to each call.
    */
   protected function imageTestGetAllCalls() {
-    return \Drupal::state()->get('image_test.results') ?: [];
+    return \Drupal::state()->get('image_test.results', []);
   }
 
 }

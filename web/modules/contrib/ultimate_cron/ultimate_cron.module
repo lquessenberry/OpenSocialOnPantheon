@@ -1,0 +1,264 @@
+<?php
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Database\Database;
+
+/**
+ * @file
+ * Ultimate Cron. Extend cron functionality in Drupal.
+ */
+
+use Drupal\Core\Queue\RequeueException;
+use Drupal\ultimate_cron\CronPlugin;
+use Drupal\ultimate_cron\PluginCleanupInterface;
+
+define('ULTIMATE_CRON_LOG_TYPE_NORMAL', 0);
+define('ULTIMATE_CRON_LOG_TYPE_ADMIN', 1);
+define('ULTIMATE_CRON_LOG_TYPE_ALL', -1);
+
+/**
+ * Pseudo define.
+ */
+function _ultimate_cron_define_log_type_all() {
+  return array(ULTIMATE_CRON_LOG_TYPE_NORMAL, ULTIMATE_CRON_LOG_TYPE_ADMIN);
+}
+
+$GLOBALS['ultimate_cron_shutdown_functions'] = array();
+
+/**
+ * The shutdown function itself is also overridable.
+ *
+ * In case it is necessary to add it earlier, say settings.php.
+ * Remeber to invoke the registered ultimate cron shutdown handlers.
+ * If the function exists, we assume that the register_shutdown_handler() has
+ * also been setup correctly.
+ *
+ * @todo: Move _ultimate_cron_out_of_memory_protection() to a service.
+ */
+if (!function_exists('_ultimate_cron_out_of_memory_protection')) {
+  /**
+   * Shutdown hander that unleash the memory reserved.
+   */
+  function _ultimate_cron_out_of_memory_protection() {
+    // error_log("RELEASING MEMORY");
+    unset($GLOBALS['__RESERVED_MEMORY']);
+    // error_log(print_r($GLOBALS['ultimate_cron_shutdown_functions'], TRUE));
+    foreach ($GLOBALS['ultimate_cron_shutdown_functions'] as $function) {
+      call_user_func_array($function['callback'], $function['arguments']);
+    }
+  }
+
+
+  // The minor overhead in _drupal_shutdown_function() can mean the
+  // difference between life and death for our shutdown handlers in
+  // a memory exhaust situation. We want our shutdown handler to be
+  // called as early as possible. If no callbacks have been registrered
+  // yet, we use PHPs built-in register_shutdown_function() otherwise
+  // we ensure, that we are the first in the list of Drupals registered
+  // shutdown functions.
+  $callbacks = &drupal_register_shutdown_function();
+  if (empty($callbacks)) {
+    register_shutdown_function('_ultimate_cron_out_of_memory_protection');
+  }
+  else {
+    array_unshift($callbacks, array('callback' => '_ultimate_cron_out_of_memory_protection', 'arguments' => array()));
+    // Reset internal array pointer just in case ...
+    reset($callbacks);
+  }
+}
+/**
+ * Registers a function for execution on shutdown.
+ *
+ * Wrapper for register_shutdown_function() that catches thrown exceptions to
+ * avoid "Exception thrown without a stack frame in Unknown".
+ *
+ * This is a duplicate of the built-in functionality in Drupal, however we
+ * need to perform our tasks before that.
+ *
+ * @param callback $callback
+ *   The shutdown function to register.
+ * @param ...
+ *   Additional arguments to pass to the shutdown function.
+ *
+ * @see register_shutdown_function()
+ *
+ * @ingroup php_wrappers
+ */
+function ultimate_cron_register_shutdown_function($callback) {
+  $args = func_get_args();
+  array_shift($args);
+  $GLOBALS['ultimate_cron_shutdown_functions'][] = array(
+    'callback' => $callback,
+    'arguments' => $args,
+  );
+}
+
+/**
+ * Load callback for plugins.
+ *
+ * @param string $type
+ *   Type of the plugin (settings, scheduler, launcher, logger).
+ * @param string $name
+ *   Name of the plugin (general, queue, serial, database, etc.).
+ *
+ * @return object
+ *   The instance of the plugin (singleton).
+ */
+function ultimate_cron_plugin_load($type, $name) {
+  $cache = &drupal_static('ultimate_cron_plugin_load_all', array());
+  if (!isset($cache[$type][$name])) {
+    ultimate_cron_plugin_load_all($type);
+    $cache[$type][$name] = isset($cache[$type][$name]) ? $cache[$type][$name] : FALSE;
+  }
+  return $cache[$type][$name];
+}
+
+
+function ultimate_cron_fake_cron() {
+  $counter = \Drupal::state()->get('ultimate_cron.cron_run_counter', 0);
+  $counter++;
+  \Drupal::state()->set('ultimate_cron.cron_run_counter', $counter);
+}
+
+/**
+ * Load all callback for plugins.
+ *
+ * @param string $type
+ *   Type of the plugin (settings, scheduler, launcher, logger).
+ *
+ * @return array
+ *   The instances of the plugin type (singletons).
+ */
+function ultimate_cron_plugin_load_all($type, $reset = FALSE) {
+  $cache = &drupal_static('ultimate_cron_plugin_load_all', array());
+  if (!$reset && isset($cache[$type])) {
+    return $cache[$type];
+  }
+  /* @var \Drupal\Core\Plugin\DefaultPluginManager $manager */
+  $manager = \Drupal::service('plugin.manager.ultimate_cron.' . $type);
+  $plugins = $manager->getDefinitions();
+
+
+  foreach ($plugins as $plugin_id => $definition) {
+    if ($object = $manager->createInstance($plugin_id)) {
+      $plugins[$plugin_id] = $object;
+    }
+  }
+  $cache[$type] = $plugins;
+  return $cache[$type];
+}
+// ---------- HOOKS ----------
+/**
+ * Implements hook_hook_info().
+ */
+function ultimate_cron_hook_info() {
+  $hooks = array();
+  $hooks['background_process_shutdown'] = array(
+    'group' => 'background_process_legacy',
+  );
+  return $hooks;
+}
+
+/**
+ * Implements hook_help().
+ *
+ */
+function ultimate_cron_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.ultimate_cron':
+      // Return a line-break version of the module README.
+      return '<pre>' . file_get_contents(dirname(__FILE__) . '/README.txt') . '</pre>';
+  }
+}
+
+/**
+ * Implements hook_cronapi().
+ *
+ * Adds clean up jobs for plugins.
+ * */
+function ultimate_cron_cron() {
+  $plugin_types = CronPlugin::getPluginTypes();
+  foreach ($plugin_types as $plugin_type => $info) {
+    foreach (ultimate_cron_plugin_load_all($plugin_type) as $name => $plugin) {
+      if ($plugin->isValid() && ($plugin instanceof PluginCleanupInterface)) {
+        $plugin->cleanup();
+      }
+    }
+  }
+}
+
+/**
+ * * Implements hook_modules_installed().
+ */
+function ultimate_cron_modules_installed($modules) {
+  \Drupal::service('ultimate_cron.discovery')->discoverCronJobs();
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for the system_cron_settings() form.
+ */
+function ultimate_cron_form_system_cron_settings_alter(&$form, &$form_state) {
+  $options = [60, 300, 900, 1800, 3600, 10800, 21600, 43200, 86400, 604800];
+  $form['automated_cron']['interval']['#options'] = [0 => t('Never')] + array_map([
+      \Drupal::service('date.formatter'),
+      'formatInterval',
+    ], array_combine($options, $options));
+
+}
+
+// ---------- CRON RULE FUNCTIONS ----------
+/**
+ * Return blank values for all keys in an array.
+ *
+ * @param array $array
+ *   Array to generate blank values from.
+ *
+ * @return array
+ *   Array with same keys as input, but with blank values (empty string).
+ */
+function ultimate_cron_blank_values($array) {
+  $result = array();
+  foreach ($array as $key => $value) {
+    switch (gettype($value)) {
+      case 'array':
+        $result[$key] = array();
+        break;
+
+      default:
+        $result[$key] = '';
+    }
+  }
+  return $result;
+}
+
+/**
+ * Custom sort callback for sorting cron jobs by start time.
+ */
+function _ultimate_cron_sort_jobs_by_start_time($a, $b) {
+  return $a->log_entry->start_time == $b->log_entry->start_time ? 0 : ($a->log_entry->start_time > $b->log_entry->start_time ? 1 : -1);
+}
+
+/**
+ * Sort callback for multiple column sort.
+ */
+function _ultimate_cron_multi_column_sort($a, $b) {
+  $a = (array) $a;
+  $b = (array) $b;
+  foreach ($a['sort'] as $i => $sort) {
+    if ($a['sort'][$i] == $b['sort'][$i]) {
+      continue;
+    }
+    return $a['sort'][$i] < $b['sort'][$i] ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
+ * Get transactional safe connection.
+ *
+ * @return string
+ *   Connection target.
+ */
+function _ultimate_cron_get_transactional_safe_connection() {
+  return !\Drupal::config('ultimate_cron.settings')->get('bypass_transactional_safe_connection') && Database::getConnection()->inTransaction() ? 'ultimate_cron' : 'default';
+}

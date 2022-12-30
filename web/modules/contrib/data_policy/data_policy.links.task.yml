@@ -1,9 +1,16 @@
-entity.user_consent.collection:
-  route_name: entity.user_consent.collection
-  base_route: entity.user_consent.collection
-  title: 'View'
+entity.data_policy.collection:
+  title: 'Entities'
+  route_name: entity.data_policy.collection
+  base_route: entity.data_policy.collection
+  weight: 0
 
 data_policy.data_policy.settings:
-  route_name: data_policy.data_policy.settings
-  base_route: entity.data_policy.version_history
   title: 'Settings'
+  route_name: data_policy.data_policy.settings
+  base_route: entity.data_policy.collection
+  weight: 10
+
+entity.user_consent.collection:
+  title: 'View'
+  route_name: entity.user_consent.collection
+  base_route: entity.user_consent.collection

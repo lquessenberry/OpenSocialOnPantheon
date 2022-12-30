@@ -8,19 +8,21 @@ use CommerceGuys\Addressing\AddressFormat\AdministrativeAreaType;
 use CommerceGuys\Addressing\AddressFormat\DependentLocalityType;
 use CommerceGuys\Addressing\AddressFormat\LocalityType;
 use CommerceGuys\Addressing\AddressFormat\PostalCodeType;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \CommerceGuys\Addressing\AddressFormat\AddressFormat
  */
-class AddressFormatTest extends \PHPUnit_Framework_TestCase
+final class AddressFormatTest extends TestCase
 {
     /**
      * @covers ::__construct
      *
-     * @expectedException \InvalidArgumentException
+     *
      */
     public function testMissingProperty()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $definition = [
             'country_code' => 'US',
         ];
@@ -30,10 +32,11 @@ class AddressFormatTest extends \PHPUnit_Framework_TestCase
     /**
      * @covers ::__construct
      *
-     * @expectedException \InvalidArgumentException
+     *
      */
     public function testInvalidSubdivision()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $definition = [
             'country_code' => 'US',
             'format' => "%givenName %familyName\n%organization\n%addressLine1\n%addressLine2\n%dependentLocality",

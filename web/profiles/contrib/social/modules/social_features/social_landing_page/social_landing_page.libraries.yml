@@ -2,31 +2,28 @@ admin:
   css:
     theme:
       css/social_landing_page.admin.css: {}
+  js:
+    js/social_landing_page--accordion.js: {}
 
 section.introduction:
   css:
     theme:
       css/social_landing_page.section.introduction.css: {}
 
-section.featured:
-  css:
-    theme:
-      css/social_landing_page.section.featured.css: {}
-
 section.hero:
   css:
     theme:
       css/social_landing_page.section.hero.css: {}
 
+section.hero_small:
+  css:
+    theme:
+      css/social_landing_page.section.hero_small.css: {}
+
 section.block:
   css:
     theme:
       css/social_landing_page.section.block.css: {}
-
-featured:
-  css:
-    theme:
-      css/social_landing_page.featured.css: {}
 
 landing_page:
   css:
@@ -34,6 +31,13 @@ landing_page:
       css/social_landing_page.landing_page.css: {}
   js:
     js/social_landing_page.js: {}
+
+accordion:
+  css:
+    theme:
+      css/social_landing_page.section.accordion.css: {}
+  js:
+    js/social_landing_page--accordion.js: {}
 
 activity_overview:
   css:

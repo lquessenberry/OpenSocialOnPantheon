@@ -2,9 +2,10 @@
 
 namespace Drupal\group\Plugin;
 
+use Drupal\Component\Plugin\ConfigurableInterface;
+use Drupal\Component\Plugin\DependentPluginInterface;
 use Drupal\Component\Plugin\DerivativeInspectionInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\group\Entity\GroupContentInterface;
@@ -18,12 +19,13 @@ use Drupal\group\Entity\GroupInterface;
  * @see \Drupal\group\Plugin\GroupContentEnablerBase
  * @see plugin_api
  */
-interface GroupContentEnablerInterface extends PluginInspectionInterface, DerivativeInspectionInterface, ConfigurablePluginInterface, PluginFormInterface {
+interface GroupContentEnablerInterface extends PluginInspectionInterface, DerivativeInspectionInterface, ConfigurableInterface, DependentPluginInterface, PluginFormInterface {
 
   /**
    * Returns the plugin provider.
    *
    * @return string
+   *   The plugin provider.
    */
   public function getProvider();
 
@@ -31,6 +33,7 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    * Returns the administrative label for the plugin.
    *
    * @return string
+   *   The plugin label.
    */
   public function getLabel();
 
@@ -38,6 +41,7 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    * Returns the administrative description for the plugin.
    *
    * @return string
+   *   The plugin description.
    */
   public function getDescription();
 
@@ -116,9 +120,18 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
   public function isEnforced();
 
   /**
+   * Returns whether this plugin can only be (un)installed through code.
+   *
+   * @return bool
+   *   The 'code_only' status.
+   */
+  public function isCodeOnly();
+
+  /**
    * Retrieves the label for a piece of group content.
    *
    * @param \Drupal\group\Entity\GroupContentInterface $group_content
+   *   The group content entity to retrieve the label for.
    *
    * @return string
    *   The label as expected by \Drupal\Core\Entity\EntityInterface::label().
@@ -145,6 +158,7 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    * Returns the administrative label for a group content type.
    *
    * @return string
+   *   The group content type label.
    */
   public function getContentTypeLabel();
 
@@ -152,6 +166,7 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    * Returns the administrative description for a group content type.
    *
    * @return string
+   *   The group content type description.
    */
   public function getContentTypeDescription();
 
@@ -162,6 +177,9 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    * Out of the box, Group provides a block that shows the available operations
    * to a user visiting a route with a group in its URL.
    *
+   * Do not forget to specify cacheable metadata if you need to. This can be
+   * done in ::getGroupOperationsCacheableMetadata().
+   *
    * @param \Drupal\group\Entity\GroupInterface $group
    *   The group to generate the operations for.
    *
@@ -171,8 +189,25 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    *   - title: The localized title of the operation.
    *   - url: An instance of \Drupal\Core\Url for the operation URL.
    *   - weight: The weight of the operation.
+   *
+   * @see ::getGroupOperationsCacheableMetadata()
    */
   public function getGroupOperations(GroupInterface $group);
+
+  /**
+   * Provides the cacheable metadata for this plugin's group operations.
+   *
+   * The operations set in ::getGroupOperations() may have some cacheable
+   * metadata that needs to be set but can't be because the links set in an
+   * Operations render element are simple associative arrays. This method allows
+   * you to specify the cacheable metadata regardless.
+   *
+   * @return \Drupal\Core\Cache\CacheableMetadata
+   *   The cacheable metadata for the group operations.
+   *
+   * @see ::getGroupOperations()
+   */
+  public function getGroupOperationsCacheableMetadata();
 
   /**
    * Provides a list of operations for the content enabler plugin.
@@ -202,6 +237,9 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    *   the structure of a group permission.
    *
    * @see GroupPermissionHandlerInterface::getPermissions()
+   *
+   * @deprecated in Group 1.0, will be removed before Group 2.0. Retrieve the
+   *   permission_provider handler from the plugin manager instead.
    */
   public function getPermissions();
 
@@ -218,6 +256,9 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    *
    * @return \Drupal\Core\Access\AccessResultInterface
    *   The access result.
+   *
+   * @deprecated in Group 1.0, will be removed before Group 2.0. Retrieve the
+   *   access handler from the plugin manager instead.
    */
   public function createEntityAccess(GroupInterface $group, AccountInterface $account);
 
@@ -234,6 +275,9 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    *
    * @return \Drupal\Core\Access\AccessResultInterface
    *   The access result.
+   *
+   * @deprecated in Group 1.0, will be removed before Group 2.0. Retrieve the
+   *   access handler from the plugin manager instead.
    */
   public function createAccess(GroupInterface $group, AccountInterface $account);
 
@@ -253,6 +297,9 @@ interface GroupContentEnablerInterface extends PluginInspectionInterface, Deriva
    *
    * @return \Drupal\Core\Access\AccessResultInterface
    *   The access result.
+   *
+   * @deprecated in Group 1.0, will be removed before Group 2.0. Retrieve the
+   *   access handler from the plugin manager instead.
    */
   public function checkAccess(GroupContentInterface $group_content, $operation, AccountInterface $account);
 

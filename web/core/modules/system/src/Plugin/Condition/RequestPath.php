@@ -2,13 +2,12 @@
 
 namespace Drupal\system\Plugin\Condition;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Condition\ConditionPluginBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Path\AliasManagerInterface;
 use Drupal\Core\Path\CurrentPathStack;
 use Drupal\Core\Path\PathMatcherInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\path_alias\AliasManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -25,7 +24,7 @@ class RequestPath extends ConditionPluginBase implements ContainerFactoryPluginI
   /**
    * An alias manager to find the alias for the current system path.
    *
-   * @var \Drupal\Core\Path\AliasManagerInterface
+   * @var \Drupal\path_alias\AliasManagerInterface
    */
   protected $aliasManager;
 
@@ -53,7 +52,7 @@ class RequestPath extends ConditionPluginBase implements ContainerFactoryPluginI
   /**
    * Constructs a RequestPath condition plugin.
    *
-   * @param \Drupal\Core\Path\AliasManagerInterface $alias_manager
+   * @param \Drupal\path_alias\AliasManagerInterface $alias_manager
    *   An alias manager to find the alias for the current system path.
    * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
    *   The path matcher service.
@@ -81,7 +80,7 @@ class RequestPath extends ConditionPluginBase implements ContainerFactoryPluginI
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     return new static(
-      $container->get('path.alias_manager'),
+      $container->get('path_alias.manager'),
       $container->get('path.matcher'),
       $container->get('request_stack'),
       $container->get('path.current'),
@@ -125,6 +124,9 @@ class RequestPath extends ConditionPluginBase implements ContainerFactoryPluginI
    * {@inheritdoc}
    */
   public function summary() {
+    if (empty($this->configuration['pages'])) {
+      return $this->t('No page is specified');
+    }
     $pages = array_map('trim', explode("\n", $this->configuration['pages']));
     $pages = implode(', ', $pages);
     if (!empty($this->configuration['negate'])) {
@@ -139,7 +141,7 @@ class RequestPath extends ConditionPluginBase implements ContainerFactoryPluginI
   public function evaluate() {
     // Convert path to lowercase. This allows comparison of the same path
     // with different case. Ex: /Page, /page, /PAGE.
-    $pages = Unicode::strtolower($this->configuration['pages']);
+    $pages = mb_strtolower($this->configuration['pages']);
     if (!$pages) {
       return TRUE;
     }
@@ -149,7 +151,7 @@ class RequestPath extends ConditionPluginBase implements ContainerFactoryPluginI
     $path = $this->currentPath->getPath($request);
     // Do not trim a trailing slash if that is the complete path.
     $path = $path === '/' ? $path : rtrim($path, '/');
-    $path_alias = Unicode::strtolower($this->aliasManager->getAliasByPath($path));
+    $path_alias = mb_strtolower($this->aliasManager->getAliasByPath($path));
 
     return $this->pathMatcher->matchPath($path_alias, $pages) || (($path != $path_alias) && $this->pathMatcher->matchPath($path, $pages));
   }

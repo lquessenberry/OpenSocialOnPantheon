@@ -46,10 +46,11 @@ class FormState implements FormStateInterface {
    *   - files: An optional array defining include files that need to be loaded
    *     for building the form. Each array entry may be the path to a file or
    *     another array containing values for the parameters 'type', 'module' and
-   *     'name' as needed by module_load_include(). The files listed here are
-   *     automatically loaded by \Drupal::formBuilder()->getCache(). By default
-   *     the current menu router item's 'file' definition is added, if any. Use
-   *     self::loadInclude() to add include files from a form constructor.
+   *     'name' as needed by \Drupal::moduleHandler()->loadInclude(). The files
+   *     listed here are automatically loaded by
+   *     \Drupal::formBuilder()->getCache(). By default the current menu router
+   *     item's 'file' definition is added, if any. Use self::loadInclude() to
+   *     add include files from a form constructor.
    *   - form_id: Identification of the primary form being constructed and
    *     processed.
    *   - base_form_id: Identification for a base form, as declared in the form
@@ -87,8 +88,8 @@ class FormState implements FormStateInterface {
    * copy of the form is immediately built and sent to the browser, instead of a
    * redirect. This is used for multi-step forms, such as wizards and
    * confirmation forms. Normally, self::$rebuild is set by a submit handler,
-   * since its is usually logic within a submit handler that determines whether
-   * a form is done or requires another step. However, a validation handler may
+   * since it is usually logic within a submit handler that determines whether a
+   * form is done or requires another step. However, a validation handler may
    * already set self::$rebuild to cause the form processing to bypass submit
    * handlers and rebuild the form instead, even if there are no validation
    * errors.
@@ -609,13 +610,13 @@ class FormState implements FormStateInterface {
   /**
    * Checks whether the request method is a "safe" HTTP method.
    *
-   * http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.1.1 defines
-   * GET and HEAD as "safe" methods, meaning they SHOULD NOT have side-effects,
-   * such as persisting $form_state changes.
+   * Link below defines GET and HEAD as "safe" methods, meaning they SHOULD NOT
+   * have side-effects, such as persisting $form_state changes.
    *
    * @return bool
    *
    * @see \Symfony\Component\HttpFoundation\Request::isMethodSafe()
+   * @see http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.1.1
    */
   protected function isRequestMethodSafe() {
     return in_array($this->requestMethod, ['GET', 'HEAD']);
@@ -1206,8 +1207,11 @@ class FormState implements FormStateInterface {
       // the value corresponding to this button.
       // We iterate over the #parents of this button and move a reference to
       // each parent in self::getValues(). For example, if #parents is:
+      // @code
       //   array('foo', 'bar', 'baz')
+      // @endcode
       // then the corresponding self::getValues() part will look like this:
+      // @code
       // array(
       //   'foo' => array(
       //     'bar' => array(
@@ -1215,6 +1219,7 @@ class FormState implements FormStateInterface {
       //     ),
       //   ),
       // )
+      // @endcode
       // We start by (re)moving 'baz' to $last_parent, so we are able unset it
       // at the end of the iteration. Initially, $values will contain a
       // reference to self::getValues(), but in the iteration we move the

@@ -32,9 +32,14 @@ class TaxonomyImageTest extends TaxonomyTestBase {
    *
    * @var array
    */
-  public static $modules = ['image'];
+  protected static $modules = ['image'];
 
-  protected function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  protected function setUp(): void {
     parent::setUp();
 
     // Remove access content permission from registered users.
@@ -58,13 +63,15 @@ class TaxonomyImageTest extends TaxonomyTestBase {
       'bundle' => $this->vocabulary->id(),
       'settings' => [],
     ])->save();
-    entity_get_display($entity_type, $this->vocabulary->id(), 'default')
+    /** @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface $display_repository */
+    $display_repository = \Drupal::service('entity_display.repository');
+    $display_repository->getViewDisplay($entity_type, $this->vocabulary->id())
       ->setComponent($name, [
         'type' => 'image',
         'settings' => [],
       ])
       ->save();
-    entity_get_form_display($entity_type, $this->vocabulary->id(), 'default')
+    $display_repository->getFormDisplay($entity_type, $this->vocabulary->id())
       ->setComponent($name, [
         'type' => 'image_image',
         'settings' => [],
@@ -73,7 +80,11 @@ class TaxonomyImageTest extends TaxonomyTestBase {
   }
 
   public function testTaxonomyImageAccess() {
-    $user = $this->drupalCreateUser(['administer site configuration', 'administer taxonomy', 'access user profiles']);
+    $user = $this->drupalCreateUser([
+      'administer site configuration',
+      'administer taxonomy',
+      'access user profiles',
+    ]);
     $this->drupalLogin($user);
 
     // Create a term and upload the image.
@@ -81,23 +92,28 @@ class TaxonomyImageTest extends TaxonomyTestBase {
     $image = array_pop($files);
     $edit['name[0][value]'] = $this->randomMachineName();
     $edit['files[field_test_0]'] = \Drupal::service('file_system')->realpath($image->uri);
-    $this->drupalPostForm('admin/structure/taxonomy/manage/' . $this->vocabulary->id() . '/add', $edit, t('Save'));
-    $this->drupalPostForm(NULL, ['field_test[0][alt]' => $this->randomMachineName()], t('Save'));
-    $terms = entity_load_multiple_by_properties('taxonomy_term', ['name' => $edit['name[0][value]']]);
+    $this->drupalGet('admin/structure/taxonomy/manage/' . $this->vocabulary->id() . '/add');
+    $this->submitForm($edit, 'Save');
+    $this->submitForm(['field_test[0][alt]' => $this->randomMachineName()], 'Save');
+    $terms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties(['name' => $edit['name[0][value]']]);
     $term = reset($terms);
-    $this->assertText(t('Created new term @name.', ['@name' => $term->getName()]));
+    $this->assertSession()->pageTextContains('Created new term ' . $term->getName() . '.');
 
     // Create a user that should have access to the file and one that doesn't.
     $access_user = $this->drupalCreateUser(['access content']);
     $no_access_user = $this->drupalCreateUser();
     $image = File::load($term->field_test->target_id);
-    $this->drupalLogin($access_user);
-    $this->drupalGet(file_create_url($image->getFileUri()));
-    $this->assertResponse(200, 'Private image on term is accessible with right permission');
 
+    // Ensure a user that should be able to access the file can access it.
+    $this->drupalLogin($access_user);
+    $this->drupalGet($image->createFileUrl(FALSE));
+    $this->assertSession()->statusCodeEquals(200);
+
+    // Ensure a user that should not be able to access the file cannot access
+    // it.
     $this->drupalLogin($no_access_user);
-    $this->drupalGet(file_create_url($image->getFileUri()));
-    $this->assertResponse(403, 'Private image on term not accessible without right permission');
+    $this->drupalGet($image->createFileUrl(FALSE));
+    $this->assertSession()->statusCodeEquals(403);
   }
 
 }

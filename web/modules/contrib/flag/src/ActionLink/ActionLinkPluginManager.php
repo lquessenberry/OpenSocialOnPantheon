@@ -4,7 +4,6 @@ namespace Drupal\flag\ActionLink;
 
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Language\LanguageManager;
 use Drupal\Core\Plugin\DefaultPluginManager;
 
 /**
@@ -18,7 +17,7 @@ class ActionLinkPluginManager extends DefaultPluginManager {
    * {@inheritdoc}
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
-    parent::__construct('Plugin/ActionLink', $namespaces, $module_handler,  'Drupal\flag\ActionLink\ActionLinkTypePluginInterface', 'Drupal\flag\Annotation\ActionLinkType');
+    parent::__construct('Plugin/ActionLink', $namespaces, $module_handler, 'Drupal\flag\ActionLink\ActionLinkTypePluginInterface', 'Drupal\flag\Annotation\ActionLinkType');
     $this->alterInfo('flag_link_type_info');
     $this->setCacheBackend($cache_backend, 'flag_link_type_plugins');
   }

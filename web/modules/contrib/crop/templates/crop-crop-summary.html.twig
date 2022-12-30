@@ -18,4 +18,8 @@
     {% trans %}
     uses <em>{{ data.crop_type|e }}</em> crop type
     {% endtrans %}
+    <br>
+    {% if data.automatic_crop_provider|length %}
+        <em>Automated Crop activated</em>
+    {%- endif %}
 {%- endif %}

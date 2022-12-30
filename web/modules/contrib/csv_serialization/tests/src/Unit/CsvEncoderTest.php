@@ -13,10 +13,15 @@ use Drupal\Tests\UnitTestCase;
 class CsvEncoderTest extends UnitTestCase {
 
   /**
+   * The CSV encoder.
+   *
    * @var \Drupal\csv_serialization\Encoder\CsvEncoder
    */
-  public $conversionService;
+  public $encoder;
 
+  /**
+   * {@inheritdoc}
+   */
   public function setUp() {
     $this->encoder = new CsvEncoder();
   }
@@ -31,25 +36,25 @@ class CsvEncoderTest extends UnitTestCase {
     $csv1_data = [
       // Row 1.
       [
-      'title' => 'This is title 1',
-      'body' => 'This is, body 1',
-      'images' => ['img1.jpg'],
-      'alias' => '',
-      'status' => 1,
+        'title' => 'This is title 1',
+        'body' => 'This is, body 1',
+        'images' => ['img1.jpg'],
+        'alias' => '',
+        'status' => 1,
       ],
       // Row 2.
       [
-      'title' => 'This is title 2',
-      'body' => '<p>This is, body 2</p>',
-      'images' => ['img1.jpg', 'img2.jpg'],
-      'alias' => '',
-      'status' => 0,
+        'title' => 'This is title 2',
+        'body' => '<p>This is, body 2</p>',
+        'images' => ['img1.jpg', 'img2.jpg'],
+        'alias' => '',
+        'status' => 0,
       ],
       // Row 3.
       [
-      'title' => 'This is title 3',
-      'body' => ['<p>This is, body 3</p>'],
-      'images' => [
+        'title' => 'This is title 3',
+        'body' => ['<p>This is, body 3</p>'],
+        'images' => [
         [
           'src' => 'img1.jpg',
           'alt' => 'Image 1',
@@ -58,9 +63,9 @@ class CsvEncoderTest extends UnitTestCase {
           'src' => 'img2.jpg',
           'alt' => 'Image, 2',
         ],
-      ],
-      'alias' => '',
-      'status' => 0,
+        ],
+        'alias' => '',
+        'status' => 0,
       ],
     ];
 
@@ -115,11 +120,14 @@ class CsvEncoderTest extends UnitTestCase {
     ];
   }
 
-  /**
-   * Tests the CSV output of the encoder.
-   *
-   * @dataProvider provideEncodeData
-   */
+    /**
+     * Tests the CSV output of the encoder.
+     *
+     * @dataProvider provideEncodeData
+     *
+     * @param $csv_data
+     * @param $csv_encoded
+     */
   public function testEncodeCsv($csv_data, $csv_encoded) {
     // @todo Test passing in arguments to the constructor. E.g., $separator, $enclosure, strip_tags, etc.
     // Note that what we encode does not exactly represent the hierarchy of
@@ -128,12 +136,16 @@ class CsvEncoderTest extends UnitTestCase {
     $this->assertEquals($csv_encoded, $this->encoder->encode($csv_data, 'csv'));
   }
 
-  /**
-   * Tests the data structure created by decoding a CSV.
-   *
-   * @dataProvider provideDecodeData
-   */
+    /**
+     * Tests the data structure created by decoding a CSV.
+     *
+     * @dataProvider provideDecodeData
+     *
+     * @param $csv_encoded
+     * @param $csv_data
+     */
   public function testDecodeCsv($csv_encoded, $csv_data) {
     $this->assertEquals($csv_data, $this->encoder->decode($csv_encoded, 'csv'));
   }
+
 }

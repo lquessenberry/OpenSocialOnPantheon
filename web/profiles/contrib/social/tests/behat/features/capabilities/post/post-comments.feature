@@ -1,14 +1,14 @@
 @api @post @stability @perfect @critical @DS-250 @DS-251 @DS-675 @database @stability-2 @post-comments
 Feature: Comment on a Post
   Benefit: In order to give my opinion on a post
-  Role: As a LU
+  Role: As a Verified
   Goal/desire: I want to comment on a post
 
   Scenario: Successfully create, edit and delete a comment on a post
   Given users:
-      | name      | status | pass |
-      | PostUser1 |      1 | PostUser1 |
-      | PostUser2 |      1 | PostUser2 |
+      | name      | status | pass      | roles    |
+      | PostUser1 |      1 | PostUser1 | verified |
+      | PostUser2 |      1 | PostUser2 | verified |
     And I am logged in as "PostUser1"
     And I am on the homepage
 
@@ -19,7 +19,6 @@ Feature: Comment on a Post
    Then I should see the success message "Your post has been posted."
     And I should see "This is a community post." in the "Main content front"
     And I should see "PostUser1" in the "Main content front"
-    And I should be on "/stream"
 
         # Scenario: Post a comment on this private post
   Given I am logged in as "PostUser2"
@@ -29,7 +28,7 @@ Feature: Comment on a Post
    Then I should see the success message "Your comment has been posted."
 
         # Scenario: edit comment
-  When I click the xth "5" element with the css ".dropdown-toggle"
+  When I click the xth "0" element with the css ".comment .comment__actions .dropdown-toggle" in the "Main content"
     And I click "Edit"
     And I fill in "Comment #1 to be deleted" for "Post comment"
     And I press "Submit"
@@ -37,7 +36,7 @@ Feature: Comment on a Post
 
         # Scenario: delete comment
    When I am on the homepage
-    And I click the xth "5" element with the css ".dropdown-toggle"
+    And I click the xth "0" element with the css ".comment .comment__actions .dropdown-toggle" in the "Main content"
     And I click "Delete"
    Then I should see "This action cannot be undone."
         # Confirm delete

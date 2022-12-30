@@ -2,57 +2,26 @@
 
 namespace Drupal\social_demo;
 
-use Drupal\user\UserStorageInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drush\Log\LogLevel;
-
 /**
- * Class DemoComment.
+ * Class for generating demo comments.
  *
  * @package Drupal\social_demo
  */
 abstract class DemoComment extends DemoContent {
 
   /**
-   * The user storage.
-   *
-   * @var \Drupal\user\UserStorageInterface
-   */
-  protected $userStorage;
-
-  /**
-   * DemoComment constructor.
-   */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, DemoContentParserInterface $parser, UserStorageInterface $user_storage) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition);
-
-    $this->parser = $parser;
-    $this->userStorage = $user_storage;
-  }
-
-  /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static(
-      $configuration,
-      $plugin_id,
-      $plugin_definition,
-      $container->get('social_demo.yaml_parser'),
-      $container->get('entity.manager')->getStorage('user')
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function createContent() {
+  public function createContent($generate = FALSE, $max = NULL) {
     $data = $this->fetchData();
+    if ($generate === TRUE) {
+      $data = $this->scrambleData($data, $max);
+    }
 
     foreach ($data as $uuid => $item) {
       // Must have uuid and same key value.
       if ($uuid !== $item['uuid']) {
-        drush_log(dt("Comment with uuid: {$uuid} has a different uuid in content."), LogLevel::ERROR);
+        $this->loggerChannelFactory->get('social_demo')->error("Comment with uuid: {$uuid} has a different uuid in content.");
         continue;
       }
 
@@ -62,7 +31,7 @@ abstract class DemoComment extends DemoContent {
       ]);
 
       if ($comments) {
-        drush_log(dt("Comment with uuid: {$uuid} already exists."), LogLevel::WARNING);
+        $this->loggerChannelFactory->get('social_demo')->warning("Comment with uuid: {$uuid} already exists.");
         continue;
       }
 
@@ -72,7 +41,7 @@ abstract class DemoComment extends DemoContent {
       ]);
 
       if (!$accounts) {
-        drush_log(dt("Account with uuid: {$item['uid']} doesn't exists."), LogLevel::ERROR);
+        $this->loggerChannelFactory->get('social_demo')->error("Account with uuid: {$item['uid']} doesn't exists.");
         continue;
       }
 
@@ -98,7 +67,7 @@ abstract class DemoComment extends DemoContent {
       $entity = $this->loadByUuid($item['entity_type'], $item['entity_id']);
 
       if (!$entity) {
-        drush_log(dt("Entity {$item['entity_type']} with uuid: {$item['entity_id']} doesn't exists."), LogLevel::ERROR);
+        $this->loggerChannelFactory->get('social_demo')->error("Entity {$item['entity_type']} with uuid: {$item['entity_id']} doesn't exists.");
         continue;
       }
 

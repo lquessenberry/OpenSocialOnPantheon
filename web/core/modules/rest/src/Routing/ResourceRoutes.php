@@ -26,7 +26,7 @@ class ResourceRoutes implements EventSubscriberInterface {
   /**
    * The REST resource config storage.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityStorageInterface
    */
   protected $resourceConfigStorage;
 
@@ -58,6 +58,7 @@ class ResourceRoutes implements EventSubscriberInterface {
    *
    * @param \Drupal\Core\Routing\RouteBuildEvent $event
    *   The route build event.
+   *
    * @return array
    */
   public function onDynamicRouteEvent(RouteBuildEvent $event) {
@@ -92,43 +93,33 @@ class ResourceRoutes implements EventSubscriberInterface {
       /** @var \Symfony\Component\Routing\Route $route */
       // @todo: Are multiple methods possible here?
       $methods = $route->getMethods();
-      // Only expose routes
-      // - that have an explicit method and allow >=1 format for that method
-      // - that exist for BC
-      // @see \Drupal\rest\RouteProcessor\RestResourceGetRouteProcessorBC
-      if (($methods && ($method = $methods[0]) && $supported_formats = $rest_resource_config->getFormats($method)) || $route->hasOption('bc_route')) {
+      // Only expose routes that have an explicit method and allow >=1 format
+      // for that method.
+      if (($methods && ($method = $methods[0]) && $rest_resource_config->getFormats($method))) {
         $route->setRequirement('_csrf_request_header_token', 'TRUE');
 
         // Check that authentication providers are defined.
         if (empty($rest_resource_config->getAuthenticationProviders($method))) {
-          $this->logger->error('At least one authentication provider must be defined for resource @id', [':id' => $rest_resource_config->id()]);
+          $this->logger->error('At least one authentication provider must be defined for resource @id', ['@id' => $rest_resource_config->id()]);
           continue;
         }
 
         // Check that formats are defined.
         if (empty($rest_resource_config->getFormats($method))) {
-          $this->logger->error('At least one format must be defined for resource @id', [':id' => $rest_resource_config->id()]);
+          $this->logger->error('At least one format must be defined for resource @id', ['@id' => $rest_resource_config->id()]);
           continue;
-        }
-
-        // Remove BC routes for unsupported formats.
-        if ($route->getOption('bc_route') === TRUE) {
-          $format_requirement = $route->getRequirement('_format');
-          if ($format_requirement && !in_array($format_requirement, $rest_resource_config->getFormats($method))) {
-            continue;
-          }
         }
 
         // The configuration has been validated, so we update the route to:
         // - set the allowed response body content types/formats for methods
-        //   that may send response bodies
+        //   that may send response bodies (unless hardcoded by the plugin)
         // - set the allowed request body content types/formats for methods that
-        //   allow request bodies to be sent
+        //   allow request bodies to be sent (unless hardcoded by the plugin)
         // - set the allowed authentication providers
-        if (in_array($method, ['GET', 'HEAD', 'POST', 'PUT', 'PATCH'], TRUE)) {
+        if (in_array($method, ['GET', 'HEAD', 'POST', 'PUT', 'PATCH'], TRUE) && !$route->hasRequirement('_format')) {
           $route->addRequirements(['_format' => implode('|', $rest_resource_config->getFormats($method))]);
         }
-        if (in_array($method, ['POST', 'PATCH', 'PUT'], TRUE)) {
+        if (in_array($method, ['POST', 'PATCH', 'PUT'], TRUE) && !$route->hasRequirement('_content_type_format')) {
           $route->addRequirements(['_content_type_format' => implode('|', $rest_resource_config->getFormats($method))]);
         }
         $route->setOption('_auth', $rest_resource_config->getAuthenticationProviders($method));

@@ -3,9 +3,9 @@
 namespace Drupal\Tests\options\Functional;
 
 use Drupal\field\Entity\FieldConfig;
-use Drupal\field\Tests\FieldTestBase;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\entity_test\Entity\EntityTestRev;
+use Drupal\Tests\field\Functional\FieldTestBase;
 
 /**
  * Base class for testing allowed values of options fields.
@@ -17,7 +17,7 @@ abstract class OptionsDynamicValuesTestBase extends FieldTestBase {
    *
    * @var array
    */
-  public static $modules = ['options', 'entity_test', 'options_test'];
+  protected static $modules = ['options', 'entity_test', 'options_test'];
 
   /**
    * The created entity.
@@ -32,6 +32,18 @@ abstract class OptionsDynamicValuesTestBase extends FieldTestBase {
    * @var \Drupal\Core\Field\FieldStorageDefinitionInterface
    */
   protected $fieldStorage;
+
+  /**
+   * @var int
+   */
+  protected $field;
+
+  /**
+   * Test data.
+   *
+   * @var array
+   */
+  protected $test;
 
   protected function setUp() {
     parent::setUp();
@@ -54,7 +66,8 @@ abstract class OptionsDynamicValuesTestBase extends FieldTestBase {
       'bundle' => 'entity_test_rev',
       'required' => TRUE,
     ])->save();
-    entity_get_form_display('entity_test_rev', 'entity_test_rev', 'default')
+    \Drupal::service('entity_display.repository')
+      ->getFormDisplay('entity_test_rev', 'entity_test_rev')
       ->setComponent($field_name, [
         'type' => 'options_select',
       ])
@@ -72,7 +85,7 @@ abstract class OptionsDynamicValuesTestBase extends FieldTestBase {
       'label' => $this->entity->label(),
       'uuid' => $this->entity->uuid(),
       'bundle' => $this->entity->bundle(),
-      'uri' => $this->entity->url(),
+      'uri' => $this->entity->toUrl()->toString(),
     ];
   }
 

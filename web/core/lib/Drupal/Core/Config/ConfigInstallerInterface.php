@@ -14,7 +14,7 @@ interface ConfigInstallerInterface {
    * directories for all other extensions to locate any configuration with its
    * name prefix. For example, the Node module provides the frontpage view as a
    * default configuration file:
-   * core/modules/node/config/install/views.view.frontpage.yml
+   * core/modules/node/config/optional/views.view.frontpage.yml
    * When the Views module is installed after the Node module is already
    * enabled, the frontpage view will be installed.
    *
@@ -43,7 +43,8 @@ interface ConfigInstallerInterface {
    * @param \Drupal\Core\Config\StorageInterface $storage
    *   (optional) The configuration storage to search for optional
    *   configuration. If not provided, all enabled extension's optional
-   *   configuration directories will be searched.
+   *   configuration directories including the install profile's will be
+   *   searched.
    * @param array $dependency
    *   (optional) If set, ensures that the configuration being installed has
    *   this dependency. The format is dependency type as the key ('module',
@@ -69,10 +70,20 @@ interface ConfigInstallerInterface {
    * Sets the configuration storage that provides the default configuration.
    *
    * @param \Drupal\Core\Config\StorageInterface $storage
+   *   The storage.
    *
    * @return $this
    */
   public function setSourceStorage(StorageInterface $storage);
+
+  /**
+   * Gets the configuration storage that provides the default configuration.
+   *
+   * @return \Drupal\Core\Config\StorageInterface|null
+   *   The configuration storage that provides the default configuration.
+   *   Returns null if the source storage has not been set.
+   */
+  public function getSourceStorage();
 
   /**
    * Sets the status of the isSyncing flag.

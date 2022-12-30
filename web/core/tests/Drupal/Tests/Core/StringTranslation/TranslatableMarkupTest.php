@@ -52,12 +52,12 @@ class TranslatableMarkupTest extends UnitTestCase {
    * @covers ::__toString
    */
   public function testToString() {
-    $translation = $this->getMock(TranslationInterface::class);
+    $translation = $this->createMock(TranslationInterface::class);
 
     $string = 'May I have an exception please?';
     $text = $this->getMockBuilder(TranslatableMarkup::class)
       ->setConstructorArgs([$string, [], [], $translation])
-      ->setMethods(['_die'])
+      ->onlyMethods(['_die'])
       ->getMock();
     $text
       ->expects($this->once())
@@ -78,7 +78,7 @@ class TranslatableMarkupTest extends UnitTestCase {
     restore_error_handler();
 
     $this->assertEquals(E_USER_ERROR, $this->lastErrorNumber);
-    $this->assertRegExp('/Exception thrown while calling __toString on a .*Mock_TranslatableMarkup_.* object in .*TranslatableMarkupTest.php on line [0-9]+: Yes you may./', $this->lastErrorMessage);
+    $this->assertMatchesRegularExpression('/Exception thrown while calling __toString on a .*Mock_TranslatableMarkup_.* object in .*TranslatableMarkupTest.php on line [0-9]+: Yes you may./', $this->lastErrorMessage);
   }
 
   /**
@@ -86,7 +86,8 @@ class TranslatableMarkupTest extends UnitTestCase {
    */
   public function testIsStringAssertion() {
     $translation = $this->getStringTranslationStub();
-    $this->setExpectedException(\InvalidArgumentException::class, '$string ("foo") must be a string.');
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('$string ("foo") must be a string.');
     new TranslatableMarkup(new TranslatableMarkup('foo', [], [], $translation));
   }
 
@@ -95,7 +96,8 @@ class TranslatableMarkupTest extends UnitTestCase {
    */
   public function testIsStringAssertionWithFormattableMarkup() {
     $formattable_string = new FormattableMarkup('@bar', ['@bar' => 'foo']);
-    $this->setExpectedException(\InvalidArgumentException::class, '$string ("foo") must be a string.');
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('$string ("foo") must be a string.');
     new TranslatableMarkup($formattable_string);
   }
 

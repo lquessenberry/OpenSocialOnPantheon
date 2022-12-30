@@ -19,6 +19,11 @@ class TermNameFieldTest extends TaxonomyTestBase {
   public static $testViews = ['test_taxonomy_term_name'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests term name field plugin functionality.
    */
   public function testTermNameField() {
@@ -32,8 +37,8 @@ class TermNameFieldTest extends TaxonomyTestBase {
     $view->initDisplay();
     $this->executeView($view);
 
-    $this->assertEqual($this->term1->getName(), $view->getStyle()->getField(0, 'name'));
-    $this->assertEqual($this->term2->getName(), $view->getStyle()->getField(1, 'name'));
+    $this->assertEquals($this->term1->getName(), $view->getStyle()->getField(0, 'name'));
+    $this->assertEquals($this->term2->getName(), $view->getStyle()->getField(1, 'name'));
 
     $view = Views::getView('test_taxonomy_term_name');
     $display =& $view->storage->getDisplay('default');
@@ -41,8 +46,8 @@ class TermNameFieldTest extends TaxonomyTestBase {
     $view->storage->invalidateCaches();
     $this->executeView($view);
 
-    $this->assertEqual(str_replace(' ', '-', $this->term1->getName()), $view->getStyle()->getField(0, 'name'));
-    $this->assertEqual($this->term2->getName(), $view->getStyle()->getField(1, 'name'));
+    $this->assertEquals(str_replace(' ', '-', $this->term1->getName()), $view->getStyle()->getField(0, 'name'));
+    $this->assertEquals($this->term2->getName(), $view->getStyle()->getField(1, 'name'));
   }
 
 }

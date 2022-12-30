@@ -5,11 +5,11 @@ The Drupal Extension is an integration layer between [Behat](http://behat.org),
 provides step definitions for common testing scenarios specific to Drupal
 sites.
 
-[![Build Status](https://travis-ci.org/jhedstrom/drupalextension.png?branch=master)](https://travis-ci.org/jhedstrom/drupalextension)
+[![Build Status](https://travis-ci.com/jhedstrom/drupalextension.png?branch=master)](https://travis-ci.com/jhedstrom/drupalextension)
 
-The Drupal Extension 4.x supports Drupal 6, 7 and 8, utilizes Behat 3.2+ and
-runs on PHP 5.5+. It is compatible with Symfony components 2.x as well as 3.x
-so it can be used on Drupal 8.4.x.
+The Drupal Extension 4.x supports Drupal 7, 8, and 9, utilizes Behat 3.2+ and
+runs on PHP 7.3+. It is compatible with Symfony components 3.x as well as 4.x
+so it can be used on Drupal 8 and 9.
 
 [![Latest Stable Version](https://poser.pugx.org/drupal/drupal-extension/v/stable.svg)](https://packagist.org/packages/drupal/drupal-extension)
 [![Total Downloads](https://poser.pugx.org/drupal/drupal-extension/downloads.svg)](https://packagist.org/packages/drupal/drupal-extension)
@@ -34,7 +34,7 @@ the [Full documentation](https://behat-drupal-extension.readthedocs.org)
     mkdir projectdir
     cd projectdir
     curl -sS https://getcomposer.org/installer | php
-    COMPOSER_BIN_DIR=bin php composer.phar require drupal/drupal-extension='~3.0'
+    COMPOSER_BIN_DIR=bin php composer.phar require drupal/drupal-extension='~4.0'
     ```
 
 1.  In the projectdir, create a file called `behat.yml`. Below is the
@@ -48,7 +48,7 @@ the [Full documentation](https://behat-drupal-extension.readthedocs.org)
         contexts:
           - Drupal\DrupalExtension\Context\DrupalContext
     extensions:
-      Behat\MinkExtension:
+      Drupal\MinkExtension:
         goutte: ~
         base_url: http://example.org/  # Replace with your site's URL
       Drupal\DrupalExtension:
@@ -96,29 +96,9 @@ the [Full documentation](https://behat-drupal-extension.readthedocs.org)
 
 ## Release notes
 
-### Backwards incompatible changes
+See [CHANGELOG](CHANGELOG.md).
 
-Starting with 3.3.0 Behat Drupal Extension depends on Behat 3.2.0 which
-requires all callbacks to be defined as static methods.
+## Contributing
 
-Before 3.3.0:
-
-```
-/**
- * @afterUserCreate
- */
-public function afterUserCreate(EntityScope $scope) {
-  // ...
-}
-```
-
-Starting with 3.3.0:
-
-```
-/**
- * @afterUserCreate
- */
-public static function afterUserCreate(EntityScope $scope) {
-  // ...
-}
-```
+Features and bug fixes are welcome! First-time contributors can jump in with the
+issues tagged [good first issue](https://github.com/jhedstrom/drupalextension/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).

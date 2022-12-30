@@ -2,6 +2,7 @@
 
 namespace Drupal\entity_reference_revisions\Plugin\migrate\destination;
 
+use Drupal\Component\Plugin\ConfigurableInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\TypedData\TranslatableInterface;
 use Drupal\migrate\MigrateException;
@@ -12,12 +13,42 @@ use Drupal\migrate\Row;
 /**
  * Provides entity_reference_revisions destination plugin.
  *
+ * Available configuration keys:
+ * - new_revisions: (optional) Flag to indicate if a new revision should be
+ *   created instead of updating a previous default record. Only applicable when
+ *   providing an entity id without a revision_id.
+ * - force_revision: (optional) Flag to ignore other checks and always create a
+ *   revision.
+ *
  * @MigrateDestination(
  *   id = "entity_reference_revisions",
  *   deriver = "Drupal\entity_reference_revisions\Plugin\Derivative\MigrateEntityReferenceRevisions"
  * )
  */
-class EntityReferenceRevisions extends EntityRevision {
+class EntityReferenceRevisions extends EntityRevision implements ConfigurableInterface {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setConfiguration(array $configuration) {
+    $this->configuration = $configuration;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfiguration() {
+    return $this->configuration;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function defaultConfiguration() {
+    return [
+      'new_revisions' => FALSE,
+    ];
+  }
 
   /**
    * {@inheritdoc}
@@ -32,7 +63,7 @@ class EntityReferenceRevisions extends EntityRevision {
   /**
    * {@inheritdoc}
    */
-  protected function save(ContentEntityInterface $entity, array $oldDestinationIdValues = array()) {
+  protected function save(ContentEntityInterface $entity, array $oldDestinationIdValues = []) {
     $entity->save();
 
     return [
@@ -70,12 +101,39 @@ class EntityReferenceRevisions extends EntityRevision {
    * {@inheritdoc}
    */
   protected function getEntity(Row $row, array $oldDestinationIdValues) {
-    $revision_id = $oldDestinationIdValues ?
-      array_pop($oldDestinationIdValues) :
-      $row->getDestinationProperty($this->getKey('revision'));
-    if (!empty($revision_id) && ($entity = $this->storage->loadRevision($revision_id))) {
-      $entity->setNewRevision(FALSE);
+    $entity_id = $oldDestinationIdValues ?
+      array_shift($oldDestinationIdValues) :
+      $this->getEntityId($row);
+    $configuration = $this->getConfiguration();
+    if (isset($configuration['force_revision']) && $configuration['force_revision'] == TRUE) {
+      $revision_id = NULL;
     }
+    else {
+      $revision_id = $oldDestinationIdValues ?
+        array_pop($oldDestinationIdValues) :
+        $row->getDestinationProperty($this->getKey('revision'));
+    }
+
+    // If a specific revision_id is supplied and exists, assert the entity_id
+    // matches (if supplied), and update the revision.
+    /** @var \Drupal\Core\Entity\RevisionableInterface|\Drupal\Core\Entity\EntityInterface $entity */
+    if (!empty($revision_id) && ($entity = $this->storage->loadRevision($revision_id))) {
+      if (!empty($entity_id) && ($entity->id() != $entity_id)) {
+        throw new MigrateException("The revision_id exists for this entity type, but does not belong to the given entity id");
+      }
+      $entity = $this->updateEntity($entity, $row) ?: $entity;
+    }
+    // If there is no revision_id supplied, but there is an entity_id
+    // supplied that exists, update it.
+    elseif (!empty($entity_id) && ($entity = $this->storage->load($entity_id))) {
+      // If so configured, create a new revision while updating.
+      if (!empty($this->configuration['new_revisions'])) {
+        $entity->setNewRevision(TRUE);
+      }
+      $entity = $this->updateEntity($entity, $row) ?: $entity;
+    }
+
+    // Otherwise, create a new (possibly stub) entity.
     else {
       // Attempt to ensure we always have a bundle.
       if ($bundle = $this->getBundle($row)) {
@@ -90,7 +148,6 @@ class EntityReferenceRevisions extends EntityRevision {
         ->enforceIsNew(TRUE);
       $entity->setNewRevision(TRUE);
     }
-    $entity = $this->updateEntity($entity, $row) ?: $entity;
     $this->rollbackAction = MigrateIdMapInterface::ROLLBACK_DELETE;
     return $entity;
   }
@@ -117,8 +174,8 @@ class EntityReferenceRevisions extends EntityRevision {
     $entity = $this->storage->loadRevision(array_pop($destination_identifiers));
     if ($entity && $entity instanceof TranslatableInterface) {
       if ($key = $this->getKey('langcode')) {
-        if (isset($destination_identifier[$key])) {
-          $langcode = $destination_identifier[$key];
+        if (isset($destination_identifiers[$key])) {
+          $langcode = $destination_identifiers[$key];
           if ($entity->hasTranslation($langcode)) {
             // Make sure we don't remove the default translation.
             $translation = $entity->getTranslation($langcode);
@@ -150,4 +207,5 @@ class EntityReferenceRevisions extends EntityRevision {
       }
     }
   }
+
 }

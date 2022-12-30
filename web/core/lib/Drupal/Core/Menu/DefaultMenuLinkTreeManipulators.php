@@ -75,7 +75,7 @@ class DefaultMenuLinkTreeManipulators {
    * This is why inaccessible subtrees are deleted, except at the top-level
    * inaccessible link: if we didn't keep the first (depth-wise) inaccessible
    * link, we wouldn't be able to know which cache contexts would cause those
-   * subtrees to become accessible again, thus forcing us to conclude that that
+   * subtrees to become accessible again, thus forcing us to conclude that the
    * subtree is unconditionally inaccessible.
    *
    * @param \Drupal\Core\Menu\MenuLinkTreeElement[] $tree
@@ -136,6 +136,7 @@ class DefaultMenuLinkTreeManipulators {
       $nids = array_keys($node_links);
 
       $query = $this->entityTypeManager->getStorage('node')->getQuery();
+      $query->accessCheck(TRUE);
       $query->condition('nid', $nids, 'IN');
 
       // Allows admins to view all nodes, by both disabling node_access
@@ -169,9 +170,6 @@ class DefaultMenuLinkTreeManipulators {
    *   The menu link tree to manipulate.
    * @param array $node_links
    *   Stores references to menu link elements to effectively set access.
-   *
-   * @return \Drupal\Core\Menu\MenuLinkTreeElement[]
-   *   The manipulated menu link tree.
    */
   protected function collectNodeLinks(array &$tree, array &$node_links) {
     foreach ($tree as $key => &$element) {

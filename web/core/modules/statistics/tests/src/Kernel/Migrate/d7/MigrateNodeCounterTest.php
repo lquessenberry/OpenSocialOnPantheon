@@ -14,7 +14,7 @@ class MigrateNodeCounterTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'content_translation',
     'language',
     'menu_ui',
@@ -26,19 +26,16 @@ class MigrateNodeCounterTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->installEntitySchema('node');
-    $this->installConfig('node');
     $this->installSchema('node', ['node_access']);
     $this->installSchema('statistics', ['node_counter']);
 
+    $this->migrateUsers(FALSE);
+    $this->migrateContentTypes();
     $this->executeMigrations([
       'language',
-      'd7_user_role',
-      'd7_user',
-      'd7_node_type',
       'd7_language_content_settings',
       'd7_node',
       'd7_node_translation',
@@ -71,14 +68,15 @@ class MigrateNodeCounterTest extends MigrateDrupal7TestBase {
    *   The expected day count.
    * @param int $timestamp
    *   The expected timestamp.
+   *
+   * @internal
    */
-  protected function assertNodeCounter($nid, $total_count, $day_count, $timestamp) {
+  protected function assertNodeCounter(int $nid, int $total_count, int $day_count, int $timestamp): void {
     /** @var \Drupal\statistics\StatisticsViewsResult $statistics */
     $statistics = $this->container->get('statistics.storage.node')->fetchView($nid);
-    // @todo Remove casting after https://www.drupal.org/node/2926069 lands.
-    $this->assertSame($total_count, (int) $statistics->getTotalCount());
-    $this->assertSame($day_count, (int) $statistics->getDayCount());
-    $this->assertSame($timestamp, (int) $statistics->getTimestamp());
+    $this->assertSame($total_count, $statistics->getTotalCount());
+    $this->assertSame($day_count, $statistics->getDayCount());
+    $this->assertSame($timestamp, $statistics->getTimestamp());
   }
 
 }

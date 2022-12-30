@@ -70,10 +70,12 @@ function hook_message_view_alter(array &$build) {
  * @return array
  *   An array of default message templates, keyed by machine names.
  *
+ * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+ * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
  * @see hook_default_message_template_alter()
  */
 function hook_default_message_template() {
-  $defaults['main'] = entity_create('message_template', []);
+  $defaults['main'] = \Drupal::entityTypeManager()->getStorage('message_template')->create([]);
   return $defaults;
 }
 
@@ -113,10 +115,12 @@ function hook_form_message_template_form_alter(array &$form, array &$form_state)
  * @return array
  *   An array of default message template categories, keyed by machine names.
  *
+ * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+ * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
  * @see hook_default_message_category_alter()
  */
 function hook_default_message_category() {
-  $defaults['main'] = entity_create('message_category', []);
+  $defaults['main'] = \Drupal::entityTypeManager()->getStorage('message_category')->create([]);
   return $defaults;
 }
 

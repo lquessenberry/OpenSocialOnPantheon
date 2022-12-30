@@ -1,25 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace League\Container\Inflector;
 
-use League\Container\ImmutableContainerAwareInterface;
+use IteratorAggregate;
+use League\Container\ContainerAwareInterface;
 
-interface InflectorAggregateInterface extends ImmutableContainerAwareInterface
+interface InflectorAggregateInterface extends ContainerAwareInterface, IteratorAggregate
 {
-    /**
-     * Add an inflector to the aggregate.
-     *
-     * @param  string   $type
-     * @param  callable $callback
-     * @return \League\Container\Inflector\Inflector
-     */
-    public function add($type, callable $callback = null);
-
-    /**
-     * Applies all inflectors to an object.
-     *
-     * @param  object $object
-     * @return object
-     */
-    public function inflect($object);
+    public function add(string $type, callable $callback = null): Inflector;
+    public function inflect(object $object);
 }

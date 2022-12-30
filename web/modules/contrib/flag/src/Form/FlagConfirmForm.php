@@ -2,7 +2,6 @@
 
 namespace Drupal\flag\Form;
 
-use Drupal\flag\Form\FlagConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\flag\Plugin\ActionLink\FormEntryInterface;
 

@@ -1,4 +1,4 @@
 services:
   url_embed:
     class: Drupal\url_embed\UrlEmbed
-    arguments: ['@cache.data', '@datetime.time', '@config.factory']
+    arguments: ['@cache.data', '@datetime.time', '@?config.factory', ['config']]

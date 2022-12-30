@@ -15,4 +15,4 @@
       $('#js_webassert_test_element_invisible').show();
     },
   };
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

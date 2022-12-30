@@ -4,7 +4,7 @@ namespace Drupal\Tests\Core\Entity\Enhancer;
 
 use Drupal\Core\Entity\Enhancer\EntityRouteEnhancer;
 use Drupal\Tests\UnitTestCase;
-use Symfony\Cmf\Component\Routing\RouteObjectInterface;
+use Drupal\Core\Routing\RouteObjectInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Route;
 
@@ -29,7 +29,6 @@ class EntityRouteEnhancerTest extends UnitTestCase {
     $defaults['_entity_form'] = 'entity_test.default';
     $defaults['_route_object'] = (new Route('/test', $defaults));
     $new_defaults = $route_enhancer->enhance($defaults, $request);
-    $this->assertTrue(is_callable($new_defaults['_controller']));
     $this->assertEquals($defaults['_controller'], $new_defaults['_controller'], '_controller did not get overridden.');
 
     // Set _entity_form and ensure that the form is set.
@@ -55,8 +54,8 @@ class EntityRouteEnhancerTest extends UnitTestCase {
     $defaults['_route_object'] = (new Route('/test', $defaults));
     $defaults = $route_enhancer->enhance($defaults, $request);
     $this->assertEquals('\Drupal\Core\Entity\Controller\EntityViewController::view', $defaults['_controller'], 'The entity view controller was not set.');
-    $this->assertEquals($defaults['_entity'], 'Mock entity');
-    $this->assertEquals($defaults['view_mode'], 'full');
+    $this->assertEquals('Mock entity', $defaults['_entity']);
+    $this->assertEquals('full', $defaults['view_mode']);
     $this->assertFalse(isset($defaults['_entity_view']));
 
     // Set _entity_view and ensure that the entity view controller is set using
@@ -74,8 +73,8 @@ class EntityRouteEnhancerTest extends UnitTestCase {
     $defaults[RouteObjectInterface::ROUTE_OBJECT] = $route;
     $defaults = $route_enhancer->enhance($defaults, $request);
     $this->assertEquals('\Drupal\Core\Entity\Controller\EntityViewController::view', $defaults['_controller'], 'The entity view controller was not set.');
-    $this->assertEquals($defaults['_entity'], 'Mock entity');
-    $this->assertEquals($defaults['view_mode'], 'full');
+    $this->assertEquals('Mock entity', $defaults['_entity']);
+    $this->assertEquals('full', $defaults['view_mode']);
     $this->assertFalse(isset($defaults['_entity_view']));
 
     // Set _entity_view without a view mode.
@@ -85,8 +84,8 @@ class EntityRouteEnhancerTest extends UnitTestCase {
     $defaults['_route_object'] = (new Route('/test', $defaults));
     $defaults = $route_enhancer->enhance($defaults, $request);
     $this->assertEquals('\Drupal\Core\Entity\Controller\EntityViewController::view', $defaults['_controller'], 'The entity view controller was not set.');
-    $this->assertEquals($defaults['_entity'], 'Mock entity');
-    $this->assertTrue(empty($defaults['view_mode']));
+    $this->assertEquals('Mock entity', $defaults['_entity']);
+    $this->assertArrayNotHasKey('view_mode', $defaults);
     $this->assertFalse(isset($defaults['_entity_view']));
   }
 

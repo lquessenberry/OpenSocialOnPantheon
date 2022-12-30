@@ -9,3 +9,5 @@ behavior:
     js/like_and_dislike_service.js: {}
   dependencies:
     - core/jquery
+    - core/jquery.once
+    - core/drupal

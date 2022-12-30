@@ -12,7 +12,10 @@ use Drupal\locale\Gettext;
  */
 class DynamicEntityReferenceLocaleTest extends DynamicEntityReferenceTest {
 
-  public static $modules = [
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
     'language',
     'locale',
   ];
@@ -20,11 +23,11 @@ class DynamicEntityReferenceLocaleTest extends DynamicEntityReferenceTest {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $file = new \stdClass();
-    $file->uri = \Drupal::service('file_system')->realpath(drupal_get_path('module', 'dynamic_entity_reference') . '/tests/test.de.po');
+    $file->uri = \Drupal::service('file_system')->realpath(\Drupal::service('extension.path.resolver')->getPath('module', 'dynamic_entity_reference') . '/tests/test.de.po');
     $file->langcode = 'de';
     Gettext::fileToDatabase($file, []);
 

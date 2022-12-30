@@ -1,0 +1,5 @@
+ajax_comments.settings:
+  title: 'AJAX comments'
+  parent: system.admin_config_content
+  description: 'Configure how ajaxified comments works.'
+  route_name: ajax_comments.settings

@@ -15,7 +15,7 @@ use Drupal\feeds\Plugin\Type\Target\ConfigurableTargetInterface;
  * @FeedsTarget(
  *   id = "paragraphs",
  *   field_types = {"entity_reference_revisions"},
- *   arguments = {"@entity.manager", "@current_user"}
+ *   arguments = {"@entity_type.manager", "@current_user"}
  * )
  */
 class Paragraphs extends Text implements ConfigurableTargetInterface {

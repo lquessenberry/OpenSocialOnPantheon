@@ -1,0 +1,9 @@
+services:
+  update_helper_checklist.update_checklist:
+    class: Drupal\update_helper_checklist\UpdateChecklist
+    arguments: ['@checklistapi_storage.state', '@module_handler', '@current_user']
+  update_helper_checklist.configuration_update_subscriber:
+    class: Drupal\update_helper_checklist\Events\ConfigurationUpdateSubscriber
+    arguments: ['@update_helper_checklist.update_checklist']
+    tags:
+      - { name: event_subscriber }

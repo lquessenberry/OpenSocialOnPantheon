@@ -5,6 +5,8 @@ namespace Drupal\social_post\Form;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Entity\ContentEntityForm;
 use Drupal\Core\Entity\Entity\EntityFormDisplay;
+use Drupal\Core\Entity\EntityRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -16,9 +18,20 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class PostForm extends ContentEntityForm {
 
-  private $postViewDefault;
-  private $postViewProfile;
-  private $postViewGroup;
+  /**
+   * The view mode.
+   */
+  private ?string $postViewDefault;
+
+  /**
+   * The view mode for use on profiles.
+   */
+  private ?string $postViewProfile;
+
+  /**
+   * The view mode for use in groups.
+   */
+  private ?string $postViewGroup;
 
   /**
    * The Current User object.
@@ -28,15 +41,10 @@ class PostForm extends ContentEntityForm {
   protected $currentUser;
 
   /**
-   * Constructs a NodeForm object.
-   *
-   * @param \Drupal\Component\Datetime\TimeInterface $time
-   *   The time service.
-   * @param \Drupal\Core\Session\AccountInterface $current_user
-   *   The current user.
+   * Constructs a Form object.
    */
-  public function __construct(TimeInterface $time = NULL, AccountInterface $current_user) {
-    $this->time = $time ?: \Drupal::service('datetime.time');
+  public function __construct(AccountInterface $current_user, EntityRepositoryInterface $entity_repository, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL) {
+    parent::__construct($entity_repository, $entity_type_bundle_info, $time);
     $this->currentUser = $current_user;
   }
 
@@ -45,8 +53,10 @@ class PostForm extends ContentEntityForm {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('datetime.time'),
-      $container->get('current_user')
+      $container->get('current_user'),
+      $container->get('entity.repository'),
+      $container->get('entity_type.bundle.info'),
+      $container->get('datetime.time')
     );
   }
 
@@ -66,12 +76,13 @@ class PostForm extends ContentEntityForm {
 
     // If we're rendered in a block and given a display mode then we store it
     // now because it's overwritten by ContentEntityForm::init().
+    /** @var mixed|NULL $display */
     $display = $this->getFormDisplay($form_state);
     $form = parent::buildForm($form, $form_state);
     $form['#attached']['library'][] = 'social_post/keycode-submit';
 
     // If we already have a form display mode then we simply restore that.
-    if (!empty($display)) {
+    if ($display !== NULL) {
       $this->setFormDisplay($display, $form_state);
     }
     // If we are editing a post then the default view mode is used but we have
@@ -145,7 +156,7 @@ class PostForm extends ContentEntityForm {
 
     // For the explanation of the numbers see
     // field.storage.post.field_visibility.
-    if ($display_id === $this->postViewDefault) {
+    if ($display_id === $this->postViewDefault || $display_id === $this->postViewProfile) {
       // Set default value to community.
       unset($form['field_visibility']['widget'][0]['#options'][0]);
 
@@ -159,16 +170,16 @@ class PostForm extends ContentEntityForm {
       else {
         $form['field_visibility']['widget'][0]['#default_value'] = '2';
       }
-
-      unset($form['field_visibility']['widget'][0]['#options'][3]);
+      $current_group = _social_group_get_current_group();
+      // We unset the group visibility if we don't have a group.
+      if (empty($current_group)) {
+        unset($form['field_visibility']['widget'][0]['#options'][3]);
+      }
     }
     // If we're not posting to the community then the visibility depends on the
     // group type (if it's a group post) or it's simply limited to the community
     // for user posts.
     else {
-      $form['field_visibility']['widget'][0]['#default_value'] = "0";
-      unset($form['field_visibility']['widget'][0]['#options'][2]);
-
       $current_group = NULL;
       if ($this->operation === 'edit' && $this->entity->hasField('field_recipient_group') && !$this->entity->get('field_recipient_group')->isEmpty()) {
         $current_group = $this->entity->get('field_recipient_group')->first()->get('entity')->getTarget()->getValue();
@@ -183,10 +194,22 @@ class PostForm extends ContentEntityForm {
       }
       else {
         $group_type_id = $current_group->getGroupType()->id();
-        $allowed_options = social_group_get_allowed_visibility_options_per_group_type($group_type_id);
+        $allowed_options = social_group_get_allowed_visibility_options_per_group_type($group_type_id, NULL, $this->entity, $current_group);
 
-        if ($allowed_options['community'] !== TRUE) {
+        if ($group_type_id !== 'flexible_group') {
+          $form['field_visibility']['widget'][0]['#default_value'] = "0";
+          unset($form['field_visibility']['widget'][0]['#options'][2]);
+
+          if ($allowed_options['community'] !== TRUE) {
+            unset($form['field_visibility']['widget'][0]['#options'][0]);
+          }
+        }
+        else {
           unset($form['field_visibility']['widget'][0]['#options'][0]);
+
+          if ($allowed_options['community'] !== TRUE) {
+            unset($form['field_visibility']['widget'][0]['#options'][2]);
+          }
         }
 
         if ($allowed_options['public'] !== TRUE) {
@@ -207,7 +230,7 @@ class PostForm extends ContentEntityForm {
 
     // When a post is being edited we configure the visibility to be shown as a
     // read-only value.
-    if ($this->operation == 'edit') {
+    if ($this->operation === 'edit') {
       /** @var \Drupal\social_post\Entity\Post $post */
       $post = $this->entity;
       $form['#post_id'] = $post->id();
@@ -241,16 +264,15 @@ class PostForm extends ContentEntityForm {
 
     $display = $this->getFormDisplay($form_state);
 
-    if ($this->entity->isNew()) {
-      if (isset($display) && ($display_id = $display->get('id'))) {
-        if ($display_id === $this->postViewProfile) {
-          $account_profile = \Drupal::routeMatch()->getParameter('user');
-          $this->entity->get('field_recipient_user')->setValue($account_profile);
-        }
-        elseif ($display_id === $this->postViewGroup) {
-          $group = \Drupal::routeMatch()->getParameter('group');
-          $this->entity->get('field_recipient_group')->setValue($group);
-        }
+    if ($display !== NULL && $this->entity->isNew()) {
+      $display_id = $display->get('id');
+      if ($display_id === $this->postViewProfile) {
+        $account_profile = \Drupal::routeMatch()->getParameter('user');
+        $this->entity->get('field_recipient_user')->setValue($account_profile);
+      }
+      elseif ($display_id === $this->postViewGroup) {
+        $group = \Drupal::routeMatch()->getParameter('group');
+        $this->entity->get('field_recipient_group')->setValue($group);
       }
     }
 
@@ -258,13 +280,17 @@ class PostForm extends ContentEntityForm {
 
     switch ($status) {
       case SAVED_NEW:
-        drupal_set_message($this->t('Your post %label has been posted.', [
+        $message = $this->t('Your post %label has been posted.', [
           '%label' => $this->entity->label(),
-        ]));
+        ]);
+
+        $this->moduleHandler->alter('social_post_message', $message, $form_state);
+
+        $this->messenger()->addStatus($message);
         break;
 
       default:
-        drupal_set_message($this->t('Your post %label has been saved.', [
+        $this->messenger()->addStatus($this->t('Your post %label has been saved.', [
           '%label' => $this->entity->label(),
         ]));
     }

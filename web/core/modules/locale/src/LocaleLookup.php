@@ -2,12 +2,12 @@
 
 namespace Drupal\locale;
 
+use Drupal\Component\Gettext\PoItem;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheCollector;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
-use Drupal\Core\StringTranslation\PluralTranslatableMarkup;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -113,7 +113,12 @@ class LocaleLookup extends CacheCollector {
       // for example, strings for admin menu items and settings forms are not
       // cached for anonymous users.
       $user = \Drupal::currentUser();
-      $rids = $user ? implode(':', $user->getRoles()) : '';
+      $rids = '';
+      if ($user) {
+        $roles = $user->getRoles();
+        sort($roles);
+        $rids = implode(':', $roles);
+      }
       $this->cid = "locale:{$this->langcode}:{$this->context}:$rids";
 
       // Getting the roles from the current user might have resulted in t()
@@ -173,7 +178,7 @@ class LocaleLookup extends CacheCollector {
       }
     }
 
-    if (is_string($value) && strpos($value, PluralTranslatableMarkup::DELIMITER) !== FALSE) {
+    if (is_string($value) && strpos($value, PoItem::DELIMITER) !== FALSE) {
       // Community translations imported from localize.drupal.org as well as
       // migrated translations may contain @count[number].
       $value = preg_replace('!@count\[\d+\]!', '@count', $value);

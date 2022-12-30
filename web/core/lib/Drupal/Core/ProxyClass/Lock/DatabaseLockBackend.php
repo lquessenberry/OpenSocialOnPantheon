@@ -1,5 +1,5 @@
 <?php
-// @codingStandardsIgnoreFile
+// phpcs:ignoreFile
 
 /**
  * This file was generated via php core/scripts/generate-proxy-class.php 'Drupal\Core\Lock\DatabaseLockBackend' "core/lib/Drupal/Core".
@@ -70,7 +70,7 @@ namespace Drupal\Core\ProxyClass\Lock {
         /**
          * {@inheritdoc}
          */
-        public function acquire($name, $timeout = 30)
+        public function acquire($name, $timeout = 30.0)
         {
             return $this->lazyLoadItself()->acquire($name, $timeout);
         }

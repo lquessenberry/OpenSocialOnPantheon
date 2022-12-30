@@ -1,0 +1,62 @@
+<?php
+
+/**
+ * @file
+ * Install, update functions for the social_follow_taxonomy module.
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_follow_taxonomy.
+ */
+function social_follow_taxonomy_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    'verified',
+    [
+      'flag follow_term',
+      'unflag follow_term',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'flag follow_term',
+      'unflag follow_term',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'flag follow_term',
+      'unflag follow_term',
+    ]
+  );
+}
+
+/**
+ * Enable Social Follow Tag module if Social Tagging module installed.
+ */
+function social_follow_taxonomy_update_8801() {
+  if (
+    \Drupal::moduleHandler()->moduleExists('social_tagging') &&
+    !\Drupal::moduleHandler()->moduleExists('social_follow_tag')
+  ) {
+    \Drupal::service('module_installer')->install(['social_follow_tag']);
+  }
+}
+
+/**
+ * Update exposed filter button name.
+ */
+function social_follow_taxonomy_update_11401(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_follow_taxonomy', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}

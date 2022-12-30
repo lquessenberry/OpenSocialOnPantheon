@@ -1,0 +1,7 @@
+services:
+  ajax_comments.field_settings_helper:
+    class: Drupal\ajax_comments\FieldSettingsHelper
+    arguments: ['@entity_type.manager', '@plugin.manager.field.formatter']
+  ajax_comments.temp_store:
+    class: Drupal\ajax_comments\TempStore
+    arguments: ['@tempstore.private']

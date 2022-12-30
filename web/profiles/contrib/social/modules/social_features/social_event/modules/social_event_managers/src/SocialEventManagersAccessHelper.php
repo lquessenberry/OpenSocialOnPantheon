@@ -19,12 +19,21 @@ class SocialEventManagersAccessHelper {
 
       // Only for events.
       if ($node->getType() === 'event') {
+        if ($account->hasPermission('administer nodes')
+          || $account->hasPermission('bypass node access')) {
+          return 2;
+        }
         // Only continue if the user has access to view the event.
         if ($node->access('view', $account)) {
+          // The owner has access.
+          if ($account->id() === $node->getOwnerId()) {
+            return 2;
+          }
+
           $event_managers = $node->get('field_event_managers')->getValue();
 
           foreach ($event_managers as $event_manager) {
-            if ($account->id() == $event_manager['target_id']) {
+            if (isset($event_manager['target_id']) && $account->id() === $event_manager['target_id']) {
               return 2;
             }
           }
@@ -41,7 +50,7 @@ class SocialEventManagersAccessHelper {
    * Gets the Entity access for the given node.
    */
   public static function getEntityAccessResult(NodeInterface $node, $op, AccountInterface $account) {
-    $access = SocialEventManagersAccessHelper::nodeAccessCheck($node, $op, $account);
+    $access = self::nodeAccessCheck($node, $op, $account);
 
     switch ($access) {
       case 2:

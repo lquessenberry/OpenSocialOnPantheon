@@ -67,8 +67,8 @@ class BundlePluginHandler implements BundlePluginHandlerInterface {
   public function getFieldStorageDefinitions() {
     $definitions = [];
     foreach (array_keys($this->pluginManager->getDefinitions()) as $plugin_id) {
-      /** @var \Drupal\entity\BundlePlugin\BundlePluginInterface $plugin */
       $plugin = $this->pluginManager->createInstance($plugin_id);
+      assert($plugin instanceof BundlePluginInterface);
       $definitions += $plugin->buildFieldDefinitions();
     }
     // Ensure the presence of required keys which aren't set by the plugin.
@@ -85,8 +85,8 @@ class BundlePluginHandler implements BundlePluginHandlerInterface {
    * {@inheritdoc}
    */
   public function getFieldDefinitions($bundle) {
-    /** @var \Drupal\entity\BundlePlugin\BundlePluginInterface $plugin */
     $plugin = $this->pluginManager->createInstance($bundle);
+    assert($plugin instanceof BundlePluginInterface);
     $definitions = $plugin->buildFieldDefinitions();
     // Ensure the presence of required keys which aren't set by the plugin.
     foreach ($definitions as $field_name => $definition) {

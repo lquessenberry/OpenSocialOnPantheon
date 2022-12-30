@@ -3,6 +3,7 @@
 namespace Drupal\views\Plugin\views\query;
 
 use Drupal\Core\Database\Connection;
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 
 /**
  * PostgreSQL-specific date handling.
@@ -13,6 +14,8 @@ use Drupal\Core\Database\Connection;
  * @see \Drupal\views\Plugin\views\query\Sql
  */
 class PostgresqlDateSql implements DateSqlInterface {
+
+  use DependencySerializationTrait;
 
   /**
    * The database connection.
@@ -63,7 +66,7 @@ class PostgresqlDateSql implements DateSqlInterface {
   public function getDateField($field, $string_date) {
     if ($string_date) {
       // Ensures compatibility with field offset operation below.
-      return "TO_TIMESTAMP($field, 'YYYY-MM-DD HH24:MI:SS')";
+      return "TO_TIMESTAMP($field, 'YYYY-MM-DD\"T\"HH24:MI:SS')";
     }
     return "TO_TIMESTAMP($field)";
   }

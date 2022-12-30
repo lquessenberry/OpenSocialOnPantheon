@@ -1,0 +1,40 @@
+html {
+  font-family: var(--ginFont);
+  scroll-padding-top: var(--ginScrollOffset);
+}
+
+body {
+  color: var(--colorGinText);
+  background: var(--colorGinAppBackground);
+  overflow-x: hidden;
+
+  @include mq($breakpointLarge) {
+    overflow-x: auto;
+  }
+}
+
+h1, h2, h3 {
+  letter-spacing: -.025em;
+  font-weight: normal;
+}
+
+h2 {
+  font-size: 1.75rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+::selection {
+  background: var(--colorGinPrimaryLightHover);
+}
+
+::-moz-selection {
+  background: var(--colorGinPrimaryLightHover);
+}
+
+a {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}

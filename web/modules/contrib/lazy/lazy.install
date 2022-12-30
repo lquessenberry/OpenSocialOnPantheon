@@ -1,0 +1,254 @@
+<?php
+
+/**
+ * @file
+ * Install, update, and uninstall functions for the Lazy-load module.
+ */
+
+use Drupal\Component\Serialization\Json;
+
+/**
+ * Implements hook_requirements().
+ */
+function lazy_requirements($phase) {
+  if ($phase != 'runtime') {
+    return [];
+  }
+
+  $settings = \Drupal::config('lazy.settings');
+  $library_path = $settings->get('libraryPath') ?? '/libraries/lazysizes';
+  $library_js = $settings->get('minified') ? '/lazysizes.min.js' : '/lazysizes.js';
+
+  $requirements['lazy_lazysizes'] = [
+    'title' => t('lazySizes library'),
+    'description' => t('<p>The lazySizes library needs to be installed at the <kbd>@path</kbd> folder in your Drupal installation directory.</p><p>If you <a href=":packagist">manage assets via Composer</a>, you can use <kbd>composer require bower-asset/lazysizes</kbd> to download the library.</p><p>If you <a href=":url">manually download the library</a>, make sure the folder name is <em>lazysizes</em>.</p>', [
+      '@path' => $library_path,
+      ':url' => 'https://github.com/aFarkas/lazysizes/releases/latest',
+      ':packagist' => 'https://asset-packagist.org/',
+    ]),
+    'severity' => REQUIREMENT_ERROR,
+  ];
+
+  if (file_exists(DRUPAL_ROOT . $library_path . $library_js)) {
+    $requirements['lazy_lazysizes']['severity'] = REQUIREMENT_OK;
+    $requirements['lazy_lazysizes']['description'] = t('The lazySizes library is installed at <kbd>@path</kbd>', [
+      '@path' => $library_path . $library_js,
+    ]);
+
+    if ($package_json = @file_get_contents(DRUPAL_ROOT . $library_path . '/package.json')) {
+      $package_json = JSON::decode($package_json);
+      if (isset($package_json['version'])) {
+        $requirements['lazy_lazysizes']['value'] = $package_json['version'];
+      }
+    }
+  }
+  elseif (in_array(parse_url($library_path, PHP_URL_SCHEME), ['http', 'https'])) {
+    $requirements['lazy_lazysizes']['severity'] = REQUIREMENT_OK;
+    $requirements['lazy_lazysizes']['description'] = t('The lazySizes library is loaded from an external site, make sure it is a trusted source: <a href=":cdn" rel="noreferrer">:cdn</a>', [
+      ':cdn' => $library_path . $library_js,
+    ]);
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_install().
+ */
+function lazy_install() {
+  lazy__update_migrate_config();
+}
+
+/**
+ * Reset "disabled_paths" configuration to module default.
+ */
+function lazy_update_8201() {
+  $config = \Drupal::service('config.factory')->getEditable('lazy.settings');
+
+  if ($config->get('disabled_paths') === NULL) {
+    $config->set('disabled_paths', '/rss.xml');
+    return t('The new "disabled_paths" configuration is set to "/rss.xml" (default value).');
+  }
+
+  return NULL;
+}
+
+/**
+ * Reset "image_fields" configuration to module default.
+ */
+function lazy_update_8202() {
+  $config = \Drupal::service('config.factory')->getEditable('lazy.settings');
+  if ($config->get('image_fields') === TRUE) {
+    $config->set('image_fields', FALSE);
+    return t('<b>Action needed:</b> As of 8.x-2.x, image fields are now controlled individually. You need to manually update each image field to enable lazy-loading.');
+  }
+
+  return NULL;
+}
+
+/**
+ * Migrate lazy configuration.
+ */
+function lazy_update_8301() {
+  lazy__update_migrate_config();
+}
+
+/**
+ * Upgrade and migrate lazy configuration.
+ */
+function lazy__update_migrate_config() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+
+  // Add defaults for the new lazySizes library.
+  if (empty($config->get('lazysizes'))) {
+    $lazysizes = [
+      'lazyClass' => 'lazyload',
+      'loadedClass' => 'lazyloaded',
+      'loadingClass' => 'lazyloading',
+      'preloadClass' => 'lazypreload',
+      'errorClass' => 'lazyerror',
+      'autosizesClass' => 'lazyautosizes',
+      'srcAttr' => 'data-src',
+      'srcsetAttr' => 'data-srcset',
+      'sizesAttr' => 'data-sizes',
+      'minSize' => 40,
+      'customMedia' => [],
+      'init' => TRUE,
+      'expFactor' => 1.5,
+      'hFac' => 0.8,
+      'loadMode' => 2,
+      'loadHidden' => TRUE,
+      'ricTimeout' => 0,
+      'throttleDelay' => 125,
+      'plugins' => [],
+    ];
+    $config->set('lazysizes', $lazysizes);
+  }
+
+  // Migrate legacy configuration.
+  $selector = $config->get('selector') ?: $config->get('lazysizes.lazyClass');
+  $errorClass = $config->get('errorClass') ?: $config->get('lazysizes.errorClass');
+  $src = $config->get('src') ?: $config->get('lazysizes.srcAttr');
+
+  $config
+    ->set('lazysizes.lazyClass', $selector)
+    ->set('lazysizes.errorClass', $errorClass)
+    ->set('lazysizes.srcAttr', $src)
+    ->clear('errorClass')
+    ->clear('loadInvisible')
+    ->clear('offset')
+    ->clear('saveViewportOffsetDelay')
+    ->clear('selector')
+    ->clear('src')
+    ->clear('successClass')
+    ->clear('validateDelay')
+    ->save(TRUE);
+}
+
+/**
+ * Update lazy module configuration.
+ */
+function lazy_update_8302() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $config->set('preferNative', TRUE)->save();
+}
+
+/**
+ * Update lazy module configuration for the new "preferNative" option.
+ */
+function lazy_update_8303() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $preferNative = (bool) (($config->get('preferNative') !== NULL) ? $config->get('preferNative') : TRUE);
+  $config->set('preferNative', $preferNative)->save(TRUE);
+
+  return t('The new "preferNative" option is added, and set to %status.', [
+    '%status' => $preferNative ? 'enabled' : 'disabled',
+  ]);
+}
+
+/**
+ * Remove "formatters" settings from the Lazy configuration.
+ *
+ * Now both "Image (Lazy-load)" and "Responsive image (Lazy-load)" image-
+ * formatters are enabled at all times, as long as the core's "Image" and
+ * "Responsive image" modules, respectively, are also enabled.
+ */
+function lazy_update_8304() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $config->clear('formatters')->save(TRUE);
+}
+
+/**
+ * Set lazySizes library path default.
+ */
+function lazy_update_8305() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $config->set('libraryPath', '/libraries/lazysizes')->save(TRUE);
+}
+
+/**
+ * Update all lazy-loading enabled text-formats with carried-over settings.
+ */
+function lazy_update_8306() {
+  $configFactory = \Drupal::configFactory();
+
+  $migration_settings = [];
+  $config = $configFactory->getEditable('lazy.settings');
+  $alter_tag = $config->get('alter_tag');
+  foreach ($alter_tag as $tag => $status) {
+    $key = ($tag === 'img') ? 'image' : $tag;
+    $migration_settings[$key] = (bool) $alter_tag[$tag];
+  }
+
+  foreach (filter_formats() as $key => $filter) {
+    $filter_configuration = $filter->filters()->getConfiguration();
+    if (isset($filter_configuration['lazy_filter'])) {
+      $format_settings = $configFactory->getEditable("filter.format.${key}");
+      $format_settings
+        ->set('filters.lazy_filter.settings', $migration_settings)
+        ->save(TRUE);
+    }
+  }
+
+  $config
+    ->clear('image_fields')
+    ->clear('alter_tag')
+    ->save(TRUE);
+}
+
+/**
+ * Enable new configuration with default value `minified = TRUE`.
+ */
+function lazy_update_8307() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $config->set('minified', TRUE)->save(TRUE);
+}
+
+/**
+ * Migrate "disabled paths" into new "visibility" setting.
+ */
+function lazy_update_8308() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $disabled_paths = $config->get('disabled_paths');
+  $config
+    ->set('disable_admin', TRUE)
+    ->set('visibility', [
+      'id' => 'request_path',
+      'pages' => $disabled_paths,
+      'negate' => 0,
+    ])
+    ->clear('disabled_paths')
+    ->save(TRUE);
+}
+
+/**
+ * Remove legacy configuration settings.
+ */
+function lazy_update_8309() {
+  $config = \Drupal::configFactory()->getEditable('lazy.settings');
+  $config
+    ->clear('image_fields')
+    ->clear('alter_tag')
+    ->clear('formatters')
+    ->save(TRUE);
+}

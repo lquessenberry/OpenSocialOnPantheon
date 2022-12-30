@@ -21,14 +21,10 @@ abstract class FileUsageBase implements FileUsageInterface {
    * Creates a FileUsageBase object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   (optional) The config factory. Defaults to NULL and will use
-   *   \Drupal::configFactory() instead.
-   *
-   * @deprecated The $config_factory parameter will become required in Drupal
-   *   9.0.0.
+   *   The config factory.
    */
-  public function __construct(ConfigFactoryInterface $config_factory = NULL) {
-    $this->configFactory = $config_factory ?: \Drupal::configFactory();
+  public function __construct(ConfigFactoryInterface $config_factory) {
+    $this->configFactory = $config_factory;
   }
 
   /**

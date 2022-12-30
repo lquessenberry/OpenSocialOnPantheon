@@ -18,7 +18,14 @@ class NidArgumentTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'field', 'text', 'node_test_config', 'user', 'node_test_views'];
+  protected static $modules = [
+    'node',
+    'field',
+    'text',
+    'node_test_config',
+    'user',
+    'node_test_views',
+  ];
 
   /**
    * Views used by this test.
@@ -30,18 +37,18 @@ class NidArgumentTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('node');
     $this->installEntitySchema('user');
     $this->installConfig(['node', 'field']);
 
-    ViewTestData::createTestViews(get_class($this), ['node_test_views']);
+    ViewTestData::createTestViews(static::class, ['node_test_views']);
   }
 
   /**
-   * Test the nid argument.
+   * Tests the nid argument.
    */
   public function testNidArgument() {
     $view = Views::getView('test_nid_argument');
@@ -59,22 +66,22 @@ class NidArgumentTest extends ViewsKernelTestBase {
     $node2->save();
 
     $view->preview();
-    $this->assertEqual(count($view->result), 2, 'Found the expected number of results.');
+    $this->assertCount(2, $view->result, 'Found the expected number of results.');
 
-    // Set an the second node id as an argument.
+    // Set the second node id as an argument.
     $view->destroy();
     $view->preview('default', [$node2->id()]);
     // Verify that the title is overridden.
-    $this->assertEqual($view->getTitle(), $node2->getTitle());
+    $this->assertEquals($node2->getTitle(), $view->getTitle());
     // Verify that the argument filtering works.
-    $this->assertEqual(count($view->result), 1, 'Found the expected number of results.');
-    $this->assertEqual($node2->id(), (string) $view->style_plugin->getField(0, 'nid'), 'Found the correct nid.');
+    $this->assertCount(1, $view->result, 'Found the expected number of results.');
+    $this->assertEquals($node2->id(), (string) $view->style_plugin->getField(0, 'nid'), 'Found the correct nid.');
 
     // Verify that setting a non-existing id as argument results in no nodes
     // being shown.
     $view->destroy();
     $view->preview('default', [22]);
-    $this->assertEqual(count($view->result), 0, 'Found the expected number of results.');
+    $this->assertCount(0, $view->result, 'Found the expected number of results.');
   }
 
 }

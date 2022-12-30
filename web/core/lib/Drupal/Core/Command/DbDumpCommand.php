@@ -60,6 +60,7 @@ class DbDumpCommand extends DbCommandBase {
     $schema_tables = explode(',', $schema_tables);
 
     $output->writeln($this->generateScript($connection, $schema_tables), OutputInterface::OUTPUT_RAW);
+    return 0;
   }
 
   /**
@@ -69,6 +70,7 @@ class DbDumpCommand extends DbCommandBase {
    *   The database connection to use.
    * @param array $schema_only
    *   Table patterns for which to only dump the schema, no data.
+   *
    * @return string
    *   The PHP script.
    */
@@ -92,6 +94,8 @@ class DbDumpCommand extends DbCommandBase {
       $tables .= $this->getTableScript($table, $schema, $data);
     }
     $script = $this->getTemplate();
+    // Substitute in the version.
+    $script = str_replace('{{VERSION}}', \Drupal::VERSION, $script);
     // Substitute in the tables.
     $script = str_replace('{{TABLES}}', trim($tables), $script);
     return trim($script);
@@ -102,6 +106,7 @@ class DbDumpCommand extends DbCommandBase {
    *
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection to use.
+   *
    * @return array
    *   An array of table names.
    */
@@ -116,6 +121,9 @@ class DbDumpCommand extends DbCommandBase {
         }
       }
     }
+
+    // Keep the table names sorted alphabetically.
+    asort($tables);
 
     return $tables;
   }
@@ -145,7 +153,7 @@ class DbDumpCommand extends DbCommandBase {
       $name = $row['Field'];
       // Parse out the field type and meta information.
       preg_match('@([a-z]+)(?:\((\d+)(?:,(\d+))?\))?\s*(unsigned)?@', $row['Type'], $matches);
-      $type  = $this->fieldTypeMap($connection, $matches[1]);
+      $type = $this->fieldTypeMap($connection, $matches[1]);
       if ($row['Extra'] === 'auto_increment') {
         // If this is an auto increment, then the type is 'serial'.
         $type = 'serial';
@@ -162,16 +170,23 @@ class DbDumpCommand extends DbCommandBase {
         $definition['fields'][$name]['precision'] = $matches[2];
         $definition['fields'][$name]['scale'] = $matches[3];
       }
-      elseif ($type === 'time' || $type === 'datetime') {
+      elseif ($type === 'time') {
         // @todo Core doesn't support these, but copied from `migrate-db.sh` for now.
         // Convert to varchar.
         $definition['fields'][$name]['type'] = 'varchar';
         $definition['fields'][$name]['length'] = '100';
       }
+      elseif ($type === 'datetime') {
+        // Adjust for other database types.
+        $definition['fields'][$name]['mysql_type'] = 'datetime';
+        $definition['fields'][$name]['pgsql_type'] = 'timestamp without time zone';
+        $definition['fields'][$name]['sqlite_type'] = 'varchar';
+        $definition['fields'][$name]['sqlsrv_type'] = 'smalldatetime';
+      }
       elseif (!isset($definition['fields'][$name]['size'])) {
         // Try use the provided length, if it doesn't exist default to 100. It's
         // not great but good enough for our dumps at this point.
-        $definition['fields'][$name]['length'] = isset($matches[2]) ? $matches[2] : 100;
+        $definition['fields'][$name]['length'] = $matches[2] ?? 100;
       }
 
       if (isset($row['Default'])) {
@@ -256,11 +271,18 @@ class DbDumpCommand extends DbCommandBase {
    *   The schema definition to modify.
    */
   protected function getTableCollation(Connection $connection, $table, &$definition) {
-    $query = $connection->query("SHOW TABLE STATUS LIKE '{" . $table . "}'");
+    // Remove identifier quotes from the table name. See
+    // \Drupal\mysql\Driver\Database\mysql\Connection::$identifierQuotes.
+    $table = trim($connection->prefixTables('{' . $table . '}'), '"');
+    $query = $connection->query("SHOW TABLE STATUS WHERE NAME = :table_name", [':table_name' => $table]);
     $data = $query->fetchAssoc();
 
+    // Map the collation to a character set. For example, 'utf8mb4_general_ci'
+    // (MySQL 5) or 'utf8mb4_0900_ai_ci' (MySQL 8) will be mapped to 'utf8mb4'.
+    [$charset] = explode('_', $data['Collation'], 2);
+
     // Set `mysql_character_set`. This will be ignored by other backends.
-    $definition['mysql_character_set'] = str_replace('_general_ci', '', $data['Collation']);
+    $definition['mysql_character_set'] = $charset;
   }
 
   /**
@@ -315,13 +337,18 @@ class DbDumpCommand extends DbCommandBase {
    * @param string $type
    *   The MySQL field type.
    *
-   * @return string
+   * @return string|null
    *   The Drupal schema field size.
    */
   protected function fieldSizeMap(Connection $connection, $type) {
     // Convert everything to lowercase.
     $map = array_map('strtolower', $connection->schema()->getFieldTypeMap());
     $map = array_flip($map);
+
+    // Do nothing if the field type is not defined.
+    if (!isset($map[$type])) {
+      return NULL;
+    }
 
     $schema_type = explode(':', $map[$type])[0];
     // Only specify size on these types.
@@ -375,20 +402,30 @@ class DbDumpCommand extends DbCommandBase {
     // irrelevant.
     $script = <<<'ENDOFSCRIPT'
 <?php
-// @codingStandardsIgnoreFile
+// phpcs:ignoreFile
 /**
  * @file
  * A database agnostic dump for testing purposes.
  *
- * This file was generated by the Drupal 8.0 db-tools.php script.
+ * This file was generated by the Drupal {{VERSION}} db-tools.php script.
  */
 
 use Drupal\Core\Database\Database;
 
 $connection = Database::getConnection();
+// Ensure any tables with a serial column with a value of 0 are created as
+// expected.
+if ($connection->databaseType() === 'mysql') {
+  $sql_mode = $connection->query("SELECT @@sql_mode;")->fetchField();
+  $connection->query("SET sql_mode = '$sql_mode,NO_AUTO_VALUE_ON_ZERO'");
+}
 
 {{TABLES}}
 
+// Reset the SQL mode.
+if ($connection->databaseType() === 'mysql') {
+  $connection->query("SET sql_mode = '$sql_mode'");
+}
 ENDOFSCRIPT;
     return $script;
   }
@@ -414,10 +451,13 @@ ENDOFSCRIPT;
       foreach ($data as $record) {
         $insert .= "->values(" . Variable::export($record) . ")\n";
       }
-      $output .= "\$connection->insert('" . $table . "')\n"
-        . "->fields(" . Variable::export(array_keys($schema['fields'])) . ")\n"
-        . $insert
-        . "->execute();\n\n";
+      $fields = Variable::export(array_keys($schema['fields']));
+      $output .= <<<EOT
+\$connection->insert('$table')
+->fields($fields)
+{$insert}->execute();
+
+EOT;
     }
     return $output;
   }

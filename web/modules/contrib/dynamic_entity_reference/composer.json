@@ -20,7 +20,16 @@
     "irc": "irc://irc.freenode.org/drupal-contribute",
     "source": "http://cgit.drupalcode.org/dynamic_entity_reference"
   },
-  "license": "GPL-2.0+",
+  "license": "GPL-2.0-or-later",
   "minimum-stability": "dev",
-  "require": { }
+  "require": {
+    "php": ">=7.4",
+    "drupal/core": "^9.3"
+  },
+  "require-dev": {
+    "drupal/diff": "1.x-dev",
+    "mglaman/phpstan-drupal": "^1.1",
+    "phpstan/phpstan": "^1.1",
+    "phpstan/phpstan-deprecation-rules": "^1.0"
+  }
 }

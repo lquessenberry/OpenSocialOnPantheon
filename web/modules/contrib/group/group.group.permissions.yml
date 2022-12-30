@@ -1,16 +1,32 @@
+# @todo Remove god-mode permission in 8.2.0 release, use 'is_admin' flag on role instead.
 administer group:
   title: 'Administer group'
   description: 'Administer the group, its content and members'
   restrict access: TRUE
 view group:
-  title: 'View group'
+  title: 'View published group'
+view any unpublished group:
+  title: 'View any unpublished group'
+view own unpublished group:
+  title: 'View own unpublished group'
+view latest group version:
+  title: 'View the latest group version'
+  description: 'Requires that you can view unpublished groups (through permissions or other access modules)'
 edit group:
   title: 'Edit group'
   description: 'Edit the group information'
 delete group:
   title: 'Delete group'
   description: 'Delete the group'
+view group revisions:
+  title: 'Revisioning: View revisions'
+revert group revisions:
+  title: 'Revisioning: Revert revisions'
+  description: 'Requires the "Edit group" permission'
+delete group revisions:
+  title: 'Revisioning: Delete revisions'
+  description: 'Requires the "Delete group" permission'
 access content overview:
-  title: 'Access related entities overview'
+  title: 'Access all entities overview'
   description: 'View all of the entity relations for the group'
   warning: 'Warning: This can be rather technical and should only be granted to power users.'

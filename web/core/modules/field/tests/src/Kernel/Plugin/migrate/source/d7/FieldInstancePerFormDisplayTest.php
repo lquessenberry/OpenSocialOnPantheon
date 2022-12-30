@@ -15,7 +15,7 @@ class FieldInstancePerFormDisplayTest extends MigrateSqlSourceTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['field', 'migrate_drupal'];
+  protected static $modules = ['field', 'migrate_drupal'];
 
   /**
    * {@inheritdoc}
@@ -268,7 +268,7 @@ class FieldInstancePerFormDisplayTest extends MigrateSqlSourceTestBase {
             'deleted' => '0',
             'type' => 'number_integer',
             'translatable' => '0',
-          ]
+          ],
         ],
       ],
       [

@@ -1,0 +1,9 @@
+views_bulk_operations_action_config:
+  type: mapping
+  mapping:
+    add_confirmation:
+      type: boolean
+      label: 'Should a confirmation step be added?'
+    label_override:
+      type: string
+      label: 'Action label override'

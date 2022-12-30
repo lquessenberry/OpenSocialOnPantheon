@@ -33,7 +33,7 @@ class Convolution extends ImagemagickImageToolkitOperationBase {
         $matrix_s .= implode(',', $vector) . " ";
       }
       $matrix_s = substr($matrix_s, 0, -1);
-      $this->getToolkit()->addArgument("-morphology Convolve '3x3:$matrix_s'");
+      $this->addArgument("-morphology Convolve '3x3:$matrix_s'");
     }
 
     return TRUE;

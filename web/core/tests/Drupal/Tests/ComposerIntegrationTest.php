@@ -2,7 +2,11 @@
 
 namespace Drupal\Tests;
 
-use Composer\Semver\Semver;
+use Drupal\Composer\Plugin\VendorHardening\Config;
+use Drupal\Core\Composer\Composer;
+use Drupal\Tests\Composer\ComposerIntegrationTrait;
+use Drupal\TestTools\PhpUnitCompatibility\RunnerVersion;
+use Symfony\Component\Finder\Finder;
 
 /**
  * Tests Composer integration.
@@ -11,93 +15,33 @@ use Composer\Semver\Semver;
  */
 class ComposerIntegrationTest extends UnitTestCase {
 
-  /**
-   * The minimum PHP version supported by Drupal.
-   *
-   * @see https://www.drupal.org/docs/8/system-requirements/web-server
-   *
-   * @todo Remove as part of https://www.drupal.org/node/2908079
-   */
-  const MIN_PHP_VERSION = '5.5.9';
-
-  /**
-   * Gets human-readable JSON error messages.
-   *
-   * @return string[]
-   *   Keys are JSON_ERROR_* constants.
-   */
-  protected function getErrorMessages() {
-    $messages = [
-      0 => 'No errors found',
-      JSON_ERROR_DEPTH => 'The maximum stack depth has been exceeded',
-      JSON_ERROR_STATE_MISMATCH => 'Invalid or malformed JSON',
-      JSON_ERROR_CTRL_CHAR => 'Control character error, possibly incorrectly encoded',
-      JSON_ERROR_SYNTAX => 'Syntax error',
-      JSON_ERROR_UTF8 => 'Malformed UTF-8 characters, possibly incorrectly encoded',
-    ];
-
-    if (version_compare(phpversion(), '5.5.0', '>=')) {
-      $messages[JSON_ERROR_RECURSION] = 'One or more recursive references in the value to be encoded';
-      $messages[JSON_ERROR_INF_OR_NAN] = 'One or more NAN or INF values in the value to be encoded';
-      $messages[JSON_ERROR_UNSUPPORTED_TYPE] = 'A value of a type that cannot be encoded was given';
-    }
-
-    return $messages;
-  }
-
-  /**
-   * Gets the paths to the folders that contain the Composer integration.
-   *
-   * @return string[]
-   *   The paths.
-   */
-  protected function getPaths() {
-    return [
-      $this->root,
-      $this->root . '/core',
-      $this->root . '/core/lib/Drupal/Component/Annotation',
-      $this->root . '/core/lib/Drupal/Component/Assertion',
-      $this->root . '/core/lib/Drupal/Component/Bridge',
-      $this->root . '/core/lib/Drupal/Component/ClassFinder',
-      $this->root . '/core/lib/Drupal/Component/Datetime',
-      $this->root . '/core/lib/Drupal/Component/DependencyInjection',
-      $this->root . '/core/lib/Drupal/Component/Diff',
-      $this->root . '/core/lib/Drupal/Component/Discovery',
-      $this->root . '/core/lib/Drupal/Component/EventDispatcher',
-      $this->root . '/core/lib/Drupal/Component/FileCache',
-      $this->root . '/core/lib/Drupal/Component/FileSystem',
-      $this->root . '/core/lib/Drupal/Component/Gettext',
-      $this->root . '/core/lib/Drupal/Component/Graph',
-      $this->root . '/core/lib/Drupal/Component/HttpFoundation',
-      $this->root . '/core/lib/Drupal/Component/PhpStorage',
-      $this->root . '/core/lib/Drupal/Component/Plugin',
-      $this->root . '/core/lib/Drupal/Component/ProxyBuilder',
-      $this->root . '/core/lib/Drupal/Component/Render',
-      $this->root . '/core/lib/Drupal/Component/Serialization',
-      $this->root . '/core/lib/Drupal/Component/Transliteration',
-      $this->root . '/core/lib/Drupal/Component/Utility',
-      $this->root . '/core/lib/Drupal/Component/Uuid',
-    ];
-  }
-
-  /**
-   * Tests composer.json.
-   */
-  public function testComposerJson() {
-    foreach ($this->getPaths() as $path) {
-      $json = file_get_contents($path . '/composer.json');
-      $result = json_decode($json);
-      $this->assertNotNull($result, $this->getErrorMessages()[json_last_error()]);
-    }
-  }
+  use ComposerIntegrationTrait;
 
   /**
    * Tests composer.lock content-hash.
+   *
+   * If you have made a change to composer.json, you may need to reconstruct
+   * composer.lock. Follow the link below for further instructions.
+   *
+   * @see https://www.drupal.org/about/core/policies/core-dependencies-policies/managing-composer-updates-for-drupal-core
    */
   public function testComposerLockHash() {
     $content_hash = self::getContentHash(file_get_contents($this->root . '/composer.json'));
     $lock = json_decode(file_get_contents($this->root . '/composer.lock'), TRUE);
     $this->assertSame($content_hash, $lock['content-hash']);
+
+    // @see \Composer\Repository\PathRepository::initialize()
+    $core_lock_file_hash = '';
+    $options = [];
+    foreach ($lock['packages'] as $package) {
+      if ($package['name'] === 'drupal/core') {
+        $core_lock_file_hash = $package['dist']['reference'];
+        $options = $package['transport-options'] ?? [];
+        break;
+      }
+    }
+    $core_content_hash = sha1(file_get_contents($this->root . '/core/composer.json') . serialize($options));
+    $this->assertSame($core_content_hash, $core_lock_file_hash);
   }
 
   /**
@@ -109,6 +53,9 @@ class ComposerIntegrationTest extends UnitTestCase {
    * @dataProvider providerTestComposerJson
    */
   public function testComposerTilde($path) {
+    if (preg_match('#composer/Metapackage/CoreRecommended/composer.json$#', $path)) {
+      $this->markTestSkipped("$path has tilde");
+    }
     $content = json_decode(file_get_contents($path), TRUE);
     $composer_keys = array_intersect(['require', 'require-dev'], array_keys($content));
     if (empty($composer_keys)) {
@@ -121,7 +68,7 @@ class ComposerIntegrationTest extends UnitTestCase {
         if (strpos($dependency, 'symfony/') === 0) {
           continue;
         }
-        $this->assertFalse(strpos($version, '~'), "Dependency $dependency in $path contains a tilde, use a caret.");
+        $this->assertStringNotContainsString('~', $version, "Dependency $dependency in $path contains a tilde, use a caret.");
       }
     }
   }
@@ -132,85 +79,133 @@ class ComposerIntegrationTest extends UnitTestCase {
    * @return array
    */
   public function providerTestComposerJson() {
-    $root = realpath(__DIR__ . '/../../../../');
-    $tests = [[$root . '/composer.json']];
-    $directory = new \RecursiveDirectoryIterator($root . '/core');
-    $iterator = new \RecursiveIteratorIterator($directory);
-    /** @var \SplFileInfo $file */
-    foreach ($iterator as $file) {
-      if ($file->getFilename() === 'composer.json' && strpos($file->getPath(), 'core/modules/system/tests/fixtures/HtaccessTest') === FALSE) {
-        $tests[] = [$file->getRealPath()];
-      }
+    $data = [];
+    $composer_json_finder = $this->getComposerJsonFinder(realpath(__DIR__ . '/../../../../'));
+    foreach ($composer_json_finder->getIterator() as $composer_json) {
+      $data[$composer_json->getPathname()] = [$composer_json->getPathname()];
     }
-    return $tests;
+    return $data;
   }
 
   /**
    * Tests core's composer.json replace section.
    *
-   * Verify that all core modules are also listed in the 'replace' section of
+   * Verify that all core components are also listed in the 'replace' section of
    * core's composer.json.
    */
-  public function testAllModulesReplaced() {
-    // Assemble a path to core modules.
-    $module_path = $this->root . '/core/modules';
+  public function testAllCoreComponentsReplaced(): void {
+    // Assemble a path to core components.
+    $components_path = $this->root . '/core/lib/Drupal/Component';
 
     // Grab the 'replace' section of the core composer.json file.
-    $json = json_decode(file_get_contents($this->root . '/core/composer.json'));
+    $json = json_decode(file_get_contents($this->root . '/core/composer.json'), FALSE);
     $composer_replace_packages = (array) $json->replace;
 
-    // Get a list of all the files in the module path.
-    $folders = scandir($module_path);
+    // Get a list of all the composer.json files in the components path.
+    $components_composer_json_files = [];
 
-    // Make sure we only deal with directories that aren't . or ..
-    $module_names = [];
-    $discard = ['.', '..'];
-    foreach ($folders as $file_name) {
-      if ((!in_array($file_name, $discard)) && is_dir($module_path . '/' . $file_name)) {
-        $module_names[] = $file_name;
-      }
+    $composer_json_finder = new Finder();
+    $composer_json_finder->name('composer.json')
+      ->in($components_path)
+      ->ignoreUnreadableDirs();
+
+    foreach ($composer_json_finder->getIterator() as $composer_json) {
+      $components_composer_json_files[$composer_json->getPathname()] = [$composer_json->getPathname()];
     }
 
-    // Assert that each core module has a corresponding 'replace' in
+    $this->assertNotEmpty($components_composer_json_files);
+    $this->assertCount(count($composer_replace_packages), $components_composer_json_files);
+
+    // Assert that each core components has a corresponding 'replace' in
     // composer.json.
-    foreach ($module_names as $module_name) {
+    foreach ($components_composer_json_files as $components_composer_json_file) {
+      $json = json_decode(file_get_contents(reset($components_composer_json_file)), FALSE);
+      $component_name = $json->name;
+
       $this->assertArrayHasKey(
-        'drupal/' . $module_name,
+        $component_name,
         $composer_replace_packages,
-        'Unable to find ' . $module_name . ' in replace list of composer.json'
+        'Unable to find ' . $component_name . ' in replace list of composer.json'
       );
     }
   }
 
   /**
-   * Tests package requirements for the minimum supported PHP version by Drupal.
+   * Data provider for the scaffold files test for Drupal core.
    *
-   * @todo This can be removed when DrupalCI supports dependency regression
-   *   testing in https://www.drupal.org/node/2874198
+   * @return array
    */
-  public function testMinPHPVersion() {
-    // Check for lockfile in the application root. If the lockfile does not
-    // exist, then skip this test.
-    $lockfile = $this->root . '/composer.lock';
-    if (!file_exists($lockfile)) {
-      $this->markTestSkipped('/composer.lock is not available.');
-    }
-
-    $lock = json_decode(file_get_contents($lockfile), TRUE);
-
-    // Check the PHP version for each installed non-development  package. The
-    // testing infrastructure uses the uses the development packages, and may
-    // update them for particular environment configurations. In particular,
-    // PHP 7.2+ require an updated version of phpunit, which is incompatible
-    // with Drupal's minimum PHP requirement.
-    foreach ($lock['packages'] as $package) {
-      if (isset($package['require']['php'])) {
-        $this->assertTrue(Semver::satisfies(static::MIN_PHP_VERSION, $package['require']['php']), $package['name'] . ' has a PHP dependency requirement of "' . $package['require']['php'] . '"');
-      }
-    }
+  public function providerTestExpectedScaffoldFiles() {
+    return [
+      ['.editorconfig', 'assets/scaffold/files/editorconfig', '[project-root]'],
+      ['.gitattributes', 'assets/scaffold/files/gitattributes', '[project-root]'],
+      ['.csslintrc', 'assets/scaffold/files/csslintrc'],
+      ['.eslintignore', 'assets/scaffold/files/eslintignore'],
+      ['.eslintrc.json', 'assets/scaffold/files/eslintrc.json'],
+      ['.ht.router.php', 'assets/scaffold/files/ht.router.php'],
+      ['.htaccess', 'assets/scaffold/files/htaccess'],
+      ['example.gitignore', 'assets/scaffold/files/example.gitignore'],
+      ['index.php', 'assets/scaffold/files/index.php'],
+      ['INSTALL.txt', 'assets/scaffold/files/drupal.INSTALL.txt'],
+      ['README.md', 'assets/scaffold/files/drupal.README.md'],
+      ['robots.txt', 'assets/scaffold/files/robots.txt'],
+      ['update.php', 'assets/scaffold/files/update.php'],
+      ['web.config', 'assets/scaffold/files/web.config'],
+      ['sites/README.txt', 'assets/scaffold/files/sites.README.txt'],
+      ['sites/development.services.yml', 'assets/scaffold/files/development.services.yml'],
+      ['sites/example.settings.local.php', 'assets/scaffold/files/example.settings.local.php'],
+      ['sites/example.sites.php', 'assets/scaffold/files/example.sites.php'],
+      ['sites/default/default.services.yml', 'assets/scaffold/files/default.services.yml'],
+      ['sites/default/default.settings.php', 'assets/scaffold/files/default.settings.php'],
+      ['modules/README.txt', 'assets/scaffold/files/modules.README.txt'],
+      ['profiles/README.txt', 'assets/scaffold/files/profiles.README.txt'],
+      ['themes/README.txt', 'assets/scaffold/files/themes.README.txt'],
+    ];
   }
 
-  // @codingStandardsIgnoreStart
+  /**
+   * Tests core's composer.json extra drupal-scaffold file-mappings section.
+   *
+   * Verify that every file listed in file-mappings exists in its destination
+   * path (mapping key) and also at its source path (mapping value), and that
+   * both of these files have exactly the same content.
+   *
+   * In Drupal 9, the files at the destination path will be removed. For the
+   * remainder of the Drupal 8 development cycle, these files will remain in
+   * order to maintain backwards compatibility with sites based on the template
+   * project drupal-composer/drupal-project.
+   *
+   * See https://www.drupal.org/project/drupal/issues/3075954
+   *
+   * @param string $destRelPath
+   *   Path to scaffold file destination location
+   * @param string $sourceRelPath
+   *   Path to scaffold file source location
+   * @param string $expectedDestination
+   *   Named location to the destination path of the scaffold file
+   *
+   * @dataProvider providerTestExpectedScaffoldFiles
+   */
+  public function testExpectedScaffoldFiles($destRelPath, $sourceRelPath, $expectedDestination = '[web-root]') {
+    // Grab the 'file-mapping' section of the core composer.json file.
+    $json = json_decode(file_get_contents($this->root . '/core/composer.json'));
+    $scaffold_file_mapping = (array) $json->extra->{'drupal-scaffold'}->{'file-mapping'};
+
+    // Assert that the 'file-mapping' section has the expected entry.
+    $this->assertArrayHasKey("$expectedDestination/$destRelPath", $scaffold_file_mapping);
+    $this->assertEquals($sourceRelPath, $scaffold_file_mapping["$expectedDestination/$destRelPath"]);
+
+    // Assert that the source file exists.
+    $this->assertFileExists($this->root . '/core/' . $sourceRelPath);
+
+    // Assert that the destination file exists and has the same contents as
+    // the source file. Note that in Drupal 9, the destination file will be
+    // removed.
+    $this->assertFileExists($this->root . '/' . $destRelPath);
+    $this->assertFileEquals($this->root . '/core/' . $sourceRelPath, $this->root . '/' . $destRelPath, 'Scaffold source and destination files must have the same contents.');
+  }
+
+  // phpcs:disable
   /**
    * The following method is copied from \Composer\Package\Locker.
    *
@@ -254,6 +249,43 @@ class ComposerIntegrationTest extends UnitTestCase {
 
     return md5(json_encode($relevantContent));
   }
-  // @codingStandardsIgnoreEnd
+  // phpcs:enable
+
+  /**
+   * Tests the vendor cleanup utilities do not have obsolete packages listed.
+   *
+   * @dataProvider providerTestVendorCleanup
+   */
+  public function testVendorCleanup($class, $property) {
+    $lock = json_decode(file_get_contents($this->root . '/composer.lock'), TRUE);
+    $packages = [];
+    foreach (array_merge($lock['packages'], $lock['packages-dev']) as $package) {
+      $packages[] = $package['name'];
+    }
+
+    $reflection = new \ReflectionProperty($class, $property);
+    $reflection->setAccessible(TRUE);
+    $config = $reflection->getValue();
+    // PHPUnit 9.5.3 removes 'phpunit/php-token-stream' from its dependencies.
+    // @todo remove the check below when PHPUnit 9 is the minimum.
+    if (RunnerVersion::getMajor() >= 9) {
+      unset($config['phpunit/php-token-stream']);
+    }
+    foreach (array_keys($config) as $package) {
+      $this->assertContains(strtolower($package), $packages);
+    }
+  }
+
+  /**
+   * Data provider for the vendor cleanup utility classes.
+   *
+   * @return array[]
+   */
+  public function providerTestVendorCleanup() {
+    return [
+      [Composer::class, 'packageToCleanup'],
+      [Config::class, 'defaultConfig'],
+    ];
+  }
 
 }

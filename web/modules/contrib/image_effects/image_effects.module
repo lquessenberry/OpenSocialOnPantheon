@@ -6,9 +6,10 @@
  */
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Config\ConfigValueException;
 use Drupal\image\ConfigurableImageEffectBase;
 use Drupal\image_effects\Component\ColorUtility;
+use Drupal\image\Entity\ImageStyle;
 
 /**
  * Implements hook_theme().
@@ -22,6 +23,10 @@ function image_effects_theme() {
         'border' => FALSE,
         'border_color' => '#000000',
       ],
+    ],
+    // Aspect switcher image effect - summary.
+    'image_effects_aspect_switcher' => [
+      'variables' => ['data' => NULL, 'effect' => []],
     ],
     // Background image effect - summary.
     'image_effects_background_summary' => [
@@ -59,8 +64,24 @@ function image_effects_theme() {
     'image_effects_opacity_summary' => [
       'variables' => ['data' => NULL, 'effect' => []],
     ],
+    // Pixelate image effect - summary.
+    'image_effects_pixelate_summary' => [
+      'variables' => ['data' => NULL, 'effect' => []],
+    ],
+    // Relative crop image effect - summary.
+    'image_effects_relative_crop_summary' => [
+      'variables' => ['data' => NULL, 'effect' => []],
+    ],
     // Resize percentage image effect - summary.
     'image_effects_resize_percentage_summary' => [
+      'variables' => ['data' => NULL, 'effect' => []],
+    ],
+    // Rotate image effect - summary.
+    'image_effects_rotate_summary' => [
+      'variables' => ['data' => NULL, 'effect' => []],
+    ],
+    // Scale and Smart Crop image effect - summary.
+    'image_effects_scale_and_smart_crop_summary' => [
       'variables' => ['data' => NULL, 'effect' => []],
     ],
     // Set canvas image effect - summary.
@@ -69,6 +90,10 @@ function image_effects_theme() {
     ],
     // Set transparent color image effect - summary.
     'image_effects_set_transparent_color_summary' => [
+      'variables' => ['data' => NULL, 'effect' => []],
+    ],
+    // Smart Crop image effect - summary.
+    'image_effects_smart_crop_summary' => [
       'variables' => ['data' => NULL, 'effect' => []],
     ],
     // Render a preview of the Text Overlay in the image effect UI.
@@ -124,17 +149,17 @@ function image_effects_image_effects_text_overlay_text_alter(&$text, Configurabl
   // Convert case, if requested.
   if ($effect_data['text']['case_format']) {
     $method_map = [
-      'upper' => 'strtoupper',
-      'lower' => 'strtolower',
-      'ucwords' => 'ucwords',
-      'ucfirst' => 'ucfirst',
+      'upper' => 'mb_strtoupper',
+      'lower' => 'mb_strtolower',
+      'ucwords' => 'Drupal\Component\Utility\Unicode::ucwords',
+      'ucfirst' => 'Drupal\Component\Utility\Unicode::ucfirst',
     ];
-    $text = Unicode::{$method_map[$effect_data['text']['case_format']]}($text);
+    $text = $method_map[$effect_data['text']['case_format']]($text);
   }
 
   // Limit the maximum number of characters.
-  if ($effect_data['text']['maximum_chars'] > 0 && Unicode::strlen($text) > $effect_data['text']['maximum_chars']) {
-    $text = Unicode::substr($text, 0, $effect_data['text']['maximum_chars']) . $effect_data['text']['excess_chars_text'];
+  if ($effect_data['text']['maximum_chars'] > 0 && mb_strlen($text) > $effect_data['text']['maximum_chars']) {
+    $text = mb_substr($text, 0, $effect_data['text']['maximum_chars']) . $effect_data['text']['excess_chars_text'];
   }
 }
 
@@ -151,10 +176,62 @@ function image_effects_preprocess_image_effects_color_detail(&$variables) {
         $variables['border_color'] = ColorUtility::matchLuma($variables['color']);
       }
       else {
-        $variables['border_color'] = Unicode::substr($variables['border_color'], 0, 7);
+        $variables['border_color'] = mb_substr($variables['border_color'], 0, 7);
       }
     }
     $variables['color_opacity'] = ColorUtility::rgbaToOpacity($variables['color']);
-    $variables['color'] = Unicode::substr($variables['color'], 0, 7);
+    $variables['color'] = mb_substr($variables['color'], 0, 7);
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave() for image_style entities.
+ *
+ * This hook checks if the image style that is being saved contains any aspect
+ * switcher effect that refers to the image style itself. If so, this is a
+ * circular reference and we should raise an exception.
+ */
+function image_effects_image_style_presave(ImageStyle $style) {
+  $effects = $style->getEffects();
+  foreach ($effects as $effect) {
+    $effect_data = $effect->getConfiguration()['data'];
+    switch ($effect->getPluginId()) {
+      case 'image_effects_aspect_switcher':
+        if ($style->id() === $effect_data['landscape_image_style']) {
+          throw new ConfigValueException("You can not select the {$style->label()} image style itself for the landscape style");
+        }
+        if ($style->id() === $effect_data['portrait_image_style']) {
+          throw new ConfigValueException("You can not select the {$style->label()} image style itself for the portrait style");
+        }
+        break;
+
+      default:
+        continue 2;
+
+    }
+  }
+}
+
+/**
+ * Implements hook_image_style_flush().
+ *
+ * This hook checks if the image style that is being flushed is used in any
+ * aspect switcher effect. If so, the style that contains the aspect switcher
+ * effect should be flushed as well.
+ */
+function image_effects_image_style_flush(ImageStyle $style) {
+  // Retrieve image styles that have an aspect switcher effect that contains
+  // the style being flushed.
+  $query = \Drupal::entityQuery('image_style');
+  $query->condition('effects.*.id', 'image_effects_aspect_switcher');
+  $group = $query->orConditionGroup()
+    ->condition('effects.*.data.landscape_image_style', $style->id())
+    ->condition('effects.*.data.portrait_image_style', $style->id());
+  $image_style_ids = $query->condition($group)->execute();
+
+  // Flush them all.
+  foreach ($image_style_ids as $image_style_id) {
+    $image_style = ImageStyle::load($image_style_id);
+    $image_style->flush();
   }
 }

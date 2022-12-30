@@ -8,56 +8,12 @@ namespace Drupal\Core\Extension;
 interface ThemeHandlerInterface {
 
   /**
-   * Installs a given list of themes.
-   *
-   * @param array $theme_list
-   *   An array of theme names.
-   * @param bool $install_dependencies
-   *   (optional) If TRUE, dependencies will automatically be installed in the
-   *   correct order. This incurs a significant performance cost, so use FALSE
-   *   if you know $theme_list is already complete and in the correct order.
-   *
-   * @return bool
-   *   Whether any of the given themes have been installed.
-   *
-   * @throws \Drupal\Core\Extension\ExtensionNameLengthException
-   *   Thrown when the theme name is to long.
-   *
-   * @deprecated in Drupal 8.0.x-dev and will be removed before Drupal 9.0.0.
-   *   Use the theme_installer service instead.
-   *
-   * @see \Drupal\Core\Extension\ThemeInstallerInterface::install
-   */
-  public function install(array $theme_list, $install_dependencies = TRUE);
-
-  /**
-   * Uninstalls a given list of themes.
-   *
-   * Uninstalling a theme removes all related configuration (like blocks) and
-   * invokes the 'themes_uninstalled' hook.
-   *
-   * @param array $theme_list
-   *   The themes to uninstall.
-   *
-   * @throws \InvalidArgumentException
-   *   Thrown when you uninstall an not installed theme.
-   *
-   * @see hook_themes_uninstalled()
-   *
-   * @deprecated in Drupal 8.0.x-dev and will be removed before Drupal 9.0.0.
-   *   Use the theme_installer service instead.
-   *
-   * @see \Drupal\Core\Extension\ThemeInstallerInterface::uninstall
-   */
-  public function uninstall(array $theme_list);
-
-  /**
    * Returns a list of currently installed themes.
    *
    * @return \Drupal\Core\Extension\Extension[]
    *   An associative array of the currently installed themes. The keys are the
-   *   themes' machine names and the values are objects having the following
-   *   properties:
+   *   themes' machine names and the values are Extension objects having the
+   *   following properties:
    *   - filename: The filepath and name of the .info.yml file.
    *   - name: The machine name of the theme.
    *   - status: 1 for installed, 0 for uninstalled themes.
@@ -91,7 +47,6 @@ interface ThemeHandlerInterface {
    *     the system that declare this theme as their base theme.
    */
   public function listInfo();
-
 
   /**
    * Adds a theme extension to the internal listing.
@@ -147,6 +102,9 @@ interface ThemeHandlerInterface {
    *
    * @return string
    *   Returns the human readable name of the theme.
+   *
+   * @throws \Drupal\Core\Extension\Exception\UnknownExtensionException
+   *   When the specified theme does not exist.
    */
   public function getName($theme);
 
@@ -157,25 +115,6 @@ interface ThemeHandlerInterface {
    *   The default theme.
    */
   public function getDefault();
-
-  /**
-   * Sets a new default theme.
-   *
-   * @param string $theme
-   *   The new default theme.
-   *
-   * @return $this
-   *
-   * @deprecated in Drupal 8.2.x-dev and will be removed before Drupal 9.0.0.
-   *   Use
-   *   @code
-   *     \Drupal::configFactory()
-   *       ->getEditable('system.theme')
-   *       ->set('default', $theme)
-   *       ->save();
-   *   @endcode
-   */
-  public function setDefault($theme);
 
   /**
    * Returns an array of directories for all installed themes.
@@ -207,7 +146,7 @@ interface ThemeHandlerInterface {
    * @return \Drupal\Core\Extension\Extension
    *   An extension object.
    *
-   * @throws \InvalidArgumentException
+   * @throws \Drupal\Core\Extension\Extension\UnknownExtensionException
    *   Thrown when the requested theme does not exist.
    */
   public function getTheme($name);

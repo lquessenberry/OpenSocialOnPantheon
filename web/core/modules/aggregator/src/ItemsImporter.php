@@ -94,7 +94,7 @@ class ItemsImporter implements ItemsImporterInterface {
       watchdog_exception('aggregator', $e);
     }
 
-    // Store instances in an array so we dont have to instantiate new objects.
+    // Store instances in an array so we don't have to instantiate new objects.
     $processor_instances = [];
     foreach ($this->config->get('processors') as $processor) {
       try {
@@ -108,7 +108,7 @@ class ItemsImporter implements ItemsImporterInterface {
     // We store the hash of feed data in the database. When refreshing a
     // feed we compare stored hash and new hash calculated from downloaded
     // data. If both are equal we say that feed is not updated.
-    $hash = hash('sha256', $feed->source_string);
+    $hash = $success ? hash('sha256', $feed->source_string) : '';
     $has_new_content = $success && ($feed->getHash() != $hash);
 
     if ($has_new_content) {

@@ -1,0 +1,12 @@
+services:
+  social_activity.lazy_builder:
+    class: Drupal\social_activity\SocialActivityLazyBuilder
+    arguments:
+      - '@entity_type.manager'
+      - '@views.executable'
+  social_activity.email_token_services:
+    class: Drupal\social_activity\EmailTokenServices
+    arguments:
+      - '@entity_type.manager'
+      - '@date.formatter'
+      - '@social_group.group_statistics'

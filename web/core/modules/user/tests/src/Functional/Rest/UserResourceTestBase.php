@@ -3,19 +3,16 @@
 namespace Drupal\Tests\user\Functional\Rest;
 
 use Drupal\Core\Url;
-use Drupal\Tests\rest\Functional\BcTimestampNormalizerUnixTestTrait;
 use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
 use Drupal\user\Entity\User;
 use GuzzleHttp\RequestOptions;
 
 abstract class UserResourceTestBase extends EntityResourceTestBase {
 
-  use BcTimestampNormalizerUnixTestTrait;
-
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['user'];
+  protected static $modules = ['user'];
 
   /**
    * {@inheritdoc}
@@ -26,7 +23,7 @@ abstract class UserResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected static $patchProtectedFieldNames = [
-    'changed',
+    'changed' => NULL,
   ];
 
   /**
@@ -57,6 +54,7 @@ abstract class UserResourceTestBase extends EntityResourceTestBase {
       case 'GET':
         $this->grantPermissionsToTestedRole(['access user profiles']);
         break;
+
       case 'POST':
       case 'PATCH':
       case 'DELETE':
@@ -112,10 +110,16 @@ abstract class UserResourceTestBase extends EntityResourceTestBase {
         ],
       ],
       'created' => [
-        $this->formatExpectedTimestampItemValues(123456789),
+        [
+          'value' => (new \DateTime())->setTimestamp(123456789)->setTimezone(new \DateTimeZone('UTC'))->format(\DateTime::RFC3339),
+          'format' => \DateTime::RFC3339,
+        ],
       ],
       'changed' => [
-        $this->formatExpectedTimestampItemValues($this->entity->getChangedTime()),
+        [
+          'value' => (new \DateTime())->setTimestamp($this->entity->getChangedTime())->setTimezone(new \DateTimeZone('UTC'))->format(\DateTime::RFC3339),
+          'format' => \DateTime::RFC3339,
+        ],
       ],
       'default_langcode' => [
         [
@@ -284,34 +288,33 @@ abstract class UserResourceTestBase extends EntityResourceTestBase {
 
     // Try changing user 1's email.
     $user1 = [
-      'mail' => [['value' => 'another_email_address@example.com']],
-      'uid' => [['value' => 1]],
-      'name' => [['value' => 'another_user_name']],
-      'pass' => [['existing' => $this->account->passRaw]],
-      'uuid' => [['value' => '2e9403a4-d8af-4096-a116-624710140be0']],
-    ] + $original_normalization;
+        'mail' => [['value' => 'another_email_address@example.com']],
+        'uid' => [['value' => 1]],
+        'name' => [['value' => 'another_user_name']],
+        'pass' => [['existing' => $this->account->passRaw]],
+        'uuid' => [['value' => '2e9403a4-d8af-4096-a116-624710140be0']],
+      ] + $original_normalization;
     $request_options[RequestOptions::BODY] = $this->serializer->encode($user1, static::$format);
     $response = $this->request('PATCH', $url, $request_options);
     // Ensure the email address has not changed.
     $this->assertEquals('admin@example.com', $this->entityStorage->loadUnchanged(1)->getEmail());
-    $this->assertResourceErrorResponse(403, "Access denied on updating field 'uid'.", $response);
+    $this->assertResourceErrorResponse(403, "Access denied on updating field 'uid'. The entity ID cannot be changed.", $response);
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     switch ($method) {
       case 'GET':
         return "The 'access user profiles' permission is required and the user must be active.";
+
       case 'PATCH':
-        return "You are not authorized to update this user entity.";
+        return "Users can only update their own account, unless they have the 'administer users' permission.";
+
       case 'DELETE':
-        return 'You are not authorized to delete this user entity.';
+        return "The 'cancel account' permission is required.";
+
       default:
         return parent::getExpectedUnauthorizedAccessMessage($method);
     }
@@ -320,10 +323,21 @@ abstract class UserResourceTestBase extends EntityResourceTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function getExpectedUnauthorizedAccessCacheability() {
+  protected function getExpectedUnauthorizedEntityAccessCacheability($is_authenticated) {
     // @see \Drupal\user\UserAccessControlHandler::checkAccess()
-    return parent::getExpectedUnauthorizedAccessCacheability()
+    return parent::getExpectedUnauthorizedEntityAccessCacheability($is_authenticated)
       ->addCacheTags(['user:3']);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getExpectedCacheContexts() {
+    return [
+      'url.site',
+      // Due to the 'mail' field's access varying by user.
+      'user',
+    ];
   }
 
 }

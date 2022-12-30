@@ -16,33 +16,27 @@ use GuzzleHttp\ClientInterface as GuzzleClientInterface;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Exception\RequestException;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\UriInterface;
-use Symfony\Component\BrowserKit\Client as BaseClient;
+use Symfony\Component\BrowserKit\AbstractBrowser;
 use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
 
 /**
- * Client.
- *
- * @author Fabien Potencier <fabien.potencier@symfony-project.com>
+ * @author Fabien Potencier <fabien@symfony.com>
  * @author Michael Dowling <michael@guzzlephp.org>
  * @author Charles Sarrazin <charles@sarraz.in>
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-class Client extends BaseClient
+class Client extends AbstractBrowser
 {
     protected $client;
 
-    private $headers = array();
+    private $headers = [];
     private $auth;
 
     public function setClient(GuzzleClientInterface $client)
     {
         $this->client = $client;
 
-        /**
-         * @var $baseUri UriInterface
-         */
         if (null !== $this->getServerParameter('HTTP_HOST', null) || null === $baseUri = $client->getConfig('base_uri')) {
             return $this;
         }
@@ -69,7 +63,7 @@ class Client extends BaseClient
     public function getClient()
     {
         if (!$this->client) {
-            $this->client = new GuzzleClient(array('allow_redirects' => false, 'cookies' => true));
+            $this->client = new GuzzleClient(['allow_redirects' => false, 'cookies' => true]);
         }
 
         return $this->client;
@@ -89,7 +83,7 @@ class Client extends BaseClient
 
     public function resetHeaders()
     {
-        $this->headers = array();
+        $this->headers = [];
 
         return $this;
     }
@@ -106,7 +100,7 @@ class Client extends BaseClient
 
     public function setAuth($user, $password = '', $type = 'basic')
     {
-        $this->auth = array($user, $password, $type);
+        $this->auth = [$user, $password, $type];
 
         return $this;
     }
@@ -125,10 +119,10 @@ class Client extends BaseClient
      */
     protected function doRequest($request)
     {
-        $headers = array();
+        $headers = [];
         foreach ($request->getServer() as $key => $val) {
             $key = strtolower(str_replace('_', '-', $key));
-            $contentHeaders = array('content-length' => true, 'content-md5' => true, 'content-type' => true);
+            $contentHeaders = ['content-length' => true, 'content-md5' => true, 'content-type' => true];
             if (0 === strpos($key, 'http-')) {
                 $headers[substr($key, 5)] = $val;
             }
@@ -143,13 +137,13 @@ class Client extends BaseClient
             parse_url($request->getUri(), PHP_URL_HOST)
         );
 
-        $requestOptions = array(
+        $requestOptions = [
             'cookies' => $cookies,
             'allow_redirects' => false,
             'auth' => $this->auth,
-        );
+        ];
 
-        if (!in_array($request->getMethod(), array('GET', 'HEAD'))) {
+        if (!\in_array($request->getMethod(), ['GET', 'HEAD'])) {
             if (null !== $content = $request->getContent()) {
                 $requestOptions['body'] = $content;
             } else {
@@ -203,7 +197,7 @@ class Client extends BaseClient
                 'name' => $name,
             ];
 
-            if (is_array($info)) {
+            if (\is_array($info)) {
                 if (isset($info['tmp_name'])) {
                     if ('' !== $info['tmp_name']) {
                         $file['contents'] = fopen($info['tmp_name'], 'r');
@@ -232,7 +226,7 @@ class Client extends BaseClient
                 $name = $arrayName.'['.$name.']';
             }
 
-            if (is_array($value)) {
+            if (\is_array($value)) {
                 $this->addPostFields($value, $multipart, $name);
             } else {
                 $multipart[] = [

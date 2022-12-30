@@ -7,6 +7,7 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate\Exception\RequirementsException;
 use Drupal\migrate\Plugin\migrate\source\SqlBase;
 use Drupal\migrate\Plugin\RequirementsInterface;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
 
 /**
  * Tests the migration plugin manager.
@@ -16,13 +17,16 @@ use Drupal\migrate\Plugin\RequirementsInterface;
  */
 class MigrationPluginListTest extends KernelTestBase {
 
+  use EntityReferenceTestTrait;
+
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'migrate',
     // Test with all modules containing Drupal migrations.
     'action',
+    // @todo Remove aggregator in https://www.drupal.org/project/drupal/issues/3264120
     'aggregator',
     'ban',
     'block',
@@ -30,6 +34,7 @@ class MigrationPluginListTest extends KernelTestBase {
     'book',
     'comment',
     'contact',
+    'content_translation',
     'dblog',
     'field',
     'file',
@@ -45,7 +50,6 @@ class MigrationPluginListTest extends KernelTestBase {
     'path',
     'search',
     'shortcut',
-    'simpletest',
     'statistics',
     'syslog',
     'system',
@@ -57,9 +61,23 @@ class MigrationPluginListTest extends KernelTestBase {
   ];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+
+    $this->installEntitySchema('user');
+  }
+
+  /**
    * @covers ::getDefinitions
    */
   public function testGetDefinitions() {
+    // Create an entity reference field to make sure that migrations derived by
+    // EntityReferenceTranslationDeriver do not get discovered without
+    // migrate_drupal enabled.
+    $this->createEntityReferenceField('user', 'user', 'field_entity_reference', 'Entity Reference', 'node');
+
     // Make sure retrieving all the core migration plugins does not throw any
     // errors.
     $migration_plugins = $this->container->get('plugin.manager.migration')->getDefinitions();
@@ -118,20 +136,30 @@ class MigrationPluginListTest extends KernelTestBase {
     }
     $connection_info = Database::getConnectionInfo('default');
     foreach ($connection_info as $target => $value) {
-      $prefix = is_array($value['prefix']) ? $value['prefix']['default'] : $value['prefix'];
+      $prefix = $value['prefix'];
       // Simpletest uses 7 character prefixes at most so this can't cause
       // collisions.
-      $connection_info[$target]['prefix']['default'] = $prefix . '0';
-
-      // Add the original simpletest prefix so SQLite can attach its database.
-      // @see \Drupal\Core\Database\Driver\sqlite\Connection::init()
-      $connection_info[$target]['prefix'][$value['prefix']['default']] = $value['prefix']['default'];
+      $connection_info[$target]['prefix'] = $prefix . '0';
     }
     Database::addConnectionInfo('migrate', 'default', $connection_info['default']);
+
+    // Make sure source plugins can be serialized.
+    foreach ($migration_plugins as $migration_plugin) {
+      $source_plugin = $migration_plugin->getSourcePlugin();
+      if ($source_plugin instanceof SqlBase) {
+        $source_plugin->getDatabase();
+      }
+      $this->assertNotEmpty(serialize($source_plugin));
+    }
 
     $migration_plugins = $this->container->get('plugin.manager.migration')->getDefinitions();
     // All the plugins provided by core depend on migrate_drupal.
     $this->assertNotEmpty($migration_plugins);
+
+    // Test that migrations derived by EntityReferenceTranslationDeriver are
+    // discovered now that migrate_drupal is enabled.
+    $this->assertArrayHasKey('d6_entity_reference_translation:user__user', $migration_plugins);
+    $this->assertArrayHasKey('d7_entity_reference_translation:user__user', $migration_plugins);
   }
 
 }

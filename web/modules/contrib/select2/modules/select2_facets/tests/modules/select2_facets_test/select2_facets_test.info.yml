@@ -1,0 +1,16 @@
+name: 'Select2 facets test'
+type: module
+description: 'Support module for select2 facets tests.'
+package: Testing
+dependencies:
+  - facets:facets
+  - search_api:search_api_db
+  - drupal:entity_test
+  - select2:select2_facets
+  - drupal:views
+  - drupal:block
+
+# Information added by Drupal.org packaging script on 2021-03-01
+version: '8.x-1.13'
+project: 'select2'
+datestamp: 1614609949

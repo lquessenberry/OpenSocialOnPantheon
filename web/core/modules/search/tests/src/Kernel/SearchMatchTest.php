@@ -2,8 +2,11 @@
 
 namespace Drupal\Tests\search\Kernel;
 
+use Drupal\Core\Database\Database;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\search\SearchIndexInterface;
+use Drupal\search\SearchQuery;
 
 /**
  * Indexes content and queries it.
@@ -23,19 +26,19 @@ class SearchMatchTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['search'];
+  protected static $modules = ['search'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installSchema('search', ['search_index', 'search_dataset', 'search_total']);
     $this->installConfig(['search']);
   }
 
   /**
-   * Test search indexing.
+   * Tests search indexing.
    */
   public function testMatching() {
     $this->_setup();
@@ -48,11 +51,13 @@ class SearchMatchTest extends KernelTestBase {
   public function _setup() {
     $this->config('search.settings')->set('index.minimum_word_size', 3)->save();
 
+    $search_index = \Drupal::service('search.index');
+    assert($search_index instanceof SearchIndexInterface);
     for ($i = 1; $i <= 7; ++$i) {
-      search_index(static::SEARCH_TYPE, $i, LanguageInterface::LANGCODE_NOT_SPECIFIED, $this->getText($i));
+      $search_index->index(static::SEARCH_TYPE, $i, LanguageInterface::LANGCODE_NOT_SPECIFIED, $this->getText($i));
     }
     for ($i = 1; $i <= 5; ++$i) {
-      search_index(static::SEARCH_TYPE_2, $i + 7, LanguageInterface::LANGCODE_NOT_SPECIFIED, $this->getText2($i));
+      $search_index->index(static::SEARCH_TYPE_2, $i + 7, LanguageInterface::LANGCODE_NOT_SPECIFIED, $this->getText2($i));
     }
     // No getText builder function for Japanese text; just a simple array.
     foreach ([
@@ -60,9 +65,8 @@ class SearchMatchTest extends KernelTestBase {
       14 => 'ドルーパルが大好きよ！',
       15 => 'コーヒーとケーキ',
     ] as $i => $jpn) {
-      search_index(static::SEARCH_TYPE_JPN, $i, LanguageInterface::LANGCODE_NOT_SPECIFIED, $jpn);
+      $search_index->index(static::SEARCH_TYPE_JPN, $i, LanguageInterface::LANGCODE_NOT_SPECIFIED, $jpn);
     }
-    search_update_totals();
   }
 
   /**
@@ -104,9 +108,9 @@ class SearchMatchTest extends KernelTestBase {
     // Note: OR queries that include short words in OR groups are only accepted
     // if the ORed terms are ANDed with at least one long word in the rest of
     // the query. Examples:
-    //   enim dolore OR ut = enim (dolore OR ut) = (enim dolor) OR (enim ut)
+    // -  enim dolore OR ut = enim (dolore OR ut) = (enim dolor) OR (enim ut)
     // is good, and
-    //   dolore OR ut = (dolore) OR (ut)
+    // -  dolore OR ut = (dolore) OR (ut)
     // is bad. This is a design limitation to avoid full table scans.
     $queries = [
       // Simple AND queries.
@@ -156,11 +160,12 @@ class SearchMatchTest extends KernelTestBase {
       '"am minim veniam" -"cillum dolore"' => [5, 6],
       '"am minim veniam" -"dolore cillum"' => [5, 6, 7],
       'xxxxx "minim am veniam es" OR dolore' => [],
-      'xx "minim am veniam es" OR dolore' => []
+      'xx "minim am veniam es" OR dolore' => [],
     ];
+    $connection = Database::getConnection();
     foreach ($queries as $query => $results) {
-      $result = db_select('search_index', 'i')
-        ->extend('Drupal\search\SearchQuery')
+      $result = $connection->select('search_index', 'i')
+        ->extend(SearchQuery::class)
         ->searchExpression($query, static::SEARCH_TYPE)
         ->execute();
 
@@ -179,8 +184,8 @@ class SearchMatchTest extends KernelTestBase {
       'germany' => [11, 12],
     ];
     foreach ($queries as $query => $results) {
-      $result = db_select('search_index', 'i')
-        ->extend('Drupal\search\SearchQuery')
+      $result = $connection->select('search_index', 'i')
+        ->extend(SearchQuery::class)
         ->searchExpression($query, static::SEARCH_TYPE_2)
         ->execute();
 
@@ -202,8 +207,8 @@ class SearchMatchTest extends KernelTestBase {
       'ヒーキ' => [],
     ];
     foreach ($queries as $query => $results) {
-      $result = db_select('search_index', 'i')
-        ->extend('Drupal\search\SearchQuery')
+      $result = $connection->select('search_index', 'i')
+        ->extend(SearchQuery::class)
         ->searchExpression($query, static::SEARCH_TYPE_JPN)
         ->execute();
 
@@ -214,7 +219,7 @@ class SearchMatchTest extends KernelTestBase {
   }
 
   /**
-   * Test the matching abilities of the engine.
+   * Tests the matching abilities of the engine.
    *
    * Verify if a query produces the correct results.
    */
@@ -228,11 +233,11 @@ class SearchMatchTest extends KernelTestBase {
     // Compare $results and $found.
     sort($found);
     sort($results);
-    $this->assertEqual($found, $results, "Query matching '$query'");
+    $this->assertEquals($found, $results, "Query matching '$query'");
   }
 
   /**
-   * Test the scoring abilities of the engine.
+   * Tests the scoring abilities of the engine.
    *
    * Verify if a query produces normalized, monotonous scores.
    */
@@ -246,10 +251,10 @@ class SearchMatchTest extends KernelTestBase {
     // Check order.
     $sorted = $scores;
     sort($sorted);
-    $this->assertEqual($scores, array_reverse($sorted), "Query order '$query'");
+    $this->assertEquals($scores, array_reverse($sorted), "Query order '$query'");
 
     // Check range.
-    $this->assertEqual(!count($scores) || (min($scores) > 0.0 && max($scores) <= 1.0001), TRUE, "Query scoring '$query'");
+    $this->assertTrue(!count($scores) || (min($scores) > 0.0 && max($scores) <= 1.0001), "Query scoring '$query'");
   }
 
 }

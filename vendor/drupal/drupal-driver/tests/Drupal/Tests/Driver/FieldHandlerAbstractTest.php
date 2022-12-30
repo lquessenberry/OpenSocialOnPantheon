@@ -2,15 +2,17 @@
 
 namespace Drupal\Tests\Driver;
 
+use PHPUnit\Framework\TestCase;
+
 /**
  * Base class for field handler tests.
  */
-abstract class FieldHandlerAbstractTest extends \PHPUnit_Framework_TestCase {
+abstract class FieldHandlerAbstractTest extends TestCase {
 
   /**
    * {@inheritdoc}
    */
-  public function tearDown() {
+  public function tearDown(): void {
     \Mockery::close();
   }
 

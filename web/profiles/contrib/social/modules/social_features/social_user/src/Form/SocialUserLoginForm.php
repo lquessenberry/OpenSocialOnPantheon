@@ -6,6 +6,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\user\Form\UserLoginForm;
 use Drupal\Core\Url;
 use Drupal\Core\Link;
+use Drupal\user\UserInterface;
 
 /**
  * Class SocialUserLoginForm.
@@ -51,7 +52,7 @@ class SocialUserLoginForm extends UserLoginForm {
       '#type' => 'textfield',
       '#title' => $this->t('Username or email address'),
       '#size' => 60,
-      '#maxlength' => USERNAME_MAX_LENGTH,
+      '#maxlength' => UserInterface::USERNAME_MAX_LENGTH,
       '#description' => $this->t('Enter your @s username or email.', ['@s' => $config->get('name')]),
       '#required' => TRUE,
       '#attributes' => [
@@ -59,6 +60,7 @@ class SocialUserLoginForm extends UserLoginForm {
         'autocapitalize' => 'none',
         'spellcheck' => 'false',
         'autofocus' => 'autofocus',
+        'autocomplete' => 'username',
       ],
     ];
 
@@ -72,6 +74,9 @@ class SocialUserLoginForm extends UserLoginForm {
       '#size' => 60,
       '#description' => $pass_description,
       '#required' => TRUE,
+      '#attributes' => [
+        'autocomplete' => 'current-password',
+      ],
     ];
 
     $link_options = [];
@@ -84,12 +89,17 @@ class SocialUserLoginForm extends UserLoginForm {
       ];
     }
 
-    $sign_up_link = Link::createFromRoute($this->t('Sign up'), 'user.register', [], $link_options)->toString();
+    if (\Drupal::config('user.settings')->get('register') != 'admin_only') {
+      $sign_up_link = Link::createFromRoute($this->t('Sign up'), 'user.register', [], $link_options)->toString();
 
-    $form['username_login']['sign-up-link'] = [
-      '#markup' => $this->t("Don't have an account yet? @link", ["@link" => $sign_up_link]),
-      '#weight' => 1000,
-    ];
+      $form['username_login']['sign-up-link'] = [
+        '#markup' => $this->t("Don't have an account yet? @link", ["@link" => $sign_up_link]),
+        '#weight' => 1000,
+        '#cache' => [
+          'contexts' => ['url.query_args'],
+        ],
+      ];
+    }
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $this->t('Log in')];
@@ -114,7 +124,7 @@ class SocialUserLoginForm extends UserLoginForm {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $account = $this->userStorage->load($form_state->get('uid'));
     // A destination was set, probably on an exception controller,.
-    // @TODO: Add validation if route exists.
+    // @todo Add validation if route exists.
     if (!$this->getRequest()->request->has('destination')) {
       $form_state->setRedirect('<front>');
     }
@@ -155,7 +165,7 @@ class SocialUserLoginForm extends UserLoginForm {
       // independent of the per-user limit to catch attempts from one IP to log
       // in to many different user accounts.  We have a reasonably high limit
       // since there may be only one IP for all users at an institution.
-      if (!$this->flood->isAllowed('user.failed_login_ip', $flood_config->get('ip_limit'), $flood_config->get('ip_window'))) {
+      if (!$this->userFloodControl->isAllowed('user.failed_login_ip', $flood_config->get('ip_limit'), $flood_config->get('ip_window'))) {
         $form_state->set('flood_control_triggered', 'ip');
         return;
       }
@@ -174,7 +184,7 @@ class SocialUserLoginForm extends UserLoginForm {
         if ($flood_config->get('uid_only')) {
           // Register flood events based on the uid only, so they apply for any
           // IP address. This is the most secure option.
-          $identifier = $account->id();
+          $identifier = (string) $account->id();
         }
         else {
           // The default identifier is a combination of uid and IP address. This
@@ -186,7 +196,7 @@ class SocialUserLoginForm extends UserLoginForm {
 
         // Don't allow login if the limit for this user has been reached.
         // Default is to allow 5 failed attempts every 6 hours.
-        if (!$this->flood->isAllowed('user.failed_login_user', $flood_config->get('user_limit'), $flood_config->get('user_window'), $identifier)) {
+        if (!$this->userFloodControl->isAllowed('user.failed_login_user', $flood_config->get('user_limit'), $flood_config->get('user_window'), $identifier)) {
           $form_state->set('flood_control_triggered', 'user');
           return;
         }
@@ -210,10 +220,10 @@ class SocialUserLoginForm extends UserLoginForm {
       $this->setGeneralErrorMessage($form, $form_state);
 
       // Always register an IP-based failed login event.
-      $this->flood->register('user.failed_login_ip', $flood_config->get('ip_window'));
+      $this->userFloodControl->register('user.failed_login_ip', $flood_config->get('ip_window'));
       // Register a per-user failed login event.
       if ($flood_control_user_identifier = $form_state->get('flood_control_user_identifier')) {
-        $this->flood->register('user.failed_login_user', $flood_config->get('user_window'), $flood_control_user_identifier);
+        $this->userFloodControl->register('user.failed_login_user', $flood_config->get('user_window'), $flood_control_user_identifier);
       }
       $flood_control_triggered = $form_state->get('flood_control_triggered');
       if (!$flood_control_triggered) {
@@ -237,7 +247,7 @@ class SocialUserLoginForm extends UserLoginForm {
     elseif ($flood_control_user_identifier = $form_state->get('flood_control_user_identifier')) {
       // Clear past failures for this user so as not to block a user who might
       // log in and out more than once in an hour.
-      $this->flood->clear('user.failed_login_user', $flood_control_user_identifier);
+      $this->userFloodControl->clear('user.failed_login_user', $flood_control_user_identifier);
     }
   }
 
@@ -246,12 +256,14 @@ class SocialUserLoginForm extends UserLoginForm {
    */
   protected function setGeneralErrorMessage(array &$form, FormStateInterface $form_state) {
     $form_state->setErrorByName('name_or_mail', $this->t('
-        There was an error :( This could happen for one of for the following reasons: <br>
-        - Unrecognized username/email and password combination. <br>
-        - There has been more than one failed login attempt for this account. It is temporarily blocked. <br>
-        - Too many failed login attempts from your IP address. This IP address is temporarily blocked. <br> <br>
-        To solve the issue try other credentials, try again later or <a href=":url">request a new password</a>',
-      ['%name_or_email' => $form_state->getValue('name_or_mail'), ':url' => $this->url('user.pass')]));
+        <p>Oops, there was an error. This may have happened for the following reasons:</p>
+        <ul>
+          <li>Invalid username/email and password combination. </li>
+          <li>There has been more than one failed login attempt for this account. It is temporarily blocked. </li>
+          <li>Too many failed login attempts from your computer (IP address). This IP address is temporarily blocked. </li>
+        </ul>
+        <p>To solve the issue, try using different login information, try again later, or <a href=":url">request a new password</a></p>',
+      ['%name_or_email' => $form_state->getValue('name_or_mail'), ':url' => Url::fromRoute('user.pass')->toString()]));
   }
 
 }

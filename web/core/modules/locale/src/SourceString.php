@@ -10,6 +10,7 @@ namespace Drupal\locale;
  * value, and is assumed to be in English language.
  */
 class SourceString extends StringBase {
+
   /**
    * {@inheritdoc}
    */
@@ -28,7 +29,7 @@ class SourceString extends StringBase {
    * {@inheritdoc}
    */
   public function getString() {
-    return isset($this->source) ? $this->source : '';
+    return $this->source ?? '';
   }
 
   /**

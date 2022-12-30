@@ -25,7 +25,7 @@ for the "format tips" section.
 Replace all following instances of `THEMENAME` with the actual machine name of
 your sub-theme.
 
-Create a file at `./THEMENAME/src/Plugin/Process/TextFormat.php` with the
+Create a file at `./themes/THEMENAME/src/Plugin/Process/TextFormat.php` with the
 following contents:
 
 ```php

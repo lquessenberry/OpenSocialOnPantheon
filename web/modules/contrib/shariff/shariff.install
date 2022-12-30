@@ -1,0 +1,65 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the shariff module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function shariff_requirements($phase) {
+  $requirements = [];
+
+  // Check if library is available via libraries module.
+  $library_shariff = 'default';
+  if (\Drupal::hasService('library.libraries_directory_file_finder')) {
+    $library_shariff = \Drupal::service('library.libraries_directory_file_finder')->find('shariff');
+  }
+  elseif (function_exists('libraries_get_path')) {
+    $library_shariff = libraries_get_path('shariff');
+  }
+
+  if ($phase == 'runtime') {
+    if (!(file_exists('libraries/shariff/build/shariff.min.js') ||
+      file_exists('libraries/shariff/dist/shariff.min.js') ||
+      file_exists('libraries/shariff/shariff.min.js'))
+      && $library_shariff == 'default') {
+      // Libraries module is not active and the shariff library is not in
+      // the default place.
+      $requirements['shariff_lib'] = [
+        'title' => t('Shariff Library'),
+        'description' => t('Please download at least v2.0.1 of the <a href=":url">shariff library</a> and place it in the Drupal root libraries folder. So that the js file is available under DRUPAL_ROOT/libraries/shariff/shariff.min.js.', [':url' => 'https://github.com/heiseonline/shariff/releases/latest']),
+        'severity' => REQUIREMENT_ERROR,
+        'value' => t('Library missing'),
+      ];
+    }
+    elseif ($library_shariff === FALSE) {
+      // Libraries module is active, but the shariff library hasn't been found.
+      $requirements['shariff_lib'] = [
+        'title' => t('Shariff Library'),
+        'description' => t('Please download at least v2.0.1 of the <a href=":url">shariff library</a> and place it in one of your libraries folders. So that for example the js file is available under DRUPAL_ROOT/libraries/shariff/shariff.min.js.', [':url' => 'https://github.com/heiseonline/shariff/releases/latest']),
+        'severity' => REQUIREMENT_ERROR,
+        'value' => t('Library missing'),
+      ];
+    }
+    else {
+      $requirements['shariff_lib'] = [
+        'title' => t('Shariff Library'),
+        'severity' => REQUIREMENT_OK,
+        'value' => t('Available'),
+      ];
+    }
+  }
+
+  return $requirements;
+}
+
+/**
+ * Remove googleplus service.
+ */
+function shariff_update_8001() {
+  \Drupal::configFactory()->getEditable('shariff.settings')
+    ->clear('shariff_services.googleplus')
+    ->save(TRUE);
+}

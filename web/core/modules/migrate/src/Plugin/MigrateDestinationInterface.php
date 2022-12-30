@@ -83,14 +83,11 @@ interface MigrateDestinationInterface extends PluginInspectionInterface {
    * Derived classes must implement fields(), returning a list of available
    * destination fields.
    *
-   * @param \Drupal\migrate\Plugin\MigrationInterface $migration
-   *   Unused, will be removed before Drupal 9.0.x. Defaults to NULL.
-   *
    * @return array
    *   - Keys: machine names of the fields
    *   - Values: Human-friendly descriptions of the fields.
    */
-  public function fields(MigrationInterface $migration = NULL);
+  public function fields();
 
   /**
    * Import the row.
@@ -103,8 +100,19 @@ interface MigrateDestinationInterface extends PluginInspectionInterface {
    * @param array $old_destination_id_values
    *   (optional) The old destination IDs. Defaults to an empty array.
    *
-   * @return mixed
-   *   The entity ID or an indication of success.
+   * @return array|bool
+   *   An indexed array of destination IDs in the same order as defined in the
+   *   plugin's getIds() method if the plugin wants to save the IDs to the ID
+   *   map, TRUE to indicate success without saving IDs to the ID map, or
+   *   FALSE to indicate a failure.
+   *
+   * @throws \Drupal\migrate\MigrateException
+   *   Throws an exception if there is a problem importing the row. By default,
+   *   this causes the migration system to treat this row as having failed;
+   *   however, any \Drupal\migrate\Plugin\MigrateIdMapInterface status constant
+   *   can be set using the $status parameter of
+   *   \Drupal\migrate\MigrateException, such as
+   *   \Drupal\migrate\Plugin\MigrateIdMapInterface::STATUS_IGNORED.
    */
   public function import(Row $row, array $old_destination_id_values = []);
 

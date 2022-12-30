@@ -17,6 +17,7 @@ use Symfony\Component\Finder\Finder;
  * ->add('README')                         // Puts file 'README' in archive at the root
  * ->add('project')                        // Puts entire contents of directory 'project' in archinve inside 'project'
  * ->addFile('dir/file.txt', 'file.txt')   // Takes 'file.txt' from cwd and puts it in archive inside 'dir'.
+ * ->exclude(['dir\/.*.zip', '.*.md'])      // Add regex (or array of regex) to the excluded patterns list.
  * ->run();
  * ?>
  * ```
@@ -38,21 +39,30 @@ class Pack extends BaseTask implements PrintedInterface
     private $archiveFile;
 
     /**
+     * A list of regex patterns to exclude from the archive.
+     *
+     * @var array
+     */
+    private $ignoreList;
+    /**
      * Construct the class.
      *
-     * @param string $archiveFile The full path and name of the archive file to create.
+     * @param string $archiveFile
+     *   The full path and name of the archive file to create.
      *
      * @since   1.0
      */
     public function __construct($archiveFile)
     {
         $this->archiveFile = $archiveFile;
+        $this->ignoreList = [];
     }
 
     /**
      * Satisfy the parent requirement.
      *
-     * @return bool Always returns true.
+     * @return bool
+     *   Always returns true.
      *
      * @since   1.0
      */
@@ -76,10 +86,10 @@ class Pack extends BaseTask implements PrintedInterface
      * Add an item to the archive. Like file_exists(), the parameter
      * may be a file or a directory.
      *
-     * @var string
-     *             Relative path and name of item to store in archive
-     * @var string
-     *             Absolute or relative path to file or directory's location in filesystem
+     * @param string $placementLocation
+     *   Relative path and name of item to store in archive.
+     * @param string $filesystemLocation
+     *   Absolute or relative path to file or directory's location in filesystem.
      *
      * @return $this
      */
@@ -94,10 +104,10 @@ class Pack extends BaseTask implements PrintedInterface
      * Alias for addFile, in case anyone has angst about using
      * addFile with a directory.
      *
-     * @var string
-     *             Relative path and name of directory to store in archive
-     * @var string
-     *             Absolute or relative path to directory or directory's location in filesystem
+     * @param string $placementLocation
+     *   Relative path and name of directory to store in archive.
+     * @param string $filesystemLocation
+     *   Absolute or relative path to directory or directory's location in filesystem.
      *
      * @return $this
      */
@@ -111,13 +121,14 @@ class Pack extends BaseTask implements PrintedInterface
     /**
      * Add a file or directory, or list of same to the archive.
      *
-     * @var string|array
-     *                   If given a string, should contain the relative filesystem path to the
-     *                   the item to store in archive; this will also be used as the item's
-     *                   path in the archive, so absolute paths should not be used here.
-     *                   If given an array, the key of each item should be the path to store
-     *                   in the archive, and the value should be the filesystem path to the
-     *                   item to store.
+     * @param string|array $item
+     *   If given a string, should contain the relative filesystem path to the
+     *   the item to store in archive; this will also be used as the item's
+     *   path in the archive, so absolute paths should not be used here.
+     *   If given an array, the key of each item should be the path to store
+     *   in the archive, and the value should be the filesystem path to the
+     *   item to store.
+     *
      * @return $this
      */
     public function add($item)
@@ -128,6 +139,20 @@ class Pack extends BaseTask implements PrintedInterface
             $this->addFile($item, $item);
         }
 
+        return $this;
+    }
+
+    /**
+     * Allow files or folder to be excluded from the archive. Use regex, without enclosing slashes.
+     *
+     * @param string|string[]
+     *   A regex (or array of) to be excluded.
+     *
+     * @return $this
+     */
+    public function exclude($ignoreList)
+    {
+        $this->ignoreList = array_merge($this->ignoreList, (array) $ignoreList);
         return $this;
     }
 
@@ -181,6 +206,10 @@ class Pack extends BaseTask implements PrintedInterface
         }
 
         $tar_object = new \Archive_Tar($archiveFile);
+        if (!empty($this->ignoreList)) {
+            $regexp = '#/' . join('$|/', $this->ignoreList) . '#';
+            $tar_object->setIgnoreRegexp($regexp);
+        }
         foreach ($items as $placementLocation => $filesystemLocation) {
             $p_remove_dir = $filesystemLocation;
             $p_add_dir = $placementLocation;
@@ -208,11 +237,11 @@ class Pack extends BaseTask implements PrintedInterface
      */
     protected function archiveZip($archiveFile, $items)
     {
-        if (!extension_loaded('zlib')) {
+        if (!extension_loaded('zlib') || !class_exists(\ZipArchive::class)) {
             return Result::errorMissingExtension($this, 'zlib', 'zip packing');
         }
 
-        $zip = new \ZipArchive($archiveFile, \ZipArchive::CREATE);
+        $zip = new \ZipArchive();
         if (!$zip->open($archiveFile, \ZipArchive::CREATE)) {
             return Result::error($this, "Could not create zip archive {$archiveFile}");
         }
@@ -234,6 +263,11 @@ class Pack extends BaseTask implements PrintedInterface
             if (is_dir($filesystemLocation)) {
                 $finder = new Finder();
                 $finder->files()->in($filesystemLocation)->ignoreDotFiles(false);
+                if (!empty($this->ignoreList)) {
+                    // Add slashes so Symfony Finder patterns work like Archive_Tar ones.
+                    $zipIgnoreList = preg_filter('/^|$/', '/', $this->ignoreList);
+                    $finder->notName($zipIgnoreList)->notPath($zipIgnoreList);
+                }
 
                 foreach ($finder as $file) {
                     // Replace Windows slashes or resulting zip will have issues on *nixes.

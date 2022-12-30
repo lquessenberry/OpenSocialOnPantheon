@@ -2,6 +2,9 @@
 
 namespace Drupal\Tests\locale\Functional;
 
+use Drupal\Core\Url;
+use Drupal\Core\Database\Database;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\BrowserTestBase;
 use Drupal\Core\Language\LanguageInterface;
 
@@ -17,7 +20,12 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['locale', 'dblog'];
+  protected static $modules = ['locale', 'dblog'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user able to create languages and import translations.
@@ -37,15 +45,26 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Copy test po files to the translations directory.
-    file_unmanaged_copy(__DIR__ . '/../../tests/test.de.po', 'translations://', FILE_EXISTS_REPLACE);
-    file_unmanaged_copy(__DIR__ . '/../../tests/test.xx.po', 'translations://', FILE_EXISTS_REPLACE);
+    /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+    $file_system = \Drupal::service('file_system');
+    $file_system->copy(__DIR__ . '/../../../tests/test.de.po', 'translations://', FileSystemInterface::EXISTS_REPLACE);
+    $file_system->copy(__DIR__ . '/../../../tests/test.xx.po', 'translations://', FileSystemInterface::EXISTS_REPLACE);
 
-    $this->adminUser = $this->drupalCreateUser(['administer languages', 'translate interface', 'access administration pages']);
-    $this->adminUserAccessSiteReports = $this->drupalCreateUser(['administer languages', 'translate interface', 'access administration pages', 'access site reports']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer languages',
+      'translate interface',
+      'access administration pages',
+    ]);
+    $this->adminUserAccessSiteReports = $this->drupalCreateUser([
+      'administer languages',
+      'translate interface',
+      'access administration pages',
+      'access site reports',
+    ]);
     $this->drupalLogin($this->adminUser);
 
     // Enable import of translations. By default this is disabled for automated
@@ -57,7 +76,7 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
   }
 
   /**
-   * Test import of standalone .po files.
+   * Tests import of standalone .po files.
    */
   public function testStandalonePoFile() {
     // Try importing a .po file.
@@ -66,17 +85,17 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
     $this->config('locale.settings');
     // The import should automatically create the corresponding language.
-    $this->assertRaw(t('The language %language has been created.', ['%language' => 'French']), 'The language has been automatically created.');
+    $this->assertSession()->pageTextContains("The language French has been created.");
 
     // The import should have created 8 strings.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 8, '%update' => 0, '%delete' => 0]), 'The translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 8 translations were added, 0 translations were updated and 0 translations were removed.");
 
     // This import should have saved plural forms to have 2 variants.
     $locale_plurals = \Drupal::service('locale.plural.formula')->getNumberOfPlurals('fr');
-    $this->assertEqual(2, $locale_plurals, 'Plural number initialized.');
+    $this->assertEquals(2, $locale_plurals, 'Plural number initialized.');
 
     // Ensure we were redirected correctly.
-    $this->assertUrl(\Drupal::url('locale.translate_page', [], ['absolute' => TRUE]), [], 'Correct page redirection.');
+    $this->assertSession()->addressEquals(Url::fromRoute('locale.translate_page'));
 
     // Try importing a .po file with invalid tags.
     $this->importPoFile($this->getBadPoFile(), [
@@ -84,10 +103,8 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
 
     // The import should have created 1 string and rejected 2.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 1, '%update' => 0, '%delete' => 0]), 'The translation file was successfully imported.');
-
-    $skip_message = \Drupal::translation()->formatPlural(2, 'One translation string was skipped because of disallowed or malformed HTML. <a href=":url">See the log</a> for details.', '@count translation strings were skipped because of disallowed or malformed HTML. See the log for details.', [':url' => \Drupal::url('dblog.overview')]);
-    $this->assertRaw($skip_message, 'Unsafe strings were skipped.');
+    $this->assertSession()->pageTextContains("One translation file imported. 1 translations were added, 0 translations were updated and 0 translations were removed.");
+    $this->assertSession()->pageTextContains("2 translation strings were skipped because of disallowed or malformed HTML. See the log for details.");
 
     // Repeat the process with a user that can access site reports, and this
     // time the different warnings must contain links to the log.
@@ -98,8 +115,7 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
       'langcode' => 'fr',
     ]);
 
-    $skip_message = \Drupal::translation()->formatPlural(2, 'One translation string was skipped because of disallowed or malformed HTML. <a href=":url">See the log</a> for details.', '@count translation strings were skipped because of disallowed or malformed HTML. <a href=":url">See the log</a> for details.', [':url' => \Drupal::url('dblog.overview')]);
-    $this->assertRaw($skip_message, 'Unsafe strings were skipped.');
+    $this->assertSession()->pageTextContains("2 translation strings were skipped because of disallowed or malformed HTML. See the log for details.");
 
     // Check empty files import with a user that cannot access site reports..
     $this->drupalLogin($this->adminUser);
@@ -108,7 +124,7 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
       'langcode' => 'fr',
     ]);
     // The import should have created 0 string and rejected 0.
-    $this->assertRaw(t('One translation file could not be imported. See the log for details.'), 'The empty translation file import reported no translations imported.');
+    $this->assertSession()->pageTextContains("One translation file could not be imported. See the log for details.");
 
     // Repeat the process with a user that can access site reports, and this
     // time the different warnings must contain links to the log.
@@ -118,16 +134,17 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
       'langcode' => 'fr',
     ]);
     // The import should have created 0 string and rejected 0.
-    $this->assertRaw(t('One translation file could not be imported. <a href=":url">See the log</a> for details.', [':url' => \Drupal::url('dblog.overview')]), 'The empty translation file import reported no translations imported.');
+    $this->assertSession()->pageTextContains("One translation file could not be imported. See the log for details.");
 
     // Try importing a .po file which doesn't exist.
     $name = $this->randomMachineName(16);
-    $this->drupalPostForm('admin/config/regional/translate/import', [
+    $this->drupalGet('admin/config/regional/translate/import');
+    $this->submitForm([
       'langcode' => 'fr',
       'files[file]' => $name,
-    ], t('Import'));
-    $this->assertUrl(\Drupal::url('locale.translate_import', [], ['absolute' => TRUE]), [], 'Correct page redirection.');
-    $this->assertText(t('File to import not found.'), 'File to import not found message.');
+    ], 'Import');
+    $this->assertSession()->addressEquals(Url::fromRoute('locale.translate_import'));
+    $this->assertSession()->pageTextContains('File to import not found.');
 
     // Try importing a .po file with overriding strings, and ensure existing
     // strings are kept.
@@ -136,19 +153,20 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
 
     // The import should have created 1 string.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 1, '%update' => 0, '%delete' => 0]), 'The translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 1 translations were added, 0 translations were updated and 0 translations were removed.");
     // Ensure string wasn't overwritten.
     $search = [
       'string' => 'Montag',
       'langcode' => 'fr',
       'translation' => 'translated',
     ];
-    $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
-    $this->assertText(t('No strings available.'), 'String not overwritten by imported string.');
+    $this->drupalGet('admin/config/regional/translate');
+    $this->submitForm($search, 'Filter');
+    $this->assertSession()->pageTextContains('No strings available.');
 
     // This import should not have changed number of plural forms.
     $locale_plurals = \Drupal::service('locale.plural.formula')->getNumberOfPlurals('fr');
-    $this->assertEqual(2, $locale_plurals, 'Plural numbers untouched.');
+    $this->assertEquals(2, $locale_plurals, 'Plural numbers untouched.');
 
     // Try importing a .po file with overriding strings, and ensure existing
     // strings are overwritten.
@@ -158,18 +176,19 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
 
     // The import should have updated 2 strings.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 0, '%update' => 2, '%delete' => 0]), 'The translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 0 translations were added, 2 translations were updated and 0 translations were removed.");
     // Ensure string was overwritten.
     $search = [
       'string' => 'Montag',
       'langcode' => 'fr',
       'translation' => 'translated',
     ];
-    $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
-    $this->assertNoText(t('No strings available.'), 'String overwritten by imported string.');
+    $this->drupalGet('admin/config/regional/translate');
+    $this->submitForm($search, 'Filter');
+    $this->assertSession()->pageTextNotContains('No strings available.');
     // This import should have changed number of plural forms.
     $locale_plurals = \Drupal::service('locale.plural.formula')->reset()->getNumberOfPlurals('fr');
-    $this->assertEqual(3, $locale_plurals, 'Plural numbers changed.');
+    $this->assertEquals(3, $locale_plurals, 'Plural numbers changed.');
 
     // Importing a .po file and mark its strings as customized strings.
     $this->importPoFile($this->getCustomPoFile(), [
@@ -178,12 +197,16 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
 
     // The import should have created 6 strings.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 6, '%update' => 0, '%delete' => 0]), 'The customized translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 6 translations were added, 0 translations were updated and 0 translations were removed.");
 
     // The database should now contain 6 customized strings (two imported
     // strings are not translated).
-    $count = db_query('SELECT COUNT(*) FROM {locales_target} WHERE customized = :custom', [':custom' => 1])->fetchField();
-    $this->assertEqual($count, 6, 'Customized translations successfully imported.');
+    $count = Database::getConnection()->select('locales_target')
+      ->condition('customized', 1)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(6, $count, 'Customized translations successfully imported.');
 
     // Try importing a .po file with overriding strings, and ensure existing
     // customized strings are kept.
@@ -194,15 +217,16 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
 
     // The import should have created 1 string.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 1, '%update' => 0, '%delete' => 0]), 'The customized translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 1 translations were added, 0 translations were updated and 0 translations were removed.");
     // Ensure string wasn't overwritten.
     $search = [
       'string' => 'januari',
       'langcode' => 'fr',
       'translation' => 'translated',
     ];
-    $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
-    $this->assertText(t('No strings available.'), 'Customized string not overwritten by imported string.');
+    $this->drupalGet('admin/config/regional/translate');
+    $this->submitForm($search, 'Filter');
+    $this->assertSession()->pageTextContains('No strings available.');
 
     // Try importing a .po file with overriding strings, and ensure existing
     // customized strings are overwritten.
@@ -213,20 +237,21 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     ]);
 
     // The import should have updated 2 strings.
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 0, '%update' => 2, '%delete' => 0]), 'The customized translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 0 translations were added, 2 translations were updated and 0 translations were removed.");
     // Ensure string was overwritten.
     $search = [
       'string' => 'januari',
       'langcode' => 'fr',
       'translation' => 'translated',
     ];
-    $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
-    $this->assertNoText(t('No strings available.'), 'Customized string overwritten by imported string.');
+    $this->drupalGet('admin/config/regional/translate');
+    $this->submitForm($search, 'Filter');
+    $this->assertSession()->pageTextNotContains('No strings available.');
 
   }
 
   /**
-   * Test msgctxt context support.
+   * Tests msgctxt context support.
    */
   public function testLanguageContext() {
     // Try importing a .po file.
@@ -236,12 +261,12 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
 
     // We cast the return value of t() to string so as to retrieve the
     // translated value, rendered as a string.
-    $this->assertIdentical((string) t('May', [], ['langcode' => 'hr', 'context' => 'Long month name']), 'Svibanj', 'Long month name context is working.');
-    $this->assertIdentical((string) t('May', [], ['langcode' => 'hr']), 'Svi.', 'Default context is working.');
+    $this->assertSame('Svibanj', (string) t('May', [], ['langcode' => 'hr', 'context' => 'Long month name']), 'Long month name context is working.');
+    $this->assertSame('Svi.', (string) t('May', [], ['langcode' => 'hr']), 'Default context is working.');
   }
 
   /**
-   * Test empty msgstr at end of .po file see #611786.
+   * Tests empty msgstr at end of .po file see #611786.
    */
   public function testEmptyMsgstr() {
     $langcode = 'hu';
@@ -251,15 +276,15 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
       'langcode' => $langcode,
     ]);
 
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 1, '%update' => 0, '%delete' => 0]), 'The translation file was successfully imported.');
-    $this->assertIdentical((string) t('Operations', [], ['langcode' => $langcode]), 'Műveletek', 'String imported and translated.');
+    $this->assertSession()->pageTextContains("One translation file imported. 1 translations were added, 0 translations were updated and 0 translations were removed.");
+    $this->assertSame('Műveletek', (string) t('Operations', [], ['langcode' => $langcode]), 'String imported and translated.');
 
     // Try importing a .po file.
     $this->importPoFile($this->getPoFileWithEmptyMsgstr(), [
       'langcode' => $langcode,
       'overwrite_options[not_customized]' => TRUE,
     ]);
-    $this->assertRaw(t('One translation file imported. %number translations were added, %update translations were updated and %delete translations were removed.', ['%number' => 0, '%update' => 0, '%delete' => 1]), 'The translation file was successfully imported.');
+    $this->assertSession()->pageTextContains("One translation file imported. 0 translations were added, 0 translations were updated and 1 translations were removed.");
 
     $str = "Operations";
     $search = [
@@ -267,8 +292,10 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
       'langcode' => $langcode,
       'translation' => 'untranslated',
     ];
-    $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
-    $this->assertText($str, 'Search found the string as untranslated.');
+    // Check that search finds the string as untranslated.
+    $this->drupalGet('admin/config/regional/translate');
+    $this->submitForm($search, 'Filter');
+    $this->assertSession()->pageTextContains($str);
   }
 
   /**
@@ -280,11 +307,13 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     $config_strings = [
       'system.maintenance' => [
         '@site is currently under maintenance. We should be back shortly. Thank you for your patience.',
+        // cSpell:disable-next-line
         '@site karbantartás alatt áll. Rövidesen visszatérünk. Köszönjük a türelmet.',
         'message',
       ],
       'user.role.anonymous' => [
         'Anonymous user',
+        // cSpell:disable-next-line
         'Névtelen felhasználó',
         'label',
       ],
@@ -298,7 +327,8 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
       'label' => $this->randomMachineName(16),
       'direction' => LanguageInterface::DIRECTION_LTR,
     ];
-    $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add custom language'));
+    $this->drupalGet('admin/config/regional/language/add');
+    $this->submitForm($edit, 'Add custom language');
 
     // Check for the source strings we are going to translate. Adding the
     // custom language should have made the process to export configuration
@@ -306,7 +336,7 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
     $locale_storage = $this->container->get('locale.storage');
     foreach ($config_strings as $config_string) {
       $string = $locale_storage->findString(['source' => $config_string[0], 'context' => '', 'type' => 'configuration']);
-      $this->assertTrue($string, 'Configuration strings have been created upon installation.');
+      $this->assertNotEmpty($string, 'Configuration strings have been created upon installation.');
     }
 
     // Import a .po file to translate.
@@ -321,22 +351,23 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
         'langcode' => $langcode,
         'translation' => 'all',
       ];
-      $this->drupalPostForm('admin/config/regional/translate', $search, t('Filter'));
-      $this->assertText($config_string[1], format_string('Translation of @string found.', ['@string' => $config_string[0]]));
+      $this->drupalGet('admin/config/regional/translate');
+      $this->submitForm($search, 'Filter');
+      $this->assertSession()->pageTextContains($config_string[1]);
     }
 
     // Test that translations got recorded in the config system.
     $overrides = \Drupal::service('language.config_factory_override');
     foreach ($config_strings as $config_key => $config_string) {
       $override = $overrides->getOverride($langcode, $config_key);
-      $this->assertEqual($override->get($config_string[2]), $config_string[1]);
+      $this->assertEquals($override->get($config_string[2]), $config_string[1]);
     }
   }
 
   /**
    * Tests .po file import with user.settings configuration.
    */
-  public function testConfigtranslationImportingPoFile() {
+  public function testConfigTranslationImportingPoFile() {
     // Set the language code.
     $langcode = 'de';
 
@@ -347,11 +378,11 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
 
     // Check that the 'Anonymous' string is translated.
     $config = \Drupal::languageManager()->getLanguageConfigOverride($langcode, 'user.settings');
-    $this->assertEqual($config->get('anonymous'), 'Anonymous German');
+    $this->assertEquals('Anonymous German', $config->get('anonymous'));
   }
 
   /**
-   * Test the translation are imported when a new language is created.
+   * Tests the translation are imported when a new language is created.
    */
   public function testCreatedLanguageTranslation() {
     // Import a .po file to add de language.
@@ -359,7 +390,7 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
 
     // Get the language.entity.de label and check it's been translated.
     $override = \Drupal::languageManager()->getLanguageConfigOverride('de', 'language.entity.de');
-    $this->assertEqual($override->get('label'), 'Deutsch');
+    $this->assertEquals('Deutsch', $override->get('label'));
   }
 
   /**
@@ -371,11 +402,13 @@ class LocaleImportFunctionalTest extends BrowserTestBase {
    *   (optional) Additional options to pass to the translation import form.
    */
   public function importPoFile($contents, array $options = []) {
-    $name = \Drupal::service('file_system')->tempnam('temporary://', "po_") . '.po';
+    $file_system = \Drupal::service('file_system');
+    $name = $file_system->tempnam('temporary://', "po_") . '.po';
     file_put_contents($name, $contents);
     $options['files[file]'] = $name;
-    $this->drupalPostForm('admin/config/regional/translate/import', $options, t('Import'));
-    drupal_unlink($name);
+    $this->drupalGet('admin/config/regional/translate/import');
+    $this->submitForm($options, 'Import');
+    $file_system->unlink($name);
   }
 
   /**
@@ -420,7 +453,7 @@ EOF;
   }
 
   /**
-   * Helper function that returns a empty .po file.
+   * Helper function that returns an empty .po file.
    */
   public function getEmptyPoFile() {
     return '';

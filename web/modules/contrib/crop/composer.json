@@ -6,5 +6,8 @@
   "support": {
     "issues": "https://www.drupal.org/project/issues/crop"
   },
-  "license": "GPL-2.0+"
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "drupal/core": "^9.3 || ^10"
+  }
 }

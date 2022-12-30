@@ -1,84 +1,61 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace DrupalCodeGenerator\Twig;
 
 use DrupalCodeGenerator\Utils;
-use Twig_Environment;
-use Twig_LoaderInterface;
-use Twig_SimpleFilter;
+use Twig\Environment;
+use Twig\Loader\LoaderInterface;
+use Twig\Source;
+use Twig\TokenStream;
+use Twig\TwigFilter;
 
 /**
  * Stores the Twig configuration.
  */
-class TwigEnvironment extends Twig_Environment {
+final class TwigEnvironment extends Environment {
 
   /**
    * Constructs Twig environment object.
-   *
-   * @param \Twig_LoaderInterface $loader
-   *   The Twig loader.
    */
-  public function __construct(Twig_LoaderInterface $loader) {
-    parent::__construct($loader);
-
-    $this->addFilter(new Twig_SimpleFilter('plural', function ($string) {
-      switch (substr($string, -1)) {
-        case 'y':
-          return substr($string, 0, -1) . 'ies';
-
-        case 's':
-          return $string . 'es';
-
-        default:
-          return $string . 's';
-      }
-    }));
-
-    $this->addFilter(new Twig_SimpleFilter('article', function ($string) {
-      $article = in_array(strtolower($string[0]), ['a', 'e', 'i', 'o', 'u']) ? 'an' : 'a';
-      return $article . ' ' . $string;
-    }));
-
-    $this->addFilter(new Twig_SimpleFilter('underscore2hyphen', function ($string) {
-      // @codeCoverageIgnoreStart
-      return str_replace('_', '-', $string);
-      // @codeCoverageIgnoreEnd
-    }, ['deprecated' => TRUE]));
-
-    $this->addFilter(new Twig_SimpleFilter('hyphen2underscore', function ($string) {
-      // @codeCoverageIgnoreStart
-      return str_replace('-', '_', $string);
-      // @codeCoverageIgnoreEnd
-    }, ['deprecated' => TRUE]));
-
-    $this->addFilter(new Twig_SimpleFilter('u2h', function ($string) {
-      return str_replace('_', '-', $string);
-    }));
-
-    $this->addFilter(new Twig_SimpleFilter('h2u', function ($string) {
-      return str_replace('-', '_', $string);
-    }));
-
-    $this->addFilter(new Twig_SimpleFilter('camelize', function ($string, $upper_mode = TRUE) {
-      return Utils::camelize($string, $upper_mode);
-    }));
+  public function __construct(LoaderInterface $loader, array $options = []) {
+    parent::__construct($loader, $options);
 
     $this->addTokenParser(new TwigSortTokenParser());
+
+    $this->addFilter(new TwigFilter('pluralize', [Utils::class, 'pluralize']));
+    $this->addFilter(new TwigFilter('camelize', [Utils::class, 'camelize']));
+
+    $article = static function (string $input): string {
+      $first_char = \strtolower($input[0]);
+      $article = \in_array($first_char, ['a', 'e', 'i', 'o', 'u']) ? 'an' : 'a';
+      return $article . ' ' . $input;
+    };
+    $this->addFilter(new TwigFilter('article', $article));
+
+    $u2h = static fn (string $input): string => \str_replace('_', '-', $input);
+    $this->addFilter(new TwigFilter('u2h', $u2h));
+
+    $h2u = static fn (string $input): string => \str_replace('-', '_', $input);
+    $this->addFilter(new TwigFilter('h2u', $h2u));
+
+    $this->addGlobal('SUT_TEST', \getenv('SUT_TEST'));
   }
 
   /**
    * {@inheritdoc}
    */
-  public function tokenize($source, $name = NULL) {
-    if (!$source instanceof \Twig_Source) {
-      $source = new \Twig_Source($source, $name);
-    }
+  public function tokenize(Source $source): TokenStream {
     // Remove leading whitespaces to preserve indentation.
+    // This has been resolved in Twig 2 but unfortunately neither PhpStorm nor
+    // Twig Code sniffer supports this yet.
     // @see https://github.com/twigphp/Twig/issues/1423
-    $code = preg_replace("/\n +\{%-/", "\n{%", $source->getCode());
+    $code = $source->getCode();
+    if (!\str_contains($code, '{% verbatim %}')) {
+      $code = \preg_replace("/\n +\{%/", "\n{%", $source->getCode());
+    }
     // Twig source has no setters.
-    $source = new \Twig_Source($code, $source->getName(), $source->getPath());
-    return parent::tokenize($source, $name);
+    $source = new Source($code, $source->getName(), $source->getPath());
+    return parent::tokenize($source);
   }
 
 }

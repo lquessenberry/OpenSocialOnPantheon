@@ -16,10 +16,15 @@ class TokenizeAreaUITest extends UITestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_test'];
+  protected static $modules = ['entity_test'];
 
   /**
-   * Test that the right tokens are shown as available for replacement.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * Tests that the right tokens are shown as available for replacement.
    */
   public function testTokenUI() {
     $entity_test = EntityTest::create(['bundle' => 'entity_test']);
@@ -32,14 +37,16 @@ class TokenizeAreaUITest extends UITestBase {
     $this->drupalGet($view->toUrl('edit-form'));
 
     // Add a global NULL argument to the view for testing argument tokens.
-    $this->drupalPostForm("admin/structure/views/nojs/add-handler/$id/page_1/argument", ['name[views.null]' => 1], 'Add and configure contextual filters');
-    $this->drupalPostForm(NULL, [], 'Apply');
+    $this->drupalGet("admin/structure/views/nojs/add-handler/{$id}/page_1/argument");
+    $this->submitForm(['name[views.null]' => 1], 'Add and configure contextual filters');
+    $this->submitForm([], 'Apply');
 
-    $this->drupalPostForm("admin/structure/views/nojs/add-handler/$id/page_1/header", ['name[views.area]' => 'views.area'], 'Add and configure header');
+    $this->drupalGet("admin/structure/views/nojs/add-handler/{$id}/page_1/header");
+    $this->submitForm(['name[views.area]' => 'views.area'], 'Add and configure header');
     // Test that field tokens are shown.
-    $this->assertText('{{ title }} == Content: Title');
+    $this->assertSession()->pageTextContains('{{ title }} == Content: Title');
     // Test that argument tokens are shown.
-    $this->assertText('{{ arguments.null }} == Global: Null title');
+    $this->assertSession()->pageTextContains('{{ arguments.null }} == Global: Null title');
   }
 
 }

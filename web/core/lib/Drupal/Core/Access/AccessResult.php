@@ -6,8 +6,6 @@ use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Cache\RefinableCacheableDependencyInterface;
 use Drupal\Core\Cache\RefinableCacheableDependencyTrait;
-use Drupal\Core\Config\ConfigBase;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Session\AccountInterface;
 
 /**
@@ -32,7 +30,7 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
    * Creates an AccessResultInterface object with isNeutral() === TRUE.
    *
    * @param string|null $reason
-   *   (optional) The reason why access is forbidden. Intended for developers,
+   *   (optional) The reason why access is neutral. Intended for developers,
    *   hence not translatable.
    *
    * @return \Drupal\Core\Access\AccessResultNeutral
@@ -145,7 +143,7 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
     if ($conjunction == 'AND' && !empty($permissions)) {
       $access = TRUE;
       foreach ($permissions as $permission) {
-        if (!$permission_access = $account->hasPermission($permission)) {
+        if (!$account->hasPermission($permission)) {
           $access = FALSE;
           break;
         }
@@ -153,7 +151,7 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
     }
     else {
       foreach ($permissions as $permission) {
-        if ($permission_access = $account->hasPermission($permission)) {
+        if ($account->hasPermission($permission)) {
           $access = TRUE;
           break;
         }
@@ -279,36 +277,6 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
   }
 
   /**
-   * Convenience method, adds the entity's cache tag.
-   *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
-   *   The entity whose cache tag to set on the access result.
-   *
-   * @return $this
-   *
-   * @deprecated in Drupal 8.0.x-dev, will be removed before Drupal 9.0.0. Use
-   *   ::addCacheableDependency() instead.
-   */
-  public function cacheUntilEntityChanges(EntityInterface $entity) {
-    return $this->addCacheableDependency($entity);
-  }
-
-  /**
-   * Convenience method, adds the configuration object's cache tag.
-   *
-   * @param \Drupal\Core\Config\ConfigBase $configuration
-   *   The configuration object whose cache tag to set on the access result.
-   *
-   * @return $this
-   *
-   * @deprecated in Drupal 8.0.x-dev, will be removed before Drupal 9.0.0. Use
-   *   ::addCacheableDependency() instead.
-   */
-  public function cacheUntilConfigurationChanges(ConfigBase $configuration) {
-    return $this->addCacheableDependency($configuration);
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function orIf(AccessResultInterface $other) {
@@ -336,10 +304,10 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
         $merge_other = TRUE;
       }
 
-      if ($this->isForbidden() && $this instanceof AccessResultReasonInterface && !is_null($this->getReason())) {
+      if ($this->isForbidden() && $this instanceof AccessResultReasonInterface && $this->getReason() !== '') {
         $result->setReason($this->getReason());
       }
-      elseif ($other->isForbidden() && $other instanceof AccessResultReasonInterface && !is_null($other->getReason())) {
+      elseif ($other->isForbidden() && $other instanceof AccessResultReasonInterface && $other->getReason() !== '') {
         $result->setReason($other->getReason());
       }
     }
@@ -355,10 +323,10 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
         $merge_other = TRUE;
       }
 
-      if ($this instanceof AccessResultReasonInterface && !is_null($this->getReason())) {
+      if ($this instanceof AccessResultReasonInterface && $this->getReason() !== '') {
         $result->setReason($this->getReason());
       }
-      elseif ($other instanceof AccessResultReasonInterface && !is_null($other->getReason())) {
+      elseif ($other instanceof AccessResultReasonInterface && $other->getReason() !== '') {
         $result->setReason($other->getReason());
       }
     }
@@ -426,9 +394,9 @@ abstract class AccessResult implements AccessResultInterface, RefinableCacheable
   /**
    * Inherits the cacheability of the other access result, if any.
    *
-   * inheritCacheability() differs from addCacheableDependency() in how it
-   * handles max-age, because it is designed to inherit the cacheability of the
-   * second operand in the andIf() and orIf() operations. There, the situation
+   * This method differs from addCacheableDependency() in how it handles
+   * max-age, because it is designed to inherit the cacheability of the second
+   * operand in the andIf() and orIf() operations. There, the situation
    * "allowed, max-age=0 OR allowed, max-age=1000" needs to yield max-age 1000
    * as the end result.
    *

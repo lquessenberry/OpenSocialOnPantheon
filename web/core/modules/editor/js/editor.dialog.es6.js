@@ -24,7 +24,11 @@
    *
    * @fires event:editor:dialogsave
    */
-  Drupal.AjaxCommands.prototype.editorDialogSave = function (ajax, response, status) {
+  Drupal.AjaxCommands.prototype.editorDialogSave = function (
+    ajax,
+    response,
+    status,
+  ) {
     $(window).trigger('editor:dialogsave', [response.values]);
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

@@ -14,6 +14,8 @@ class ConfigEntityType extends EntityType implements ConfigEntityTypeInterface {
   /**
    * The config prefix set in the configuration entity type annotation.
    *
+   * @var string
+   *
    * @see \Drupal\Core\Config\Entity\ConfigEntityTypeInterface::getConfigPrefix()
    */
   protected $config_prefix;
@@ -142,30 +144,36 @@ class ConfigEntityType extends EntityType implements ConfigEntityTypeInterface {
   /**
    * {@inheritdoc}
    */
-  public function getPropertiesToExport() {
-    if (!empty($this->config_export)) {
-      if (empty($this->mergedConfigExport)) {
-        // Always add default properties to be exported.
-        $this->mergedConfigExport = [
-          'uuid' => 'uuid',
-          'langcode' => 'langcode',
-          'status' => 'status',
-          'dependencies' => 'dependencies',
-          'third_party_settings' => 'third_party_settings',
-          '_core' => '_core',
-        ];
-        foreach ($this->config_export as $property => $name) {
-          if (is_numeric($property)) {
-            $this->mergedConfigExport[$name] = $name;
-          }
-          else {
-            $this->mergedConfigExport[$property] = $name;
-          }
-        }
-      }
+  public function getPropertiesToExport($id = NULL) {
+    // @todo https://www.drupal.org/project/drupal/issues/3113620 Make the
+    //   config_export annotation required earlier, remove the possibility of
+    //   returning NULL and deprecate the $id argument.
+    if (!empty($this->mergedConfigExport)) {
       return $this->mergedConfigExport;
     }
-    return NULL;
+    if (!empty($this->config_export)) {
+      // Always add default properties to be exported.
+      $this->mergedConfigExport = [
+        'uuid' => 'uuid',
+        'langcode' => 'langcode',
+        'status' => 'status',
+        'dependencies' => 'dependencies',
+        'third_party_settings' => 'third_party_settings',
+        '_core' => '_core',
+      ];
+      foreach ($this->config_export as $property => $name) {
+        if (is_numeric($property)) {
+          $this->mergedConfigExport[$name] = $name;
+        }
+        else {
+          $this->mergedConfigExport[$property] = $name;
+        }
+      }
+    }
+    else {
+      return NULL;
+    }
+    return $this->mergedConfigExport;
   }
 
   /**

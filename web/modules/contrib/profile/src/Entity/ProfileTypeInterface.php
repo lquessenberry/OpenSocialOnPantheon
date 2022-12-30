@@ -4,72 +4,102 @@ namespace Drupal\profile\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 use Drupal\Core\Entity\RevisionableEntityBundleInterface;
-use Drupal\Core\Entity\EntityDescriptionInterface;
 
 /**
  * Provides an interface defining a profile type entity.
  */
-interface ProfileTypeInterface extends ConfigEntityInterface, RevisionableEntityBundleInterface, EntityDescriptionInterface {
+interface ProfileTypeInterface extends ConfigEntityInterface, RevisionableEntityBundleInterface {
 
   /**
-   * Return the registration form flag.
+   * Gets the profile type display label.
    *
-   * For allowing creation of profile type at user registration.
+   * This is the user-facing name, unlike the regular label,
+   * which is admin-facing. Used on user pages.
+   *
+   * @return string
+   *   The display label. If empty, use the regular label instead.
    */
-  public function getRegistration();
+  public function getDisplayLabel();
 
   /**
-   * Return the allow multiple flag.
+   * Sets the profile type display label.
+   *
+   * @param string $display_label
+   *   The display label.
+   *
+   * @return $this
+   */
+  public function setDisplayLabel($display_label);
+
+  /**
+   * Gets whether a user can have multiple profiles of this type.
    *
    * @return bool
-   *   TRUE if multiple allowed.
+   *   TRUE if a user can have multiple profiles of this type, FALSE otherwise.
    */
-  public function getMultiple();
+  public function allowsMultiple();
 
   /**
-   * Set the allow multiple flag.
+   * Sets whether a user can have multiple profiles of this type.
    *
    * @param bool $multiple
-   *   Boolean for the allow multiple flag.
+   *   Whether a user can have multiple profiles of this type.
    *
    * @return $this
    */
   public function setMultiple($multiple);
 
   /**
-   * Return the user roles allowed by this profile type.
+   * Gets whether a profile of this type should be created during registration.
    *
-   * @return array
-   *   Array of Drupal user roles ids.
+   * @return bool
+   *   TRUE a profile of this type should be created during registration,
+   *   FALSE otherwise.
+   */
+  public function getRegistration();
+
+  /**
+   * Sets whether a profile of this type should be created during registration.
+   *
+   * @param bool $registration
+   *   Whether a profile of this type should be created during registration.
+   *
+   * @return $this
+   */
+  public function setRegistration($registration);
+
+  /**
+   * Gets the user roles allowed to have profiles of this type.
+   *
+   * @return string[]
+   *   The role IDs. If empty, all roles are allowed.
    */
   public function getRoles();
 
   /**
-   * Set the user roles allowed by this profile type.
+   * Sets the user roles allowed to have profiles of this type.
    *
-   * @param array $roles
-   *   Array of Drupal user roles ids.
-   *
-   * @return $this
-   */
-  public function setRoles(array $roles);
-
-  /**
-   * Returns the profile type's weight.
-   *
-   * @return int
-   *   The weight.
-   */
-  public function getWeight();
-
-  /**
-   * Sets the profile type's weight.
-   *
-   * @param int $weight
-   *   The profile type's weight.
+   * @param string[] $rids
+   *   The role IDs.
    *
    * @return $this
    */
-  public function setWeight($weight);
+  public function setRoles(array $rids);
+
+  /**
+   * Gets whether this profile type allows revisions.
+   *
+   * @return bool
+   *   Whether this profile type allows revisions.
+   */
+  public function allowsRevisions();
+
+  /**
+   * Gets whether profiles of this type should show the revision fields.
+   *
+   * @return bool
+   *   Whether profiles of this type should show the revision fields.
+   */
+  public function showRevisionUi();
 
 }

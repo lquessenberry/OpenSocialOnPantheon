@@ -24,6 +24,7 @@ use Symfony\Component\Routing\RouteCollection;
  * - edit-form
  * - delete-form
  * - collection
+ * - delete-multiple-form
  *
  * @see \Drupal\Core\Entity\Routing\AdminHtmlRouteProvider.
  */
@@ -32,7 +33,7 @@ class DefaultHtmlRouteProvider implements EntityRouteProviderInterface, EntityHa
   /**
    * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
@@ -98,6 +99,10 @@ class DefaultHtmlRouteProvider implements EntityRouteProviderInterface, EntityHa
       $collection->add("entity.{$entity_type_id}.collection", $collection_route);
     }
 
+    if ($delete_multiple_route = $this->getDeleteMultipleFormRoute($entity_type)) {
+      $collection->add('entity.' . $entity_type->id() . '.delete_multiple_form', $delete_multiple_route);
+    }
+
     return $collection;
   }
 
@@ -150,7 +155,7 @@ class DefaultHtmlRouteProvider implements EntityRouteProviderInterface, EntityHa
       // If the entity has bundles, we can provide a bundle-specific title
       // and access requirements.
       $expected_parameter = $entity_type->getBundleEntityType() ?: $entity_type->getKey('bundle');
-      // @todo: We have to check if a route contains a bundle in its path as
+      // @todo We have to check if a route contains a bundle in its path as
       //   test entities have inconsistent usage of "add-form" link templates.
       //   Fix it in https://www.drupal.org/node/2699959.
       if (($bundle_key = $entity_type->getKey('bundle')) && strpos($route->getPath(), '{' . $expected_parameter . '}') !== FALSE) {
@@ -253,7 +258,7 @@ class DefaultHtmlRouteProvider implements EntityRouteProviderInterface, EntityHa
       $route
         ->setDefaults([
           '_entity_form' => "{$entity_type_id}.{$operation}",
-          '_title_callback' => '\Drupal\Core\Entity\Controller\EntityController::editTitle'
+          '_title_callback' => '\Drupal\Core\Entity\Controller\EntityController::editTitle',
         ])
         ->setRequirement('_entity_access', "{$entity_type_id}.update")
         ->setOption('parameters', [
@@ -348,6 +353,25 @@ class DefaultHtmlRouteProvider implements EntityRouteProviderInterface, EntityHa
 
     $field_storage_definitions = $this->entityFieldManager->getFieldStorageDefinitions($entity_type->id());
     return $field_storage_definitions[$entity_type->getKey('id')]->getType();
+  }
+
+  /**
+   * Returns the delete multiple form route.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
+   *   The entity type.
+   *
+   * @return \Symfony\Component\Routing\Route|null
+   *   The generated route, if available.
+   */
+  protected function getDeleteMultipleFormRoute(EntityTypeInterface $entity_type) {
+    if ($entity_type->hasLinkTemplate('delete-multiple-form') && $entity_type->hasHandlerClass('form', 'delete-multiple-confirm')) {
+      $route = new Route($entity_type->getLinkTemplate('delete-multiple-form'));
+      $route->setDefault('_form', $entity_type->getFormClass('delete-multiple-confirm'));
+      $route->setDefault('entity_type_id', $entity_type->id());
+      $route->setRequirement('_entity_delete_multiple_access', $entity_type->id());
+      return $route;
+    }
   }
 
 }

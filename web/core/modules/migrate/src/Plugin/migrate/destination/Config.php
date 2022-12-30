@@ -46,7 +46,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @code
  * source:
- *   plugin: i18n_variable
+ *   plugin: d6_variable_translation
  *   variables:
  *     - site_offline_message
  * process:
@@ -60,10 +60,10 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * This will add the value of the variable "site_offline_message" to the config
  * with the machine name "system.maintenance" as "system.maintenance.message",
- * coupled with the relevant langcode as obtained from the "i18n_variable"
- * source plugin.
+ * coupled with the relevant langcode as obtained from the
+ * "d6_variable_translation" source plugin.
  *
- * @see \Drupal\migrate_drupal\Plugin\migrate\source\d6\i18nVariable
+ * @see \Drupal\migrate_drupal\Plugin\migrate\source\d6\VariableTranslation
  *
  * @MigrateDestination(
  *   id = "config"
@@ -150,7 +150,7 @@ class Config extends DestinationBase implements ContainerFactoryPluginInterface,
   /**
    * {@inheritdoc}
    */
-  public function fields(MigrationInterface $migration = NULL) {
+  public function fields() {
     // @todo Dynamically fetch fields using Config Schema API.
   }
 

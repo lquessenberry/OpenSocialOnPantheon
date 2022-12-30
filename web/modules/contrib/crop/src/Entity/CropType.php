@@ -34,6 +34,16 @@ use Symfony\Component\Validator\ConstraintViolationList;
  *   constraints = {
  *     "CropTypeMachineNameValidation" = {},
  *     "CropTypeAspectRatioValidation" = {},
+ *   },
+ *    config_export = {
+ *     "id",
+ *     "label",
+ *     "description",
+ *     "aspect_ratio",
+ *     "soft_limit_width",
+ *     "soft_limit_height",
+ *     "hard_limit_width",
+ *     "hard_limit_height",
  *   }
  * )
  */
@@ -120,6 +130,7 @@ class CropType extends ConfigEntityBundleBase implements \IteratorAggregate, Cro
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function getIterator() {
     return new \ArrayIterator();
   }

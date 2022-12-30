@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\dynamic_entity_reference\Kernel;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\Entity\NodeType;
@@ -19,7 +18,7 @@ class DynamicEntityReferenceSettingsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'taxonomy',
     'field',
@@ -54,7 +53,7 @@ class DynamicEntityReferenceSettingsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setup();
 
     $this->installEntitySchema('node');
@@ -62,19 +61,19 @@ class DynamicEntityReferenceSettingsTest extends KernelTestBase {
     $this->installEntitySchema('entity_test');
 
     $this->nodeType = NodeType::create([
-      'type' => Unicode::strtolower($this->randomMachineName()),
+      'type' => mb_strtolower($this->randomMachineName()),
       'name' => $this->randomString(),
     ]);
     $this->nodeType->save();
 
     $this->vocabulary = Vocabulary::create([
-      'vid' => Unicode::strtolower($this->randomMachineName()),
+      'vid' => mb_strtolower($this->randomMachineName()),
       'name' => $this->randomString(),
     ]);
     $this->vocabulary->save();
 
     // Create a custom bundle.
-    $this->customBundle = 'test_bundle_' . Unicode::strtolower($this->randomMachineName());
+    $this->customBundle = 'test_bundle_' . mb_strtolower($this->randomMachineName());
     entity_test_create_bundle($this->customBundle, NULL, 'entity_test');
   }
 
@@ -83,7 +82,7 @@ class DynamicEntityReferenceSettingsTest extends KernelTestBase {
    */
   public function testConfigTargetBundleDeletion() {
     // Attach an entity reference field to $this->nodeType.
-    $name = Unicode::strtolower($this->randomMachineName());
+    $name = mb_strtolower($this->randomMachineName());
     $label = $this->randomString();
     $vid = $this->vocabulary->id();
     $handler_settings = ['target_bundles' => [$vid => $vid]];
@@ -137,7 +136,7 @@ class DynamicEntityReferenceSettingsTest extends KernelTestBase {
    */
   public function testCustomTargetBundleDeletion() {
     // Attach an entity reference field to $this->nodeType.
-    $name = Unicode::strtolower($this->randomMachineName());
+    $name = mb_strtolower($this->randomMachineName());
     $label = $this->randomString();
     $handler_settings = ['target_bundles' => [$this->customBundle => $this->customBundle]];
 

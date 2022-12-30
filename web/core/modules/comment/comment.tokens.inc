@@ -22,7 +22,7 @@ function comment_token_info() {
   ];
 
   $tokens = [];
-  // Provide a integration for each entity type except comment.
+  // Provides an integration for each entity type except comment.
   foreach (\Drupal::entityTypeManager()->getDefinitions() as $entity_type_id => $entity_type) {
     if ($entity_type_id == 'comment' || !$entity_type->entityClassImplements(ContentEntityInterface::class)) {
       continue;
@@ -179,13 +179,13 @@ function comment_tokens($type, $tokens, array $data, array $options, BubbleableM
 
         // Comment related URLs.
         case 'url':
-          $url_options['fragment']  = 'comment-' . $comment->id();
-          $replacements[$original] = $comment->url('canonical', $url_options);
+          $url_options['fragment'] = 'comment-' . $comment->id();
+          $replacements[$original] = $comment->toUrl('canonical', $url_options)->toString();
           break;
 
         case 'edit-url':
           $url_options['fragment'] = NULL;
-          $replacements[$original] = $comment->url('edit-form', $url_options);
+          $replacements[$original] = $comment->toUrl('edit-form', $url_options)->toString();
           break;
 
         case 'author':
@@ -209,13 +209,13 @@ function comment_tokens($type, $tokens, array $data, array $options, BubbleableM
         case 'created':
           $date_format = DateFormat::load('medium');
           $bubbleable_metadata->addCacheableDependency($date_format);
-          $replacements[$original] = format_date($comment->getCreatedTime(), 'medium', '', NULL, $langcode);
+          $replacements[$original] = \Drupal::service('date.formatter')->format($comment->getCreatedTime(), 'medium', '', NULL, $langcode);
           break;
 
         case 'changed':
           $date_format = DateFormat::load('medium');
           $bubbleable_metadata->addCacheableDependency($date_format);
-          $replacements[$original] = format_date($comment->getChangedTime(), 'medium', '', NULL, $langcode);
+          $replacements[$original] = \Drupal::service('date.formatter')->format($comment->getChangedTime(), 'medium', '', NULL, $langcode);
           break;
 
         case 'entity':
@@ -251,7 +251,7 @@ function comment_tokens($type, $tokens, array $data, array $options, BubbleableM
   }
   // Replacement tokens for any content entities that have comment field.
   elseif (!empty($data[$type]) && $data[$type] instanceof FieldableEntityInterface) {
-    /** @var $entity \Drupal\Core\Entity\FieldableEntityInterface */
+    /** @var \Drupal\Core\Entity\FieldableEntityInterface $entity */
     $entity = $data[$type];
 
     foreach ($tokens as $name => $original) {

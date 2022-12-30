@@ -14,6 +14,7 @@ trait CreateTestContentEntitiesTrait {
    */
   protected function getRequiredModules() {
     return [
+      // @todo Remove aggregator in https://www.drupal.org/project/drupal/issues/3264120
       'aggregator',
       'block_content',
       'comment',
@@ -35,6 +36,7 @@ trait CreateTestContentEntitiesTrait {
    * Install required entity schemas.
    */
   protected function installEntitySchemas() {
+    // @todo Remove aggregator in https://www.drupal.org/project/drupal/issues/3264120
     $this->installEntitySchema('aggregator_feed');
     $this->installEntitySchema('aggregator_item');
     $this->installEntitySchema('block_content');
@@ -42,6 +44,7 @@ trait CreateTestContentEntitiesTrait {
     $this->installEntitySchema('file');
     $this->installEntitySchema('menu_link_content');
     $this->installEntitySchema('node');
+    $this->installEntitySchema('path_alias');
     $this->installEntitySchema('taxonomy_term');
     $this->installEntitySchema('user');
   }
@@ -52,6 +55,7 @@ trait CreateTestContentEntitiesTrait {
   protected function createContent() {
     $entity_type_manager = \Drupal::entityTypeManager();
 
+    // @todo Remove aggregator in https://www.drupal.org/project/drupal/issues/3264120
     // Create an aggregator feed.
     if ($entity_type_manager->hasDefinition('aggregator_feed')) {
       $feed = $entity_type_manager->getStorage('aggregator_feed')->create([

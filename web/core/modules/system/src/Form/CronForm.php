@@ -9,6 +9,7 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\State\StateInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Form\ConfigFormBaseTrait;
 
@@ -102,11 +103,11 @@ class CronForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form['description'] = [
-      '#markup' => '<p>' . t('Cron takes care of running periodic tasks like checking for updates and indexing content for search.') . '</p>',
+      '#markup' => '<p>' . $this->t('Cron takes care of running periodic tasks like checking for updates and indexing content for search.') . '</p>',
     ];
     $form['run'] = [
       '#type' => 'submit',
-      '#value' => t('Run cron'),
+      '#value' => $this->t('Run cron'),
       '#submit' => ['::runCron'],
     ];
     $status = '<p>' . $this->t('Last run: %time ago.', ['%time' => $this->dateFormatter->formatTimeDiffSince($this->state->get('system.cron_last'))]) . '</p>';
@@ -114,9 +115,9 @@ class CronForm extends FormBase {
       '#markup' => $status,
     ];
 
-    $cron_url = $this->url('system.cron', ['key' => $this->state->get('system.cron_key')], ['absolute' => TRUE]);
+    $cron_url = Url::fromRoute('system.cron', ['key' => $this->state->get('system.cron_key')], ['absolute' => TRUE])->toString();
     $form['cron_url'] = [
-      '#markup' => '<p>' . t('To run cron from outside the site, go to <a href=":cron" class="system-cron-settings__link">@cron</a>', [':cron' => $cron_url, '@cron' => $cron_url]) . '</p>',
+      '#markup' => '<p>' . $this->t('To run cron from outside the site, go to <a href=":cron" class="system-cron-settings__link">@cron</a>', [':cron' => $cron_url, '@cron' => $cron_url]) . '</p>',
     ];
 
     if (!$this->moduleHandler->moduleExists('automated_cron')) {
@@ -126,14 +127,14 @@ class CronForm extends FormBase {
     }
 
     $form['cron'] = [
-      '#title' => t('Cron settings'),
+      '#title' => $this->t('Cron settings'),
       '#type' => 'details',
       '#open' => TRUE,
     ];
 
     $form['cron']['logging'] = [
       '#type' => 'checkbox',
-      '#title' => t('Detailed cron logging'),
+      '#title' => $this->t('Detailed cron logging'),
       '#default_value' => $this->config('system.cron')->get('logging'),
       '#description' => $this->t('Run times of individual cron jobs will be written to watchdog'),
     ];
@@ -141,7 +142,7 @@ class CronForm extends FormBase {
     $form['actions']['#type'] = 'actions';
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => t('Save configuration'),
+      '#value' => $this->t('Save configuration'),
       '#button_type' => 'primary',
     ];
 
@@ -155,7 +156,7 @@ class CronForm extends FormBase {
     $this->config('system.cron')
       ->set('logging', $form_state->getValue('logging'))
       ->save();
-    drupal_set_message(t('The configuration options have been saved.'));
+    $this->messenger()->addStatus($this->t('The configuration options have been saved.'));
   }
 
   /**
@@ -163,10 +164,10 @@ class CronForm extends FormBase {
    */
   public function runCron(array &$form, FormStateInterface $form_state) {
     if ($this->cron->run()) {
-      drupal_set_message($this->t('Cron ran successfully.'));
+      $this->messenger()->addStatus($this->t('Cron ran successfully.'));
     }
     else {
-      drupal_set_message($this->t('Cron run failed.'), 'error');
+      $this->messenger()->addError($this->t('Cron run failed.'));
     }
   }
 

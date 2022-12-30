@@ -59,6 +59,11 @@ interface EmbedButtonInterface extends ConfigEntityInterface {
    *
    * @return \Drupal\file\FileInterface
    *   The file entity of the button icon.
+   *
+   * @deprecated in embed:8.x-1.2 and is removed from embed:2.0.0. Use
+   *   \Drupal\embed\EmbedButtonInterface::getIconUrl() instead.
+   *
+   * @see https://www.drupal.org/project/embed/issues/3039598
    */
   public function getIconFile();
 
@@ -72,5 +77,31 @@ interface EmbedButtonInterface extends ConfigEntityInterface {
    *   The URL of the button icon.
    */
   public function getIconUrl();
+
+  /**
+   * Convert a file on the filesystem to encoded data.
+   *
+   * @param string $uri
+   *   An image file URI.
+   *
+   * @return array
+   *   An array of data about the encoded image including:
+   *     - uri: The URI of the file.
+   *     - data: The base-64 encoded contents of the file.
+   */
+  public static function convertImageToEncodedData($uri);
+
+  /**
+   * Convert image encoded data to a file on the filesystem.
+   *
+   * @param array $data
+   *   An array of data about the encoded image including:
+   *     - uri: The URI of the file.
+   *     - data: The base-64 encoded contents of the file.
+   *
+   * @return string
+   *   An image file URI.
+   */
+  public static function convertEncodedDataToImage(array $data);
 
 }

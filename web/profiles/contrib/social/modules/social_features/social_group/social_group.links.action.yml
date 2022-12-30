@@ -5,4 +5,10 @@ social_group.add_member:
   class: '\Drupal\group\Plugin\Menu\LocalAction\WithDestination'
   title: 'Add members'
   appears_on:
-    - 'entity.group_content.collection'
+    - 'view.group_manage_members.page_group_manage_members'
+  cache_contexts:
+    - 'route.group'
+    - 'user.group_permissions'
+    - 'user.permissions'
+    - 'user.roles'
+  cache_max_age: 0

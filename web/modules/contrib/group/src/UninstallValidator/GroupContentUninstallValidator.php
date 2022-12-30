@@ -2,7 +2,7 @@
 
 namespace Drupal\group\UninstallValidator;
 
-use Drupal\Core\Entity\Query\QueryFactory;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleUninstallValidatorInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
@@ -14,11 +14,11 @@ class GroupContentUninstallValidator implements ModuleUninstallValidatorInterfac
   use StringTranslationTrait;
 
   /**
-   * The query factory to create entity queries.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\Query\QueryFactory
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $queryFactory;
+  protected $entityTypeManager;
 
   /**
    * The group content plugin manager.
@@ -32,14 +32,14 @@ class GroupContentUninstallValidator implements ModuleUninstallValidatorInterfac
    *
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    *   The string translation service.
-   * @param \Drupal\Core\Entity\Query\QueryFactory $query_factory
-   *   The entity query object.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\group\Plugin\GroupContentEnablerManagerInterface $plugin_manager
    *   The group content plugin manager.
    */
-  public function __construct(TranslationInterface $string_translation, QueryFactory $query_factory, GroupContentEnablerManagerInterface $plugin_manager) {
+  public function __construct(TranslationInterface $string_translation, EntityTypeManagerInterface $entity_type_manager, GroupContentEnablerManagerInterface $plugin_manager) {
     $this->stringTranslation = $string_translation;
-    $this->queryFactory = $query_factory;
+    $this->entityTypeManager = $entity_type_manager;
     $this->pluginManager = $plugin_manager;
   }
 
@@ -79,7 +79,9 @@ class GroupContentUninstallValidator implements ModuleUninstallValidatorInterfac
       return FALSE;
     }
 
-    $entity_count = $this->queryFactory->get('group_content')
+    $entity_count = $this->entityTypeManager->getStorage('group_content')
+      ->getQuery()
+      ->accessCheck(FALSE)
       ->condition('type', $group_content_types, 'IN')
       ->count()
       ->execute();

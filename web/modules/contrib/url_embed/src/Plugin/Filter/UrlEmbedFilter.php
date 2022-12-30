@@ -1,18 +1,13 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\url_embed\Plugin\Filter\UrlEmbedFilter.
- */
-
 namespace Drupal\url_embed\Plugin\Filter;
 
 use Drupal\Component\Utility\Html;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\embed\DomHelperTrait;
 use Drupal\filter\FilterProcessResult;
 use Drupal\filter\Plugin\FilterBase;
-use Drupal\url_embed\UrlEmbedHelperTrait;
 use Drupal\url_embed\UrlEmbedInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -30,11 +25,11 @@ class UrlEmbedFilter extends FilterBase implements ContainerFactoryPluginInterfa
   use DomHelperTrait;
 
   /**
-   * \Drupal\url_embed\UrlEmbedInterface definition.
+   * The UrlEmbed object being processed.
    *
    * @var \Drupal\url_embed\UrlEmbedInterface
    */
-  protected $url_embed;
+  protected $urlEmbed;
 
   /**
    * Constructs a UrlEmbedFilter object.
@@ -50,7 +45,7 @@ class UrlEmbedFilter extends FilterBase implements ContainerFactoryPluginInterfa
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition, UrlEmbedInterface $url_embed) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->url_embed = $url_embed;
+    $this->urlEmbed = $url_embed;
   }
 
   /**
@@ -79,10 +74,19 @@ class UrlEmbedFilter extends FilterBase implements ContainerFactoryPluginInterfa
         $url = $node->getAttribute('data-embed-url');
         $url_output = '';
         try {
-          $url_output = $this->url_embed->getUrlCode($url);
+          $info = $this->urlEmbed->getUrlInfo($url);
+          $url_output = $info['code'];
         }
         catch (\Exception $e) {
           watchdog_exception('url_embed', $e);
+        } finally {
+          // If the $url_output is empty, that means URL is non-embeddable.
+          // So, we return the original url instead of blank output.
+          if ($url_output === NULL || $url_output === '') {
+            // The reason of using _filter_url() function here is to make
+            // sure that the maximum URL cases e.g., emails are covered.
+            $url_output = UrlHelper::isValid($url) ? _filter_url($url, $this) : $url;
+          }
         }
 
         $this->replaceNodeContent($node, $url_output);

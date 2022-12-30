@@ -2,11 +2,17 @@
 
 namespace Drupal\user\Plugin\migrate\source;
 
+use Drupal\migrate\Exception\RequirementsException;
 use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
 use Drupal\migrate\Row;
 
 /**
- * Profile field source from database.
+ * Drupal 6/7 profile field source from database.
+ *
+ * For available configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
  *
  * @MigrateSource(
  *   id = "profile_field",
@@ -33,16 +39,7 @@ class ProfileField extends DrupalSqlBase {
    * {@inheritdoc}
    */
   public function query() {
-    if (empty($this->fieldTable) || empty($this->valueTable)) {
-      if ($this->getModuleSchemaVersion('system') >= 7000) {
-        $this->fieldTable = 'profile_field';
-        $this->valueTable = 'profile_value';
-      }
-      else {
-        $this->fieldTable = 'profile_fields';
-        $this->valueTable = 'profile_values';
-      }
-    }
+    $this->setTableNames();
     return $this->select($this->fieldTable, 'pf')->fields('pf');
   }
 
@@ -103,6 +100,34 @@ class ProfileField extends DrupalSqlBase {
   public function getIds() {
     $ids['fid']['type'] = 'integer';
     return $ids;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function checkRequirements() {
+    $this->setTableNames();
+    if (!$this->getDatabase()->schema()->tableExists($this->fieldTable)) {
+      // If we make it to here, the profile module isn't installed.
+      throw new RequirementsException('Profile module not enabled on source site');
+    }
+    parent::checkRequirements();
+  }
+
+  /**
+   * Helper to set the profile field table names.
+   */
+  protected function setTableNames() {
+    if (empty($this->fieldTable) || empty($this->valueTable)) {
+      if ($this->getModuleSchemaVersion('system') >= 7000) {
+        $this->fieldTable = 'profile_field';
+        $this->valueTable = 'profile_value';
+      }
+      else {
+        $this->fieldTable = 'profile_fields';
+        $this->valueTable = 'profile_values';
+      }
+    }
   }
 
 }

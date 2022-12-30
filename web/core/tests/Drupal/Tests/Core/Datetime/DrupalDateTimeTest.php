@@ -12,7 +12,7 @@ use Drupal\Tests\UnitTestCase;
 class DrupalDateTimeTest extends UnitTestCase {
 
   /**
-   * Test date diffs.
+   * Tests date diffs.
    *
    * @param mixed $input1
    *   A DrupalDateTime object.
@@ -31,7 +31,7 @@ class DrupalDateTimeTest extends UnitTestCase {
   }
 
   /**
-   * Test date diff exception caused by invalid input.
+   * Tests date diff exception caused by invalid input.
    *
    * @param mixed $input1
    *   A DateTimePlus object.
@@ -43,7 +43,8 @@ class DrupalDateTimeTest extends UnitTestCase {
    * @dataProvider providerTestInvalidDateDiff
    */
   public function testInvalidDateDiff($input1, $input2, $absolute) {
-    $this->setExpectedException(\BadMethodCallException::class, 'Method Drupal\Component\Datetime\DateTimePlus::diff expects parameter 1 to be a \DateTime or \Drupal\Component\Datetime\DateTimePlus object');
+    $this->expectException(\BadMethodCallException::class);
+    $this->expectExceptionMessage('Method Drupal\Component\Datetime\DateTimePlus::diff expects parameter 1 to be a \DateTime or \Drupal\Component\Datetime\DateTimePlus object');
     $interval = $input1->diff($input2, $absolute);
   }
 
@@ -84,7 +85,7 @@ class DrupalDateTimeTest extends UnitTestCase {
         'expected' => $positive_19_hours,
       ],
       // In 1970 Sydney did not observe daylight savings time
-      // So there is only a 18 hour time interval.
+      // So there is only an 18 hour time interval.
       [
         'input2' => DrupalDateTime::createFromFormat('Y-m-d H:i:s', '1970-01-01 00:00:00', new \DateTimeZone('Australia/Sydney'), $settings),
         'input1' => DrupalDateTime::createFromFormat('Y-m-d H:i:s', '1970-01-01 00:00:00', new \DateTimeZone('America/Los_Angeles'), $settings),
@@ -206,10 +207,36 @@ class DrupalDateTimeTest extends UnitTestCase {
    * @covers ::__call
    */
   public function testChainableNonCallable() {
-    $this->setExpectedException(\BadMethodCallException::class, 'Call to undefined method Drupal\Core\Datetime\DrupalDateTime::nonexistent()');
+    $this->expectException(\BadMethodCallException::class);
+    $this->expectExceptionMessage('Call to undefined method Drupal\Core\Datetime\DrupalDateTime::nonexistent()');
     $tz = new \DateTimeZone(date_default_timezone_get());
     $date = new DrupalDateTime('now', $tz, ['langcode' => 'en']);
     $date->setTimezone(new \DateTimeZone('America/New_York'))->nonexistent();
+  }
+
+  /**
+   * @covers ::getPhpDateTime
+   */
+  public function testGetPhpDateTime() {
+    $new_york = new \DateTimeZone('America/New_York');
+    $berlin = new \DateTimeZone('Europe/Berlin');
+
+    // Test retrieving a cloned copy of the wrapped \DateTime object, and that
+    // altering it does not change the DrupalDateTime object.
+    $drupaldatetime = DrupalDateTime::createFromFormat('Y-m-d H:i:s', '2017-07-13 22:40:00', $new_york, ['langcode' => 'en']);
+    $this->assertEquals(1500000000, $drupaldatetime->getTimestamp());
+    $this->assertEquals('America/New_York', $drupaldatetime->getTimezone()->getName());
+
+    $datetime = $drupaldatetime->getPhpDateTime();
+    $this->assertInstanceOf('DateTime', $datetime);
+    $this->assertEquals(1500000000, $datetime->getTimestamp());
+    $this->assertEquals('America/New_York', $datetime->getTimezone()->getName());
+
+    $datetime->setTimestamp(1400000000)->setTimezone($berlin);
+    $this->assertEquals(1400000000, $datetime->getTimestamp());
+    $this->assertEquals('Europe/Berlin', $datetime->getTimezone()->getName());
+    $this->assertEquals(1500000000, $drupaldatetime->getTimestamp());
+    $this->assertEquals('America/New_York', $drupaldatetime->getTimezone()->getName());
   }
 
 }

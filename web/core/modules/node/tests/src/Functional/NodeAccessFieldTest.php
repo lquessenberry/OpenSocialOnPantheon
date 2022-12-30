@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\node\Functional;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 
@@ -18,7 +17,12 @@ class NodeAccessFieldTest extends NodeTestBase {
    *
    * @var array
    */
-  public static $modules = ['node_access_test', 'field_ui'];
+  protected static $modules = ['node_access_test', 'field_ui'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * A user with permission to bypass access content.
@@ -41,31 +45,40 @@ class NodeAccessFieldTest extends NodeTestBase {
    */
   protected $fieldName;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     node_access_rebuild();
 
     // Create some users.
-    $this->adminUser = $this->drupalCreateUser(['access content', 'bypass node access']);
-    $this->contentAdminUser = $this->drupalCreateUser(['access content', 'administer content types', 'administer node fields']);
+    $this->adminUser = $this->drupalCreateUser([
+      'access content',
+      'bypass node access',
+    ]);
+    $this->contentAdminUser = $this->drupalCreateUser([
+      'access content',
+      'administer content types',
+      'administer node fields',
+    ]);
 
     // Add a custom field to the page content type.
-    $this->fieldName = Unicode::strtolower($this->randomMachineName() . '_field_name');
+    $this->fieldName = mb_strtolower($this->randomMachineName() . '_field_name');
     FieldStorageConfig::create([
       'field_name' => $this->fieldName,
       'entity_type' => 'node',
-      'type' => 'text'
+      'type' => 'text',
     ])->save();
     FieldConfig::create([
       'field_name' => $this->fieldName,
       'entity_type' => 'node',
       'bundle' => 'page',
     ])->save();
-    entity_get_display('node', 'page', 'default')
+    /** @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface $display_repository */
+    $display_repository = \Drupal::service('entity_display.repository');
+    $display_repository->getViewDisplay('node', 'page')
       ->setComponent($this->fieldName)
       ->save();
-    entity_get_form_display('node', 'page', 'default')
+    $display_repository->getFormDisplay('node', 'page')
       ->setComponent($this->fieldName)
       ->save();
   }
@@ -82,33 +95,30 @@ class NodeAccessFieldTest extends NodeTestBase {
     // Log in as the administrator and confirm that the field value is present.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('node/' . $node->id());
-    $this->assertText($value, 'The saved field value is visible to an administrator.');
+    $this->assertSession()->pageTextContains($value);
 
     // Log in as the content admin and try to view the node.
     $this->drupalLogin($this->contentAdminUser);
     $this->drupalGet('node/' . $node->id());
-    $this->assertText('Access denied', 'Access is denied for the content admin.');
+    $this->assertSession()->pageTextContains('Access denied');
 
     // Modify the field default as the content admin.
     $edit = [];
     $default = 'Sometimes words have two meanings';
     $edit["default_value_input[{$this->fieldName}][0][value]"] = $default;
-    $this->drupalPostForm(
-      "admin/structure/types/manage/page/fields/node.page.{$this->fieldName}",
-      $edit,
-      t('Save settings')
-    );
+    $this->drupalGet("admin/structure/types/manage/page/fields/node.page.{$this->fieldName}");
+    $this->submitForm($edit, 'Save settings');
 
     // Log in as the administrator.
     $this->drupalLogin($this->adminUser);
 
     // Confirm that the existing node still has the correct field value.
     $this->drupalGet('node/' . $node->id());
-    $this->assertText($value, 'The original field value is visible to an administrator.');
+    $this->assertSession()->pageTextContains($value);
 
     // Confirm that the new default value appears when creating a new node.
     $this->drupalGet('node/add/page');
-    $this->assertRaw($default, 'The updated default value is displayed when creating a new node.');
+    $this->assertSession()->responseContains($default);
   }
 
 }

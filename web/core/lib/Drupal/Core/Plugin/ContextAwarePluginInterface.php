@@ -8,6 +8,7 @@ use Drupal\Component\Plugin\ContextAwarePluginInterface as ComponentContextAware
  * An override of ContextAwarePluginInterface for documentation purposes.
  *
  * @see \Drupal\Component\Plugin\ContextAwarePluginInterface
+ * @see \Drupal\Core\Plugin\ContextAwarePluginTrait
  *
  * @ingroup plugin_api
  */
@@ -30,7 +31,7 @@ interface ContextAwarePluginInterface extends ComponentContextAwarePluginInterfa
    * @return \Drupal\Core\Plugin\Context\ContextDefinitionInterface
    *   The definition against which the context value must validate.
    *
-   * @throws \Drupal\Component\Plugin\Exception\PluginException
+   * @throws \Drupal\Component\Plugin\Exception\ContextException
    *   If the requested context is not defined.
    */
   public function getContextDefinition($name);

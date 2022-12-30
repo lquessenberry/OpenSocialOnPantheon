@@ -1,17 +1,17 @@
 name: 'Social Post'
 description: 'Provides Post functionality for Open Social.'
 type: module
-core: 8.x
+core_version_requirement: ^9
 dependencies:
   - drupal:block
   - drupal:comment
-  - dropdown:dropdown
+  - social:dropdown
   - drupal:field
   - group:group
   - drupal:options
-  - social_comment:social_comment
-  - drupal:system
+  - social:social_comment
   - drupal:text
   - drupal:user
   - drupal:views
+  - social:activity_creator
 package: Social

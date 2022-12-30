@@ -1,10 +1,11 @@
-social_group.social_group_controller_redirectGroupMemberships:
-  path: '/group/{group}/membership'
+social_group.page_redirect:
+  path: '/group/{group}'
   defaults:
-    _content: '\Drupal\social_group\Controller\SocialGroupContentListBuilder::render'
-    _title_callback: '\Drupal\social_group\Controller\SocialGroupController::groupMembersTitle'
+    _controller: '\Drupal\social_group\Controller\SocialGroupController::otherGroupPage'
+    _title: 'Group'
   requirements:
-    _group_permission: 'administer members'
+    _user_is_logged_in: 'TRUE'
+
 social_group.settings:
   path: '/admin/config/opensocial/social-group'
   defaults:
@@ -21,3 +22,10 @@ social_group.stream:
     _entity_view: 'group.stream'
   requirements:
     _group_permission: 'view group stream page'
+
+social_group.my_groups:
+  path: '/my-groups'
+  defaults:
+    _controller: '\Drupal\social_group\Controller\SocialGroupController:redirectMyGroups'
+  requirements:
+    _user_is_logged_in: 'TRUE'

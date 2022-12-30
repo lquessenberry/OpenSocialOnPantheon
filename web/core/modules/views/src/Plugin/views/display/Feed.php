@@ -5,8 +5,12 @@ namespace Drupal\views\Plugin\views\display;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Cache\CacheableResponse;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\RendererInterface;
+use Drupal\Core\Routing\RouteProviderInterface;
+use Drupal\Core\State\StateInterface;
 use Drupal\views\ViewExecutable;
 use Drupal\views\Views;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -38,6 +42,48 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
    * @var bool
    */
   protected $usesPager = FALSE;
+
+  /**
+   * The renderer.
+   *
+   * @var \Drupal\Core\Render\RendererInterface
+   */
+  protected $renderer;
+
+  /**
+   * Constructs a PathPluginBase object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Routing\RouteProviderInterface $route_provider
+   *   The route provider.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state key value store.
+   * @param \Drupal\Core\Render\RendererInterface $renderer
+   *   The renderer.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, RouteProviderInterface $route_provider, StateInterface $state, RendererInterface $renderer) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $route_provider, $state);
+    $this->renderer = $renderer;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('router.route_provider'),
+      $container->get('state'),
+      $container->get('renderer')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -73,7 +119,6 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
     return $response;
   }
 
-
   /**
    * {@inheritdoc}
    */
@@ -92,7 +137,7 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
     if (!empty($this->view->live_preview)) {
       $output = [
         '#prefix' => '<pre>',
-        '#plain_text' => drupal_render_root($output),
+        '#plain_text' => $this->renderer->renderRoot($output),
         '#suffix' => '</pre>',
       ];
     }
@@ -141,7 +186,7 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
 
     // Overrides for standard stuff.
     $options['style']['contains']['type']['default'] = 'rss';
-    $options['style']['contains']['options']['default']  = ['description' => ''];
+    $options['style']['contains']['options']['default'] = ['description' => ''];
     $options['sitename_title']['default'] = FALSE;
     $options['row']['contains']['type']['default'] = 'rss_fields';
     $options['defaults']['default']['style'] = FALSE;
@@ -236,6 +281,7 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
           ],
         ];
         break;
+
       case 'displays':
         $form['#title'] .= $this->t('Attach to');
         $displays = [];
@@ -253,6 +299,7 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
           '#default_value' => $this->getOption('displays'),
         ];
         break;
+
       case 'path':
         $form['path']['#description'] = $this->t('This view will be displayed by visiting this path on your site. It is recommended that the path be something like "path/%/%/feed" or "path/%/%/rss.xml", putting one % in the path for each contextual filter you have defined in the view.');
     }
@@ -268,6 +315,7 @@ class Feed extends PathPluginBase implements ResponseDisplayPluginInterface {
       case 'title':
         $this->setOption('sitename_title', $form_state->getValue('sitename_title'));
         break;
+
       case 'displays':
         $this->setOption($section, $form_state->getValue($section));
         break;

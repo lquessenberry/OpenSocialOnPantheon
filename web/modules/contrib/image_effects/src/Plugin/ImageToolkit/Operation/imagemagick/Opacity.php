@@ -24,7 +24,7 @@ class Opacity extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    if ($this->getToolkit()->getPackage() === 'graphicsmagick') {
+    if ($this->getToolkit()->getExecManager()->getPackage() === 'graphicsmagick') {
       // GraphicsMagick does not support -alpha argument, return early.
       // @todo implement a GraphicsMagick solution if possible.
       return FALSE;
@@ -37,14 +37,14 @@ class Opacity extends ImagemagickImageToolkitOperationBase {
 
       case 0:
         // Fully transparent, set full transparent for all pixels.
-        $this->getToolkit()->addArgument("-alpha set -channel Alpha -evaluate Set 0%");
+        $this->addArgument("-alpha set -channel Alpha -evaluate Set 0%");
         break;
 
       default:
         // Divide existing alpha to the opacity needed. This preserves
         // partially transparent images.
         $divide = number_format((float) (100 / $arguments['opacity']), 4, '.', ',');
-        $this->getToolkit()->addArgument("-alpha set -channel Alpha -evaluate Divide {$divide}");
+        $this->addArgument("-alpha set -channel Alpha -evaluate Divide {$divide}");
         break;
 
     }

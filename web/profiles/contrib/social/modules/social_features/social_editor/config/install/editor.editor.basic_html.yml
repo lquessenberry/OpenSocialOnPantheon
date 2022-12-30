@@ -39,6 +39,11 @@ settings:
           name: Tools
           items:
             - Source
+            - Maximize
+        -
+          name: Tables
+          items:
+            - Table
   plugins:
     stylescombo:
       styles: ''

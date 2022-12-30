@@ -3,9 +3,11 @@
 namespace Drupal\block_field\Plugin\Field\FieldType;
 
 use Drupal\block_field\BlockFieldItemInterface;
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Field\FieldItemBase;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
 use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\TypedData\MapDataDefinition;
 
@@ -28,7 +30,8 @@ class BlockFieldItem extends FieldItemBase implements BlockFieldItemInterface {
    */
   public static function defaultFieldSettings() {
     return [
-      'plugin_ids' => [],
+      'selection' => 'blocks',
+      'selection_settings' => [],
     ] + parent::defaultFieldSettings();
   }
 
@@ -81,44 +84,52 @@ class BlockFieldItem extends FieldItemBase implements BlockFieldItemInterface {
   public function fieldSettingsForm(array $form, FormStateInterface $form_state) {
     $field = $form_state->getFormObject()->getEntity();
 
-    /** @var \Drupal\block_field\BlockFieldManagerInterface $block_field_manager */
-    $block_field_manager = \Drupal::service('block_field.manager');
-    $definitions = $block_field_manager->getBlockDefinitions();
-    foreach ($definitions as $plugin_id => $definition) {
-      $options[$plugin_id] = [
-        ['category' => (string) $definition['category']],
-        ['label' => $definition['admin_label'] . ' (' . $plugin_id . ')'],
-        ['provider' => $definition['provider']],
-      ];
-    }
+    /** @var \Drupal\block_field\BlockFieldSelectionManager $block_field_selection_manager */
+    $block_field_selection_manager = \Drupal::service('plugin.manager.block_field_selection');
+    $options = $block_field_selection_manager->getOptions();
+    $form = [
+      '#type' => 'container',
+      '#process' => [[get_class($this), 'fieldSettingsAjaxProcess']],
+      '#element_validate' => [[get_class($this), 'fieldSettingsFormValidate']],
 
-    $default_value = $field->getSetting('plugin_ids') ?: array_keys($options);
-
-    $element = [];
-    $element['blocks'] = [
+    ];
+    $form['selection'] = [
       '#type' => 'details',
-      '#title' => $this->t('Blocks'),
-      '#description' => $this->t('Please select available blocks.'),
-      '#open' => $field->getSetting('plugin_ids') ? TRUE : FALSE,
+      '#title' => $this->t('Available blocks'),
+      '#open' => TRUE,
+      '#tree' => TRUE,
+      '#process' => [[get_class($this), 'formProcessMergeParent']],
     ];
-    $element['blocks']['plugin_ids'] = [
-      '#type' => 'tableselect',
-      '#header' => [
-        'Category',
-        'Label/ID',
-        'Provider',
-      ],
-      '#options' => $options,
-      '#js_select' => TRUE,
-      '#required' => TRUE,
-      '#empty' => t('No blocks are available.'),
-      '#parents' => ['settings', 'plugin_ids'],
-      '#element_validate' => [[get_called_class(), 'validatePluginIds']],
-      '#default_value' => array_combine($default_value, $default_value),
-    ];
-    return $element;
-  }
 
+    $form['selection']['selection'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Selection method'),
+      '#options' => $options,
+      '#default_value' => $field->getSetting('selection'),
+      '#required' => TRUE,
+      '#ajax' => TRUE,
+      '#limit_validation_errors' => [],
+    ];
+    $form['selection']['selection_submit'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Change selection'),
+      '#limit_validation_errors' => [],
+      '#attributes' => [
+        'class' => ['js-hide'],
+      ],
+      '#submit' => [[get_class($this), 'settingsAjaxSubmit']],
+    ];
+
+    $form['selection']['selection_settings'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['block_field-settings']],
+    ];
+
+    $selection = $block_field_selection_manager->getSelectionHandler($field);
+    $form['selection']['selection_settings'] += $selection->buildConfigurationForm([], $form_state);
+
+    return $form;
+  }
 
   /**
    * {@inheritdoc}
@@ -182,17 +193,85 @@ class BlockFieldItem extends FieldItemBase implements BlockFieldItemInterface {
   }
 
   /**
-   * Validates plugin_ids table select element.
+   * Render API callback.
+   *
+   * Processes the field settings form and allows access to
+   * the form state.
+   *
+   * @see \Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem
+   * @see static::fieldSettingsForm()
    */
-  public static function validatePluginIds(array &$element, FormStateInterface $form_state, &$complete_form) {
-    $value = array_filter($element['#value']);
-    if (array_keys($element['#options']) == array_keys($value)) {
-      $form_state->setValueForElement($element, []);
+  public static function fieldSettingsAjaxProcess($form, FormStateInterface $form_state) {
+    static::fieldSettingsAjaxProcessElement($form, $form);
+    return $form;
+  }
+
+  /**
+   * Adds block_field specific properties to AJAX form elements from settings.
+   *
+   * @see \Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem
+   * @see static::fieldSettingsAjaxProcess()
+   */
+  public static function fieldSettingsAjaxProcessElement(&$element, $main_form) {
+    if (!empty($element['#ajax'])) {
+      $element['#ajax'] = [
+        'callback' => [get_called_class(), 'settingsAjax'],
+        'wrapper' => $main_form['#id'],
+        'element' => $main_form['#array_parents'],
+      ];
     }
-    else {
-      $form_state->setValueForElement($element, $value);
+
+    foreach (Element::children($element) as $key) {
+      static::fieldSettingsAjaxProcessElement($element[$key], $main_form);
     }
+  }
+
+  /**
+   * Ajax callback for the selection settings form.
+   *
+   * @see \Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem
+   * @see static::fieldSettingsForm()
+   */
+  public static function settingsAjax($form, FormStateInterface $form_state) {
+    return NestedArray::getValue($form, $form_state->getTriggeringElement()['#ajax']['element']);
+  }
+
+  /**
+   * Submit selection for the non-JS case.
+   *
+   * @see \Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem
+   * @see static::fieldSettingsForm()
+   */
+  public static function settingsAjaxSubmit($form, FormStateInterface $form_state) {
+    $form_state->setRebuild();
+  }
+
+  /**
+   * Render API callback.
+   *
+   * Moves block_field specific Form API elements
+   * (i.e. 'selection_settings') up a level for easier processing by the
+   * validation and submission selections.
+   */
+  public static function formProcessMergeParent($element) {
+    $parents = $element['#parents'];
+    array_pop($parents);
+    $element['#parents'] = $parents;
     return $element;
+  }
+
+  /**
+   * Form element validation handler; Invokes selection plugin's validation.
+   *
+   * @param array $form
+   *   The form where the settings form is being included in.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state of the (entire) configuration form.
+   */
+  public static function fieldSettingsFormValidate(array $form, FormStateInterface $form_state) {
+    $field = $form_state->getFormObject()->getEntity();
+    $handler = \Drupal::service('plugin.manager.block_field_selection')->getSelectionHandler($field);
+    $handler->validateConfigurationForm($form, $form_state);
   }
 
 }

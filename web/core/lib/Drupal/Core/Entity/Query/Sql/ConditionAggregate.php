@@ -5,7 +5,6 @@ namespace Drupal\Core\Entity\Query\Sql;
 use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\Entity\Query\ConditionAggregateBase;
 use Drupal\Core\Entity\Query\ConditionAggregateInterface;
-use Drupal\Core\Database\Query\Condition as SqlCondition;
 use Drupal\Core\Entity\Query\QueryBase;
 
 /**
@@ -26,7 +25,7 @@ class ConditionAggregate extends ConditionAggregateBase {
     $tables = new Tables($sql_query);
     foreach ($this->conditions as $condition) {
       if ($condition['field'] instanceof ConditionAggregateInterface) {
-        $sql_condition = new SqlCondition($condition['field']->getConjunction());
+        $sql_condition = $sql_query->getConnection()->condition($condition['field']->getConjunction());
         // Add the SQL query to the object before calling this method again.
         $sql_condition->sqlQuery = $sql_query;
         $condition['field']->compile($sql_condition);
@@ -39,7 +38,8 @@ class ConditionAggregate extends ConditionAggregateBase {
         $condition_class::translateCondition($condition, $sql_query, $tables->isFieldCaseSensitive($condition['field']));
         $function = $condition['function'];
         $placeholder = ':db_placeholder_' . $conditionContainer->nextPlaceholder();
-        $conditionContainer->having("$function($field) {$condition['operator']} $placeholder", [$placeholder => $condition['value']]);
+        $sql_field_escaped = '[' . str_replace('.', '].[', $field) . ']';
+        $conditionContainer->having("$function($sql_field_escaped) {$condition['operator']} $placeholder", [$placeholder => $condition['value']]);
       }
     }
   }

@@ -3,8 +3,7 @@ type: module
 description: 'Enables the categorization of content.'
 package: Core
 version: VERSION
-core: 8.x
 dependencies:
-  - node
-  - text
+  - drupal:node
+  - drupal:text
 configure: entity.taxonomy_vocabulary.collection

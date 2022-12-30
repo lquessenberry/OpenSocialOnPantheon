@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\group\Kernel;
 
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
+use Drupal\Core\Config\Entity\Exception\ConfigEntityIdLengthException;
 use Drupal\group\Entity\GroupTypeInterface;
 
 /**
@@ -33,10 +35,10 @@ class GroupTypeTest extends GroupKernelTestBase {
    * Tests the maximum ID length of a group type.
    *
    * @covers ::preSave
-   * @expectedException \Drupal\Core\Config\Entity\Exception\ConfigEntityIdLengthException
-   * @expectedExceptionMessageRegExp /Attempt to create a group type with an ID longer than \d+ characters: \w+\./
    */
   public function testMaximumIdLength() {
+    $this->expectException(ConfigEntityIdLengthException::class);
+    $this->expectExceptionMessageRegExp('/Attempt to create a group type with an ID longer than \d+ characters: \w+\./');
     $this->entityTypeManager
       ->getStorage('group_type')
       ->create([
@@ -82,10 +84,10 @@ class GroupTypeTest extends GroupKernelTestBase {
    * Tests the retrieval of a non-existent plugin.
    *
    * @covers ::getContentPlugin
-   * @expectedException \Drupal\Component\Plugin\Exception\PluginNotFoundException
-   * @expectedExceptionMessage Plugin ID 'fake_plugin_id' was not found.
    */
   public function testGetNonExistentContentPlugin() {
+    $this->expectException(PluginNotFoundException::class);
+    $this->expectExceptionMessage("Plugin ID 'fake_plugin_id' was not found.");
     $this->groupType->getContentPlugin('fake_plugin_id');
   }
 

@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\State\StateInterface;
 use Drupal\Core\Form\ConfigFormBase;
+use Drupal\Core\Url;
 use Drupal\user\PermissionHandlerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -24,10 +25,10 @@ class SiteMaintenanceModeForm extends ConfigFormBase {
   protected $state;
 
   /**
-  * The permission handler.
-  *
-  * @var \Drupal\user\PermissionHandlerInterface
-  */
+   * The permission handler.
+   *
+   * @var \Drupal\user\PermissionHandlerInterface
+   */
   protected $permissionHandler;
 
   /**
@@ -56,6 +57,7 @@ class SiteMaintenanceModeForm extends ConfigFormBase {
       $container->get('user.permissions')
     );
   }
+
   /**
    * {@inheritdoc}
    */
@@ -79,13 +81,13 @@ class SiteMaintenanceModeForm extends ConfigFormBase {
     $permission_label = $permissions['access site in maintenance mode']['title'];
     $form['maintenance_mode'] = [
       '#type' => 'checkbox',
-      '#title' => t('Put site into maintenance mode'),
+      '#title' => $this->t('Put site into maintenance mode'),
       '#default_value' => $this->state->get('system.maintenance_mode'),
-      '#description' => t('Visitors will only see the maintenance mode message. Only users with the "@permission-label" <a href=":permissions-url">permission</a> will be able to access the site. Authorized users can log in directly via the <a href=":user-login">user login</a> page.', ['@permission-label' => $permission_label, ':permissions-url' => $this->url('user.admin_permissions'), ':user-login' => $this->url('user.login')]),
+      '#description' => $this->t('Visitors will only see the maintenance mode message. Only users with the "@permission-label" <a href=":permissions-url">permission</a> will be able to access the site. Authorized users can log in directly via the <a href=":user-login">user login</a> page.', ['@permission-label' => $permission_label, ':permissions-url' => Url::fromRoute('user.admin_permissions')->toString(), ':user-login' => Url::fromRoute('user.login')->toString()]),
     ];
     $form['maintenance_mode_message'] = [
       '#type' => 'textarea',
-      '#title' => t('Message to display when in maintenance mode'),
+      '#title' => $this->t('Message to display when in maintenance mode'),
       '#default_value' => $config->get('message'),
     ];
 

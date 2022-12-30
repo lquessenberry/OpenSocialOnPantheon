@@ -12,6 +12,11 @@ namespace Drupal\FunctionalTests\Installer;
 class InstallerTranslationQueryTest extends InstallerTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Overrides the language code in which to install Drupal.
    *
    * @var string
@@ -23,8 +28,8 @@ class InstallerTranslationQueryTest extends InstallerTestBase {
    */
   protected function visitInstaller() {
     // Place a custom local translation in the translations directory.
-    mkdir(\Drupal::root() . '/' . $this->siteDirectory . '/files/translations', 0777, TRUE);
-    file_put_contents(\Drupal::root() . '/' . $this->siteDirectory . '/files/translations/drupal-8.0.0.de.po', $this->getPo('de'));
+    mkdir($this->root . '/' . $this->siteDirectory . '/files/translations', 0777, TRUE);
+    file_put_contents($this->root . '/' . $this->siteDirectory . '/files/translations/drupal-8.0.0.de.po', $this->getPo('de'));
 
     // The unrouted URL assembler does not exist at this point, so we build the
     // URL ourselves.
@@ -32,34 +37,32 @@ class InstallerTranslationQueryTest extends InstallerTestBase {
 
     // The language should have been automatically detected, all following
     // screens should be translated already.
-    $elements = $this->xpath('//input[@type="submit"]/@value');
-    $this->assertEqual(current($elements)->getText(), 'Save and continue de');
+    $this->assertSession()->buttonExists('Save and continue de');
     $this->translations['Save and continue'] = 'Save and continue de';
 
     // Check the language direction.
-    $direction = current($this->xpath('/@dir'))->getText();
-    $this->assertEqual($direction, 'ltr');
+    $this->assertSession()->elementTextEquals('xpath', '/@dir', 'ltr');
   }
 
   /**
    * {@inheritdoc}
    */
   protected function setUpLanguage() {
-    // The language was was preset by passing a query parameter in the URL, so
-    // no explicit language selection is necessary.
+    // The language was preset by passing a query parameter in the URL, so no
+    // explicit language selection is necessary.
   }
 
   /**
    * Verifies the expected behaviors of the installation result.
    */
   public function testInstaller() {
-    $this->assertUrl('user/1');
-    $this->assertResponse(200);
+    $this->assertSession()->addressEquals('user/1');
+    $this->assertSession()->statusCodeEquals(200);
 
     // Verify German was configured but not English.
     $this->drupalGet('admin/config/regional/language');
-    $this->assertText('German');
-    $this->assertNoText('English');
+    $this->assertSession()->pageTextContains('German');
+    $this->assertSession()->pageTextNotContains('English');
   }
 
   /**
@@ -67,6 +70,7 @@ class InstallerTranslationQueryTest extends InstallerTestBase {
    *
    * @param string $langcode
    *   The language code.
+   *
    * @return string
    *   Contents for the test .po file.
    */

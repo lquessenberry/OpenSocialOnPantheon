@@ -1,0 +1,11 @@
+type: module
+name: GraphQL Resolver Builder Test
+description: Tests the graphql resolver builder functionality.
+package: Testing
+core_version_requirement: ^8 || ^9
+hidden: TRUE
+
+# Information added by Drupal.org packaging script on 2022-02-15
+version: '8.x-4.3'
+project: 'graphql'
+datestamp: 1644938312

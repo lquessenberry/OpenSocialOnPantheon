@@ -101,7 +101,8 @@ abstract class CountryAwareInOperatorBase extends InOperator {
    *   The field name, defaults to the current field name for this filter.
    *
    * @return array
-   *   An array of available country codes, including the full list when unrestricted.
+   *   An array of available country codes, including the full list when
+   *   unrestricted.
    */
   protected function getAvailableCountries(EntityTypeInterface $entity_type = NULL, $field_name = NULL) {
     if (!isset($entity_type)) {

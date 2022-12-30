@@ -1,10 +1,12 @@
 <?php
+
 namespace Drush\Drupal\Commands\pm;
 
 use Consolidation\AnnotatedCommand\CommandData;
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\MissingDependencyException;
+use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ModuleInstallerInterface;
 use Drupal\Core\Extension\ThemeHandlerInterface;
@@ -15,59 +17,72 @@ use Drush\Utils\StringUtils;
 
 class PmCommands extends DrushCommands
 {
-
     protected $configFactory;
 
     protected $moduleInstaller;
 
+    protected $moduleHandler;
+
     protected $themeHandler;
 
-    public function __construct(ConfigFactoryInterface $configFactory, ModuleInstallerInterface $moduleInstaller, ThemeHandlerInterface $themeHandler)
+    protected $extensionListModule;
+
+    public function __construct(ConfigFactoryInterface $configFactory, ModuleInstallerInterface $moduleInstaller, ModuleHandlerInterface $moduleHandler, ThemeHandlerInterface $themeHandler, ModuleExtensionList $extensionListModule)
     {
         parent::__construct();
         $this->configFactory = $configFactory;
         $this->moduleInstaller = $moduleInstaller;
+        $this->moduleHandler = $moduleHandler;
         $this->themeHandler = $themeHandler;
+        $this->extensionListModule = $extensionListModule;
     }
 
-    /**
-     * @return \Drupal\Core\Config\ConfigFactoryInterface
-     */
-    public function getConfigFactory()
+    public function getConfigFactory(): ConfigFactoryInterface
     {
         return $this->configFactory;
     }
 
-    /**
-     * @return \Drupal\Core\Extension\ModuleInstallerInterface
-     */
-    public function getModuleInstaller()
+    public function getModuleInstaller(): ModuleInstallerInterface
     {
         return $this->moduleInstaller;
     }
 
-    /**
-     * @return \Drupal\Core\Extension\ThemeHandlerInterface
-     */
-    public function getThemeHandler()
+    public function getModuleHandler(): ModuleHandlerInterface
+    {
+        return $this->moduleHandler;
+    }
+
+    public function getThemeHandler(): ThemeHandlerInterface
     {
         return $this->themeHandler;
+    }
+
+    public function getExtensionListModule(): ModuleExtensionList
+    {
+        return $this->extensionListModule;
     }
 
     /**
      * Enable one or more modules.
      *
-     * @command pm:enable
+     * @command pm:install
      * @param $modules A comma delimited list of modules.
-     * @aliases en,pm-enable
+     * @aliases in, install, pm-install, en, pm-enable, pm:enable
+     * @bootstrap root
+     *
+     * @usage drush pm:install --simulate content_moderation
+     *    Display what modules would be installed but don't install them.
      */
-    public function enable(array $modules)
+    public function install(array $modules): void
     {
         $modules = StringUtils::csvToArray($modules);
         $todo = $this->addInstallDependencies($modules);
         $todo_str = ['!list' => implode(', ', $todo)];
         if (empty($todo)) {
             $this->logger()->notice(dt('Already enabled: !list', ['!list' => implode(', ', $modules)]));
+            return;
+        } elseif (Drush::simulate()) {
+            $this->output()->writeln(dt('The following module(s) will be enabled: !list', $todo_str));
             return;
         } elseif (array_values($todo) !== $modules) {
             $this->output()->writeln(dt('The following module(s) will be enabled: !list', $todo_str));
@@ -83,9 +98,62 @@ class PmCommands extends DrushCommands
             drush_backend_batch_process();
         }
         $this->logger()->success(dt('Successfully enabled: !list', $todo_str));
-        // Our logger got blown away during the container rebuild above.
-        $boot = Drush::bootstrapManager()->bootstrap();
-        $boot->addLogger();
+    }
+
+    /**
+     * Run requirements checks on the module installation.
+     *
+     * @hook validate pm:install
+     *
+     * @throws UserAbortException
+     * @throws MissingDependencyException
+     *
+     * @see \drupal_check_module()
+     */
+    public function validateEnableModules(CommandData $commandData): void
+    {
+        $modules = $commandData->input()->getArgument('modules');
+        $modules = StringUtils::csvToArray($modules);
+        $modules = $this->addInstallDependencies($modules);
+        if (empty($modules)) {
+            return;
+        }
+
+        require_once DRUSH_DRUPAL_CORE . '/includes/install.inc';
+        $error = false;
+        foreach ($modules as $module) {
+            // Note: we can't just call the API ($moduleHandler->loadInclude($module, 'install')),
+            // because the API ignores modules that haven't been installed yet. We have
+            // to do it the same way the `function drupal_check_module($module)` does.
+            $module_list = \Drupal::service('extension.list.module');
+            $file = DRUPAL_ROOT . '/' . $module_list->getPath($module) . "/$module.install";
+            if (is_file($file)) {
+                require_once $file;
+            }
+            // Once we've loaded the module, we can invoke its requirements hook.
+            $requirements = $this->getModuleHandler()->invoke($module, 'requirements', ['install']);
+            if (is_array($requirements) && drupal_requirements_severity($requirements) == REQUIREMENT_ERROR) {
+                $error = true;
+                $reasons = [];
+                foreach ($requirements as $id => $requirement) {
+                    if (isset($requirement['severity']) && $requirement['severity'] == REQUIREMENT_ERROR) {
+                        $message = $requirement['description'];
+                        if (isset($requirement['value']) && $requirement['value']) {
+                            $message = dt('@requirements_message (Currently using @item version @version)', ['@requirements_message' => $requirement['description'], '@item' => $requirement['title'], '@version' => $requirement['value']]);
+                        }
+                        $reasons[$id] = $message;
+                    }
+                }
+                $this->logger()->error(sprintf("Unable to install module '%s' due to unmet requirement(s):%s", $module, "\n  - " . implode("\n  - ", $reasons)));
+            }
+        }
+
+        if ($error) {
+            // Allow the user to bypass the install requirements.
+            if (!$this->io()->confirm(dt('The module install requirements failed. Do you wish to continue?'), false)) {
+                throw new UserAbortException();
+            }
+        }
     }
 
     /**
@@ -93,12 +161,31 @@ class PmCommands extends DrushCommands
      *
      * @command pm:uninstall
      * @param $modules A comma delimited list of modules.
-     * @aliases pmu,pm-uninstall
+     * @aliases un,pmu,pm-uninstall
+     *
+     * @usage drush pm:uninstall --simulate field_ui
+     *      Display what modules would be uninstalled but don't uninstall them.
      */
-    public function uninstall(array $modules)
+    public function uninstall(array $modules): void
     {
         $modules = StringUtils::csvToArray($modules);
-        $list = $this->addUninstallDependencies($modules);
+
+        $installed_modules = array_filter($modules, function ($module) {
+            return $this->getModuleHandler()->moduleExists($module);
+        });
+        if ($installed_modules === []) {
+            throw new \Exception(dt('The following module(s) are not installed: !list. No modules to uninstall.', ['!list' => implode(', ', $modules)]));
+        }
+        if ($installed_modules !== $modules) {
+            $this->logger()->warning(dt('The following module(s) are not installed and will not be uninstalled: !list', ['!list' => implode(', ', array_diff($modules, $installed_modules))]));
+        }
+
+        $list = $this->addUninstallDependencies($installed_modules);
+        if (Drush::simulate()) {
+            $this->output()->writeln(dt('The following extensions will be uninstalled: !list', ['!list' => implode(', ', $list)]));
+            return;
+        }
+
         if (array_values($list) !== $modules) {
             $this->output()->writeln(dt('The following extensions will be uninstalled: !list', ['!list' => implode(', ', $list)]));
             if (!$this->io()->confirm(dt('Do you want to continue?'))) {
@@ -109,15 +196,12 @@ class PmCommands extends DrushCommands
             throw new \Exception('Unable to uninstall modules.');
         }
         $this->logger()->success(dt('Successfully uninstalled: !list', ['!list' => implode(', ', $list)]));
-        // Our logger got blown away during the container rebuild above.
-        $boot = Drush::bootstrapManager()->bootstrap();
-        $boot->addLogger();
     }
 
     /**
      * @hook validate pm-uninstall
      */
-    public function validateUninstall(CommandData $commandData)
+    public function validateUninstall(CommandData $commandData): void
     {
         if ($modules = $commandData->input()->getArgument('modules')) {
             $modules = StringUtils::csvToArray($modules);
@@ -143,6 +227,7 @@ class PmCommands extends DrushCommands
      * @option package Only show extensions having a given project packages (e.g. Development).
      * @field-labels
      *   package: Package
+     *   project: Project
      *   display_name: Name
      *   name: Name
      *   type: Type
@@ -151,16 +236,17 @@ class PmCommands extends DrushCommands
      *   version: Version
      * @default-fields package,display_name,status,version
      * @aliases pml,pm-list
-     * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+     * @filter-default-field display_name
      */
-    public function pmList($options = ['format' => 'table', 'type' => 'module,theme', 'status' => 'enabled,disabled', 'package' => self::REQ, 'core' => false, 'no-core' => false])
+    public function pmList($options = ['format' => 'table', 'type' => 'module,theme', 'status' => 'enabled,disabled', 'package' => self::REQ, 'core' => false, 'no-core' => false]): RowsOfFields
     {
         $rows = [];
-        $modules = \system_rebuild_module_data();
+
+        $modules = $this->getExtensionListModule()->getList();
         $themes = $this->getThemeHandler()->rebuildThemeData();
         $both = array_merge($modules, $themes);
 
-        $package_filter = StringUtils::csvToArray(strtolower($options['package']));
+        $package_filter = StringUtils::csvToArray(strtolower((string) $options['package']));
         $type_filter = StringUtils::csvToArray(strtolower($options['type']));
         $status_filter = StringUtils::csvToArray(strtolower($options['status']));
 
@@ -209,7 +295,8 @@ class PmCommands extends DrushCommands
 
             $row = [
                 'package' => $extension->info['package'],
-                'display_name' => $extension->info['name']. ' ('. $extension->getName(). ')',
+                'project' => isset($extension->info['project']) ? $extension->info['project'] : '',
+                'display_name' => $extension->info['name'] . ' (' . $extension->getName() . ')',
                 'name' => $extension->getName(),
                 'type' => $extension->getType(),
                 'path' => $extension->getPath(),
@@ -232,14 +319,14 @@ class PmCommands extends DrushCommands
      * @return
      *   String describing extension status. Values: enabled|disabled.
      */
-    public function extensionStatus($extension)
+    public function extensionStatus($extension): string
     {
         return $extension->status == 1 ? 'enabled' : 'disabled';
     }
 
-    public function addInstallDependencies($modules)
+    public function addInstallDependencies($modules): array
     {
-        $module_data = system_rebuild_module_data();
+        $module_data = $this->getExtensionListModule()->reset()->getList();
         $module_list  = array_combine($modules, $modules);
         if ($missing_modules = array_diff_key($module_list, $module_data)) {
             // One or more of the given modules doesn't exist.
@@ -273,7 +360,7 @@ class PmCommands extends DrushCommands
     public function addUninstallDependencies($modules)
     {
         // Get all module data so we can find dependencies and sort.
-        $module_data = system_rebuild_module_data();
+        $module_data = $this->getExtensionListModule()->reset()->getList();
         $module_list = array_combine($modules, $modules);
         if ($diff = array_diff_key($module_list, $module_data)) {
             throw new \Exception(dt('A specified extension does not exist: !diff', ['!diff' => implode(',', $diff)]));
@@ -283,7 +370,7 @@ class PmCommands extends DrushCommands
 
         // Add dependent modules to the list. The new modules will be processed as
         // the while loop continues.
-        $profile = drupal_get_profile();
+        $profile = \Drupal::installProfile();
         foreach (array_keys($module_list) as $module) {
             foreach (array_keys($module_data[$module]->required_by) as $dependent) {
                 if (!isset($module_data[$dependent])) {

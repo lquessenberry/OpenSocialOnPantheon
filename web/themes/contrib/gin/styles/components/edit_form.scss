@@ -1,0 +1,268 @@
+// Node layout
+.gin--edit-form {
+  // Has sidebar, save the space
+  @include mq($breakpointLarge) {
+    padding-right: var(--ginSidebarWidth);
+
+    .dialog-off-canvas-main-canvas {
+      transition: padding-left var(--ginTransition);
+    }
+
+    // If off-canvas dialog is shown
+    &.js-off-canvas-dialog-open {
+      padding-right: 0;
+
+      // Hide sidebar when off-canvas is shown
+      .layout-region.layout-region-node-secondary {
+        visibility: hidden;
+        opacity: 0;
+      }
+    }
+  }
+
+  // Hide delete Tab
+  [data-drupal-link-system-path*="/delete"] {
+    display: none;
+  }
+
+  .layout-node-form {
+    overflow: inherit;
+  }
+
+  .layout-region-node-main,
+  .layout-region-node-secondary
+  .layout-region-node-footer {
+    float: none;
+  }
+
+  .layout-region-node-main,
+  .layout-region-node-footer {
+    width: 100%;
+    padding-right: 0;
+
+    @include mq($breakpointLarge) {
+      flex-basis: 40%;
+      flex-shrink: 1;
+      flex-grow: 1;
+      min-width: 0;
+    }
+  }
+
+  .page-wrapper__node-edit-form {
+    .block-page-title-block {
+      @include mq(1730px) {
+        width: 100%;
+        // max-width: $breakpointWide;
+        // margin: 0 auto;
+      }
+
+      .page-title {
+        @include mq($breakpointLarge) {
+          width: auto;
+          max-width: 800px;
+          margin: 0;
+          overflow: hidden;
+        }
+      }
+    }
+
+    // More room for content to breathe
+    .node-form {
+      @include mq($breakpointBig) {
+        padding-left: 2.5rem;
+        padding-right: 2.5rem;
+      }
+    }
+
+    .block-local-tasks-block,
+    .block-system-main-block,
+    .messages-list,
+    .node-form,
+    .node-confirm-form,
+    .admin-list,
+    .help {
+      width: 100%;
+      max-width: $breakpointWide;
+      margin-left: auto;
+      margin-right: auto;
+      box-sizing: border-box;
+    }
+
+    .layout-region-node-secondary {
+      width: 100%;
+
+      @include mq($breakpointLarge) {
+        z-index: 101;
+        flex-basis: var(--ginSidebarWidth);
+        width: var(--ginSidebarWidth) !important;
+        position: fixed;
+        top: 0;
+        right: 0;
+        margin: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        height: 100%;
+        background:var(--colorGinLayerBackground);
+        border-left: 1px solid var(--colorGinLayerBorder);
+
+        .gin--dark-mode & {
+          box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+        }
+      }
+
+      .gin-sidebar {
+        .form-actions {
+          margin: 0;
+
+          .action-link {
+            margin-top: .5rem;
+            margin-bottom: 0;
+          }
+        }
+      }
+
+      .field--name-revision-log {
+        margin-top: 1.5rem;
+      }
+
+      .accordion {
+        background: none;
+        border: 0 none;
+        box-shadow: none;
+      }
+
+      .entity-meta {
+        $sidebarSpacer: 1.5rem;
+
+        &__header {
+          color: var(--colorGinText);
+          padding-left: 0;
+          padding-right: 0;
+          background: none;
+          border: 0 none;
+
+          @include mq($breakpointLarge) {
+            padding-left: $sidebarSpacer;
+            padding-right: $sidebarSpacer;
+          }
+        }
+
+        &__title {
+          color: var(--colorGinTitle);
+          font-weight: 500;
+          margin-top: .25rem;
+          margin-bottom: 1rem;
+          text-shadow: none;
+        }
+
+        > .accordion__item {
+          margin: 0;
+          border: 0 none;
+          border-bottom: 1px solid var(--colorGinLayerBorder);
+          border-radius: 0;
+
+          .gin--dark-mode & {
+            border-color: var(--colorGinBorder);
+          }
+
+          > .claro-details__summary {
+            display: block;
+            padding-left: #{$sidebarSpacer + 1.5rem};
+
+            .details-title {
+              position: static;
+              padding-left: 0;
+            }
+
+            &::before {
+              top: 2rem;
+              left: $sidebarSpacer;
+            }
+
+            &:focus::after {
+              border-radius: 6px;
+            }
+          }
+
+          .claro-details__content {
+            margin-left: $sidebarSpacer;
+            margin-right: $sidebarSpacer;
+
+            .claro-details__wrapper {
+              margin: 1.5rem;
+            }
+          }
+
+          .redirect-table__path {
+            width: 47%;
+          }
+
+          .form-type--entity-autocomplete .claro-autocomplete {
+            width: 100%;
+          }
+
+          .form-datetime-wrapper {
+            .form-items-inline {
+              display: flex;
+              flex-wrap: wrap;
+
+              @include mq($breakpointTiny) {
+                flex-wrap: nowrap;
+              }
+
+              @include mq($breakpointLarge $breakpointWide) {
+                flex-wrap: wrap;
+              }
+            }
+
+            .form-type--date {
+              display: block;
+              flex-basis: 100%;
+              flex-grow: 1;
+
+              @include mq($breakpointTiny) {
+                flex-basis: 50%;
+              }
+
+              @include mq($breakpointLarge $breakpointWide) {
+                flex-basis: 100%;
+              }
+
+              &:first-of-type {
+                @include mq($breakpointTiny) {
+                  margin-right: .5rem;
+                }
+
+                @include mq($breakpointLarge $breakpointWide) {
+                  margin-right: 0;
+                }
+              }
+
+              &:nth-of-type(2) {
+                flex-basis: 134px;
+              }
+
+              .form-element {
+                min-width: 0;
+                width: 100%;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .revision-current {
+    background-color: var(--colorGinPrimaryLightActive);
+  }
+
+  .field--name-title .form-element {
+    font-size: 1.6em;
+    font-weight: 500;
+    line-height: normal;
+    letter-spacing: -0.025em;
+    width: 100%;
+  }
+}

@@ -20,42 +20,42 @@ class TokenTest extends UnitTestCase {
   /**
    * The cache used for testing.
    *
-   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $cache;
 
   /**
    * The language manager used for testing.
    *
-   * @var \Drupal\Core\Language\LanguageManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Language\LanguageManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $languageManager;
 
   /**
    * The module handler service used for testing.
    *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $moduleHandler;
 
   /**
    * The language interface used for testing.
    *
-   * @var \Drupal\Core\Language\LanguageInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Language\LanguageInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $language;
 
   /**
    * The token service under test.
    *
-   * @var \Drupal\Core\Utility\Token|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Utility\Token|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $token;
 
   /**
    * The cache tags invalidator.
    *
-   * @var \Drupal\Core\Cache\CacheTagsInvalidatorInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Cache\CacheTagsInvalidatorInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $cacheTagsInvalidator;
 
@@ -69,32 +69,32 @@ class TokenTest extends UnitTestCase {
   /**
    * The renderer.
    *
-   * @var \Drupal\Core\Render\RendererInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Render\RendererInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $renderer;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    $this->cache = $this->getMock('\Drupal\Core\Cache\CacheBackendInterface');
+  protected function setUp(): void {
+    $this->cache = $this->createMock('\Drupal\Core\Cache\CacheBackendInterface');
 
-    $this->languageManager = $this->getMock('Drupal\Core\Language\LanguageManagerInterface');
+    $this->languageManager = $this->createMock('Drupal\Core\Language\LanguageManagerInterface');
 
-    $this->moduleHandler = $this->getMock('\Drupal\Core\Extension\ModuleHandlerInterface');
+    $this->moduleHandler = $this->createMock('\Drupal\Core\Extension\ModuleHandlerInterface');
 
-    $this->language = $this->getMock('\Drupal\Core\Language\LanguageInterface');
+    $this->language = $this->createMock('\Drupal\Core\Language\LanguageInterface');
 
-    $this->cacheTagsInvalidator = $this->getMock('\Drupal\Core\Cache\CacheTagsInvalidatorInterface');
+    $this->cacheTagsInvalidator = $this->createMock('\Drupal\Core\Cache\CacheTagsInvalidatorInterface');
 
-    $this->renderer = $this->getMock('Drupal\Core\Render\RendererInterface');
+    $this->renderer = $this->createMock('Drupal\Core\Render\RendererInterface');
 
     $this->token = new Token($this->moduleHandler, $this->cache, $this->languageManager, $this->cacheTagsInvalidator, $this->renderer);
 
     $container = new ContainerBuilder();
     $this->cacheContextManager = new CacheContextsManager($container, [
       'current_user',
-      'custom_context'
+      'custom_context',
     ]);
     $container->set('cache_contexts_manager', $this->cacheContextManager);
     \Drupal::setContainer($container);
@@ -170,7 +170,7 @@ class TokenTest extends UnitTestCase {
     $this->assertEquals(['node:1'], $bubbleable_metadata->getCacheTags());
     $this->assertEquals([
       'current_user',
-      'custom_context'
+      'custom_context',
     ], $bubbleable_metadata->getCacheContexts());
     $this->assertEquals(10, $bubbleable_metadata->getCacheMaxAge());
   }
@@ -205,7 +205,7 @@ class TokenTest extends UnitTestCase {
     $this->assertEquals(['node:1'], $bubbleable_metadata->getCacheTags());
     $this->assertEquals([
       'current_user',
-      'custom_context'
+      'custom_context',
     ], $bubbleable_metadata->getCacheContexts());
     $this->assertEquals(10, $bubbleable_metadata->getCacheMaxAge());
   }
@@ -243,7 +243,7 @@ class TokenTest extends UnitTestCase {
     $this->assertEquals(['node:1'], $bubbleable_metadata->getCacheTags());
     $this->assertEquals([
       'current_user',
-      'custom_context'
+      'custom_context',
     ], $bubbleable_metadata->getCacheContexts());
     $this->assertEquals(10, $bubbleable_metadata->getCacheMaxAge());
   }
@@ -271,7 +271,7 @@ class TokenTest extends UnitTestCase {
       });
 
     $result = $this->token->replace($string, ['tokens' => $tokens]);
-    $this->assertInternalType('string', $result);
+    $this->assertIsString($result);
     $this->assertEquals($expected, $result);
   }
 
@@ -292,6 +292,31 @@ class TokenTest extends UnitTestCase {
     ];
 
     return $data;
+  }
+
+  /**
+   * @covers ::replacePlain
+   */
+  public function testReplacePlain() {
+    $this->setupSiteTokens();
+    $base = 'Wow, great "[site:name]" has a slogan "[site:slogan]"';
+    $plain = $this->token->replacePlain($base);
+    $this->assertEquals($plain, 'Wow, great "Your <best> buys" has a slogan "We are best"');
+  }
+
+  /**
+   * Sets up the token library to return site tokens.
+   */
+  protected function setupSiteTokens() {
+    // The site name is plain text, but the slogan is markup.
+    $tokens = [
+      '[site:name]' => 'Your <best> buys',
+      '[site:slogan]' => Markup::Create('We are <b>best</b>'),
+    ];
+
+    $this->moduleHandler->expects($this->any())
+      ->method('invokeAll')
+      ->willReturn($tokens);
   }
 
 }

@@ -4,12 +4,14 @@ namespace Drupal\Tests\aggregator\Unit\Plugin;
 
 use Drupal\aggregator\Form\SettingsForm;
 use Drupal\Core\Form\FormState;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Tests\UnitTestCase;
 
 /**
  * Tests settings configuration of individual aggregator plugins.
  *
  * @group aggregator
+ * @group legacy
  */
 class AggregatorPluginSettingsBaseTest extends UnitTestCase {
 
@@ -23,7 +25,7 @@ class AggregatorPluginSettingsBaseTest extends UnitTestCase {
   /**
    * The stubbed config factory object.
    *
-   * @var \PHPUnit_Framework_MockObject_MockBuilder
+   * @var \PHPUnit\Framework\MockObject\MockBuilder
    */
   protected $configFactory;
 
@@ -37,7 +39,7 @@ class AggregatorPluginSettingsBaseTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->configFactory = $this->getConfigFactoryStub(
       [
         'aggregator.settings' => [
@@ -55,6 +57,10 @@ class AggregatorPluginSettingsBaseTest extends UnitTestCase {
         ->will($this->returnValue(['aggregator_test' => ['title' => '', 'description' => '']]));
     }
 
+    /** @var \Drupal\Core\Messenger\MessengerInterface|\PHPUnit\Framework\MockObject\MockBuilder $messenger */
+    $messenger = $this->createMock(MessengerInterface::class);
+    $messenger->expects($this->any())->method('addMessage');
+
     $this->settingsForm = new SettingsForm(
       $this->configFactory,
       $this->managers['fetcher'],
@@ -62,10 +68,11 @@ class AggregatorPluginSettingsBaseTest extends UnitTestCase {
       $this->managers['processor'],
       $this->getStringTranslationStub()
     );
+    $this->settingsForm->setMessenger($messenger);
   }
 
   /**
-   * Test for AggregatorPluginSettingsBase.
+   * Tests for AggregatorPluginSettingsBase.
    *
    * Ensure that the settings form calls build, validate and submit methods on
    * plugins that extend AggregatorPluginSettingsBase.
@@ -77,19 +84,18 @@ class AggregatorPluginSettingsBaseTest extends UnitTestCase {
       'aggregator_allowed_html_tags' => '',
     ]);
 
-    $test_processor = $this->getMock(
-      'Drupal\aggregator_test\Plugin\aggregator\processor\TestProcessor',
-      ['buildConfigurationForm', 'validateConfigurationForm', 'submitConfigurationForm'],
-      [[], 'aggregator_test', ['description' => ''], $this->configFactory]
-    );
-    $test_processor->expects($this->at(0))
+    $test_processor = $this->getMockBuilder('Drupal\aggregator_test\Plugin\aggregator\processor\TestProcessor')
+      ->onlyMethods(['buildConfigurationForm', 'validateConfigurationForm', 'submitConfigurationForm'])
+      ->setConstructorArgs([[], 'aggregator_test', ['description' => ''], $this->configFactory])
+      ->getMock();
+    $test_processor->expects($this->once())
       ->method('buildConfigurationForm')
       ->with($this->anything(), $form_state)
       ->will($this->returnArgument(0));
-    $test_processor->expects($this->at(1))
+    $test_processor->expects($this->once())
       ->method('validateConfigurationForm')
       ->with($this->anything(), $form_state);
-    $test_processor->expects($this->at(2))
+    $test_processor->expects($this->once())
       ->method('submitConfigurationForm')
       ->with($this->anything(), $form_state);
 
@@ -103,12 +109,4 @@ class AggregatorPluginSettingsBaseTest extends UnitTestCase {
     $this->settingsForm->submitForm($form, $form_state);
   }
 
-}
-
-// @todo Delete after https://www.drupal.org/node/2278383 is in.
-namespace Drupal\Core\Form;
-
-if (!function_exists('drupal_set_message')) {
-  function drupal_set_message() {
-  }
 }

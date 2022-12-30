@@ -29,13 +29,18 @@ class CacheWebTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['taxonomy'];
+  protected static $modules = ['taxonomy'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->enableViewsTestModule();
   }
@@ -51,8 +56,8 @@ class CacheWebTest extends ViewTestBase {
       'type' => 'time',
       'options' => [
         'results_lifespan' => '3600',
-        'output_lifespan' => '3600'
-      ]
+        'output_lifespan' => '3600',
+      ],
     ]);
     $view->save();
     $this->container->get('router.builder')->rebuildIfNeeded();
@@ -64,19 +69,19 @@ class CacheWebTest extends ViewTestBase {
     $this->assertFalse($render_cache->get($cache_element));
 
     $this->drupalGet('test-display');
-    $this->assertResponse(200);
-    $this->assertTrue($render_cache->get($cache_element));
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertNotEmpty($render_cache->get($cache_element));
     $cache_tags = [
       'config:user.role.anonymous',
       'config:views.view.test_display',
       'node_list',
-      'rendered'
+      'rendered',
     ];
     $this->assertCacheTags($cache_tags);
 
     $this->drupalGet('test-display');
-    $this->assertResponse(200);
-    $this->assertTrue($render_cache->get($cache_element));
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertNotEmpty($render_cache->get($cache_element));
     $this->assertCacheTags($cache_tags);
   }
 
@@ -88,7 +93,7 @@ class CacheWebTest extends ViewTestBase {
 
     $uncached_block = $view->buildRenderable('block_1', [], FALSE);
     $cached_block = $view->buildRenderable('block_1', [], TRUE);
-    $this->assertEqual($uncached_block['#cache']['contexts'], $cached_block['#cache']['contexts'], 'Cache contexts are the same when you render the view cached and uncached.');
+    $this->assertEquals($uncached_block['#cache']['contexts'], $cached_block['#cache']['contexts'], 'Cache contexts are the same when you render the view cached and uncached.');
   }
 
 }

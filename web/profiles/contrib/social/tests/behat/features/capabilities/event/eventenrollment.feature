@@ -1,12 +1,12 @@
 @api @event @eventenrollment @stability @perfect @DS-479 @profile @stability-2
 Feature: Enroll for an event
   Benefit: In order to attend an Event
-  Role: LU
+  Role: As a Verified
   Goal/desire: I want to enroll for an Event
 
-  @LU @critical
+  @verified @critical
   Scenario: Successfully enroll for an event
-    Given I am logged in as an "authenticated user"
+    Given I am logged in as an "verified"
     Given I am viewing my event:
       | title                    | My Behat Event created |
       | field_event_date         | +8 days                |
@@ -16,40 +16,45 @@ Feature: Enroll for an event
 
     Then I should see "No one has enrolled for this event"
     And I should see the button "Enroll"
-    And I should see the link "Enrollments"
+    And I should see the link "Manage enrollments"
 
     When I press the "Enroll" button
-    Then I should see the button "Enrolled"
+    And I wait for AJAX to finish
+    Then I should see the text "Meetup: My Behat Event created" in the "Modal"
+    And I should see the link "See who else is going" in the "Modal"
+    And I press the "Close" button
+    And I should see the button "Enrolled"
+
+    Then I reload the page
     And I should see "1 people have enrolled"
     And I should see the link "All enrollments"
 
     When I click "All enrollments"
     Then I should see the button "Enrolled"
-    And I should see the link "Enrollments"
-    And I should see "View profile"
-    And I should see "View activities"
 
   @AN
   Scenario: Successfully redirect an AN from an event enrollment action
     Given users:
-      | name            | pass            | mail                        | status |
-      | eventenrollment | eventenrollment | eventenrollment@example.com | 1      |
-    Given I am logged in as an "authenticated user"
+      | name            | pass            | mail                        | status | roles    |
+      | eventenrollment | eventenrollment | eventenrollment@example.com | 1      | verified |
+    Given I am logged in as an "verified"
     And I am on "node/add/event"
     When I fill in the following:
-      | Title         | Enrollment redirect test event |
-      | edit-field-event-date-0-value-date | 2025-01-01 |
-      | edit-field-event-date-end-0-value-date | 2025-01-01 |
-      | Time          | 11:00:00 |
-      | Location name | GG HQ |
+      | Title                                  | Enrollment redirect test event |
+      | edit-field-event-date-0-value-date     | 2025-01-01                     |
+      | edit-field-event-date-end-0-value-date | 2025-01-01                     |
+      | edit-field-event-date-0-value-time     | 11:00:00                       |
+      | edit-field-event-date-end-0-value-time | 11:00:00                       |
+      | Location name                          | GG HQ                          |
     And I fill in the "edit-body-0-value" WYSIWYG editor with "Body description text."
-    And I click radio button "Public - visible to everyone including people who are not a member"
-    And I press "Save"
+    And I click the xth "0" element with the css "[for=edit-field-content-visibility-public]"
+    And I press "Create event"
     And I logout
     Given I open the "event" node with title "Enrollment redirect test event"
     Then I should see "Enrollment redirect test event"
 
     When I press the "Enroll" button
+    And I wait for AJAX to finish
     Then I should see "Please log in or create a new account so that you can enroll to the event"
     And I should see "Log in"
 
@@ -59,13 +64,19 @@ Feature: Enroll for an event
     Then I should see "Enrollment redirect test event"
 
     When I press the "Enroll" button
-    Then I should see the button "Enrolled"
+    And I wait for AJAX to finish
+    Then I should see the text "Meetup: Enrollment redirect test event" in the "Modal"
+    And I should see the link "See who else is going" in the "Modal"
+    And I press the "Close" button
+    And I should see the button "Enrolled"
+
+    Then I reload the page
     And I should see "1 people have enrolled"
     And I should see the link "All enrollments"
 
-  @LU
+  @verified
   Scenario: Successfully cancel enrollment for an event
-    Given I am logged in as an "authenticated user"
+    Given I am logged in as an "verified"
     When I am viewing my event:
       | title                    | My Behat Event created |
       | field_event_date         | +8 days                |
@@ -75,29 +86,39 @@ Feature: Enroll for an event
 
     Then I should see "No one has enrolled for this event"
     And I should see the button "Enroll"
-    And I should see the link "Enrollments"
+    And I should see the link "Manage enrollments"
 
     When I press the "Enroll" button
-    Then I should see the button "Enrolled"
+    And I wait for AJAX to finish
+    Then I should see the text "Meetup: My Behat Event created" in the "Modal"
+    And I should see the link "See who else is going" in the "Modal"
+    And I press the "Close" button
+    And I should see the button "Enrolled"
+    Then I reload the page
     And I should see "1 people have enrolled"
     And I should see the link "All enrollments"
 
     When I press the "Enrolled" button
-    And I click "Cancel enrollment"
+    And I press "Cancel enrollment"
+    And I wait for AJAX to finish
+    And I reload the page
     Then I should see "No one has enrolled for this event"
     And I should see the button "Enroll"
-    And I should see the link "Enrollments"
+    And I should see the link "Manage enrollments"
 
     # Enroll again, since this is technically something different.
     When I press the "Enroll" button
+    And I wait for AJAX to finish
+    And I press the "Close" button
+    And I reload the page
     Then I should see "1 people have enrolled"
     And I should see the link "All enrollments"
 
-  @LU @cache
+  @verified @cache
   Scenario: Successfully changed enrollment and see changes in teaser
     Given users:
-      | name            | pass            | mail                        | status |
-      | eventenrollment | eventenrollment | eventenrollment@example.com | 1      |
+      | name            | pass            | mail                        | status | roles    |
+      | eventenrollment | eventenrollment | eventenrollment@example.com | 1      | verified |
     When I am logged in as "eventenrollment"
     And I am viewing my event:
       | title            | Enrollment test event |
@@ -109,6 +130,8 @@ Feature: Enroll for an event
 
     When I click "Enrollment test event"
     And I press the "Enroll" button
+    And I wait for AJAX to finish
+    And I press the "Close" button
     Then I should see the button "Enrolled"
     And I click "eventenrollment" in the "Main content"
     And I click "Events"
@@ -116,7 +139,7 @@ Feature: Enroll for an event
 
   @closed_enrollments
   Scenario: Can no longer enroll to an event when it has finished.
-    Given I am logged in as an "authenticated user"
+    Given I am logged in as an "verified"
     When I am viewing my event:
       | title                    | My Behat Event created |
       | field_event_date         | -1 days                |
@@ -125,7 +148,7 @@ Feature: Enroll for an event
 
     Then I should see "No one has enrolled for this event"
     And I should see the button "Event has passed"
-    And I should see the link "Enrollments"
+    And I should see the link "Manage enrollments"
     When I am viewing my event:
       | title                    | My Behat Event created |
       | field_event_date         | -3 days                |
@@ -135,4 +158,3 @@ Feature: Enroll for an event
 
     Then I should see "No one has enrolled for this event"
     And I should see the button "Event has passed"
-    And I should see the link "Enrollments"

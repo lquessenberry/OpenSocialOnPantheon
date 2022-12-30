@@ -16,7 +16,7 @@ class MigrateBlockTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'block',
     'views',
     'comment',
@@ -25,20 +25,21 @@ class MigrateBlockTest extends MigrateDrupal7TestBase {
     'node',
     'text',
     'filter',
+    'path_alias',
     'user',
   ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Install the themes used for this test.
     $this->container->get('theme_installer')->install(['bartik', 'seven']);
 
-    $this->installConfig(static::$modules);
     $this->installEntitySchema('block_content');
+    $this->installConfig(static::$modules);
 
     // Set Bartik and Seven as the default public and admin theme.
     $config = $this->config('system.theme');
@@ -72,7 +73,7 @@ class MigrateBlockTest extends MigrateDrupal7TestBase {
    *   The display region.
    * @param string $theme
    *   The theme.
-   * @param string $weight
+   * @param int $weight
    *   The block weight.
    * @param string $label
    *   The block label.
@@ -80,10 +81,12 @@ class MigrateBlockTest extends MigrateDrupal7TestBase {
    *   The block label display setting.
    * @param bool $status
    *   Whether the block is expected to be enabled or disabled.
+   *
+   * @internal
    */
-  public function assertEntity($id, $plugin_id, array $roles, $pages, $region, $theme, $weight, $label, $label_display, $status = TRUE) {
+  public function assertEntity(string $id, string $plugin_id, array $roles, string $pages, string $region, string $theme, int $weight, string $label, string $label_display, bool $status = TRUE): void {
     $block = Block::load($id);
-    $this->assertTrue($block instanceof Block);
+    $this->assertInstanceOf(Block::class, $block);
     /** @var \Drupal\block\BlockInterface $block */
     $this->assertSame($plugin_id, $block->getPluginId());
 
@@ -112,10 +115,10 @@ class MigrateBlockTest extends MigrateDrupal7TestBase {
   public function testBlockMigration() {
     $this->assertEntity('bartik_system_main', 'system_main_block', [], '', 'content', 'bartik', 0, '', '0');
     $this->assertEntity('bartik_search_form', 'search_form_block', [], '', 'sidebar_first', 'bartik', -1, '', '0');
-    $this->assertEntity('bartik_user_login', 'user_login_block', [], '', 'sidebar_first', 'bartik', 0, '', '0');
+    $this->assertEntity('bartik_user_login', 'user_login_block', [], '', 'sidebar_first', 'bartik', 0, 'User login title', 'visible');
     $this->assertEntity('bartik_system_powered_by', 'system_powered_by_block', [], '', 'footer_fifth', 'bartik', 10, '', '0');
     $this->assertEntity('seven_system_main', 'system_main_block', [], '', 'content', 'seven', 0, '', '0');
-    $this->assertEntity('seven_user_login', 'user_login_block', [], '', 'content', 'seven', 10, '', '0');
+    $this->assertEntity('seven_user_login', 'user_login_block', [], '', 'content', 'seven', 10, 'User login title', 'visible');
 
     // The d7_custom_block migration should have migrated a block containing a
     // mildly amusing limerick. We'll need its UUID to determine
@@ -164,7 +167,7 @@ class MigrateBlockTest extends MigrateDrupal7TestBase {
       'seven_statistics_popular',
       'seven_block_1',
     ];
-    $this->assertTrue(empty(Block::loadMultiple($non_existent_blocks)));
+    $this->assertEmpty(Block::loadMultiple($non_existent_blocks));
   }
 
 }

@@ -2,7 +2,7 @@
 
 namespace Drupal\Tests\search_api\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\node\Entity\NodeType;
 use Drupal\search_api\Utility\Utility;
 use Drupal\search_api_test\PluginTestTrait;
@@ -12,14 +12,14 @@ use Drupal\search_api_test\PluginTestTrait;
  *
  * @group search_api
  */
-class AjaxTest extends JavascriptTestBase {
+class AjaxTest extends WebDriverTestBase {
 
   use PluginTestTrait;
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'search_api',
     'search_api_db',
@@ -32,7 +32,12 @@ class AjaxTest extends JavascriptTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
     parent::setUp();
 
     // Create an article node type, if not already present.

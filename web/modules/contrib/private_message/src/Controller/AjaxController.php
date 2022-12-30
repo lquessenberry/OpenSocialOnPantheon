@@ -5,7 +5,7 @@ namespace Drupal\private_message\Controller;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\private_message\Ajax\PrivateMessageInboxUpdateCommand;
@@ -45,9 +45,9 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
   /**
    * The entity manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The configuration factory.
@@ -64,6 +64,13 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
   protected $currentUser;
 
   /**
+   * The private message thread manager.
+   *
+   * @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage
+   */
+  protected $threadManager;
+
+  /**
    * The private message service.
    *
    * @var \Drupal\private_message\Service\PrivateMessageServiceInterface
@@ -71,13 +78,13 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
   protected $privateMessageService;
 
   /**
-   * Constructs n AjaxController object.
+   * Constructs a AjaxController object.
    *
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer service.
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   The request stack.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entityManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity manager service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The configuration factory.
@@ -86,10 +93,18 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
    * @param \Drupal\private_message\Service\PrivateMessageServiceInterface $privateMessageService
    *   The private message service.
    */
-  public function __construct(RendererInterface $renderer, RequestStack $requestStack, EntityManagerInterface $entityManager, ConfigFactoryInterface $configFactory, AccountProxyInterface $currentUser, PrivateMessageServiceInterface $privateMessageService) {
+  public function __construct(
+    RendererInterface $renderer,
+    RequestStack $requestStack,
+    EntityTypeManagerInterface $entityTypeManager,
+    ConfigFactoryInterface $configFactory,
+    AccountProxyInterface $currentUser,
+    PrivateMessageServiceInterface $privateMessageService
+  ) {
     $this->renderer = $renderer;
     $this->requestStack = $requestStack;
-    $this->entityManager = $entityManager;
+    $this->entityTypeManager = $entityTypeManager;
+    $this->threadManager = $entityTypeManager->getStorage('private_message_thread');
     $this->configFactory = $configFactory;
     $this->currentUser = $currentUser;
     $this->privateMessageService = $privateMessageService;
@@ -102,7 +117,7 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
     return new static(
       $container->get('renderer'),
       $container->get('request_stack'),
-      $container->get('entity.manager'),
+      $container->get('entity_type.manager'),
       $container->get('config.factory'),
       $container->get('current_user'),
       $container->get('private_message.service')
@@ -168,7 +183,7 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
     $accounts = $this->privateMessageService->getUsersFromString($username, self::AUTOCOMPLETE_COUNT);
     $user_info = [];
     foreach ($accounts as $account) {
-      if ($account->access('view', $this->currentUser)) {
+      if ($account->access('view', $this->currentUser) && $account->isActive()) {
         $user_info[] = [
           'uid' => $account->id(),
           'username' => $account->getDisplayName(),
@@ -190,18 +205,30 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
   protected function getNewPrivateMessages(AjaxResponse $response) {
     $thread_id = $this->requestStack->getCurrentRequest()->get('threadid');
     $message_id = $this->requestStack->getCurrentRequest()->get('messageid');
+    $count = 0;
     if (is_numeric($thread_id) && is_numeric($message_id)) {
-      $new_messages = $this->privateMessageService->getNewMessages($thread_id, $message_id);
-      if (count($new_messages)) {
-        $messages = [];
-        $view_builder = $this->entityManager->getViewBuilder('private_message');
-        foreach ($new_messages as $message) {
-          if ($message->access('view', $this->currentUser)) {
-            $messages[] = $view_builder->view($message);
+      $thread = $this->threadManager->load($thread_id);
+      if ($thread) {
+        $new_messages = $this->privateMessageService->getNewMessages($thread_id, $message_id);
+        $this->privateMessageService->updateThreadAccessTime($thread);
+        $count = count($new_messages);
+        if ($count) {
+          $messages = [];
+          $view_builder = $this->entityTypeManager->getViewBuilder('private_message');
+          foreach ($new_messages as $message) {
+            if ($message->access('view', $this->currentUser)) {
+              $message_view = $view_builder->view($message);
+              $message_view['#prefix'] = '<div class="private-message-wrapper field__item">';
+              $message_view['#suffix'] = '</div>';
+              $messages[] = $message_view;
+            }
           }
+
+          // Ensure the browser knows the thread ID at all times.
+          $messages['#attached']['drupalSettings']['privateMessageThread']['threadId'] = (int) $thread->id();
         }
 
-        $response->addCommand(new PrivateMessageInsertNewMessagesCommand($this->renderer->renderRoot($messages)));
+        $response->addCommand(new PrivateMessageInsertNewMessagesCommand($this->renderer->renderRoot($messages), $count));
       }
     }
   }
@@ -219,19 +246,23 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
     if (is_numeric($thread_id) && is_numeric($message_id)) {
       $message_info = $this->privateMessageService->getPreviousMessages($thread_id, $message_id);
 
-      if (count($message_info)) {
+      if (count($message_info['messages'])) {
         $messages = [];
-        $view_builder = $this->entityManager->getViewBuilder('private_message');
-        foreach ($message_info as $message) {
+        $view_builder = $this->entityTypeManager->getViewBuilder('private_message');
+        $has_next = $message_info['next_exists'];
+        foreach ($message_info['messages'] as $message) {
           if ($message->access('view', $this->currentUser)) {
-            $messages[] = $view_builder->view($message);
+            $message_view = $view_builder->view($message);
+            $message_view['#prefix'] = '<div class="private-message-wrapper field__item">';
+            $message_view['#suffix'] = '</div>';
+            $messages[] = $message_view;
           }
         }
 
-        $response->addCommand(new PrivateMessageInsertPreviousMessagesCommand($this->renderer->renderRoot($messages)));
+        $response->addCommand(new PrivateMessageInsertPreviousMessagesCommand($this->renderer->renderRoot($messages), count($message_info['messages']), $has_next));
       }
       else {
-        $response->addCommand(new PrivateMessageInsertPreviousMessagesCommand(''));
+        $response->addCommand(new PrivateMessageInsertPreviousMessagesCommand('', 0, FALSE));
       }
     }
   }
@@ -247,20 +278,17 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
     $thread_count = $this->requestStack->getCurrentRequest()->get('count');
     if (is_numeric($timestamp)) {
       $thread_info = $this->privateMessageService->getThreadsForUser($thread_count, $timestamp);
+      $has_next = FALSE;
       if (count($thread_info['threads'])) {
-        $oldest_timestamp = FALSE;
-        $view_builder = $this->entityManager->getViewBuilder('private_message_thread');
+        $view_builder = $this->entityTypeManager->getViewBuilder('private_message_thread');
         $threads = [];
         foreach ($thread_info['threads'] as $thread) {
           if ($thread->access('view', $this->currentUser)) {
-            if ($thread_info['next_exists']) {
-              $oldest_timestamp = $thread->get('updated')->value;
-            }
+            $has_next = $thread_info['next_exists'];
             $threads[] = $view_builder->view($thread, 'inbox');
           }
         }
-
-        $response->addCommand(new PrivateMessageInboxInsertThreadsCommand($this->renderer->renderRoot($threads), $oldest_timestamp));
+        $response->addCommand(new PrivateMessageInboxInsertThreadsCommand($this->renderer->renderRoot($threads), $has_next));
       }
       else {
         $response->addCommand(new PrivateMessageInboxInsertThreadsCommand('', FALSE));
@@ -291,7 +319,7 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
 
     // Only need to do something if any thread IDS were found.
     if (count($inbox_threads['thread_ids'])) {
-      $view_builder = $this->entityManager->getViewBuilder('private_message_thread');
+      $view_builder = $this->entityTypeManager->getViewBuilder('private_message_thread');
 
       // Render any new threads as HTML to be sent to the browser.
       $rendered_threads = [];
@@ -349,10 +377,10 @@ class AjaxController extends ControllerBase implements AjaxControllerInterface {
       if ($thread && $thread->access('view', $this->currentUser)) {
         $this->privateMessageService->updateLastCheckTime();
 
-        $view_builder = $this->entityManager->getViewBuilder('private_message_thread');
+        $view_builder = $this->entityTypeManager->getViewBuilder('private_message_thread');
         $renderable = $view_builder->view($thread);
         $rendered_thread = $this->renderer->renderRoot($renderable);
-        $index = array_search('private_message/private_message_thread', $renderable['#attached']['library']);
+        $index = array_search('private_message/private_message_thread_script', $renderable['#attached']['library']);
         unset($renderable['#attached']['library'][$index]);
         $response->setAttachments($renderable['#attached']);
 

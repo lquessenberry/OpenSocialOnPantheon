@@ -1,2 +1,3 @@
 allow_cancel_vote: true
+hide_vote_widget: false
 enabled_types: { }

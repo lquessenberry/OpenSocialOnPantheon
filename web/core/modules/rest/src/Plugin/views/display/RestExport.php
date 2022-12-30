@@ -94,22 +94,6 @@ class RestExport extends PathPluginBase implements ResponseDisplayPluginInterfac
   protected $authenticationProviderIds;
 
   /**
-   * The authentication providers' modules, keyed by provider ID.
-   *
-   * Authentication providers like 'cookie' and 'basic_auth' are the array
-   * keys. The array values are the module names, e.g.:
-   * @code
-   *   ['cookie' => 'user', 'basic_auth' => 'basic_auth']
-   * @endcode
-   *
-   * @deprecated as of 8.4.x, will be removed in before Drupal 9.0.0, see
-   *   https://www.drupal.org/node/2825204.
-   *
-   * @var string[]
-   */
-  protected $authenticationProviders;
-
-  /**
    * The serialization format providers, keyed by format.
    *
    * @var string[]
@@ -146,8 +130,6 @@ class RestExport extends PathPluginBase implements ResponseDisplayPluginInterfac
     // basic_auth) as keys and modules providing those as values (user,
     // basic_auth).
     $this->authenticationProviderIds = array_keys($authentication_providers);
-    // For BC reasons we keep around authenticationProviders as before.
-    $this->authenticationProviders = $authentication_providers;
     $this->formatProviders = $serializer_format_providers;
   }
 
@@ -166,6 +148,7 @@ class RestExport extends PathPluginBase implements ResponseDisplayPluginInterfac
       $container->getParameter('serializer.format_providers')
     );
   }
+
   /**
    * {@inheritdoc}
    */
@@ -400,10 +383,11 @@ class RestExport extends PathPluginBase implements ResponseDisplayPluginInterfac
    *   TRUE, when the view should override the given route.
    */
   protected function overrideApplies($view_path, Route $view_route, Route $route) {
-    $route_formats = explode('|', $route->getRequirement('_format'));
-    $view_route_formats = explode('|', $view_route->getRequirement('_format'));
+    $route_has_format = $route->hasRequirement('_format');
+    $route_formats = $route_has_format ? explode('|', $route->getRequirement('_format')) : [];
+    $view_route_formats = $view_route->hasRequirement('_format') ? explode('|', $view_route->getRequirement('_format')) : [];
     return $this->overrideAppliesPathAndMethod($view_path, $view_route, $route)
-      && (!$route->hasRequirement('_format') || array_intersect($route_formats, $view_route_formats) != []);
+      && (!$route_has_format || array_intersect($route_formats, $view_route_formats) != []);
   }
 
   /**
@@ -486,25 +470,6 @@ class RestExport extends PathPluginBase implements ResponseDisplayPluginInterfac
    */
   public function preview() {
     return $this->view->render();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function calculateDependencies() {
-    $dependencies = parent::calculateDependencies();
-
-    $dependencies += ['module' => []];
-    $dependencies['module'] = array_merge($dependencies['module'], array_filter(array_map(function ($provider) {
-      // During the update path the provider options might be wrong. This can
-      // happen when any update function, like block_update_8300() triggers a
-      // view to be saved.
-      return isset($this->authenticationProviderIds[$provider])
-        ? $this->authenticationProviderIds[$provider]
-        : NULL;
-    }, $this->getOption('auth'))));
-
-    return $dependencies;
   }
 
   /**

@@ -1,0 +1,46 @@
+#coffee-form {
+  padding: 4px;
+  background: #000;
+  border-radius: var(--ginBorderMedium);
+
+  #coffee-form-inner,
+  #coffee-q {
+    color: var(--colorGinTitle);
+    background: var(--colorGinLayerBackground);
+    border-radius: var(--ginBorderDefault);
+  }
+
+  #coffee-results {
+    a {
+      color: var(--colorGinTitle);
+      border-radius: var(--ginBorderDefault);
+
+      .description {
+        color: var(--colorGinTextLight);
+        padding-top: .25rem;
+      }
+
+      &:hover,
+      &.ui-state-active {
+        background: var(--colorGinPrimary);
+
+        &, .description {
+          color: var(--colorGinButtonText);
+        }
+
+        .description {
+          opacity: .9;
+        }
+      }
+    }
+  }
+
+  .ui-autocomplete {
+    background: transparent;
+    box-shadow: none;
+
+    .ui-menu-item-wrapper {
+      padding: 16px;
+    }
+  }
+}

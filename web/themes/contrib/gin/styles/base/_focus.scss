@@ -1,0 +1,64 @@
+.page-wrapper *:focus,
+.ui-dialog *:focus,
+.dropbutton .dropbutton__item > *:focus,
+.dropbutton .dropbutton__item > *:focus:hover,
+.dropbutton__items > .dropbutton__item:first-of-type > *:focus,
+.dropbutton__items > .dropbutton__item:first-of-type ~ .dropbutton__item > *:focus,
+.dropbutton__items > .dropbutton__item:first-of-type ~ .dropbutton__item > *:focus:hover,
+.form-boolean:focus:active,
+.form-boolean:focus:hover,
+.cke.cke_chrome.cke_focus,
+.horizontal-tabs ul.horizontal-tabs-list li.horizontal-tab-button a:focus,
+.form-element:focus,
+.form-element:hover:focus,
+.form-element.error:hover:focus,
+.form-actions .action-link:focus,
+.paragraphs-tabs-wrapper .field-multiple-table .draggable.drag,
+.layout-paragraphs-field .layout-paragraphs-actions input.layout-paragraphs-edit:focus,
+.layout-paragraphs-field .layout-paragraphs-actions input.layout-paragraphs-remove:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+}
+
+.admin-item__link:focus {
+  border-radius: calc(var(--ginBorderXSmall) / 2);
+}
+
+.claro-details {
+  &:focus,
+  &:focus:hover,
+  &__summary:focus,
+  &__summary:focus:hover {
+      box-shadow: none;
+    }
+
+  &__summary {
+    &:after {
+      box-shadow: inset 0 0 0 1px var(--colorGinFocusBorder), inset 0 0 0 4px var(--colorGinFocus);
+    }
+  }
+}
+
+.tabs__link:focus {
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px var(--colorGinFocusBorder), inset 0 0 0 4px var(--colorGinFocus);
+}
+
+.vertical-tabs__menu-link:focus:after,
+.tabs__trigger:focus {
+  box-shadow: none;
+  border: 4px solid var(--colorGinFocus);
+}
+
+@include mq($breakpointSmall) {
+  .is-horizontal .tabs__link:focus,
+  .is-horizontal .tabs--primary .tabs__link:focus {
+    box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+  }
+}
+
+.vertical-tabs__menu-link:focus,
+.vertical-tabs__menu-item:focus {
+  outline: 0;
+  box-shadow: none;
+}

@@ -47,7 +47,9 @@ function dynamic_entity_reference_field_views_data(FieldStorageConfigInterface $
           'title' => t('@label referenced from @field_name', $args),
           'label' => t('@field_name: @label', $args),
           'group' => $entity_type->getLabel(),
-          'help' => t('Appears in: @bundles.', ['@bundles' => implode(', ', $field_storage->getBundles())]),
+          'help' => t('Appears in: @bundles.', [
+            '@bundles' => implode(', ', $field_storage->getBundles()),
+          ]),
           'id' => 'standard',
           'base' => $target_base_table,
           'entity type' => $target_entity_type_id,
@@ -71,7 +73,7 @@ function dynamic_entity_reference_field_views_data(FieldStorageConfigInterface $
         $table_mapping = $entity_manager->getStorage($entity_type_id)
           ->getTableMapping();
         $args['@entity'] = $entity_type->getLabel();
-        $args['@label'] = $target_entity_type->getLowercaseLabel();
+        $args['@label'] = $target_entity_type->getSingularLabel();
         $data[$target_base_table][$pseudo_field_name]['relationship'] = [
           'title' => t('@entity using @field_name', $args),
           'label' => t('@field_name', ['@field_name' => $field_name]),
@@ -128,11 +130,11 @@ function dynamic_entity_reference_views_data() {
     if ($entity_type->hasHandlerClass('views_data') && $entity_manager->getStorage($entity_type->id()) instanceof SqlEntityStorageInterface) {
       $sql_entity_types[$entity_type->id()] = $entity_type->id();
       // Only fieldable entities have base fields.
-      if ($entity_type->isSubclassOf(FieldableEntityInterface::class)) {
+      if ($entity_type->entityClassImplements(FieldableEntityInterface::class)) {
         $entity_types[$entity_type->id()] = $entity_type;
         $entity_field_manager = \Drupal::service('entity_field.manager');
         foreach ($entity_field_manager->getBaseFieldDefinitions($entity_type->id()) as $base_field) {
-          if ($base_field->getType() == 'dynamic_entity_reference') {
+          if ($base_field->getType() == 'dynamic_entity_reference' && !$base_field->isComputed()) {
             $fields_all[$entity_type->id()][] = $base_field;
           }
         }

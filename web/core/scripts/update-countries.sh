@@ -37,9 +37,11 @@ USAGE;
 // Fake the t() function used in CountryManager.php instead of attempting a full
 // Drupal bootstrap of core/includes/bootstrap.inc (where t() is declared).
 if (!function_exists('t')) {
+
   function t($string) {
     return $string;
   }
+
 }
 
 // Read in existing codes.
@@ -67,6 +69,14 @@ foreach ($data->main->en->localeDisplayNames->territories as $code => $name) {
   $exclude_codes = [
     // The European Union is not a country.
     'EU',
+    // The Eurozone is not a country.
+    'EZ',
+    // The United Nations is not a country.
+    'UN',
+    // "Pseudo-Accents" is not a country.
+    'XA',
+    // "Pseudo-Bidi" is not a country.
+    'XB',
     // Don't allow "Unknown Region".
     'ZZ',
   ];

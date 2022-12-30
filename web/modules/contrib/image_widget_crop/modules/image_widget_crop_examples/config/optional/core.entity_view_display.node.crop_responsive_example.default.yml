@@ -2,16 +2,16 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.field.node.crop_responsive_example.body
-    - field.field.node.crop_responsive_example.field_image_crop_simple
-    - node.type.crop_responsive_example
-    - responsive_image.styles.crop_example_responsive
+  - field.field.node.crop_responsive_example.body
+  - field.field.node.crop_responsive_example.field_image_crop_simple
+  - node.type.crop_responsive_example
+  - responsive_image.styles.crop_example_responsive
   module:
-    - responsive_image
-    - text
-    - user
+  - responsive_image
+  - text
+  - user
 _core:
-  default_config_hash: rz-b-GuNRg3LJSAXWiCWPIQ7CE5_zw_3tlHfkKvSn-A
+  default_config_hash: sosAlqQav2l-pLFoOamI8JjMjlxwyb57duVGioXvnQY
 id: node.crop_responsive_example.default
 targetEntityType: node
 bundle: crop_responsive_example
@@ -34,5 +34,4 @@ content:
     type: responsive_image
     region: content
 hidden:
-  langcode: true
   links: true

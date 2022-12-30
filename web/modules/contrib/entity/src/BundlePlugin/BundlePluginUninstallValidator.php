@@ -55,6 +55,7 @@ class BundlePluginUninstallValidator implements ModuleUninstallValidatorInterfac
           $result = $this->entityTypeManager->getStorage($entity_type->id())->getQuery()
             ->condition($entity_type->getKey('bundle'), $bundle)
             ->range(0, 1)
+            ->accessCheck(TRUE)
             ->execute();
           return !empty($result);
         });

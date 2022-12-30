@@ -58,19 +58,6 @@ class FormattedDateDiff implements RenderableInterface, CacheableDependencyInter
   }
 
   /**
-   * The maximum age for which this object may be cached.
-   *
-   * @return int
-   *   The maximum time in seconds that this object may be cached.
-   *
-   * @deprecated in Drupal 8.1.9 and will be removed before Drupal 9.0.0. Use
-   *   \Drupal\Core\Datetime\FormattedDateDiff::getCacheMaxAge() instead.
-   */
-  public function getMaxAge() {
-    return $this->getCacheMaxAge();
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function toRenderable() {

@@ -1,0 +1,184 @@
+.messages {
+  position: relative;
+  padding: 1rem;
+  border: 2px solid transparent;
+  border-radius: var(--ginBorderMedium);
+  transition: opacity var(--ginTransitionFast);
+  opacity: 1;
+
+  .gin--dark-mode & {
+    box-shadow: 0 6px 16px var(--colorGinLayerBorder);
+  }
+
+  &, &-list {
+    margin-top: 0;
+  }
+
+  &-list {
+    margin-bottom: 0;
+  }
+
+  a {
+    &,
+    &:hover,
+    &:active {
+      color: #fff;
+    }
+  }
+
+  &__title {
+    font-weight: 600;
+  }
+
+  &__title,
+  &__content {
+    margin-left: 2.125rem;
+  }
+
+  .messages__header {
+    position: relative;
+    background-image: none;
+    margin-bottom: .5rem;
+    margin-right: 1.5em;
+
+    &:before {
+      content: "";
+      display: block;
+      position: absolute;
+      top: 2px;
+      left: 0;
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .button--dismiss {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: .75rem;
+    padding: 0;
+    height: 29px;
+    width: 29px;
+    color: transparent;
+    text-indent: -99999px;
+    border-radius: 50%;
+    border-color: transparent !important;
+    transition: var(--ginTransition);
+
+    &:hover:not(:focus) {
+      color: transparent;
+      background-color: transparent;
+      border-color: #fff !important;
+    }
+
+    &:focus,
+    &:hover:focus {
+      .icon-close {
+        background-color: var(--colorGinAppBackground);
+      }
+    }
+
+    .icon-close {
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      mask-image: icon('close');
+      mask-size: 16px 16px;
+      mask-repeat: no-repeat;
+      mask-position: center;
+      background-color: #fff;
+    }
+  }
+
+  // Hide our close button as Webform has it's own
+  &--webform .button--dismiss {
+    display: none;
+  }
+
+  &.messages--info {
+    color: var(--colorGinInfoLight);
+    background-color: var(--colorGinInfoBackground);
+    border-color: var(--colorGinInfoBackground);
+
+    .messages__header {
+      background: none;
+
+      &:before {
+        background-color: var(--colorGinInfoLight);
+        mask-image: icon('info');
+        mask-repeat: no-repeat;
+        mask-position: center left;
+      }
+    }
+
+    .button--dismiss {
+      .icon-close:link {
+        background-color: var(--colorGinInfoLight);
+      }
+    }
+  }
+
+  &.messages--status {
+    color: var(--colorGinGreenLight);
+    background-color: var(--colorGinGreenBackground);
+
+    .messages__header {
+      &:before {
+        background-color: var(--colorGinGreenLight);
+        mask-image: icon('status');
+        mask-repeat: no-repeat;
+        mask-position: center left;
+      }
+    }
+
+    .button--dismiss {
+      .icon-close:link {
+        background-color: var(--colorGinGreenLight);
+      }
+    }
+
+  }
+
+  &.messages--warning {
+    color: var(--colorGinWarningLight);
+    background-color: var(--colorGinWarningBackground);
+
+    .messages__header {
+      &:before {
+        background-color: var(--colorGinWarningLight);
+        mask-image: icon('warning');
+        mask-repeat: no-repeat;
+        mask-position: center left;
+      }
+    }
+
+    .button--dismiss {
+      .icon-close:link {
+        background-color: var(--colorGinWarningLight);
+      }
+    }
+  }
+
+  &--error {
+    color: var(--colorGinDangerLight);
+    background-color: var(--colorGinDangerBackground);
+
+    .messages__header {
+      &:before {
+        background-color: var(--colorGinDangerLight);
+        mask-image: icon('error');
+        mask-repeat: no-repeat;
+        mask-position: center left;
+      }
+    }
+
+    .button--dismiss {
+      .icon-close:link {
+        background-color: var(--colorGinDangerLight);
+      }
+    }
+  }
+}

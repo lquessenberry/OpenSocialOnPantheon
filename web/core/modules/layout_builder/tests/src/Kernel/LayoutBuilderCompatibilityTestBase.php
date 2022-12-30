@@ -16,14 +16,14 @@ abstract class LayoutBuilderCompatibilityTestBase extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'layout_discovery',
   ];
 
   /**
    * The entity view display.
    *
-   * @var \Drupal\field_layout\Display\EntityDisplayWithLayoutInterface
+   * @var \Drupal\layout_builder\Entity\LayoutEntityDisplayInterface
    */
   protected $display;
 
@@ -42,12 +42,11 @@ abstract class LayoutBuilderCompatibilityTestBase extends EntityKernelTestBase {
 
     $this->installEntitySchema('entity_test_base_field_display');
     $this->installConfig(['filter']);
-    $this->installSchema('system', ['key_value_expire']);
 
     // Set up a non-admin user that is allowed to view test entities.
     \Drupal::currentUser()->setAccount($this->createUser(['uid' => 2], ['view test entity']));
 
-    \Drupal::service('theme_handler')->install(['classy']);
+    \Drupal::service('theme_installer')->install(['classy']);
     $this->config('system.theme')->set('default', 'classy')->save();
 
     $field_storage = FieldStorageConfig::create([
@@ -86,13 +85,21 @@ abstract class LayoutBuilderCompatibilityTestBase extends EntityKernelTestBase {
   /**
    * Installs the Layout Builder.
    *
-   * Also configures and reloads the entity display, and reloads the entity.
+   * Also configures and reloads the entity display.
    */
   protected function installLayoutBuilder() {
     $this->container->get('module_installer')->install(['layout_builder']);
     $this->refreshServices();
 
     $this->display = $this->reloadEntity($this->display);
+    $this->display->enableLayoutBuilder()->save();
+    $this->entity = $this->reloadEntity($this->entity);
+  }
+
+  /**
+   * Enables overrides for the display and reloads the entity.
+   */
+  protected function enableOverrides() {
     $this->display->setOverridable()->save();
     $this->entity = $this->reloadEntity($this->entity);
   }
@@ -104,9 +111,6 @@ abstract class LayoutBuilderCompatibilityTestBase extends EntityKernelTestBase {
    *   The entity to render.
    * @param array $attributes
    *   An array of field attributes to assert.
-   *
-   * @return string
-   *   The rendered string output (typically HTML).
    */
   protected function assertFieldAttributes(EntityInterface $entity, array $attributes) {
     $view_builder = $this->container->get('entity_type.manager')->getViewBuilder($entity->getEntityTypeId());

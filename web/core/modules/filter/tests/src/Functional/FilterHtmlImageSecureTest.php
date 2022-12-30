@@ -2,7 +2,9 @@
 
 namespace Drupal\Tests\filter\Functional;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\comment\Tests\CommentTestTrait;
+use Drupal\Core\StreamWrapper\PrivateStream;
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\filter\Entity\FilterFormat;
 use Drupal\Tests\BrowserTestBase;
@@ -23,16 +25,14 @@ class FilterHtmlImageSecureTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['filter', 'node', 'comment'];
+  protected static $modules = ['filter', 'node', 'comment'];
 
   /**
-   * An authenticated user.
-   *
-   * @var \Drupal\user\UserInterface
+   * {@inheritdoc}
    */
-  protected $webUser;
+  protected $defaultTheme = 'stark';
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Setup Filtered HTML text format.
@@ -57,20 +57,19 @@ class FilterHtmlImageSecureTest extends BrowserTestBase {
     $filtered_html_format->save();
 
     // Setup users.
-    $this->webUser = $this->drupalCreateUser([
+    $webUser = $this->drupalCreateUser([
       'access content',
       'access comments',
       'post comments',
       'skip comment approval',
       $filtered_html_format->getPermissionName(),
     ]);
-    $this->drupalLogin($this->webUser);
+    $this->drupalLogin($webUser);
 
     // Setup a node to comment and test on.
     $this->drupalCreateContentType(['type' => 'page', 'name' => 'Basic page']);
     // Add a comment field.
     $this->addDefaultCommentField('node', 'page');
-    $this->node = $this->drupalCreateNode();
   }
 
   /**
@@ -79,7 +78,10 @@ class FilterHtmlImageSecureTest extends BrowserTestBase {
   public function testImageSource() {
     global $base_url;
 
+    $node = $this->drupalCreateNode();
+
     $public_files_path = PublicStream::basePath();
+    $private_files_path = PrivateStream::basePath();
 
     $http_base_url = preg_replace('/^https?/', 'http', $base_url);
     $https_base_url = preg_replace('/^https?/', 'https', $base_url);
@@ -88,18 +90,21 @@ class FilterHtmlImageSecureTest extends BrowserTestBase {
 
     $druplicon = 'core/misc/druplicon.png';
     $red_x_image = base_path() . 'core/misc/icons/e32700/error.svg';
-    $alt_text = t('Image removed.');
-    $title_text = t('This image has been removed. For security reasons, only images from the local domain are allowed.');
 
     // Put a test image in the files directory.
     $test_images = $this->getTestFiles('image');
     $test_image = $test_images[0]->filename;
 
     // Put a test image in the files directory with special filename.
+    // cspell:ignore tést fïle nàme
     $special_filename = 'tést fïle nàme.png';
     $special_image = rawurlencode($special_filename);
     $special_uri = str_replace($test_images[0]->filename, $special_filename, $test_images[0]->uri);
-    file_unmanaged_copy($test_images[0]->uri, $special_uri);
+    \Drupal::service('file_system')->copy($test_images[0]->uri, $special_uri);
+
+    // Put a test image in the private files directory.
+    $private_uri = str_replace('public://', 'private://', $test_images[0]->uri);
+    file_unmanaged_copy($test_images[0]->uri, $private_uri);
 
     // Create a list of test image sources.
     // The keys become the value of the IMG 'src' attribute, the values are the
@@ -120,11 +125,15 @@ class FilterHtmlImageSecureTest extends BrowserTestBase {
       $https_base_url . '/' . $public_files_path . '/' . $test_image => $files_path . '/' . $test_image,
       $http_base_url . '/' . $public_files_path . '/' . $special_image => $files_path . '/' . $special_image,
       $https_base_url . '/' . $public_files_path . '/' . $special_image => $files_path . '/' . $special_image,
+      $http_base_url . '/' . $private_files_path . '/' . $test_image => base_path() . $private_files_path . '/' . $test_image,
+      $https_base_url . '/' . $private_files_path . '/' . $test_image => base_path() . $private_files_path . '/' . $test_image,
       $files_path . '/example.png' => $red_x_image,
       'http://example.com/' . $druplicon => $red_x_image,
       'https://example.com/' . $druplicon => $red_x_image,
       'javascript:druplicon.png' => $red_x_image,
       $csrf_path . '/logout' => $red_x_image,
+      // Test a url containing a query string.
+      $http_base_url . '/' . $druplicon . '?query=string' => base_path() . $druplicon . '?query=string',
     ];
     $comment = [];
     foreach ($images as $image => $converted) {
@@ -137,23 +146,24 @@ class FilterHtmlImageSecureTest extends BrowserTestBase {
     $edit = [
       'comment_body[0][value]' => implode("\n", $comment),
     ];
-    $this->drupalPostForm('node/' . $this->node->id(), $edit, t('Save'));
+    $this->drupalGet('node/' . $node->id());
+    $this->submitForm($edit, 'Save');
     foreach ($images as $image => $converted) {
       $found = FALSE;
       foreach ($this->xpath('//img[@testattribute="' . hash('sha256', $image) . '"]') as $element) {
         $found = TRUE;
         if ($converted == $red_x_image) {
-          $this->assertEqual($element->getAttribute('src'), $red_x_image);
-          $this->assertEqual($element->getAttribute('alt'), $alt_text);
-          $this->assertEqual($element->getAttribute('title'), $title_text);
-          $this->assertEqual($element->getAttribute('height'), '16');
-          $this->assertEqual($element->getAttribute('width'), '16');
+          $this->assertEquals($red_x_image, $element->getAttribute('src'));
+          $this->assertEquals('Image removed.', $element->getAttribute('alt'));
+          $this->assertEquals('This image has been removed. For security reasons, only images from the local domain are allowed.', $element->getAttribute('title'));
+          $this->assertEquals('16', $element->getAttribute('height'));
+          $this->assertEquals('16', $element->getAttribute('width'));
         }
         else {
-          $this->assertEqual($element->getAttribute('src'), $converted);
+          $this->assertEquals($converted, $element->getAttribute('src'));
         }
       }
-      $this->assertTrue($found, format_string('@image was found.', ['@image' => $image]));
+      $this->assertTrue($found, new FormattableMarkup('@image was found.', ['@image' => $image]));
     }
   }
 

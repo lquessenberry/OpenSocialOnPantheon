@@ -11,12 +11,11 @@ description: ''
 tag: ''
 base_table: taxonomy_term_data
 base_field: tid
-core: 8.x
 display:
   default:
     display_plugin: default
     id: default
-    display_title: Master
+    display_title: Default
     position: 0
     display_options:
       access:
@@ -124,8 +123,8 @@ display:
       relationships:
         parent:
           id: parent
-          table: taxonomy_term_hierarchy
-          field: parent
+          table: taxonomy_term__parent
+          field: parent_target_id
           relationship: none
           group_type: group
           admin_label: Parent

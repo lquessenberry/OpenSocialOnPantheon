@@ -2,7 +2,6 @@
 
 namespace Drupal\search_api\Plugin\search_api\processor;
 
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\TypedData\EntityDataDefinitionInterface;
@@ -12,7 +11,10 @@ use Drupal\Core\TypedData\ComplexDataDefinitionInterface;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Item\FieldInterface;
 use Drupal\search_api\Plugin\PluginFormTrait;
+use Drupal\search_api\Plugin\search_api\data_type\value\TextValue;
 use Drupal\search_api\Processor\ProcessorPluginBase;
+use Drupal\search_api\SearchApiException;
+use Drupal\search_api\Utility\Utility;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -110,7 +112,16 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
       $field_options = [];
 
       foreach ($this->index->getFields() as $field_id => $field) {
-        $definition = $field->getDataDefinition();
+        try {
+          $definition = $field->getDataDefinition();
+        }
+        catch (SearchApiException $e) {
+          $vars = [
+            '%index' => $this->index->label(),
+          ];
+          watchdog_exception('search_api', $e, '%type while trying to retrieve a list of hierarchical fields on index %index: @message in %function (line %line of %file).', $vars);
+          continue;
+        }
         if ($definition instanceof ComplexDataDefinitionInterface) {
           $properties = $this->getFieldsHelper()
             ->getNestedProperties($definition);
@@ -120,7 +131,7 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
             $property_label = $property->getLabel();
             $property = $this->getFieldsHelper()->getInnerProperty($property);
             if ($property instanceof EntityDataDefinitionInterface) {
-              $options = self::findHierarchicalProperties($property, $property_label);
+              $options = static::findHierarchicalProperties($property, $property_label);
               if ($options) {
                 $field_options += [$field_id => []];
                 $field_options[$field_id] += $options;
@@ -151,6 +162,7 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
    */
   protected function findHierarchicalProperties(EntityDataDefinitionInterface $property, $property_label) {
     $entity_type_id = $property->getEntityTypeId();
+    $property_label = Utility::escapeHtml($property_label);
     $options = [];
 
     // Check properties for potential hierarchy. Check two levels down, since
@@ -159,9 +171,10 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
     foreach ($this->getFieldsHelper()->getNestedProperties($property) as $name_2 => $property_2) {
       $property_2_label = $property_2->getLabel();
       $property_2 = $this->getFieldsHelper()->getInnerProperty($property_2);
+      $is_reference = FALSE;
       if ($property_2 instanceof EntityDataDefinitionInterface) {
         if ($property_2->getEntityTypeId() == $entity_type_id) {
-          $options["$entity_type_id-$name_2"] = Html::escape($property_label . ' » ' . $property_2_label);
+          $is_reference = TRUE;
         }
       }
       elseif ($property_2 instanceof ComplexDataDefinitionInterface) {
@@ -169,11 +182,15 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
           $property_3 = $this->getFieldsHelper()->getInnerProperty($property_3);
           if ($property_3 instanceof EntityDataDefinitionInterface) {
             if ($property_3->getEntityTypeId() == $entity_type_id) {
-              $options["$entity_type_id-$name_2"] = Html::escape($property_label . ' » ' . $property_2_label);
+              $is_reference = TRUE;
               break;
             }
           }
         }
+      }
+      if ($is_reference) {
+        $property_2_label = Utility::escapeHtml($property_2_label);
+        $options["$entity_type_id-$name_2"] = $property_label . ' » ' . $property_2_label;
       }
     }
     return $options;
@@ -258,7 +275,26 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
         }
         list ($entity_type_id, $property) = explode('-', $property_specifier);
         foreach ($field->getValues() as $entity_id) {
-          $this->addHierarchyValues($entity_type_id, $entity_id, $property, $field);
+          if ($entity_id instanceof TextValue) {
+            $entity_id = $entity_id->getOriginalText();
+          }
+          if (is_scalar($entity_id)) {
+            try {
+              $this->addHierarchyValues($entity_type_id, $entity_id, $property, $field);
+            }
+            // @todo Replace with multi-catch for
+            //   InvalidPluginDefinitionException and PluginNotFoundException
+            //   once we depend on PHP 7.1+.
+            catch (\Exception $e) {
+              $vars = [
+                '%index' => $this->index->label(),
+                '%field' => $field->getLabel(),
+                '%field_id' => $field->getFieldIdentifier(),
+              ];
+              watchdog_exception('search_api', $e, '%type while trying to add hierarchy values to field %field (%field_id) on index %index: @message in %function (line %line of %file).', $vars);
+              continue;
+            }
+          }
         }
       }
     }
@@ -276,6 +312,11 @@ class AddHierarchy extends ProcessorPluginBase implements PluginFormInterface {
    *   to the parent entities.
    * @param \Drupal\search_api\Item\FieldInterface $field
    *   The field to which values should be added.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   *   Thrown if a referenced entity type does not exist.
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   *   Thrown if a referenced entity's storage handler couldn't be loaded.
    */
   protected function addHierarchyValues($entityTypeId, $entityId, $property, FieldInterface $field) {
     if ("$entityTypeId-$property" == 'taxonomy_term-parent') {

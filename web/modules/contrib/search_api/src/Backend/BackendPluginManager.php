@@ -4,7 +4,10 @@ namespace Drupal\search_api\Backend;
 
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Plugin\DefaultPluginManager;
+use Drupal\search_api\Annotation\SearchApiBackend;
+use Drupal\search_api\Event\SearchApiEvents;
+use Drupal\search_api\SearchApiPluginManager;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Manages search backend plugins.
@@ -14,7 +17,7 @@ use Drupal\Core\Plugin\DefaultPluginManager;
  * @see \Drupal\search_api\Backend\BackendPluginBase
  * @see plugin_api
  */
-class BackendPluginManager extends DefaultPluginManager {
+class BackendPluginManager extends SearchApiPluginManager {
 
   /**
    * Constructs a BackendPluginManager object.
@@ -26,11 +29,15 @@ class BackendPluginManager extends DefaultPluginManager {
    *   The cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
+   *   The event dispatcher.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
-    parent::__construct('Plugin/search_api/backend', $namespaces, $module_handler, 'Drupal\search_api\Backend\BackendInterface', 'Drupal\search_api\Annotation\SearchApiBackend');
-    $this->setCacheBackend($cache_backend, 'search_api_backends');
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, EventDispatcherInterface $eventDispatcher) {
+    parent::__construct('Plugin/search_api/backend', $namespaces, $module_handler, $eventDispatcher, BackendInterface::class, SearchApiBackend::class);
+
     $this->alterInfo('search_api_backend_info');
+    $this->alterEvent(SearchApiEvents::GATHERING_BACKENDS);
+    $this->setCacheBackend($cache_backend, 'search_api_backends');
   }
 
 }

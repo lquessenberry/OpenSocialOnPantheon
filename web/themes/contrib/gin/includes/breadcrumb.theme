@@ -1,0 +1,33 @@
+<?php
+
+/**
+ * @file
+ * breadcrumb.theme
+ */
+
+use Drupal\node\NodeInterface;
+
+/**
+ * Breadcrumb.
+ */
+function gin_preprocess_breadcrumb(&$variables) {
+  // Alter node breadcrumb.
+  if (($node = \Drupal::routeMatch()->getParameter('node')) && $variables['breadcrumb']) {
+    foreach ($variables['breadcrumb'] as $key => $item) {
+      if ($item['url'] === '/node') {
+        if ($node instanceof NodeInterface) {
+          $variables['breadcrumb'][$key]['text'] = t('Edit') . ' ' . $node->type->entity->label();
+        }
+      }
+    }
+  }
+
+  // Node add: Fix Drupal 9 issue.
+  if (\Drupal::routeMatch()->getRouteName() === 'node.add') {
+    foreach ($variables['breadcrumb'] as $key => $item) {
+      if ($variables['breadcrumb'][$key]['text'] == '') {
+        unset($variables['breadcrumb'][$key]);
+      }
+    }
+  }
+}

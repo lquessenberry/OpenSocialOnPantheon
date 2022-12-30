@@ -6,7 +6,6 @@ use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Routing\DefaultHtmlRouteProvider;
-use Drupal\group\Plugin\GroupContentEnablerManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Routing\Route;
 
@@ -14,39 +13,6 @@ use Symfony\Component\Routing\Route;
  * Provides routes for group content.
  */
 class GroupContentRouteProvider extends DefaultHtmlRouteProvider {
-
-  /**
-   * The group content enabler plugin manager.
-   *
-   * @var \Drupal\group\Plugin\GroupContentEnablerManagerInterface
-   */
-  protected $pluginManager;
-
-  /**
-   * Constructs a new GroupContentRouteProvider.
-   *
-   * @param \Drupal\group\Plugin\GroupContentEnablerManagerInterface $plugin_manager
-   *   The group content enabler plugin manager.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity type manager.
-   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
-   *   The entity field manager.
-   */
-  public function __construct(GroupContentEnablerManagerInterface $plugin_manager, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager) {
-    parent::__construct($entity_type_manager, $entity_field_manager);
-    $this->pluginManager = $plugin_manager;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
-    return new static(
-      $container->get('plugin.manager.group_content_enabler'),
-      $container->get('entity_type.manager'),
-      $container->get('entity_field.manager')
-    );
-  }
 
   /**
    * {@inheritdoc}
@@ -73,7 +39,7 @@ class GroupContentRouteProvider extends DefaultHtmlRouteProvider {
       $route = new Route($entity_type->getLinkTemplate('add-page'));
       $route
         ->setDefault('_controller', '\Drupal\group\Entity\Controller\GroupContentController::addPage')
-        ->setDefault('_title', 'Relate content to group')
+        ->setDefault('_title', 'Add existing content')
         ->setRequirement('_group_content_create_any_access', 'TRUE')
         ->setOption('_group_operation_route', TRUE);
 
@@ -114,7 +80,7 @@ class GroupContentRouteProvider extends DefaultHtmlRouteProvider {
       $route = new Route($entity_type->getLinkTemplate('create-page'));
       $route
         ->setDefault('_controller', '\Drupal\group\Entity\Controller\GroupContentController::addPage')
-        ->setDefault('_title', 'Create content in group')
+        ->setDefault('_title', 'Add new content')
         ->setDefault('create_mode', TRUE)
         ->setRequirement('_group_content_create_any_entity_access', 'TRUE')
         ->setOption('_group_operation_route', TRUE);

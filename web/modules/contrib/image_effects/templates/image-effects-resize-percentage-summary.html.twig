@@ -15,7 +15,7 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   - {{ 'Width'|t }}:
 {% if data.width %}
   {{ data.width|e }}
@@ -28,4 +28,4 @@
 {% else %}
   {{ '(scaled)'|t }}
 {% endif %}
-{% endspaceless %}
+{% endapply %}

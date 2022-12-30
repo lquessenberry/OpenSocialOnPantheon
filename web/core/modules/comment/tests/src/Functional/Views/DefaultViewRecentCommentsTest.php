@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\comment\Functional\Views;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\comment\CommentInterface;
 use Drupal\comment\Entity\Comment;
 use Drupal\comment\Tests\CommentTestTrait;
@@ -22,14 +23,19 @@ class DefaultViewRecentCommentsTest extends ViewTestBase {
    *
    * @var array
    */
-  public static $modules = ['node', 'comment', 'block'];
+  protected static $modules = ['node', 'comment', 'block'];
 
   /**
-   * Number of results for the Master display.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * Number of results for the Default display.
    *
    * @var int
    */
-  protected $masterDisplayResults = 5;
+  protected $defaultDisplayResults = 5;
 
   /**
    * Number of results for the Block display.
@@ -59,8 +65,8 @@ class DefaultViewRecentCommentsTest extends ViewTestBase {
    */
   public $node;
 
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = []): void {
+    parent::setUp($import_test_views, $modules);
 
     // Create a new content type
     $content_type = $this->drupalCreateContentType();
@@ -77,7 +83,7 @@ class DefaultViewRecentCommentsTest extends ViewTestBase {
     $this->container->get('views.views_data')->clear();
 
     // Create some comments and attach them to the created node.
-    for ($i = 0; $i < $this->masterDisplayResults; $i++) {
+    for ($i = 0; $i < $this->defaultDisplayResults; $i++) {
       /** @var \Drupal\comment\CommentInterface $comment */
       $comment = Comment::create([
         'status' => CommentInterface::PUBLISHED,
@@ -91,7 +97,7 @@ class DefaultViewRecentCommentsTest extends ViewTestBase {
       $comment->comment_body->format = 'full_html';
 
       // Ensure comments are sorted in ascending order.
-      $time = REQUEST_TIME + ($this->masterDisplayResults - $i);
+      $time = REQUEST_TIME + ($this->defaultDisplayResults - $i);
       $comment->setCreatedTime($time);
       $comment->changed->value = $time;
 
@@ -119,7 +125,7 @@ class DefaultViewRecentCommentsTest extends ViewTestBase {
     $map = [
       'subject' => 'subject',
       'cid' => 'cid',
-      'comment_field_data_created' => 'created'
+      'comment_field_data_created' => 'created',
     ];
     $expected_result = [];
     foreach (array_values($this->commentsCreated) as $key => $comment) {
@@ -130,8 +136,8 @@ class DefaultViewRecentCommentsTest extends ViewTestBase {
     $this->assertIdenticalResultset($view, $expected_result, $map);
 
     // Check the number of results given by the display is the expected.
-    $this->assertEqual(count($view->result), $this->blockDisplayResults,
-      format_string('There are exactly @results comments. Expected @expected',
+    $this->assertCount($this->blockDisplayResults, $view->result,
+      new FormattableMarkup('There are exactly @results comments. Expected @expected',
         ['@results' => count($view->result), '@expected' => $this->blockDisplayResults]
       )
     );

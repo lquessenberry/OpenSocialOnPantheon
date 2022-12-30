@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\mailsystem_test\Plugin\Mail\Dummy.
- */
 
 namespace Drupal\mailsystem_test\Plugin\Mail;
 
@@ -24,11 +20,11 @@ class Dummy implements MailInterface {
    */
   public function format(array $message) {
     // TODO: Implement format() method.
-    \debug(array(
+    \dump([
       'Subject' => $message['subject'],
       'Body' => $message['body'],
       'Headers' => $message['headers'],
-    ), 'Dummy: format()');
+    ], 'Dummy: format()');
     return $message;
   }
 
@@ -37,11 +33,11 @@ class Dummy implements MailInterface {
    */
   public function mail(array $message) {
     // TODO: Implement mail() method.
-    \debug(array(
+    \dump([
       'Subject' => $message['subject'],
       'Body' => $message['body'],
       'Headers' => $message['headers'],
-    ), 'Dummy: mail()');
+    ], 'Dummy: mail()');
     return TRUE;
   }
 

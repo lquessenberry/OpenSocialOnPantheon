@@ -2,15 +2,43 @@
 
 namespace Drupal\group\Entity\Form;
 
+use Drupal\Core\Entity\BundleEntityFormBase;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\group\Entity\GroupTypeInterface;
-use Drupal\Core\Entity\BundleEntityFormBase;
-use Drupal\Core\Form\FormStateInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Form controller for group type forms.
  */
 class GroupTypeForm extends BundleEntityFormBase {
+
+  /**
+   * The entity field manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * Constructs a new GroupTypeForm.
+   *
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager service.
+   */
+  public function __construct(EntityFieldManagerInterface $entity_field_manager) {
+    $this->entityFieldManager = $entity_field_manager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('entity_field.manager')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -19,6 +47,13 @@ class GroupTypeForm extends BundleEntityFormBase {
     /** @var \Drupal\group\Entity\GroupTypeInterface $type */
     $form = parent::form($form, $form_state);
     $type = $this->entity;
+
+    if ($this->operation === 'add') {
+      $fields = $this->entityFieldManager->getBaseFieldDefinitions('group');
+    }
+    else {
+      $fields = $this->entityFieldManager->getFieldDefinitions('group', $type->id());
+    }
 
     $form['label'] = [
       '#title' => $this->t('Name'),
@@ -49,6 +84,20 @@ class GroupTypeForm extends BundleEntityFormBase {
       '#type' => 'textarea',
       '#default_value' => $type->getDescription(),
       '#description' => $this->t('This text will be displayed on the <em>Add group</em> page.'),
+    ];
+
+    $form['title_label'] = [
+      '#title' => $this->t('Title field label'),
+      '#type' => 'textfield',
+      '#default_value' => $fields['label']->getLabel(),
+      '#description' => $this->t('Sets the label of the field that will be used for group titles.'),
+      '#required' => TRUE,
+    ];
+
+    $form['new_revision'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Create a new revision when a group is modified'),
+      '#default_value' => $type->shouldCreateNewRevision(),
     ];
 
     $form['creator_membership'] = [
@@ -160,11 +209,19 @@ class GroupTypeForm extends BundleEntityFormBase {
     $status = $type->save();
     $t_args = ['%label' => $type->label()];
 
+    // Update title field definition.
+    $fields = $this->entityFieldManager->getFieldDefinitions('group', $type->id());
+    $title_field = $fields['label'];
+    $title_label = $form_state->getValue('title_label');
+    if ($title_field->getLabel() !== $title_label) {
+      $title_field->getConfig($type->id())->setLabel($title_label)->save();
+    }
+
     if ($status == SAVED_UPDATED) {
-      drupal_set_message($this->t('The group type %label has been updated.', $t_args));
+      $this->messenger()->addStatus($this->t('The group type %label has been updated.', $t_args));
     }
     elseif ($status == SAVED_NEW) {
-      drupal_set_message($this->t('The group type %label has been added. You may now configure which roles a group creator will receive by editing the group type.', $t_args));
+      $this->messenger()->addStatus($this->t('The group type %label has been added. You may now configure which roles a group creator will receive by editing the group type.', $t_args));
       $context = array_merge($t_args, ['link' => $type->toLink($this->t('View'), 'collection')->toString()]);
       $this->logger('group')->notice('Added group type %label.', $context);
 

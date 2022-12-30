@@ -1,11 +1,15 @@
 <?php
+
 namespace Drush\Drupal\Commands\core;
 
+use Drupal\Core\Queue\QueueWorkerManager;
+use Drupal\Core\Queue\QueueInterface;
 use Consolidation\AnnotatedCommand\CommandData;
 use Consolidation\AnnotatedCommand\CommandError;
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
+use Drupal\Core\Queue\DelayableQueueInterface;
+use Drupal\Core\Queue\DelayedRequeueException;
 use Drupal\Core\Queue\QueueFactory;
-use Drupal\Core\Queue\QueueInterface;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
 use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Queue\SuspendQueueException;
@@ -13,9 +17,8 @@ use Drush\Commands\DrushCommands;
 
 class QueueCommands extends DrushCommands
 {
-
     /**
-     * @var \Drupal\Core\Queue\QueueWorkerManager
+     * @var QueueWorkerManager
      */
     protected $workerManager;
 
@@ -27,18 +30,12 @@ class QueueCommands extends DrushCommands
         $this->queueService = $queueService;
     }
 
-    /**
-     * @return \Drupal\Core\Queue\QueueWorkerManager
-     */
-    public function getWorkerManager()
+    public function getWorkerManager(): QueueWorkerManager
     {
         return $this->workerManager;
     }
 
-    /**
-     * @return \Drupal\Core\Queue\QueueFactory
-     */
-    public function getQueueService()
+    public function getQueueService(): QueueFactory
     {
         return $this->queueService;
     }
@@ -57,18 +54,24 @@ class QueueCommands extends DrushCommands
      * @aliases queue-run
      * @param string $name The name of the queue to run, as defined in either hook_queue_info or hook_cron_queue_info.
      * @validate-queue name
-     * @option time-limit The maximum number of seconds allowed to run the queue
+     * @option time-limit The maximum number of seconds allowed to run the queue.
+     * @option items-limit The maximum number of items allowed to run the queue.
+     * @option lease-time The maximum number of seconds that an item remains claimed.
      */
-    public function run($name, $options = ['time-limit' => self::REQ])
+    public function run(string $name, $options = ['time-limit' => self::REQ, 'items-limit' => self::REQ, 'lease-time' => self::REQ]): void
     {
         $time_limit = (int) $options['time-limit'];
+        $items_limit = (int) $options['items-limit'];
         $start = microtime(true);
         $worker = $this->getWorkerManager()->createInstance($name);
+        $info = $this->getWorkerManager()->getDefinition($name);
         $end = time() + $time_limit;
         $queue = $this->getQueue($name);
         $count = 0;
+        $remaining = $time_limit;
+        $lease_time = $options['lease-time'] ?? $info['cron']['time'] ?? 30;
 
-        while ((!$time_limit || time() < $end) && ($item = $queue->claimItem())) {
+        while ((!$time_limit || $remaining > 0) && (!$items_limit || $count < $items_limit) && ($item = $queue->claimItem($lease_time))) {
             try {
                 $this->logger()->info(dt('Processing item @id from @name queue.', ['@name' => $name, '@id' => $item->item_id]));
                 $worker->processItem($item->data);
@@ -81,8 +84,24 @@ class QueueCommands extends DrushCommands
                 // If the worker indicates there is a problem with the whole queue,
                 // release the item.
                 $queue->releaseItem($item);
-                throw new \Exception($e->getMessage());
+                throw new \Exception($e->getMessage(), $e->getCode(), $e);
+            } catch (DelayedRequeueException $e) {
+                // The worker requested the task not be immediately re-queued.
+                // - If the queue doesn't support ::delayItem(), we should leave the
+                // item's current expiry time alone.
+                // - If the queue does support ::delayItem(), we should allow the
+                // queue to update the item's expiry using the requested delay.
+                if ($queue instanceof DelayableQueueInterface) {
+                    // This queue can handle a custom delay; use the duration provided
+                    // by the exception.
+                    $queue->delayItem($item, $e->getDelay());
+                }
+            } catch (\Exception $e) {
+                // In case of any other kind of exception, log it and leave the
+                // item in the queue to be processed again later.
+                $this->logger()->error($e->getMessage());
             }
+            $remaining = $end - time();
         }
         $elapsed = microtime(true) - $start;
         $this->logger()->success(dt('Processed @count items from the @name queue in @elapsed sec.', ['@count' => $count, '@name' => $name, '@elapsed' => round($elapsed, 2)]));
@@ -98,9 +117,9 @@ class QueueCommands extends DrushCommands
      *   items: Items
      *   class: Class
      *
-     * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+     * @filter-default-field queue
      */
-    public function qList($options = ['format' => 'table'])
+    public function qList($options = ['format' => 'table']): RowsOfFields
     {
         $result = [];
         foreach (array_keys($this->getQueues()) as $name) {
@@ -122,7 +141,7 @@ class QueueCommands extends DrushCommands
      * @param $name The name of the queue to run, as defined in either hook_queue_info or hook_cron_queue_info.
      * @validate-queue name
      */
-    public function delete($name)
+    public function delete($name): void
     {
         $queue = $this->getQueue($name);
         $queue->deleteQueue();
@@ -135,15 +154,14 @@ class QueueCommands extends DrushCommands
      * Annotation value should be the name of the argument/option containing the name.
      *
      * @hook validate @validate-queue
-     * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-     * @return \Consolidation\AnnotatedCommand\CommandError|null
+     * @param CommandData $commandData
+     * @return CommandError|null
      */
     public function validateQueueName(CommandData $commandData)
     {
         $arg_name = $commandData->annotationData()->get('validate-queue', null);
         $name = $commandData->input()->getArgument($arg_name);
-        $all = array_keys(self::getQueues());
-        if (!in_array($name, $all)) {
+        if (!array_key_exists($name, self::getQueues())) {
             $msg = dt('Queue not found: !name', ['!name' => $name]);
             return new CommandError($msg);
         }
@@ -152,7 +170,7 @@ class QueueCommands extends DrushCommands
     /**
      * {@inheritdoc}
      */
-    public function getQueues()
+    public function getQueues(): array
     {
         if (!isset(static::$queues)) {
             static::$queues = [];
@@ -165,10 +183,8 @@ class QueueCommands extends DrushCommands
 
     /**
      * {@inheritdoc}
-     *
-     * @return \Drupal\Core\Queue\QueueInterface
      */
-    public function getQueue($name)
+    public function getQueue($name): QueueInterface
     {
         return $this->getQueueService()->get($name);
     }

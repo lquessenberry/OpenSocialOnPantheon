@@ -2,8 +2,8 @@
 
 namespace Drupal\search\Plugin\views\filter;
 
-use Drupal\Core\Database\Query\Condition;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\search\ViewsSearchQuery;
 use Drupal\views\Plugin\views\filter\FilterPluginBase;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\ViewExecutable;
@@ -27,9 +27,9 @@ class Search extends FilterPluginBase {
 
   /**
    * A search query to use for parsing search keywords.
-    *
-    * @var \Drupal\search\ViewsSearchQuery
-    */
+   *
+   * @var \Drupal\search\ViewsSearchQuery
+   */
   protected $searchQuery = NULL;
 
   /**
@@ -120,7 +120,7 @@ class Search extends FilterPluginBase {
   protected function queryParseSearchExpression($input) {
     if (!isset($this->searchQuery)) {
       $this->parsed = TRUE;
-      $this->searchQuery = db_select('search_index', 'i', ['target' => 'replica'])->extend('Drupal\search\ViewsSearchQuery');
+      $this->searchQuery = \Drupal::service('database.replica')->select('search_index', 'i')->extend(ViewsSearchQuery::class);
       $this->searchQuery->searchExpression($input, $this->searchType);
       $this->searchQuery->publicParseSearchExpression();
     }
@@ -153,7 +153,7 @@ class Search extends FilterPluginBase {
     else {
       $search_index = $this->ensureMyTable();
 
-      $search_condition = new Condition('AND');
+      $search_condition = $this->view->query->getConnection()->condition('AND');
 
       // Create a new join to relate the 'search_total' table to our current
       // 'search_index' table.
@@ -187,7 +187,7 @@ class Search extends FilterPluginBase {
       // Add the keyword conditions, as is done in
       // SearchQuery::prepareAndNormalize(), but simplified because we are
       // only concerned with relevance ranking so we do not need to normalize.
-      $or = new Condition('OR');
+      $or = $this->view->query->getConnection()->condition('OR');
       foreach ($words as $word) {
         $or->condition("$search_index.word", $word);
       }

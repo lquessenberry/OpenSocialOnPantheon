@@ -2,6 +2,7 @@
 
 namespace Drupal\flag;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Session\AccountInterface;
@@ -51,10 +52,28 @@ class FlagCountManager implements FlagCountManagerInterface, EventSubscriberInte
   protected $connection;
 
   /**
+   * The date time service.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface
+   */
+  protected $dateTime;
+
+  /**
    * Constructs a FlagCountManager.
    */
-  public function __construct(Connection $connection) {
+  public function __construct(Connection $connection, TimeInterface $date_time) {
     $this->connection = $connection;
+    $this->dateTime = $date_time;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new self (
+      $container->get('database'),
+      $container->get('datetime.time')
+    );
   }
 
   /**
@@ -127,7 +146,7 @@ class FlagCountManager implements FlagCountManagerInterface, EventSubscriberInte
     // Return the flag count if it is already in the cache.
     if ($get_by_session_id) {
       if (is_null($session_id)) {
-        throw new \LogicException('Anonymous users must be identifed by session_id');
+        throw new \LogicException('Anonymous users must be identified by session_id');
       }
 
       // Return the flag count if it is already in the cache.
@@ -184,7 +203,7 @@ class FlagCountManager implements FlagCountManagerInterface, EventSubscriberInte
         'entity_type' => $entity->getEntityTypeId(),
       ])
       ->fields([
-        'last_updated' => REQUEST_TIME,
+        'last_updated' => $this->dateTime->getRequestTime(),
         'count' => 1,
       ])
       ->expression('count', 'count + :inc', [':inc' => 1])
@@ -274,12 +293,12 @@ class FlagCountManager implements FlagCountManagerInterface, EventSubscriberInte
    * {@inheritdoc}
    */
   public static function getSubscribedEvents() {
-    $events = array();
-    $events[FlagEvents::ENTITY_FLAGGED][] = array('incrementFlagCounts', -100);
-    $events[FlagEvents::ENTITY_UNFLAGGED][] = array(
+    $events = [];
+    $events[FlagEvents::ENTITY_FLAGGED][] = ['incrementFlagCounts', -100];
+    $events[FlagEvents::ENTITY_UNFLAGGED][] = [
       'decrementFlagCounts',
       -100,
-    );
+    ];
     return $events;
   }
 

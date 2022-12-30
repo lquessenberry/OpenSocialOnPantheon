@@ -117,7 +117,7 @@ class OpmlFields extends RowPluginBase {
     $form['xml_url_field'] = [
       '#type' => 'select',
       '#title' => $this->t('XML URL attribute'),
-      '#description' => $this->t('The field that is going to be used as the OPML text attribute for each row.'),
+      '#description' => $this->t('The field that is going to be used as the OPML XML URL attribute for each row.'),
       '#options' => $view_fields_labels,
       '#default_value' => $this->options['xml_url_field'],
       '#states' => [
@@ -195,7 +195,7 @@ class OpmlFields extends RowPluginBase {
       '#view' => $this->view,
       '#options' => $this->options,
       '#row' => $item,
-      '#field_alias' => isset($this->field_alias) ? $this->field_alias : '',
+      '#field_alias' => $this->field_alias ?? '',
     ];
     return $build;
   }

@@ -18,7 +18,7 @@ class MigrateShortcutTest extends MigrateDrupal7TestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'link',
     'field',
     'shortcut',
@@ -28,14 +28,12 @@ class MigrateShortcutTest extends MigrateDrupal7TestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->installEntitySchema('shortcut');
     $this->installEntitySchema('menu_link_content');
-    \Drupal::service('router.builder')->rebuild();
     $this->executeMigration('d7_shortcut_set');
     $this->executeMigration('d7_menu');
-    $this->executeMigration('d7_menu_links');
     $this->executeMigration('d7_shortcut');
   }
 
@@ -50,25 +48,27 @@ class MigrateShortcutTest extends MigrateDrupal7TestBase {
    *   The expected weight of the shortcut.
    * @param string $url
    *   The expected URL of the shortcut.
+   *
+   * @internal
    */
-  protected function assertEntity($id, $title, $weight, $url) {
+  protected function assertEntity(int $id, string $title, int $weight, string $url): void {
     $shortcut = Shortcut::load($id);
-    $this->assertTrue($shortcut instanceof ShortcutInterface);
+    $this->assertInstanceOf(ShortcutInterface::class, $shortcut);
     /** @var \Drupal\shortcut\ShortcutInterface $shortcut */
-    $this->assertIdentical($title, $shortcut->getTitle());
-    $this->assertIdentical($weight, $shortcut->getWeight());
-    $this->assertIdentical($url, $shortcut->getUrl()->toString());
+    $this->assertSame($title, $shortcut->getTitle());
+    $this->assertSame($weight, (int) $shortcut->getWeight());
+    $this->assertSame($url, $shortcut->getUrl()->toString());
   }
 
   /**
-   * Test the shortcut migration.
+   * Tests the shortcut migration.
    */
   public function testShortcutMigration() {
     // Check if the 4 shortcuts were migrated correctly.
-    $this->assertEntity(1, 'Add content', '-20', '/node/add');
-    $this->assertEntity(2, 'Find content', '-19', '/admin/content');
-    $this->assertEntity(3, 'Help', '-49', '/admin/help');
-    $this->assertEntity(4, 'People', '-50', '/admin/people');
+    $this->assertEntity(1, 'Add content', -20, '/node/add');
+    $this->assertEntity(2, 'Find content', -19, '/admin/content');
+    $this->assertEntity(3, 'Help', -49, '/admin/help');
+    $this->assertEntity(4, 'People', -50, '/admin/people');
   }
 
 }

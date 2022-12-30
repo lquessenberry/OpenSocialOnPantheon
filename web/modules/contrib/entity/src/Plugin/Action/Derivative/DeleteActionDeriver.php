@@ -4,20 +4,24 @@ namespace Drupal\entity\Plugin\Action\Derivative;
 
 use Drupal\Component\Plugin\Derivative\DeriverBase;
 use Drupal\Core\Plugin\Discovery\ContainerDeriverInterface;
-use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Provides a delete action for each content entity type.
+ *
+ * @deprecated
  */
 class DeleteActionDeriver extends DeriverBase implements ContainerDeriverInterface {
+
+  use StringTranslationTrait;
 
   /**
    * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
@@ -46,7 +50,7 @@ class DeleteActionDeriver extends DeriverBase implements ContainerDeriverInterfa
       $definitions = [];
       foreach ($this->getParticipatingEntityTypes() as $entity_type_id => $entity_type) {
         $definition = $base_plugin_definition;
-        $definition['label'] = t('Delete @entity_type', ['@entity_type' => $entity_type->getSingularLabel()]);
+        $definition['label'] = $this->t('Delete @entity_type (Deprecated)', ['@entity_type' => $entity_type->getSingularLabel()]);
         $definition['type'] = $entity_type_id;
         $definition['confirm_form_route_name'] = 'entity.' . $entity_type_id . '.delete_multiple_form';
         $definitions[$entity_type_id] = $definition;
@@ -69,7 +73,10 @@ class DeleteActionDeriver extends DeriverBase implements ContainerDeriverInterfa
   protected function getParticipatingEntityTypes() {
     $entity_types = $this->entityTypeManager->getDefinitions();
     $entity_types = array_filter($entity_types, function (EntityTypeInterface $entity_type) {
-      return $entity_type->entityClassImplements(ContentEntityInterface::class) && $entity_type->hasLinkTemplate('delete-multiple-form');
+      // Core requires a "delete-multiple-confirm" form to be declared as well,
+      // if it's missing, it's safe to assume that the entity type is still
+      // relying on previous Entity API contrib behavior.
+      return $entity_type->hasLinkTemplate('delete-multiple-form') && !$entity_type->hasHandlerClass('form', 'delete-multiple-confirm');
     });
 
     return $entity_types;

@@ -38,4 +38,13 @@ class Block extends Plugin {
    */
   public $category = '';
 
+  /**
+   * An array of context definitions describing the context used by the plugin.
+   *
+   * The array is keyed by context names.
+   *
+   * @var \Drupal\Core\Annotation\ContextDefinition[]
+   */
+  public $context_definitions = [];
+
 }

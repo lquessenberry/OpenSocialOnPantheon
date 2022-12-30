@@ -15,14 +15,17 @@ use Drupal\views_infinite_scroll\Plugin\views\pager\InfiniteScroll;
 function views_infinite_scroll_preprocess_views_infinite_scroll_pager(&$vars) {
   // The important parts we needed lifted wholesale from
   // template_preprocess_views_mini_pager().
-  global $pager_page_array, $pager_total;
+  /** @var \Drupal\Core\Pager\PagerManagerInterface $pager_manager */
+  $pager_manager = \Drupal::service('pager.manager');
   $element = $vars['element'];
   $parameters = $vars['parameters'];
-  if ($pager_page_array[$element] < ($pager_total[$element] - 1)) {
-    $options = array(
-      'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] + 1),
-    );
-    $vars['items']['next']['href'] = Url::fromRoute('<current>', [], $options);
+  $pager = $pager_manager->getPager($element);
+
+  if (isset($pager) && $pager->getCurrentPage() < ($pager->getTotalPages() - 1)) {
+    $options = [
+      'query' => $pager_manager->getUpdatedParameters($parameters, $element, $pager->getCurrentPage() + 1),
+    ];
+    $vars['items']['next']['href'] = Url::fromRoute('<none>', [], $options);
   }
   $vars['#cache']['contexts'][] = 'url.query_args';
   $vars['attributes'] = new Attribute([
@@ -36,18 +39,49 @@ function views_infinite_scroll_preprocess_views_infinite_scroll_pager(&$vars) {
  * Implements hook_preprocess_views_view().
  */
 function views_infinite_scroll_preprocess_views_view(&$vars) {
+  $has_pager = _views_infinite_scroll_has_pager($vars);
+  if ($has_pager) {
+    $vars['rows']['#theme_wrappers'] = ['container'];
+    $vars['rows']['#attributes'] = [
+      'data-drupal-views-infinite-scroll-content-wrapper' => TRUE,
+      'class' => [
+        'views-infinite-scroll-content-wrapper',
+        'clearfix',
+      ],
+    ];
+  }
+}
+
+/**
+ * Implements hook_preprocess_views_view_table().
+ */
+function views_infinite_scroll_preprocess_views_view_table(&$vars) {
+  $has_pager = _views_infinite_scroll_has_pager($vars);
+  if ($has_pager) {
+    $vars['attributes']['data-drupal-views-infinite-scroll-table'] = TRUE;
+  }
+}
+
+/**
+ * Helper function that determines whether views_infinite_scroll pager is in use.
+ */
+function _views_infinite_scroll_has_pager($vars) {
+  $has_pager = FALSE;
   $view = $vars['view'];
   if ($view->getDisplay()->isPagerEnabled() && !empty($vars['rows'])) {
     $pager = $view->getPager();
     if ($pager && $pager instanceof InfiniteScroll) {
-      $vars['rows']['#theme_wrappers'] = ['container'];
-      $vars['rows']['#attributes'] = [
-        'data-drupal-views-infinite-scroll-content-wrapper' => TRUE,
-        'class' => [
-          'views-infinite-scroll-content-wrapper',
-          'clearfix',
-        ],
-      ];
+      $has_pager = TRUE;
     }
   }
+  return $has_pager;
+}
+
+/**
+ * Implements hook_preprocess_eva_display_entity_view()
+ */
+function views_infinite_scroll_preprocess_eva_display_entity_view(&$vars) {
+  // When the contributed EVA module is used to display the View, apply the
+  // preprocessing logic of this module.
+  views_infinite_scroll_preprocess_views_view($vars);
 }

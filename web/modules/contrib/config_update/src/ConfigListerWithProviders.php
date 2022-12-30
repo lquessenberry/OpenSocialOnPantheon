@@ -85,11 +85,12 @@ class ConfigListerWithProviders extends ConfigLister implements ConfigListByProv
       return $this->providers;
     }
 
-    // Calculate if it hasn't been set up yet.
-    // List all of the profile, modules, and themes.
+    // Calculate the list of who provides which config, if it hasn't been set
+    // up yet. List all of the profile, modules, and themes. Profile needs to
+    // come last, so it will override config in modules and themes in our list,
+    // matching what the config system does.
     $extensionsToDo = [];
     $profile = $this->getProfileName();
-    $extensionsToDo[] = ['profile', $profile];
     $modules = $this->moduleHandler->getModuleList();
     foreach ($modules as $machine_name => $module) {
       if ($machine_name != $profile) {
@@ -101,6 +102,8 @@ class ConfigListerWithProviders extends ConfigLister implements ConfigListByProv
     foreach ($themes as $machine_name => $theme) {
       $extensionsToDo[] = ['theme', $machine_name];
     }
+
+    $extensionsToDo[] = ['profile', $profile];
 
     // For each extension, figure out if it has config, and make an index of
     // config item => provider.

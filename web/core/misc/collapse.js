@@ -9,48 +9,36 @@
   function CollapsibleDetails(node) {
     this.$node = $(node);
     this.$node.data('details', this);
+    var anchor = window.location.hash && window.location.hash !== '#' ? ", ".concat(window.location.hash) : '';
 
-    var anchor = location.hash && location.hash !== '#' ? ', ' + location.hash : '';
-    if (this.$node.find('.error' + anchor).length) {
+    if (this.$node.find(".error".concat(anchor)).length) {
       this.$node.attr('open', true);
     }
 
-    this.setupSummary();
-
-    this.setupLegend();
+    this.setupSummaryPolyfill();
   }
 
   $.extend(CollapsibleDetails, {
     instances: []
   });
-
   $.extend(CollapsibleDetails.prototype, {
-    setupSummary: function setupSummary() {
-      this.$summary = $('<span class="summary"></span>');
-      this.$node.on('summaryUpdated', $.proxy(this.onSummaryUpdated, this)).trigger('summaryUpdated');
+    setupSummaryPolyfill: function setupSummaryPolyfill() {
+      var $summary = this.$node.find('> summary');
+      $summary.attr('tabindex', '-1');
+      $('<span class="details-summary-prefix visually-hidden"></span>').append(this.$node.attr('open') ? Drupal.t('Hide') : Drupal.t('Show')).prependTo($summary).after(document.createTextNode(' '));
+      $('<a class="details-title"></a>').attr('href', "#".concat(this.$node.attr('id'))).prepend($summary.contents()).appendTo($summary);
+      $summary.append(this.$summary).on('click', $.proxy(this.onSummaryClick, this));
     },
-    setupLegend: function setupLegend() {
-      var $legend = this.$node.find('> summary');
-
-      $('<span class="details-summary-prefix visually-hidden"></span>').append(this.$node.attr('open') ? Drupal.t('Hide') : Drupal.t('Show')).prependTo($legend).after(document.createTextNode(' '));
-
-      $('<a class="details-title"></a>').attr('href', '#' + this.$node.attr('id')).prepend($legend.contents()).appendTo($legend);
-
-      $legend.append(this.$summary).on('click', $.proxy(this.onLegendClick, this));
-    },
-    onLegendClick: function onLegendClick(e) {
+    onSummaryClick: function onSummaryClick(e) {
       this.toggle();
       e.preventDefault();
-    },
-    onSummaryUpdated: function onSummaryUpdated() {
-      var text = $.trim(this.$node.drupalGetSummary());
-      this.$summary.html(text ? ' (' + text + ')' : '');
     },
     toggle: function toggle() {
       var _this = this;
 
       var isOpen = !!this.$node.attr('open');
       var $summaryPrefix = this.$node.find('> summary span.details-summary-prefix');
+
       if (isOpen) {
         $summaryPrefix.html(Drupal.t('Show'));
       } else {
@@ -62,18 +50,16 @@
       }, 0);
     }
   });
-
   Drupal.behaviors.collapse = {
     attach: function attach(context) {
       if (Modernizr.details) {
         return;
       }
-      var $collapsibleDetails = $(context).find('details').once('collapse').addClass('collapse-processed');
-      if ($collapsibleDetails.length) {
-        for (var i = 0; i < $collapsibleDetails.length; i++) {
-          CollapsibleDetails.instances.push(new CollapsibleDetails($collapsibleDetails[i]));
-        }
-      }
+
+      once('collapse', 'details', context).forEach(function (detail) {
+        detail.classList.add('collapse-processed');
+        CollapsibleDetails.instances.push(new CollapsibleDetails(detail));
+      });
     }
   };
 
@@ -82,6 +68,5 @@
   };
 
   $('body').on('formFragmentLinkClickOrHashChange.details', handleFragmentLinkClickOrHashChange);
-
   Drupal.CollapsibleDetails = CollapsibleDetails;
 })(jQuery, Modernizr, Drupal);

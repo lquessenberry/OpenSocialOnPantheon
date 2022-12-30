@@ -16,17 +16,27 @@ class MigrateLanguageContentSettingsTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'text', 'language', 'content_translation', 'menu_ui'];
+  protected static $modules = [
+    'node',
+    'text',
+    'language',
+    'content_translation',
+    'menu_ui',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installConfig(['node']);
     $this->installEntitySchema('node');
-    $this->executeMigrations(['d6_node_type', 'd6_language_content_settings']);
+    $this->executeMigrations([
+      'language',
+      'd6_node_type',
+      'd6_language_content_settings',
+    ]);
   }
 
   /**
@@ -45,13 +55,8 @@ class MigrateLanguageContentSettingsTest extends MigrateDrupal6TestBase {
     $this->assertTrue($config->isDefaultConfiguration());
     $this->assertFalse($config->isLanguageAlterable());
     $this->assertSame($config->getDefaultLangcode(), 'site_default');
-  }
 
-  /**
-   * Tests migration of content language settings when there is no language lock.
-   */
-  public function testLanguageContentWithNoLanguageLock() {
-    // Assert that a we can assign a language.
+    // Assert that a we can assign a language when there is no language lock.
     $config = ContentLanguageSettings::loadByEntityTypeBundle('node', 'employee');
     $this->assertSame($config->getDefaultLangcode(), 'current_interface');
     $this->assertTrue($config->isLanguageAlterable());

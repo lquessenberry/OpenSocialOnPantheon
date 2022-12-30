@@ -14,7 +14,7 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['action', 'file', 'system'];
+  protected static $modules = ['action', 'file', 'system'];
 
   protected $expectedConfig = [
     'system.cron' => [
@@ -26,20 +26,20 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
       'logging' => 1,
     ],
     'system.date' => [
+      'first_day' => 4,
       // country is not handled by the migration.
       'country' => [
         'default' => '',
       ],
-      'first_day' => 4,
       // timezone is not handled by the migration.
       'timezone' => [
         'default' => 'Europe/Paris',
         'user' => [
           'configurable' => FALSE,
-          // warn is not handled by the migration.
-          'warn' => FALSE,
           // default is not handled by the migration.
           'default' => 0,
+          // warn is not handled by the migration.
+          'warn' => FALSE,
         ],
       ],
     ],
@@ -47,9 +47,6 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
       'allow_insecure_uploads' => TRUE,
       // default_scheme is not handled by the migration.
       'default_scheme' => 'public',
-      'path' => [
-        'temporary' => 'files/temp',
-      ],
       // temporary_maximum_age is not handled by the migration.
       'temporary_maximum_age' => 21600,
     ],
@@ -63,9 +60,9 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
       'error_level' => 'some',
     ],
     'system.maintenance' => [
-      'message' => 'Drupal is currently under maintenance. We should be back shortly. Thank you for your patience.',
       // langcode is not handled by the migration.
       'langcode' => 'en',
+      'message' => 'Drupal is currently under maintenance. We should be back shortly. Thank you for your patience.',
     ],
     'system.performance' => [
       'cache' => [
@@ -94,18 +91,13 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
       'stale_file_threshold' => 2592000,
     ],
     'system.rss' => [
-      // channel is not handled by the migration.
-      'channel' => [
-        'description' => '',
-      ],
       'items' => [
-        'limit' => 10,
         'view_mode' => 'title',
       ],
-      // langcode is not handled by the migration.
-      'langcode' => 'en',
     ],
     'system.site' => [
+      // langcode and default_langcode are not handled by the migration.
+      'langcode' => 'en',
       // uuid is not handled by the migration.
       'uuid' => '',
       'name' => 'site_name',
@@ -118,8 +110,6 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
       ],
       'admin_compact_mode' => FALSE,
       'weight_select_max' => 100,
-      // langcode and default_langcode are not handled by the migration.
-      'langcode' => 'en',
       'default_langcode' => 'en',
     ],
   ];
@@ -127,8 +117,14 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
+
+    // Delete 'site_frontpage' in order to test the migration of a non-existing
+    // front page link.
+    $this->sourceDatabase->delete('variable')
+      ->condition('name', 'site_frontpage')
+      ->execute();
 
     $migrations = [
       'd6_system_cron',
@@ -152,7 +148,7 @@ class MigrateSystemConfigurationTest extends MigrateDrupal6TestBase {
     foreach ($this->expectedConfig as $config_id => $values) {
       $actual = \Drupal::config($config_id)->get();
       unset($actual['_core']);
-      $this->assertSame($actual, $values, $config_id . ' matches expected values.');
+      $this->assertSame($values, $actual, $config_id . ' matches expected values.');
     }
   }
 

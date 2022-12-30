@@ -23,6 +23,11 @@ class AdminToolbarToolsAlterTest extends BrowserTestBase {
   ];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * A test user with permission to access the administrative toolbar.
    *
    * @var \Drupal\user\UserInterface
@@ -32,7 +37,7 @@ class AdminToolbarToolsAlterTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     // Create and log in an administrative user.
     $this->adminUser = $this->drupalCreateUser([
@@ -48,7 +53,7 @@ class AdminToolbarToolsAlterTest extends BrowserTestBase {
    */
   public function testAdminToolbarTools() {
     // Assert that special menu items are present in the HTML.
-    $this->assertRaw('class="toolbar-icon toolbar-icon-admin-toolbar-tools-flush"');
+    $this->assertSession()->responseContains('class="toolbar-icon toolbar-icon-admin-toolbar-tools-flush"');
   }
 
 }

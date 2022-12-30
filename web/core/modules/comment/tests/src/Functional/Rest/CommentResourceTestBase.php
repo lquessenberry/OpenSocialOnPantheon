@@ -7,19 +7,18 @@ use Drupal\comment\Entity\CommentType;
 use Drupal\comment\Tests\CommentTestTrait;
 use Drupal\Core\Cache\Cache;
 use Drupal\entity_test\Entity\EntityTest;
-use Drupal\Tests\rest\Functional\BcTimestampNormalizerUnixTestTrait;
 use Drupal\Tests\rest\Functional\EntityResource\EntityResourceTestBase;
 use Drupal\user\Entity\User;
 use GuzzleHttp\RequestOptions;
 
 abstract class CommentResourceTestBase extends EntityResourceTestBase {
 
-  use CommentTestTrait, BcTimestampNormalizerUnixTestTrait;
+  use CommentTestTrait;
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['comment', 'entity_test'];
+  protected static $modules = ['comment', 'entity_test'];
 
   /**
    * {@inheritdoc}
@@ -30,17 +29,17 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
    * {@inheritdoc}
    */
   protected static $patchProtectedFieldNames = [
-    'status',
-    'pid',
-    'entity_id',
-    'uid',
-    'name',
-    'homepage',
-    'created',
-    'changed',
-    'thread',
-    'entity_type',
-    'field_name',
+    'status' => "The 'administer comments' permission is required.",
+    'uid' => "The 'administer comments' permission is required.",
+    'pid' => NULL,
+    'entity_id' => NULL,
+    'name' => "The 'administer comments' permission is required.",
+    'homepage' => "The 'administer comments' permission is required.",
+    'created' => "The 'administer comments' permission is required.",
+    'changed' => NULL,
+    'thread' => NULL,
+    'entity_type' => NULL,
+    'field_name' => NULL,
   ];
 
   /**
@@ -56,11 +55,13 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
       case 'GET':
         $this->grantPermissionsToTestedRole(['access comments', 'view test entity']);
         break;
+
       case 'POST':
         $this->grantPermissionsToTestedRole(['post comments']);
         break;
+
       case 'PATCH':
-        // Anononymous users are not ever allowed to edit their own comments. To
+        // Anonymous users are not ever allowed to edit their own comments. To
         // be able to test PATCHing comments as the anonymous user, the more
         // permissive 'administer comments' permission must be granted.
         // @see \Drupal\comment\CommentAccessControlHandler::checkAccess
@@ -71,6 +72,7 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
           $this->grantPermissionsToTestedRole(['administer comments']);
         }
         break;
+
       case 'DELETE':
         $this->grantPermissionsToTestedRole(['administer comments']);
         break;
@@ -107,7 +109,7 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
     ]);
     $comment->setSubject('Llama')
       ->setOwnerId(static::$auth ? $this->account->id() : 0)
-      ->setPublished(TRUE)
+      ->setPublished()
       ->setCreatedTime(123456789)
       ->setChangedTime(123456789);
     $comment->save();
@@ -150,10 +152,16 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
         ],
       ],
       'created' => [
-        $this->formatExpectedTimestampItemValues(123456789),
+        [
+          'value' => (new \DateTime())->setTimestamp(123456789)->setTimezone(new \DateTimeZone('UTC'))->format(\DateTime::RFC3339),
+          'format' => \DateTime::RFC3339,
+        ],
       ],
       'changed' => [
-        $this->formatExpectedTimestampItemValues($this->entity->getChangedTime()),
+        [
+          'value' => (new \DateTime())->setTimestamp((int) $this->entity->getChangedTime())->setTimezone(new \DateTimeZone('UTC'))->format(\DateTime::RFC3339),
+          'format' => \DateTime::RFC3339,
+        ],
       ],
       'default_langcode' => [
         [
@@ -267,8 +275,8 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
   /**
    * Tests POSTing a comment without critical base fields.
    *
-   * testPost() is testing with the most minimal normalization possible: the one
-   * returned by ::getNormalizedPostEntity().
+   * Tests with the most minimal normalization possible: the one returned by
+   * ::getNormalizedPostEntity().
    *
    * But Comment entities have some very special edge cases:
    * - base fields that are not marked as required in
@@ -291,57 +299,43 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
     // DX: 422 when missing 'entity_type' field.
     $request_options[RequestOptions::BODY] = $this->serializer->encode(array_diff_key($this->getNormalizedPostEntity(), ['entity_type' => TRUE]), static::$format);
     $response = $this->request('POST', $url, $request_options);
-    // @todo Uncomment, remove next 3 lines in https://www.drupal.org/node/2820364.
-    $this->assertSame(500, $response->getStatusCode());
-    $this->assertSame(['text/plain; charset=UTF-8'], $response->getHeader('Content-Type'));
-    $this->assertStringStartsWith('The website encountered an unexpected error. Please try again later.</br></br><em class="placeholder">Symfony\Component\HttpKernel\Exception\HttpException</em>: Internal Server Error in <em class="placeholder">Drupal\rest\Plugin\rest\resource\EntityResource-&gt;post()</em>', (string) $response->getBody());
-    // $this->assertResourceErrorResponse(422, "Unprocessable Entity: validation failed.\nentity_type: This value should not be null.\n", $response);
+    $this->assertResourceErrorResponse(422, "Unprocessable Entity: validation failed.\nentity_type: This value should not be null.\n", $response);
 
     // DX: 422 when missing 'entity_id' field.
     $request_options[RequestOptions::BODY] = $this->serializer->encode(array_diff_key($this->getNormalizedPostEntity(), ['entity_id' => TRUE]), static::$format);
-    // @todo Remove the try/catch in favor of the two commented lines in
-    // https://www.drupal.org/node/2820364.
-    try {
-      $response = $this->request('POST', $url, $request_options);
-      // This happens on DrupalCI.
-      // $this->assertSame(500, $response->getStatusCode());
-    }
-    catch (\Exception $e) {
-      // This happens on Wim's local machine.
-      // $this->assertSame("Error: Call to a member function get() on null\nDrupal\\comment\\Plugin\\Validation\\Constraint\\CommentNameConstraintValidator->getAnonymousContactDetailsSetting()() (Line: 96)\n", $e->getMessage());
-    }
-    // $response = $this->request('POST', $url, $request_options);
-    // $this->assertResourceErrorResponse(422, "Unprocessable Entity: validation failed.\nentity_type: This value should not be null.\n", $response);
+    $response = $this->request('POST', $url, $request_options);
+    $this->assertResourceErrorResponse(422, "Unprocessable Entity: validation failed.\nentity_id: This value should not be null.\n", $response);
 
-    // DX: 422 when missing 'entity_type' field.
+    // DX: 422 when missing 'field_name' field.
     $request_options[RequestOptions::BODY] = $this->serializer->encode(array_diff_key($this->getNormalizedPostEntity(), ['field_name' => TRUE]), static::$format);
     $response = $this->request('POST', $url, $request_options);
-    // @todo Uncomment, remove next 2 lines in https://www.drupal.org/node/2820364.
-    $this->assertSame(500, $response->getStatusCode());
-    $this->assertSame(['text/plain; charset=UTF-8'], $response->getHeader('Content-Type'));
-    // $this->assertResourceErrorResponse(422, "Unprocessable Entity: validation failed.\nfield_name: This value should not be null.\n", $response);
+    $this->assertResourceErrorResponse(422, "Unprocessable Entity: validation failed.\nfield_name: This value should not be null.\n", $response);
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getExpectedUnauthorizedAccessMessage($method) {
-    if ($this->config('rest.settings')->get('bc_entity_resource_permissions')) {
-      return parent::getExpectedUnauthorizedAccessMessage($method);
-    }
-
     switch ($method) {
-      case 'GET';
+      case 'GET':
         return "The 'access comments' permission is required and the comment must be published.";
-      case 'POST';
+
+      case 'POST':
         return "The 'post comments' permission is required.";
+
+      case 'PATCH':
+        return "The 'edit own comments' permission is required, the user must be the comment author, and the comment must be published.";
+
+      case 'DELETE':
       default:
-        return parent::getExpectedUnauthorizedAccessMessage($method);
+        // \Drupal\comment\CommentAccessControlHandler::checkAccess() does not
+        // specify a reason for not allowing a comment to be deleted.
+        return '';
     }
   }
 
   /**
-   * Tests POSTing a comment with and without 'skip comment approval'
+   * Tests POSTing a comment with and without 'skip comment approval'.
    */
   public function testPostSkipCommentApproval() {
     $this->initAuthentication();
@@ -361,7 +355,7 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
     $response = $this->request('POST', $url, $request_options);
     $unserialized = $this->serializer->deserialize((string) $response->getBody(), get_class($this->entity), static::$format);
     $this->assertResourceResponse(201, FALSE, $response);
-    $this->assertFalse($unserialized->getStatus());
+    $this->assertFalse($unserialized->isPublished());
 
     // Grant anonymous permission to skip comment approval.
     $this->grantPermissionsToTestedRole(['skip comment approval']);
@@ -370,15 +364,15 @@ abstract class CommentResourceTestBase extends EntityResourceTestBase {
     $response = $this->request('POST', $url, $request_options);
     $unserialized = $this->serializer->deserialize((string) $response->getBody(), get_class($this->entity), static::$format);
     $this->assertResourceResponse(201, FALSE, $response);
-    $this->assertTrue($unserialized->getStatus());
+    $this->assertTrue($unserialized->isPublished());
   }
 
   /**
    * {@inheritdoc}
    */
-  protected function getExpectedUnauthorizedAccessCacheability() {
+  protected function getExpectedUnauthorizedEntityAccessCacheability($is_authenticated) {
     // @see \Drupal\comment\CommentAccessControlHandler::checkAccess()
-    return parent::getExpectedUnauthorizedAccessCacheability()
+    return parent::getExpectedUnauthorizedEntityAccessCacheability($is_authenticated)
       ->addCacheTags(['comment:1']);
   }
 

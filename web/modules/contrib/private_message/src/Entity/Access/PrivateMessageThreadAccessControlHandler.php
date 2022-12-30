@@ -16,6 +16,11 @@ class PrivateMessageThreadAccessControlHandler extends EntityAccessControlHandle
    * {@inheritdoc}
    */
   protected function checkAccess(EntityInterface $entity, $operation, AccountInterface $account) {
+
+    if ($account->hasPermission('administer private messages')) {
+      return AccessResult::allowed();
+    }
+
     if ($account->hasPermission('use private messaging system')) {
       switch ($operation) {
         case 'view':
@@ -29,6 +34,17 @@ class PrivateMessageThreadAccessControlHandler extends EntityAccessControlHandle
           break;
 
         case 'delete':
+          // Allow delete if we are member of this thread
+          // And if we have permission to delete thread for everyone.
+          if ($entity->isMember($account->id())
+            && $account->hasPermission('delete private message thread for all')) {
+            return AccessResult::allowed();
+          }
+
+          break;
+
+        case 'clear_personal_history':
+          // We can clear personal history only if we are member of this thread.
           if ($entity->isMember($account->id())) {
             return AccessResult::allowed();
           }
@@ -37,7 +53,7 @@ class PrivateMessageThreadAccessControlHandler extends EntityAccessControlHandle
       }
     }
 
-    return AccessResult::forbidden();
+    return AccessResult::neutral();
   }
 
   /**

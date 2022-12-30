@@ -6,26 +6,65 @@ use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\migrate\MigrateMessageInterface;
 use Drupal\migrate\Row;
 
+// cspell:ignore destid sourceid
+
 /**
  * Defines an interface for migrate ID mappings.
  *
  * Migrate ID mappings maintain a relation between source ID and destination ID
- * for audit and rollback purposes.
+ * for audit and rollback purposes. The keys used in the migrate_map table are
+ * of the form sourceidN and destidN for the source and destination values
+ * respectively.
+ *
+ * The mappings are stored in a migrate_map table with properties:
+ * - source_ids_hash: A hash of the source IDs.
+ * - sourceidN: Any number of source IDs defined by a source plugin, where N
+ *   starts at 1, for example,  sourceid1, sourceid2 ... sourceidN.
+ * - destidN: Any number of destination IDs defined by a destination plugin,
+ *   where N starts at 1, for example,  destid1, destid2 ... destidN.
+ * - source_row_status:  Indicates current status of the source row, valid
+ *   values are self::STATUS_IMPORTED, self::STATUS_NEEDS_UPDATE,
+ *   self::STATUS_IGNORED or self::STATUS_FAILED.
+ * - rollback_action: Flag indicating what to do for this item on rollback. This
+ *   property is set in destination plugins. Valid values are
+ *   self::ROLLBACK_DELETE and self::ROLLBACK_PRESERVE.
+ * - last_imported: UNIX timestamp of the last time the row was imported.
+ * - hash: A hash of the source row data that is used to detect changes in the
+ *   source data.
  */
 interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
 
   /**
-   * Codes reflecting the current status of a map row.
+   * Indicates that the import of the row was successful.
    */
   const STATUS_IMPORTED = 0;
+
+  /**
+   * Indicates that the row needs to be updated.
+   */
   const STATUS_NEEDS_UPDATE = 1;
+
+  /**
+   * Indicates that the import of the row was ignored.
+   */
   const STATUS_IGNORED = 2;
+
+  /**
+   * Indicates that the import of the row failed.
+   */
   const STATUS_FAILED = 3;
 
   /**
-   * Codes reflecting how to handle the destination item on rollback.
+   * Indicates that the data for the row is to be deleted.
    */
   const ROLLBACK_DELETE = 0;
+
+  /**
+   * Indicates that the data for the row is to be preserved.
+   *
+   * Rows that refer to entities that already exist on the destination and are
+   * being updated are preserved.
+   */
   const ROLLBACK_PRESERVE = 1;
 
   /**
@@ -63,7 +102,7 @@ interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
   public function saveMessage(array $source_id_values, $message, $level = MigrationInterface::MESSAGE_ERROR);
 
   /**
-   * Retrieves an iterator over messages relate to source records.
+   * Retrieves a traversable object of messages related to source records.
    *
    * @param array $source_id_values
    *   (optional) The source identifier keyed values of the record, e.g.
@@ -72,16 +111,22 @@ interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
    *   (optional) Message severity. If NULL (the default), retrieve messages of
    *   all severities.
    *
-   * @return \Iterator
-   *   Retrieves an iterator over the message rows.
+   * @return \Traversable
+   *   Retrieves a traversable object of message objects of unspecified class.
+   *   Each object has the following public properties:
+   *   - source_row_hash: the hash of the entire serialized source row data.
+   *   - message: the text of the message.
+   *   - level: one of MigrationInterface::MESSAGE_ERROR,
+   *   MigrationInterface::MESSAGE_WARNING, MigrationInterface::MESSAGE_NOTICE,
+   *   MigrationInterface::MESSAGE_INFORMATIONAL.
    */
-  public function getMessageIterator(array $source_id_values = [], $level = NULL);
+  public function getMessages(array $source_id_values = [], $level = NULL);
 
   /**
    * Prepares to run a full update.
    *
    * Prepares this migration to run as an update - that is, in addition to
-   * unmigrated content (source records not in the map table) being imported,
+   * un-migrated content (source records not in the map table) being imported,
    * previously-migrated content will also be updated in place by marking all
    * previously-imported content as ready to be re-imported.
    */
@@ -103,7 +148,6 @@ interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
    */
   public function importedCount();
 
-
   /**
    * Returns a count of items which are marked as needing update.
    *
@@ -116,7 +160,7 @@ interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
    * Returns the number of items that failed to import.
    *
    * @return int
-   *   The number of items that errored out.
+   *   The number of items that failed to import.
    */
   public function errorCount();
 
@@ -169,7 +213,7 @@ interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
    *   The destination identifier keyed values of the record, e.g. ['nid' => 5].
    *
    * @return array
-   *   The row(s) of data.
+   *   The row(s) of data or an empty array when there is no matching map row.
    */
   public function getRowByDestination(array $destination_id_values);
 
@@ -198,25 +242,6 @@ interface MigrateIdMapInterface extends \Iterator, PluginInspectionInterface {
    *   an empty array on failure.
    */
   public function lookupSourceId(array $destination_id_values);
-
-  /**
-   * Looks up the destination identifier corresponding to a source key.
-   *
-   * Given a (possibly multi-field) source identifier value, return the
-   * (possibly multi-field) destination identifier value it is mapped to.
-   *
-   * @param array $source_id_values
-   *   The source identifier keyed values of the record, e.g. ['nid' => 5].
-   *
-   * @return array
-   *   The destination identifier values of the record, or empty on failure.
-   *
-   * @deprecated in Drupal 8.1.x, will be removed before Drupal 9.0.x. Use
-   *   lookupDestinationIds() instead.
-   *
-   * @see https://www.drupal.org/node/2725809
-   */
-  public function lookupDestinationId(array $source_id_values);
 
   /**
    * Looks up the destination identifiers corresponding to a source key.

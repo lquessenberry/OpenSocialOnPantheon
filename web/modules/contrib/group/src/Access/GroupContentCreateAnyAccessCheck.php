@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Route;
 class GroupContentCreateAnyAccessCheck implements AccessInterface {
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
@@ -25,7 +25,7 @@ class GroupContentCreateAnyAccessCheck implements AccessInterface {
    * Constructs a EntityCreateAccessCheck object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity manager.
+   *   The entity type manager.
    */
   public function __construct(EntityTypeManagerInterface $entity_type_manager) {
     $this->entityTypeManager = $entity_type_manager;

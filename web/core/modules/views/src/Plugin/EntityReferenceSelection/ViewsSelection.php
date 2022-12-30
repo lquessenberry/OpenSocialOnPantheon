@@ -2,12 +2,19 @@
 
 namespace Drupal\views\Plugin\EntityReferenceSelection;
 
+use Drupal\Component\Utility\Xss;
 use Drupal\Core\Entity\EntityReferenceSelection\SelectionPluginBase;
-use Drupal\Core\Entity\EntityReferenceSelection\SelectionTrait;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Render\RendererInterface;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Url;
+use Drupal\views\Render\ViewsRenderPipelineMarkup;
 use Drupal\views\Views;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Plugin implementation of the 'selection' entity_reference.
@@ -20,15 +27,84 @@ use Drupal\views\Views;
  * )
  */
 class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPluginInterface {
-
-  use SelectionTrait;
+  use StringTranslationTrait;
 
   /**
    * The loaded View object.
    *
-   * @var \Drupal\views\ViewExecutable;
+   * @var \Drupal\views\ViewExecutable
    */
   protected $view;
+
+  /**
+   * The entity type manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountInterface
+   */
+  protected $currentUser;
+
+  /**
+   * The renderer.
+   *
+   * @var \Drupal\Core\Render\RendererInterface
+   */
+  protected $renderer;
+
+  /**
+   * Constructs a new ViewsSelection object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler service.
+   * @param \Drupal\Core\Session\AccountInterface $current_user
+   *   The current user.
+   * @param \Drupal\Core\Render\RendererInterface $renderer
+   *   The renderer.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, ModuleHandlerInterface $module_handler, AccountInterface $current_user, RendererInterface $renderer) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+
+    $this->entityTypeManager = $entity_type_manager;
+    $this->moduleHandler = $module_handler;
+    $this->currentUser = $current_user;
+    $this->renderer = $renderer;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('entity_type.manager'),
+      $container->get('module_handler'),
+      $container->get('current_user'),
+      $container->get('renderer')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -53,12 +129,12 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
     $displays = Views::getApplicableViews('entity_reference_display');
     // Filter views that list the entity type we want, and group the separate
     // displays by view.
-    $entity_type = $this->entityManager->getDefinition($this->configuration['target_type']);
-    $view_storage = $this->entityManager->getStorage('view');
+    $entity_type = $this->entityTypeManager->getDefinition($this->configuration['target_type']);
+    $view_storage = $this->entityTypeManager->getStorage('view');
 
     $options = [];
     foreach ($displays as $data) {
-      list($view_id, $display_id) = $data;
+      [$view_id, $display_id] = $data;
       $view = $view_storage->load($view_id);
       if (in_array($view->get('base_table'), [$entity_type->getBaseTable(), $entity_type->getDataTable()])) {
         $display = $view->get('display');
@@ -70,7 +146,7 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
     // into 'view_name' and 'view_display' in the final submitted values, so
     // we massage the data at validate time on the wrapping element (not
     // ideal).
-    $form['view']['#element_validate'] = [[get_called_class(), 'settingsFormValidate']];
+    $form['view']['#element_validate'] = [[static::class, 'settingsFormValidate']];
 
     if ($options) {
       $default = !empty($view_settings['view_name']) ? $view_settings['view_name'] . ':' . $view_settings['display_name'] : NULL;
@@ -132,7 +208,7 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
     // Check that the view is valid and the display still exists.
     $this->view = Views::getView($view_name);
     if (!$this->view || !$this->view->access($display_name)) {
-      drupal_set_message(t('The reference view %view_name cannot be found.', ['%view_name' => $view_name]), 'warning');
+      \Drupal::messenger()->addWarning($this->t('The reference view %view_name cannot be found.', ['%view_name' => $view_name]));
       return FALSE;
     }
     $this->view->setDisplay($display_name);
@@ -152,22 +228,68 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
    * {@inheritdoc}
    */
   public function getReferenceableEntities($match = NULL, $match_operator = 'CONTAINS', $limit = 0) {
+    $entities = [];
+    if ($display_execution_results = $this->getDisplayExecutionResults($match, $match_operator, $limit)) {
+      $entities = $this->stripAdminAndAnchorTagsFromResults($display_execution_results);
+    }
+    return $entities;
+  }
+
+  /**
+   * Fetches the results of executing the display.
+   *
+   * @param string|null $match
+   *   (Optional) Text to match the label against. Defaults to NULL.
+   * @param string $match_operator
+   *   (Optional) The operation the matching should be done with. Defaults
+   *   to "CONTAINS".
+   * @param int $limit
+   *   Limit the query to a given number of items. Defaults to 0, which
+   *   indicates no limiting.
+   * @param array|null $ids
+   *   Array of entity IDs. Defaults to NULL.
+   *
+   * @return array
+   *   The results.
+   */
+  protected function getDisplayExecutionResults(string $match = NULL, string $match_operator = 'CONTAINS', int $limit = 0, array $ids = NULL) {
     $display_name = $this->getConfiguration()['view']['display_name'];
     $arguments = $this->getConfiguration()['view']['arguments'];
-    $result = [];
-    if ($this->initializeView($match, $match_operator, $limit)) {
-      // Get the results.
-      $result = $this->view->executeDisplay($display_name, $arguments);
+    $results = [];
+    if ($this->initializeView($match, $match_operator, $limit, $ids)) {
+      $results = $this->view->executeDisplay($display_name, $arguments);
+    }
+    return $results;
+  }
+
+  /**
+   * Strips all admin and anchor tags from a result list.
+   *
+   * These results are usually displayed in an autocomplete field, which is
+   * surrounded by anchor tags. Most tags are allowed inside anchor tags, except
+   * for other anchor tags.
+   *
+   * @param array $results
+   *   The result list.
+   *
+   * @return array
+   *   The provided result list with anchor tags removed.
+   */
+  protected function stripAdminAndAnchorTagsFromResults(array $results) {
+    $allowed_tags = Xss::getAdminTagList();
+    if (($key = array_search('a', $allowed_tags)) !== FALSE) {
+      unset($allowed_tags[$key]);
     }
 
-    $return = [];
-    if ($result) {
-      foreach ($this->view->result as $row) {
-        $entity = $row->_entity;
-        $return[$entity->bundle()][$entity->id()] = $entity->label();
-      }
+    $stripped_results = [];
+    foreach ($results as $id => $row) {
+      $entity = $row['#row']->_entity;
+      $stripped_results[$entity->bundle()][$id] = ViewsRenderPipelineMarkup::create(
+        Xss::filter($this->renderer->renderPlain($row), $allowed_tags)
+      );
     }
-    return $return;
+
+    return $stripped_results;
   }
 
   /**
@@ -182,12 +304,9 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
    * {@inheritdoc}
    */
   public function validateReferenceableEntities(array $ids) {
-    $display_name = $this->getConfiguration()['view']['display_name'];
-    $arguments = $this->getConfiguration()['view']['arguments'];
+    $entities = $this->getDisplayExecutionResults(NULL, 'CONTAINS', 0, $ids);
     $result = [];
-    if ($this->initializeView(NULL, 'CONTAINS', 0, $ids)) {
-      // Get the results.
-      $entities = $this->view->executeDisplay($display_name, $arguments);
+    if ($entities) {
       $result = array_keys($entities);
     }
     return $result;
@@ -199,7 +318,7 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
   public static function settingsFormValidate($element, FormStateInterface $form_state, $form) {
     // Split view name and display name from the 'view_and_display' value.
     if (!empty($element['view_and_display']['#value'])) {
-      list($view, $display) = explode(':', $element['view_and_display']['#value']);
+      [$view, $display] = explode(':', $element['view_and_display']['#value']);
     }
     else {
       $form_state->setError($element, t('The views entity selection mode requires a view.'));
@@ -218,7 +337,11 @@ class ViewsSelection extends SelectionPluginBase implements ContainerFactoryPlug
       $arguments = array_map('trim', explode(',', $arguments_string));
     }
 
-    $value = ['view_name' => $view, 'display_name' => $display, 'arguments' => $arguments];
+    $value = [
+      'view_name' => $view,
+      'display_name' => $display,
+      'arguments' => $arguments,
+    ];
     $form_state->setValueForElement($element, $value);
   }
 

@@ -4,8 +4,8 @@ namespace Drupal\Core\Lock;
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\DatabaseException;
 use Drupal\Core\Database\IntegrityConstraintViolationException;
-use Drupal\Core\Database\SchemaObjectExistsException;
 
 /**
  * Defines the database lock backend. This is the default backend in Drupal.
@@ -112,7 +112,7 @@ class DatabaseLockBackend extends LockBackendAbstract {
     $name = $this->normalizeName($name);
 
     try {
-      $lock = $this->database->query('SELECT expire, value FROM {semaphore} WHERE name = :name', [':name' => $name])->fetchAssoc();
+      $lock = $this->database->query('SELECT [expire], [value] FROM {semaphore} WHERE [name] = :name', [':name' => $name])->fetchAssoc();
     }
     catch (\Exception $e) {
       $this->catchException($e);
@@ -177,19 +177,18 @@ class DatabaseLockBackend extends LockBackendAbstract {
   protected function ensureTableExists() {
     try {
       $database_schema = $this->database->schema();
-      if (!$database_schema->tableExists(static::TABLE_NAME)) {
-        $schema_definition = $this->schemaDefinition();
-        $database_schema->createTable(static::TABLE_NAME, $schema_definition);
-        return TRUE;
-      }
+      $schema_definition = $this->schemaDefinition();
+      $database_schema->createTable(static::TABLE_NAME, $schema_definition);
     }
     // If another process has already created the semaphore table, attempting to
     // recreate it will throw an exception. In this case just catch the
     // exception and do nothing.
-    catch (SchemaObjectExistsException $e) {
-      return TRUE;
+    catch (DatabaseException $e) {
     }
-    return FALSE;
+    catch (\Exception $e) {
+      return FALSE;
+    }
+    return TRUE;
   }
 
   /**
@@ -251,20 +250,20 @@ class DatabaseLockBackend extends LockBackendAbstract {
           'type' => 'varchar_ascii',
           'length' => 255,
           'not null' => TRUE,
-          'default' => ''
+          'default' => '',
         ],
         'value' => [
           'description' => 'A value for the semaphore.',
           'type' => 'varchar_ascii',
           'length' => 255,
           'not null' => TRUE,
-          'default' => ''
+          'default' => '',
         ],
         'expire' => [
           'description' => 'A Unix timestamp with microseconds indicating when the semaphore should expire.',
           'type' => 'float',
           'size' => 'big',
-          'not null' => TRUE
+          'not null' => TRUE,
         ],
       ],
       'indexes' => [

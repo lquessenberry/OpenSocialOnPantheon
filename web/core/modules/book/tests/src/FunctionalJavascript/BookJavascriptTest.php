@@ -4,7 +4,7 @@ namespace Drupal\Tests\book\FunctionalJavascript;
 
 use Behat\Mink\Exception\ExpectationException;
 use Drupal\Component\Render\FormattableMarkup;
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\node\Entity\Node;
 
 /**
@@ -12,12 +12,17 @@ use Drupal\node\Entity\Node;
  *
  * @group book
  */
-class BookJavascriptTest extends JavascriptTestBase {
+class BookJavascriptTest extends WebDriverTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['book'];
+  protected static $modules = ['book'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests re-ordering of books.
@@ -65,7 +70,7 @@ class BookJavascriptTest extends JavascriptTestBase {
     $this->assertSession()->pageTextNotContains('You have unsaved changes.');
 
     // Drag and drop the '1st page' row over the '2nd page' row.
-    // @todo: Test also the reverse, '2nd page' over '1st page', when
+    // @todo Test also the reverse, '2nd page' over '1st page', when
     //   https://www.drupal.org/node/2769825 is fixed.
     // @see https://www.drupal.org/node/2769825
     $dragged = $this->xpath("//tr[@data-drupal-selector='edit-table-book-admin-{$page1->id()}']//a[@class='tabledrag-handle']")[0];
@@ -138,9 +143,11 @@ class BookJavascriptTest extends JavascriptTestBase {
    * @throws \Behat\Mink\Exception\ExpectationException
    *   When any of the given string is not found.
    *
+   * @internal
+   *
    * @todo Remove this once https://www.drupal.org/node/2817657 is committed.
    */
-  protected function assertOrderInPage(array $items) {
+  protected function assertOrderInPage(array $items): void {
     $session = $this->getSession();
     $text = $session->getPage()->getHtml();
     $strings = [];
@@ -155,6 +162,28 @@ class BookJavascriptTest extends JavascriptTestBase {
       return "'$item'";
     }, $items));
     $this->assertSame($items, array_values($strings), "Found strings, ordered as: $ordered.");
+  }
+
+  /**
+   * Tests book outline AJAX request.
+   */
+  public function testBookAddOutline() {
+    $this->drupalLogin($this->drupalCreateUser(['create book content', 'create new books', 'add content to books']));
+    $this->drupalGet('node/add/book');
+    $assert_session = $this->assertSession();
+    $session = $this->getSession();
+    $page = $session->getPage();
+
+    $page->find('css', '#edit-book')->click();
+    $book_select = $page->findField("book[bid]");
+    $book_select->setValue('new');
+    $assert_session->waitForText('This will be the top-level page in this book.');
+    $assert_session->pageTextContains('This will be the top-level page in this book.');
+    $assert_session->pageTextNotContains('No book selected.');
+    $book_select->setValue(0);
+    $assert_session->waitForText('No book selected.');
+    $assert_session->pageTextContains('No book selected.');
+    $assert_session->pageTextNotContains('This will be the top-level page in this book.');
   }
 
 }

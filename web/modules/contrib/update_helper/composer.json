@@ -1,0 +1,36 @@
+{
+    "name": "drupal/update_helper",
+    "description": "This module offers supporting functionalities to make configuration updates easier.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Mladen Todorovic",
+            "email": "mladen.todorovic@burda.com"
+        },
+        {
+            "name": "Christian Fritsch",
+            "email": "christian.fritsch@burda.com"
+        },
+        {
+            "name": "Daniel Bosen",
+            "email": "daniel.bosen@burda.com"
+        },
+        {
+            "name": "Volker Killesreiter",
+            "email": "killesreiter@burda.com"
+        }
+    ],
+    "require": {
+        "drupal/config_update": "^1.5",
+        "symfony/console": "^4.4.15 || ^5.1",
+        "chi-teck/drupal-code-generator": "^2.4"
+    },
+    "require-dev": {
+        "drupal/checklistapi": "~1.0 || ~2.0",
+        "drush/drush": "~11.0"
+    },
+    "suggest": {
+        "drupal/checklistapi": "Provides an API for creating fillable, persistent checklists. Required by the Update Helper Checklist module."
+    }
+}

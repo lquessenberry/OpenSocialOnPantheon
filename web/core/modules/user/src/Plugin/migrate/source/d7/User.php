@@ -8,6 +8,11 @@ use Drupal\migrate_drupal\Plugin\migrate\source\d7\FieldableEntity;
 /**
  * Drupal 7 user source from database.
  *
+ * For available configuration keys, refer to the parent classes.
+ *
+ * @see \Drupal\migrate\Plugin\migrate\source\SqlBase
+ * @see \Drupal\migrate\Plugin\migrate\source\SourcePluginBase
+ *
  * @MigrateSource(
  *   id = "d7_user",
  *   source_module = "user"
@@ -62,18 +67,32 @@ class User extends FieldableEntity {
    * {@inheritdoc}
    */
   public function prepareRow(Row $row) {
+    $uid = $row->getSourceProperty('uid');
+
     $roles = $this->select('users_roles', 'ur')
       ->fields('ur', ['rid'])
-      ->condition('ur.uid', $row->getSourceProperty('uid'))
+      ->condition('ur.uid', $uid)
       ->execute()
       ->fetchCol();
     $row->setSourceProperty('roles', $roles);
 
-    $row->setSourceProperty('data', unserialize($row->getSourceProperty('data')));
+    $row->setSourceProperty('data', unserialize($row->getSourceProperty('data') ?? ''));
+
+    // If this entity was translated using Entity Translation, we need to get
+    // its source language to get the field values in the right language.
+    // The translations will be migrated by the d7_user_entity_translation
+    // migration.
+    $entity_translatable = $this->isEntityTranslatable('user');
+    $source_language = $this->getEntityTranslationSourceLanguage('user', $uid);
+    $language = $entity_translatable && $source_language ? $source_language : $row->getSourceProperty('language');
+    $row->setSourceProperty('entity_language', $language);
 
     // Get Field API field values.
-    foreach (array_keys($this->getFields('user')) as $field) {
-      $row->setSourceProperty($field, $this->getFieldValues('user', $field, $row->getSourceProperty('uid')));
+    foreach ($this->getFields('user') as $field_name => $field) {
+      // Ensure we're using the right language if the entity and the field are
+      // translatable.
+      $field_language = $entity_translatable && $field['translatable'] ? $language : NULL;
+      $row->setSourceProperty($field_name, $this->getFieldValues('user', $field_name, $uid, NULL, $field_language));
     }
 
     // Get profile field values. This code is lifted directly from the D6
@@ -81,7 +100,7 @@ class User extends FieldableEntity {
     if ($this->getDatabase()->schema()->tableExists('profile_value')) {
       $query = $this->select('profile_value', 'pv')
         ->fields('pv', ['fid', 'value']);
-      $query->leftJoin('profile_field', 'pf', 'pf.fid=pv.fid');
+      $query->leftJoin('profile_field', 'pf', '[pf].[fid] = [pv].[fid]');
       $query->fields('pf', ['name', 'type']);
       $query->condition('uid', $row->getSourceProperty('uid'));
       $results = $query->execute();

@@ -1,0 +1,33 @@
+{
+  "name": "shoestring",
+  "title": "Shoestring",
+  "version": "2.0.1",
+  "description": "A simple framework for organizing, creating, and using DOM-based utilities.",
+  "main": "dist/shoestring-dev.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/filamentgroup/shoestring.git"
+  },
+  "bugs": {
+    "url": "https://github.com/filamentgroup/shoestring/issues"
+  },
+  "author": {
+    "name": "Filament Group",
+    "email": "thegroup@filamentgroup.com",
+    "url": "filamentgroup.com"
+  },
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "devDependencies": {
+    "doxx": "filamentgroup/doxx",
+    "grunt": "~1.0.1",
+    "grunt-cli": "~1.2.0",
+    "grunt-contrib-concat": "~1.0.1",
+    "grunt-contrib-jshint": "~1.1.0",
+    "grunt-contrib-qunit": "~2.0.0",
+    "grunt-contrib-requirejs": "~1.0.0",
+    "grunt-contrib-uglify": "~3.0.1",
+    "grunt-contrib-watch": "^1.0.0"
+  },
+  "keywords": []
+}

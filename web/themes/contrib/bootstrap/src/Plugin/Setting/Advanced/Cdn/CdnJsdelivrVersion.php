@@ -2,15 +2,16 @@
 
 namespace Drupal\bootstrap\Plugin\Setting\Advanced\Cdn;
 
-use Drupal\bootstrap\Bootstrap;
-use Drupal\bootstrap\Utility\Element;
-use Drupal\Component\Utility\Html;
-use Drupal\Core\Form\FormStateInterface;
+/**
+ * Due to BC reasons, this class cannot be moved.
+ *
+ * @todo Move namespace up one.
+ */
+
+use Drupal\bootstrap\Plugin\Setting\DeprecatedSettingInterface;
 
 /**
  * The "cdn_jsdelivr_version" theme setting.
- *
- * @ingroup plugins_setting
  *
  * @BootstrapSetting(
  *   cdn_provider = "jsdelivr",
@@ -21,47 +22,45 @@ use Drupal\Core\Form\FormStateInterface;
  *   description = @Translation("Choose the Bootstrap version from jsdelivr"),
  *   defaultValue = @BootstrapConstant("Drupal\bootstrap\Bootstrap::FRAMEWORK_VERSION"),
  *   groups = {
- *     "advanced" = @Translation("Advanced"),
  *     "cdn" = @Translation("CDN (Content Delivery Network)"),
+ *     "cdn_provider" = false,
  *     "jsdelivr" = false,
  *   },
  * )
+ *
+ * @deprecated since 8.x-3.18. Replaced with new setting. Will be removed in a
+ *   future release.
+ *
+ * @see \Drupal\bootstrap\Plugin\Setting\Advanced\Cdn\CdnVersion
  */
-class CdnJsdelivrVersion extends CdnProvider {
+class CdnJsdelivrVersion extends CdnProviderBase implements DeprecatedSettingInterface {
 
   /**
    * {@inheritdoc}
    */
-  public function alterFormElement(Element $form, FormStateInterface $form_state, $form_id = NULL) {
-    // Add autoload fix to make sure AJAX callbacks work.
-    static::formAutoloadFix($form_state);
-
-    $plugin_id = Html::cleanCssIdentifier($this->provider->getPluginId());
-    $setting = $this->getSettingElement($form, $form_state);
-
-    $setting->setProperty('options', $this->provider->getVersions());
-    $setting->setProperty('ajax', [
-      'callback' => [get_class($this), 'ajaxCallback'],
-      'wrapper' => 'cdn-provider-' . $plugin_id,
-    ]);
-
-    if (!$this->provider->hasError() && !$this->provider->isImported()) {
-      $setting->setProperty('description', t('These versions are automatically populated by the @provider API upon cache clear and newer versions may appear over time. It is highly recommended the version that the site was built with stays at that version. Until a newer version has been properly tested for updatability by the site maintainer, you should not arbitrarily "update" just because there is a newer version. This can cause many inconsistencies and undesired effects with an existing site.', [
-        '@provider' => $this->provider->getLabel(),
-      ]));
-    }
+  public function getDeprecatedReason() {
+    return $this->t('Replaced with new setting. Will be removed in a future release.');
   }
 
   /**
-   * AJAX callback for reloading CDN provider elements.
-   *
-   * @param array $form
-   *   Nested array of form elements that comprise the form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The current state of the form.
+   * {@inheritdoc}
    */
-  public static function ajaxCallback(array $form, FormStateInterface $form_state) {
-    return $form['advanced']['cdn'][$form_state->getValue('cdn_provider', Bootstrap::getTheme()->getSetting('cdn_provider'))];
+  public function getDeprecatedReplacement() {
+    return '\Drupal\bootstrap\Plugin\Setting\Advanced\Cdn\CdnVersion';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getDeprecatedReplacementSetting() {
+    return $this->theme->getSettingPlugin('cdn_version');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getDeprecatedVersion() {
+    return '8.x-3.18';
   }
 
 }

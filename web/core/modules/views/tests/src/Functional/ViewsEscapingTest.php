@@ -17,21 +17,26 @@ class ViewsEscapingTest extends ViewTestBase {
   public static $testViews = ['test_page_display', 'test_field_header'];
 
   /**
-   * Used by WebTestBase::setup()
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
    *
    * We need theme_test for testing against test_basetheme and test_subtheme.
    *
    * @var array
    *
-   * @see \Drupal\simpletest\WebTestBase::setup()
+   * {@inheritdoc}
    */
-  public static $modules = ['views', 'theme_test'];
+  protected static $modules = ['views', 'theme_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp(TRUE);
+  protected function setUp($import_test_views = TRUE, $modules = ['views_test_config']): void {
+    parent::setUp(TRUE, $modules);
 
     $this->enableViewsTestModule();
   }
@@ -44,24 +49,24 @@ class ViewsEscapingTest extends ViewTestBase {
     $this->drupalGet('test_page_display_200');
 
     // Assert that there are no escaped '<'s characters.
-    $this->assertNoEscaped('<');
+    $this->assertSession()->assertNoEscaped('<');
 
     // Install theme to test with template system.
-    \Drupal::service('theme_handler')->install(['views_test_theme']);
+    \Drupal::service('theme_installer')->install(['views_test_theme']);
 
     // Make base theme default then test for hook invocations.
     $this->config('system.theme')
       ->set('default', 'views_test_theme')
       ->save();
-    $this->assertEqual($this->config('system.theme')->get('default'), 'views_test_theme');
+    $this->assertEquals('views_test_theme', $this->config('system.theme')->get('default'));
 
     $this->drupalGet('test_page_display_200');
 
     // Assert that we are using the correct template.
-    $this->assertText('force', 'The force is strong with this one');
+    $this->assertSession()->pageTextContains('force');
 
     // Assert that there are no escaped '<'s characters.
-    $this->assertNoEscaped('<');
+    $this->assertSession()->assertNoEscaped('<');
   }
 
   /**
@@ -72,13 +77,13 @@ class ViewsEscapingTest extends ViewTestBase {
     $this->drupalGet('test_field_header');
 
     // Assert that there are no escaped '<'s characters.
-    $this->assertNoEscaped('<');
+    $this->assertSession()->assertNoEscaped('<');
 
     // Test with a field header label having a XSS test as a wrapper.
     $this->drupalGet('test_field_header_xss');
 
-    // Assert that XSS test is escaped.
-    $this->assertNoRaw('<script>alert("XSS")</script>', 'Harmful tags are escaped in header label.');
+    // Assert that harmful tags are escaped in header label.
+    $this->assertSession()->responseNotContains('<script>alert("XSS")</script>');
   }
 
 }

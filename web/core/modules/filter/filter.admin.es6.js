@@ -15,12 +15,22 @@
   Drupal.behaviors.filterStatus = {
     attach(context, settings) {
       const $context = $(context);
-      $context.find('#filters-status-wrapper input.form-checkbox').once('filter-status').each(function () {
-        const $checkbox = $(this);
+      once(
+        'filter-status',
+        '#filters-status-wrapper input.form-checkbox',
+        context,
+      ).forEach((checkbox) => {
+        const $checkbox = $(checkbox);
         // Retrieve the tabledrag row belonging to this filter.
-        const $row = $context.find(`#${$checkbox.attr('id').replace(/-status$/, '-weight')}`).closest('tr');
+        const $row = $context
+          .find(`#${$checkbox.attr('id').replace(/-status$/, '-weight')}`)
+          .closest('tr');
         // Retrieve the vertical tab belonging to this filter.
-        const $filterSettings = $context.find(`#${$checkbox.attr('id').replace(/-status$/, '-settings')}`);
+        const $filterSettings = $context.find(
+          `[data-drupal-selector='${$checkbox
+            .attr('id')
+            .replace(/-status$/, '-settings')}']`,
+        );
         const filterSettingsTab = $filterSettings.data('verticalTab');
 
         // Bind click handler to this checkbox to conditionally show and hide
@@ -30,18 +40,15 @@
             $row.show();
             if (filterSettingsTab) {
               filterSettingsTab.tabShow().updateSummary();
-            }
-            else {
+            } else {
               // On very narrow viewports, Vertical Tabs are disabled.
               $filterSettings.show();
             }
-          }
-          else {
+          } else {
             $row.hide();
             if (filterSettingsTab) {
               filterSettingsTab.tabHide().updateSummary();
-            }
-            else {
+            } else {
               // On very narrow viewports, Vertical Tabs are disabled.
               $filterSettings.hide();
             }
@@ -52,7 +59,11 @@
 
         // Attach summary for configurable filters (only for screen readers).
         if (filterSettingsTab) {
-          filterSettingsTab.details.drupalSetSummary(() => ($checkbox.is(':checked') ? Drupal.t('Enabled') : Drupal.t('Disabled')));
+          filterSettingsTab.details.drupalSetSummary(() =>
+            $checkbox.is(':checked')
+              ? Drupal.t('Enabled')
+              : Drupal.t('Disabled'),
+          );
         }
 
         // Trigger our bound click handler to update elements to initial state.
@@ -60,4 +71,4 @@
       });
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

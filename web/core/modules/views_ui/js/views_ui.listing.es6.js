@@ -18,33 +18,40 @@
    */
   Drupal.behaviors.viewTableFilterByText = {
     attach(context, settings) {
-      const $input = $('input.views-filter-text').once('views-filter-text');
-      const $table = $($input.attr('data-table'));
+      const [input] = once('views-filter-text', 'input.views-filter-text');
+      if (!input) {
+        return;
+      }
+      const $table = $(input.getAttribute('data-table'));
       let $rows;
 
       function filterViewList(e) {
-        const query = $(e.target).val().toLowerCase();
+        const query = e.target.value.toLowerCase();
 
         function showViewRow(index, row) {
-          const $row = $(row);
-          const $sources = $row.find('[data-drupal-selector="views-table-filter-text-source"]');
-          const textMatch = $sources.text().toLowerCase().indexOf(query) !== -1;
-          $row.closest('tr').toggle(textMatch);
+          const sources = row.querySelectorAll(
+            '[data-drupal-selector="views-table-filter-text-source"]',
+          );
+          let sourcesConcat = '';
+          sources.forEach((item) => {
+            sourcesConcat += item.textContent;
+          });
+          const textMatch = sourcesConcat.toLowerCase().indexOf(query) !== -1;
+          $(row).closest('tr').toggle(textMatch);
         }
 
         // Filter if the length of the query is at least 2 characters.
         if (query.length >= 2) {
           $rows.each(showViewRow);
-        }
-        else {
+        } else {
           $rows.show();
         }
       }
 
       if ($table.length) {
         $rows = $table.find('tbody tr');
-        $input.on('keyup', filterViewList);
+        $(input).on('keyup', filterViewList);
       }
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

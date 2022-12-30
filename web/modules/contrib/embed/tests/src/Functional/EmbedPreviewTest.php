@@ -21,6 +21,11 @@ class EmbedPreviewTest extends BrowserTestBase {
   public static $modules = ['embed_test', 'filter'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests that out-of-band assets are included with previews.
    */
   public function testPreview() {
@@ -53,8 +58,23 @@ class EmbedPreviewTest extends BrowserTestBase {
     $response = $this->drupalGet('/embed/preview/foo', [
       'query' => [
         'value' => 'node:' . $node->id(),
+        '_wrapper_format' => 'drupal_ajax',
       ],
     ]);
+
+    $this->assertSession()->statusCodeEquals(403);
+
+    // Now test with a CSRF token
+    $this->drupalGet('embed-test/get_csrf_token');
+    $token = json_decode($this->getSession()->getPage()->getContent());
+    $headers = ['X-Drupal-EmbedPreview-CSRF-Token' => $token];
+
+    $response = $this->drupalGet('/embed/preview/foo', [
+      'query' => [
+        'value' => 'node:' . $node->id(),
+        '_wrapper_format' => 'drupal_ajax',
+      ],
+    ], $headers);
 
     $this->assertSession()->statusCodeEquals(200);
 
@@ -63,10 +83,17 @@ class EmbedPreviewTest extends BrowserTestBase {
     $commands = Json::decode($response);
     // There should be more than one command.
     $this->assertGreaterThan(1, count($commands));
-    // There should be a command to add jQuery to the page.
-    $this->assertMatch($commands, function (array $command) {
-      return $command['command'] == 'insert' && $command['method'] == 'append' && $command['selector'] == 'body' && strpos($command['data'], 'jquery.min.js') > 0;
-    });
+
+    if (!class_exists('Drupal\Core\Ajax\AddJsCommand')) {
+      $this->assertMatch($commands, function (array $command) {
+        return $command['command'] == 'insert' && $command['method'] == 'append' && $command['selector'] == 'body' && strpos($command['data'], 'jquery.min.js') > 0;
+      });
+    }
+    else {
+      $this->assertMatch($commands, function (array $command) {
+        return $command['command'] == 'add_js'  && $command['selector'] == 'body' && strpos($command['data'][0]['src'], 'jquery.min.js') > 0;
+      });
+    }
   }
 
   /**

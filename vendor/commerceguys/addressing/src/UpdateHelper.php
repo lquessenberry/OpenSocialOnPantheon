@@ -16,7 +16,7 @@ class UpdateHelper
      *
      * @var array
      */
-    static protected $subdivisionUpdateMap = [];
+    protected static $subdivisionUpdateMap = [];
 
     /**
      * Splits the recipient into givenName and familyName fields.
@@ -26,7 +26,7 @@ class UpdateHelper
      *
      * @return array The result, with givenName and familyName keys.
      */
-    public static function splitRecipient($recipient, $countryCode)
+    public static function splitRecipient($recipient, $countryCode): array
     {
         // Countries that write the family name before the given name.
         $reverseCountries = [
@@ -54,7 +54,7 @@ class UpdateHelper
      *
      * @return string The new value.
      */
-    public static function updateSubdivision($oldValue)
+    public static function updateSubdivision($oldValue): string
     {
         // Countries that have defined subdivisions.
         $supportedCountries = [
@@ -98,7 +98,7 @@ class UpdateHelper
      *
      * @return array The update map.
      */
-    public static function loadSubdivisionUpdateMap()
+    public static function loadSubdivisionUpdateMap(): array
     {
         if (empty(static::$subdivisionUpdateMap)) {
             $path = __DIR__ . '/../resources/';

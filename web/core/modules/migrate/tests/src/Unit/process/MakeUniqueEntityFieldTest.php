@@ -6,7 +6,6 @@ use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Query\QueryInterface;
 use Drupal\migrate\Plugin\migrate\process\MakeUniqueEntityField;
-use Drupal\Component\Utility\Unicode;
 
 /**
  * @coversDefaultClass \Drupal\migrate\Plugin\migrate\process\MakeUniqueEntityField
@@ -17,14 +16,14 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
   /**
    * The mock entity query.
    *
-   * @var \Drupal\Core\Entity\Query\QueryInterface|\Drupal\Core\Entity\Query\QueryFactory
+   * @var \Drupal\Core\Entity\Query\QueryInterface
    */
   protected $entityQuery;
 
   /**
    * The mocked entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $entityTypeManager;
 
@@ -40,13 +39,16 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $this->entityQuery = $this->getMockBuilder('Drupal\Core\Entity\Query\QueryInterface')
       ->disableOriginalConstructor()
       ->getMock();
-    $this->entityTypeManager = $this->getMock(EntityTypeManagerInterface::class);
+    $this->entityQuery->expects($this->any())
+      ->method('accessCheck')
+      ->will($this->returnSelf());
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
 
-    $storage = $this->getMock(EntityStorageInterface::class);
+    $storage = $this->createMock(EntityStorageInterface::class);
     $storage->expects($this->any())
       ->method('getQuery')
       ->willReturn($this->entityQuery);
@@ -70,13 +72,13 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
     if ($postfix) {
       $configuration['postfix'] = $postfix;
     }
-    $configuration['start'] = isset($start) ? $start : NULL;
-    $configuration['length'] = isset($length) ? $length : NULL;
+    $configuration['start'] = $start;
+    $configuration['length'] = $length;
     $plugin = new MakeUniqueEntityField($configuration, 'make_unique', [], $this->getMigration(), $this->entityTypeManager);
     $this->entityQueryExpects($count);
     $value = $this->randomMachineName(32);
-    $actual = $plugin->transform($value, $this->migrateExecutable, $this->row, 'testproperty');
-    $expected = Unicode::substr($value, $start, $length);
+    $actual = $plugin->transform($value, $this->migrateExecutable, $this->row, 'foo');
+    $expected = mb_substr($value, $start ?? 0, $length);
     $expected .= $count ? $postfix . $count : '';
     $this->assertSame($expected, $actual);
   }
@@ -91,8 +93,9 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
       'start' => 'foobar',
     ];
     $plugin = new MakeUniqueEntityField($configuration, 'make_unique', [], $this->getMigration(), $this->entityTypeManager);
-    $this->setExpectedException('Drupal\migrate\MigrateException', 'The start position configuration key should be an integer. Omit this key to capture from the beginning of the string.');
-    $plugin->transform('test_start', $this->migrateExecutable, $this->row, 'testproperty');
+    $this->expectException('Drupal\migrate\MigrateException');
+    $this->expectExceptionMessage('The start position configuration key should be an integer. Omit this key to capture from the beginning of the string.');
+    $plugin->transform('test_start', $this->migrateExecutable, $this->row, 'foo');
   }
 
   /**
@@ -105,8 +108,9 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
       'length' => 'foobar',
     ];
     $plugin = new MakeUniqueEntityField($configuration, 'make_unique', [], $this->getMigration(), $this->entityTypeManager);
-    $this->setExpectedException('Drupal\migrate\MigrateException', 'The character length configuration key should be an integer. Omit this key to capture the entire string.');
-    $plugin->transform('test_length', $this->migrateExecutable, $this->row, 'testproperty');
+    $this->expectException('Drupal\migrate\MigrateException');
+    $this->expectExceptionMessage('The character length configuration key should be an integer. Omit this key to capture the entire string.');
+    $plugin->transform('test_length', $this->migrateExecutable, $this->row, 'foo');
   }
 
   /**
@@ -164,9 +168,9 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
       ->will($this->returnValue($this->entityQuery));
     $this->entityQuery->expects($this->exactly($count + 1))
       ->method('execute')
-      ->will($this->returnCallback(function () use (&$count) {
+      ->willReturnCallback(function () use (&$count) {
         return $count--;
-      }));
+      });
   }
 
   /**
@@ -188,27 +192,28 @@ class MakeUniqueEntityFieldTest extends MigrateProcessTestCase {
     foreach (['forums', 'test_vocab', 'test_vocab1'] as $id) {
       $query = $this->prophesize(QueryInterface::class);
       $query->willBeConstructedWith([]);
+      $query->accessCheck()->willReturn($query);
       $query->execute()->willReturn($id === 'test_vocab1' ? [] : [$id]);
       $map[] = ['test_field', $id, NULL, NULL, $query->reveal()];
     }
     $this->entityQuery
       ->method('condition')
-      ->will($this->returnValueMap($map));
+      ->willReturnMap($map);
 
     // Entity 'forums' is pre-existing, entity 'test_vocab' was migrated.
     $this->idMap
       ->method('lookupSourceId')
-      ->will($this->returnValueMap([
+      ->willReturnMap([
         [['test_field' => 'forums'], FALSE],
         [['test_field' => 'test_vocab'], ['source_id' => 42]],
-      ]));
+      ]);
 
     // Existing entity 'forums' was not migrated, value should not be unique.
-    $actual = $plugin->transform('forums', $this->migrateExecutable, $this->row, 'testproperty');
+    $actual = $plugin->transform('forums', $this->migrateExecutable, $this->row, 'foo');
     $this->assertEquals('forums', $actual, 'Pre-existing name is re-used');
 
     // Entity 'test_vocab' was migrated, value should be unique.
-    $actual = $plugin->transform('test_vocab', $this->migrateExecutable, $this->row, 'testproperty');
+    $actual = $plugin->transform('test_vocab', $this->migrateExecutable, $this->row, 'foo');
     $this->assertEquals('test_vocab1', $actual, 'Migrated name is deduplicated');
   }
 

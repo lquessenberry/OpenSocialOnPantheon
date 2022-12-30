@@ -17,12 +17,12 @@ class NodeViewsFieldAccessTest extends FieldFieldAccessTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'entity_test'];
+  protected static $modules = ['node', 'entity_test'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('node');
@@ -60,7 +60,7 @@ class NodeViewsFieldAccessTest extends FieldFieldAccessTestBase {
     $this->assertFieldAccess('node', 'type', $node->type->entity->label());
     $this->assertFieldAccess('node', 'langcode', $node->language()->getName());
     $this->assertFieldAccess('node', 'title', 'Test title');
-    $this->assertFieldAccess('node', 'uid', $user->getUsername());
+    $this->assertFieldAccess('node', 'uid', $user->getAccountName());
     // @todo Don't we want to display Published / Unpublished by default,
     //   see https://www.drupal.org/node/2465623
     $this->assertFieldAccess('node', 'status', 'On');

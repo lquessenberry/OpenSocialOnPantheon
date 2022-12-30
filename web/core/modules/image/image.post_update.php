@@ -5,18 +5,26 @@
  * Post-update functions for Image.
  */
 
-use Drupal\Core\Entity\Entity\EntityViewDisplay;
-use Drupal\Core\Entity\Entity\EntityFormDisplay;
+use Drupal\Core\Config\Entity\ConfigEntityUpdater;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\image\ImageConfigUpdater;
 
 /**
- * Saves the image style dependencies into form and view display entities.
+ * Implements hook_removed_post_updates().
  */
-function image_post_update_image_style_dependencies() {
-  // Merge view and form displays. Use array_values() to avoid key collisions.
-  $displays = array_merge(array_values(EntityViewDisplay::loadMultiple()), array_values(EntityFormDisplay::loadMultiple()));
-  /** @var \Drupal\Core\Entity\Display\EntityDisplayInterface[] $displays */
-  foreach ($displays as $display) {
-    // Re-save each config entity to add missed dependencies.
-    $display->save();
-  }
+function image_removed_post_updates() {
+  return [
+    'image_post_update_image_style_dependencies' => '9.0.0',
+    'image_post_update_scale_and_crop_effect_add_anchor' => '9.0.0',
+  ];
+}
+
+/**
+ * Add the image loading attribute setting to image field formatter instances.
+ */
+function image_post_update_image_loading_attribute(?array &$sandbox = NULL): void {
+  $image_config_updater = \Drupal::classResolver(ImageConfigUpdater::class);
+  \Drupal::classResolver(ConfigEntityUpdater::class)->update($sandbox, 'entity_view_display', function (EntityViewDisplayInterface $view_display) use ($image_config_updater): bool {
+    return $image_config_updater->processImageLazyLoad($view_display);
+  });
 }

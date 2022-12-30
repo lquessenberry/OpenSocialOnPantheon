@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="typed_data">
+  <description>Default PHP CodeSniffer configuration for Typed Data</description>
+  <file>.</file>
+
+  <arg name="extensions" value="inc,install,module,php,profile,txt,yml"/>
+  <!-- Use 's' to print the full sniff name in the report. -->
+  <arg value="s"/>
+  <arg value="-colors"/>
+
+  <!-- Ignore all files that match these patterns. By default the full file  -->
+  <!-- path is checked, unless type=relative is used. There is an implied * -->
+  <!-- wildcard at each end and periods and slashes must be escaped using \ -->
+  <exclude-pattern>vendor</exclude-pattern>
+  <exclude-pattern>\/_+ignore</exclude-pattern>
+  <exclude-pattern>interdif</exclude-pattern>
+
+  <!-- Include all Drupal and DrupalPractice sniffs by default, then adjust. -->
+  <rule ref="Drupal"/>
+  <rule ref="DrupalPractice"/>
+
+  <rule ref="DrupalPractice">
+    <!-- Allow empty lines after comments, we don't care. -->
+    <exclude name="DrupalPractice.Commenting.CommentEmptyLine"/>
+  </rule>
+
+  <rule ref="Drupal.Files.TxtFileLineLength.TooLong">
+    <exclude-pattern>README.*</exclude-pattern>
+  </rule>
+</ruleset>

@@ -21,7 +21,7 @@ use Drupal\views\Plugin\views\cache\Time;
  * @ViewsCache(
  *   id = "search_api_time",
  *   title = @Translation("Search API (time-based)"),
- *   help = @Translation("Cache results for a predefined time period. Useful for sites that use external search engines such as Solr, or index multiple data sources. <strong>Caution:</strong> Will lead to stale results and might harm performance for complex search pages.")
+ *   help = @Translation("Cache results for a predefined time period. Useful for sites that use external search engines such as Solr, or index multiple datasources. <strong>Caution:</strong> Will lead to stale results and might harm performance for complex search pages.")
  * )
  */
 class SearchApiTimeCache extends Time {

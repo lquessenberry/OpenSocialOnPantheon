@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\profile\Kernel;
 
-use Drupal\Core\Session\AccountInterface;
 use Drupal\KernelTests\Core\Entity\EntityKernelTestBase;
 use Drupal\profile\ProfileTestTrait;
 use Drupal\user\Entity\Role;
@@ -21,7 +20,7 @@ class ProfileRoleAccessTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'entity',
     'profile',
     'views',
@@ -76,11 +75,19 @@ class ProfileRoleAccessTest extends EntityKernelTestBase {
   protected $accessHandler;
 
   /**
+   * The access manager.
+   *
+   * @var \Drupal\Core\Access\AccessManagerInterface
+   */
+  protected $accessManager;
+
+  /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
+    $this->installEntitySchema('profile');
     $this->role1 = Role::create([
       'id' => strtolower($this->randomMachineName(8)),
       'label' => $this->randomMachineName(8),
@@ -100,102 +107,107 @@ class ProfileRoleAccessTest extends EntityKernelTestBase {
 
     $this->accessHandler = $this->container->get('entity_type.manager')
       ->getAccessControlHandler('profile');
+    $this->accessManager = $this->container->get('access_manager');
 
     // Do not allow uid == 1 to skew tests.
     $this->createUser();
   }
 
   /**
-   * Tests profile form access for a type that has no role requirement.
+   * Tests profile create role access checks.
    */
-  public function testProfileWithNoRoles() {
-    // Create user with add profile permissions.
-    $web_user1 = $this->createUser([], ["create {$this->type1->id()} profile"]);
-    $this->assertTrue($this->accessHandler->createAccess($this->type1->id(), $web_user1));
+  public function testProfileCreate() {
+    $user = $this->createUser([], [
+      "create {$this->type1->id()} profile",
+      "create {$this->type2->id()} profile",
+      "create {$this->type3->id()} profile",
+    ]);
+    // The user initially has no roles, so they can only access the first
+    // profile type, which isn't restricted by role.
+    $this->assertTrue($this->accessHandler->createAccess($this->type1->id(), $user, ['profile_owner' => $user]));
+    $this->assertFalse($this->accessHandler->createAccess($this->type2->id(), $user, ['profile_owner' => $user]));
+    $this->assertFalse($this->accessHandler->createAccess($this->type3->id(), $user, ['profile_owner' => $user]));
+    // No role check is performed when the profile_owner isn't passed.
+    $this->accessHandler->resetCache();
+    $this->assertTrue($this->accessHandler->createAccess($this->type1->id(), $user));
+    $this->assertTrue($this->accessHandler->createAccess($this->type2->id(), $user));
+    $this->assertTrue($this->accessHandler->createAccess($this->type3->id(), $user));
+
+    // With role1, the user can access the first and the third profile type.
+    $this->accessHandler->resetCache();
+    $user->addRole($this->role1->id());
+    $user->save();
+    $this->assertTrue($this->accessHandler->createAccess($this->type1->id(), $user, ['profile_owner' => $user]));
+    $this->assertFalse($this->accessHandler->createAccess($this->type2->id(), $user, ['profile_owner' => $user]));
+    $this->assertTrue($this->accessHandler->createAccess($this->type3->id(), $user, ['profile_owner' => $user]));
+
+    // With role2, the user can access all three profile types.
+    $this->accessHandler->resetCache();
+    $user->addRole($this->role2->id());
+    $user->save();
+    $this->assertTrue($this->accessHandler->createAccess($this->type1->id(), $user, ['profile_owner' => $user]));
+    $this->assertTrue($this->accessHandler->createAccess($this->type2->id(), $user, ['profile_owner' => $user]));
+    $this->assertTrue($this->accessHandler->createAccess($this->type3->id(), $user, ['profile_owner' => $user]));
   }
 
   /**
-   * Tests profile form access for a type that has the locked role requirement.
+   * Tests profile operations role access checks.
    */
-  public function testLockedRoles() {
-    $locked_role_type = $this->createProfileType(NULL, NULL, FALSE, [AccountInterface::AUTHENTICATED_ROLE]);
-    // Create user with add profile permissions.
-    $web_user1 = $this->createUser([], ["create {$locked_role_type->id()} profile"]);
-    $this->assertTrue($this->accessHandler->createAccess($locked_role_type->id(), $web_user1));
-  }
+  public function testProfileOperations() {
+    $user = $this->createUser([], [
+      "update own {$this->type1->id()} profile",
+      "update own {$this->type2->id()} profile",
+    ]);
+    $profile1 = $this->createProfile($this->type1, $user);
+    // Test access to a profile type with no role requirement.
+    $this->assertTrue($this->accessHandler->access($profile1, 'update', $user));
 
-  /**
-   * Tests profile form access for a type that requires a role.
-   */
-  public function testProfileWithSingleRole() {
-    // Create user with add own profile permissions.
-    $web_user1 = $this->createUser([], ["create {$this->type2->id()} profile"]);
-
-    // Test user without role can access add profile form.
-    // Expected: User cannot access form.
-    $this->assertFalse($this->accessHandler->createAccess($this->type2->id(), $web_user1));
+    $profile2 = $this->createProfile($this->type2, $user);
+    $this->assertFalse($this->accessHandler->access($profile2, 'update', $user));
     $this->accessHandler->resetCache();
 
-    // Test user with wrong role can access add profile form.
-    // Expected: User cannot access form.
-    $web_user1->addRole($this->role1->id());
-    $web_user1->save();
+    $user->addRole($this->role2->id());
+    $user->save();
+    $profile2 = $this->reloadEntity($profile2);
+    $this->assertTrue($this->accessHandler->access($profile2, 'update', $user));
 
-    $this->assertFalse($this->accessHandler->createAccess($this->type2->id(), $web_user1));
+    $operations = ['view', 'update', 'delete'];
+    $user2 = $this->createUser([], [
+      "view any {$this->type2->id()} profile",
+      "update any {$this->type2->id()} profile",
+      "delete any {$this->type2->id()} profile",
+    ]);
+    foreach ($operations as $operation) {
+      $this->assertTrue($this->accessHandler->access($profile2, $operation, $user2));
+    }
+
+    $user->removeRole($this->role2->id());
+    $user->save();
     $this->accessHandler->resetCache();
+    $profile2 = $this->reloadEntity($profile2);
+    // Assert that each operation is denied if the profile owner doesn't have
+    // one of the allowed roles.
+    foreach ($operations as $operation) {
+      $this->assertFalse($this->accessHandler->access($profile2, $operation, $user2));
+    }
 
-    // Test user with correct role can access add profile form.
-    // Expected: User can access form.
-    $web_user1->removeRole($this->role1->id());
-    $web_user1->addRole($this->role2->id());
-    $web_user1->save();
-    $this->reloadEntity($web_user1);
-
-    $this->assertTrue($this->accessHandler->createAccess($this->type2->id(), $web_user1));
-  }
-
-  /**
-   * Tests profile form access for a type that requires multiple roles.
-   */
-  public function testProfileWithAllRoles() {
-    // Create user with add own profile permissions.
-    $web_user1 = $this->createUser([], ["create {$this->type3->id()} profile"]);
-
-    // Test user without role can access add profile form.
-    // Expected: User cannot access form.
-    $this->assertFalse($this->accessHandler->createAccess($this->type3->id(), $web_user1));
+    $user3 = $this->createUser([], [
+      "view own {$this->type3->id()} profile",
+      "update own {$this->type3->id()} profile",
+      "delete own {$this->type3->id()} profile",
+    ]);
+    $profile3 = $this->createProfile($this->type3, $user3);
+    // Test the operations without the role affected.
+    foreach ($operations as $operation) {
+      $this->assertFalse($this->accessHandler->access($profile3, $operation, $user3));
+    }
+    $user3->addRole($this->role1->id());
+    $user3->save();
     $this->accessHandler->resetCache();
-
-    // Test user with role 1 can access add profile form.
-    // Expected: User can access form.
-    $web_user1->addRole($this->role1->id());
-    $web_user1->save();
-
-    $this->assertTrue($this->accessHandler->createAccess($this->type3->id(), $web_user1));
-    $this->accessHandler->resetCache();
-
-    // Test user with both roles can access add profile form.
-    // Expected: User can access form.
-    $web_user1->addRole($this->role2->id());
-    $web_user1->save();
-
-    $this->assertTrue($this->accessHandler->createAccess($this->type3->id(), $web_user1));
-    $this->accessHandler->resetCache();
-
-    // Test user with role 2 can access add profile form.
-    // Expected: User can access form.
-    $web_user1->removeRole($this->role1->id());
-    $web_user1->save();
-
-    $this->assertTrue($this->accessHandler->createAccess($this->type3->id(), $web_user1));
-    $this->accessHandler->resetCache();
-
-    // Test user without role can access add profile form.
-    // Expected: User cannot access form.
-    $web_user1->removeRole($this->role2->id());
-    $web_user1->save();
-
-    $this->assertFalse($this->accessHandler->createAccess($this->type3->id(), $web_user1));
+    $profile3 = $this->reloadEntity($profile3);
+    foreach ($operations as $operation) {
+      $this->assertTrue($this->accessHandler->access($profile3, $operation, $user3));
+    }
   }
 
 }

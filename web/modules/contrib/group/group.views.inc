@@ -22,6 +22,9 @@ function group_views_data_alter(array &$data) {
   // views even though their plugins may not have been installed yet.
   foreach ($plugin_manager->getAll() as $plugin) {
     $entity_type_id = $plugin->getEntityTypeId();
+    if (!isset($entity_types[$entity_type_id])) {
+      continue;
+    }
     $entity_type = $entity_types[$entity_type_id];
     $entity_data_table = $entity_type->getDataTable() ?: $entity_type->getBaseTable();
 

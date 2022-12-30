@@ -2,6 +2,7 @@
 
 namespace Drupal\views\Plugin\Block;
 
+use Drupal\Core\Url;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -63,7 +64,7 @@ abstract class ViewsBlockBase extends BlockBase implements ContainerFactoryPlugi
   public function __construct(array $configuration, $plugin_id, $plugin_definition, ViewExecutableFactory $executable_factory, EntityStorageInterface $storage, AccountInterface $user) {
     $this->pluginId = $plugin_id;
     $delta = $this->getDerivativeId();
-    list($name, $this->displayID) = explode('-', $delta, 2);
+    [$name, $this->displayID] = explode('-', $delta, 2);
     // Load the view.
     $view = $storage->load($name);
     $this->view = $executable_factory->get($view);
@@ -80,7 +81,7 @@ abstract class ViewsBlockBase extends BlockBase implements ContainerFactoryPlugi
     return new static(
       $configuration, $plugin_id, $plugin_definition,
       $container->get('views.executable'),
-      $container->get('entity.manager')->getStorage('view'),
+      $container->get('entity_type.manager')->getStorage('view'),
       $container->get('current_user')
     );
   }
@@ -103,6 +104,18 @@ abstract class ViewsBlockBase extends BlockBase implements ContainerFactoryPlugi
    */
   public function defaultConfiguration() {
     return ['views_label' => ''];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPreviewFallbackString() {
+    if (!empty($this->pluginDefinition["admin_label"])) {
+      return $this->t('"@view" views block', ['@view' => $this->pluginDefinition["admin_label"]]);
+    }
+    else {
+      return $this->t('"@view" views block', ['@view' => $this->view->storage->label() . '::' . $this->displayID]);
+    }
   }
 
   /**
@@ -154,7 +167,7 @@ abstract class ViewsBlockBase extends BlockBase implements ContainerFactoryPlugi
     ];
 
     if ($this->view->storage->access('edit') && \Drupal::moduleHandler()->moduleExists('views_ui')) {
-      $form['views_label']['#description'] = $this->t('Changing the title here means it cannot be dynamically altered anymore. (Try changing it directly in <a href=":url">@name</a>.)', [':url' => \Drupal::url('entity.view.edit_display_form', ['view' => $this->view->storage->id(), 'display_id' => $this->displayID]), '@name' => $this->view->storage->label()]);
+      $form['views_label']['#description'] = $this->t('Changing the title here means it cannot be dynamically altered anymore. (Try changing it directly in <a href=":url">@name</a>.)', [':url' => Url::fromRoute('entity.view.edit_display_form', ['view' => $this->view->storage->id(), 'display_id' => $this->displayID])->toString(), '@name' => $this->view->storage->label()]);
     }
     else {
       $form['views_label']['#description'] = $this->t('Changing the title here means it cannot be dynamically altered anymore.');
@@ -180,7 +193,7 @@ abstract class ViewsBlockBase extends BlockBase implements ContainerFactoryPlugi
    * Converts Views block content to a renderable array with contextual links.
    *
    * @param string|array $output
-   *   An string|array representing the block. This will be modified to be a
+   *   A string|array representing the block. This will be modified to be a
    *   renderable array, containing the optional '#contextual_links' property (if
    *   there are any contextual links associated with the block).
    * @param string $block_type
@@ -204,6 +217,20 @@ abstract class ViewsBlockBase extends BlockBase implements ContainerFactoryPlugi
       $output['#view_display_plugin_id'] = $this->view->display_handler->getPluginId();
       views_add_contextual_links($output, $block_type, $this->displayID);
     }
+  }
+
+  /**
+   * Gets the view executable.
+   *
+   * @return \Drupal\views\ViewExecutable
+   *   The view executable.
+   *
+   * @todo revisit after https://www.drupal.org/node/3027653. This method was
+   *   added in https://www.drupal.org/node/3002608, but should not be
+   *   necessary once block plugins can determine if they are being previewed.
+   */
+  public function getViewExecutable() {
+    return $this->view;
   }
 
 }

@@ -2,12 +2,19 @@
 
 namespace Drupal\block_field\Plugin\Field\FieldWidget;
 
+use Drupal\block_field\BlockFieldSelectionManager;
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Block\BlockManagerInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Form\SubformState;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Plugin\ContextAwarePluginInterface;
+use Drupal\Core\Plugin\Context\ContextRepositoryInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Plugin implementation of the 'block_field' widget.
@@ -20,7 +27,54 @@ use Drupal\Core\Form\SubformState;
  *   }
  * )
  */
-class BlockFieldWidget extends WidgetBase {
+class BlockFieldWidget extends WidgetBase implements ContainerFactoryPluginInterface {
+
+  /**
+   * The Drupal context repository.
+   *
+   * @var \Drupal\Core\Plugin\Context\ContextRepositoryInterface
+   */
+  protected $contextRepository;
+
+  /**
+   * The block manager.
+   *
+   * @var \Drupal\Core\Block\BlockManagerInterface
+   */
+  protected $blockManager;
+
+  /**
+   * The block field selection manager.
+   *
+   * @var \Drupal\block_field\BlockFieldSelectionManager
+   */
+  protected $blockFieldSelectionManager;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, array $third_party_settings, BlockManagerInterface $block_manager, BlockFieldSelectionManager $block_field_selection_manager, ContextRepositoryInterface $contextRepository) {
+    parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $third_party_settings);
+    $this->blockManager = $block_manager;
+    $this->blockFieldSelectionManager = $block_field_selection_manager;
+    $this->contextRepository = $contextRepository;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $plugin_id,
+      $plugin_definition,
+      $configuration['field_definition'],
+      $configuration['settings'],
+      $configuration['third_party_settings'],
+      $container->get('plugin.manager.block'),
+      $container->get('plugin.manager.block_field_selection'),
+      $container->get('context.repository')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -29,7 +83,35 @@ class BlockFieldWidget extends WidgetBase {
     return [
       'plugin_id' => '',
       'settings' => [],
+      'configuration_form' => 'full',
     ] + parent::defaultSettings();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function settingsForm(array $form, FormStateInterface $form_state) {
+    $elements['configuration_form'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Configuration form'),
+      '#description' => $this->t('How the block configuration form will be shown.'),
+      '#options' => [
+        'full' => $this->t('Full'),
+        'hidden' => $this->t('Hidden'),
+      ],
+      '#default_value' => $this->getSetting('configuration_form'),
+      '#required' => TRUE,
+    ];
+
+    return $elements;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function settingsSummary() {
+    $summary[] = $this->t('Configuration form: @configuration_form', ['@configuration_form' => $this->getSetting('configuration_form')]);
+    return $summary;
   }
 
   /**
@@ -40,12 +122,18 @@ class BlockFieldWidget extends WidgetBase {
     $item =& $items[$delta];
 
     $field_name = $this->fieldDefinition->getName();
-    $settings_id = implode('-', array_merge($element['#field_parents'], [$field_name, $delta, 'settings']));
-
-    $plugin_ids = $this->fieldDefinition->getSetting('plugin_ids');
+    $settings_id = implode('-', array_merge(
+      $element['#field_parents'],
+      [$field_name, $delta, 'settings']
+    ));
 
     $values = $form_state->getValues();
-    $item->plugin_id = (isset($values[$field_name][$delta]['plugin_id'])) ? $values[$field_name][$delta]['plugin_id'] : $item->plugin_id;
+    if ($form_state->getValue('form_id') == "field_config_edit_form") {
+      $item->plugin_id = (isset($values['default_value_input'][$field_name][$delta]['plugin_id'])) ? $values['default_value_input'][$field_name][$delta]['plugin_id'] : $item->plugin_id;
+    }
+    else {
+      $item->plugin_id = (isset($values[$field_name][$delta]['plugin_id'])) ? $values[$field_name][$delta]['plugin_id'] : $item->plugin_id;
+    }
     if (!empty($values[$field_name][$delta]['settings'])) {
       $item->settings = $values[$field_name][$delta]['settings'];
     }
@@ -53,27 +141,13 @@ class BlockFieldWidget extends WidgetBase {
       $item->settings = $item->settings ?: [];
     }
 
-    $options = [];
-    /** @var \Drupal\block_field\BlockFieldManagerInterface $block_field_manager */
-    $block_field_manager = \Drupal::service('block_field.manager');
-    $definitions = $block_field_manager->getBlockDefinitions();
-    foreach ($definitions as $id => $definition) {
-      // If allowed plugin ids are set then check that this block should be
-      // included.
-      if ($plugin_ids && !isset($plugin_ids[$id])) {
-        // Remove the definition, so that we have an accurate list of allowed
-        // blocks definitions.
-        unset($definitions[$id]);
-        continue;
+    $options = $this->blockFieldSelectionManager->getWidgetOptions($this->fieldDefinition);
+    if ($item->plugin_id) {
+      // If plugin_id not in second level arrays, unset plugin_id and settings..
+      if (!in_array($item->plugin_id, array_keys(call_user_func_array('array_merge', array_values($options))), TRUE)) {
+        $item->plugin_id = '';
+        $item->setting = [];
       }
-      $category = (string) $definition['category'];
-      $options[$category][$id] = $definition['admin_label'];
-    }
-
-    // Make sure the plugin id is allowed, if not clear all settings.
-    if ($item->plugin_id && !isset($definitions[$item->plugin_id])) {
-      $item->plugin_id = '';
-      $item->setting = [];
     }
 
     $element['plugin_id'] = [
@@ -83,30 +157,35 @@ class BlockFieldWidget extends WidgetBase {
       '#empty_option' => $this->t('- None -'),
       '#default_value' => $item->plugin_id,
       '#required' => $element['#required'],
-      '#ajax' => [
+    ];
+
+    // Show configuration form if required.
+    if ($this->getSetting('configuration_form') === 'full') {
+      $element['plugin_id']['#ajax'] = [
         'callback' => [$this, 'configurationForm'],
         'wrapper' => $settings_id,
-      ],
-    ];
+      ];
 
-    // Build configuration container.
-    $element['settings'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => $settings_id],
-      '#tree' => TRUE,
-    ];
+      // Build configuration container.
+      $element['settings'] = [
+        '#type' => 'container',
+        '#attributes' => ['id' => $settings_id],
+        '#tree' => TRUE,
+      ];
 
-    // If block plugin exists get the block's configuration form.
-    if ($block_instance = $item->getBlock()) {
-      $element['settings'] += $block_instance->buildConfigurationForm([], $form_state);
+      // If block plugin exists get the block's configuration form.
+      if ($block_instance = $item->getBlock()) {
+        $form_state->setTemporaryValue('gathered_contexts', $this->contextRepository->getAvailableContexts());
 
-      // Hide admin label (aka description).
-      if (isset($element['settings']['admin_label'])) {
-        $element['settings']['admin_label']['#access'] = FALSE;
+        $element['settings'] += $block_instance->buildConfigurationForm([], $form_state);
+
+        // Hide admin label (aka description).
+        if (isset($element['settings']['admin_label'])) {
+          $element['settings']['admin_label']['#access'] = FALSE;
+        }
+
+        $element['#element_validate'] = [[$this, 'validate']];
       }
-
-      // DEBUG:
-      $element['#element_validate'] = [[$this, 'validate']];
     }
 
     return $element;
@@ -136,10 +215,8 @@ class BlockFieldWidget extends WidgetBase {
 
     // Set the label #value to the default block instance's label.
     $plugin_id = $trigger_element['#value'];
-    /** @var \Drupal\Core\Block\BlockManagerInterface $block_manager */
-    $block_manager = \Drupal::service('plugin.manager.block');
     /** @var \Drupal\Core\Block\BlockPluginInterface $block_instance */
-    if ($block_instance = $block_manager->createInstance($plugin_id)) {
+    if ($block_instance = $this->blockManager->createInstance($plugin_id)) {
       $settings_element['label']['#value'] = $block_instance->label();
     }
 
@@ -169,7 +246,20 @@ class BlockFieldWidget extends WidgetBase {
       // Execute block validate configuration.
       $block_instance = $block_manager->createInstance($plugin_id, $settings);
       $settings = (new FormState())->setValues($settings);
-      $block_instance->validateConfigurationForm($form, $settings);
+      $block_instance->validateConfigurationForm($element['settings'], $settings);
+
+      // Pass along errors from the block validation.
+      foreach ($settings->getErrors() as $key => $error) {
+        $parents = implode('][', $element['settings']['#parents']);
+        // If the block form used setError() then the parents will already be
+        // part of the key since we are passing along the element in the context
+        // of the whole form. If the block form used setErrorByName we need to
+        // add the parents in.
+        if (strpos($key, $parents) === FALSE) {
+          $key = sprintf('%s][%s', $parents, $key);
+        }
+        $form_state->setErrorByName($key, $error);
+      }
 
       NestedArray::setValue($values, $element['settings']['#parents'], $settings->getValues());
       $form_state->setValues($values);
@@ -184,9 +274,6 @@ class BlockFieldWidget extends WidgetBase {
    * {@inheritdoc}
    */
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
-    // @todo: Inject the block manager as proper dependency.
-    /** @var \Drupal\Core\Block\BlockManagerInterface $block_manager */
-    $block_manager = \Drupal::service('plugin.manager.block');
     $field_name = $this->fieldDefinition->getName();
 
     // Some blocks clean the processed values in form state. However, entity
@@ -195,13 +282,20 @@ class BlockFieldWidget extends WidgetBase {
     // values during the first submission.
     $form_state = clone $form_state;
 
-    foreach ($values as $delta => &$value) {
+    foreach ($values as &$value) {
       // Execute block submit configuration in order to transform the form
       // values into block configuration.
-      if (!empty($value['plugin_id']) && !empty($value['settings']) && $block = $block_manager->createInstance($value['plugin_id'])) {
-        $elements = &$form[$field_name]['widget'][$delta]['settings'];
+      if (isset($form[$field_name]['widget'][$value['_original_delta']]['settings']) &&
+            !empty($value['plugin_id']) &&
+              !empty($value['settings']) && $block = $this->blockManager->createInstance($value['plugin_id'])) {
+        $elements = &$form[$field_name]['widget'][$value['_original_delta']]['settings'];
         $subform_state = SubformState::createForSubform($elements, $form_state->getCompleteForm(), $form_state);
         $block->submitConfigurationForm($elements, $subform_state);
+        // If this block is context-aware, set the context mapping.
+        if ($block instanceof ContextAwarePluginInterface && $block->getContextDefinitions()) {
+          $context_mapping = $subform_state->getValue('context_mapping', []);
+          $block->setContextMapping($context_mapping);
+        }
         $value['settings'] = $block->getConfiguration();
       }
     }

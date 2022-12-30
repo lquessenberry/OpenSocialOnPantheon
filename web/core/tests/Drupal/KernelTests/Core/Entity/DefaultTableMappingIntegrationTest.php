@@ -4,6 +4,7 @@ namespace Drupal\KernelTests\Core\Entity;
 
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
+use Drupal\Tests\system\Functional\Entity\Traits\EntityDefinitionTestTrait;
 
 /**
  * Tests the default table mapping class for content entities stored in SQL.
@@ -16,6 +17,8 @@ use Drupal\Core\Field\FieldStorageDefinitionInterface;
  */
 class DefaultTableMappingIntegrationTest extends EntityKernelTestBase {
 
+  use EntityDefinitionTestTrait;
+
   /**
    * The table mapping for the tested entity type.
    *
@@ -26,12 +29,26 @@ class DefaultTableMappingIntegrationTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_test_extra'];
+  protected static $modules = ['entity_test_extra'];
+
+  /**
+   * The entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * The entity definition update manager.
+   *
+   * @var \Drupal\Core\Entity\EntityDefinitionUpdateManagerInterface
+   */
+  protected $entityDefinitionUpdateManager;
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     // Setup some fields for entity_test_extra to create.
@@ -46,11 +63,10 @@ class DefaultTableMappingIntegrationTest extends EntityKernelTestBase {
       ->setRevisionable(FALSE);
     $this->state->set('entity_test_mulrev.additional_base_field_definitions', $definitions);
 
-    $this->entityManager->clearCachedDefinitions();
-    $this->tableMapping = $this->entityManager->getStorage('entity_test_mulrev')->getTableMapping();
+    $this->tableMapping = $this->entityTypeManager->getStorage('entity_test_mulrev')->getTableMapping();
 
     // Ensure that the tables for the new field are created.
-    \Drupal::entityDefinitionUpdateManager()->applyUpdates();
+    $this->applyEntityUpdates('entity_test_mulrev');
   }
 
   /**
@@ -76,12 +92,49 @@ class DefaultTableMappingIntegrationTest extends EntityKernelTestBase {
   }
 
   /**
+   * @covers ::getAllFieldTableNames
+   */
+  public function testGetAllFieldTableNames() {
+    // Check a field that is stored in all the shared tables.
+    $expected = [
+      'entity_test_mulrev',
+      'entity_test_mulrev_property_data',
+      'entity_test_mulrev_revision',
+      'entity_test_mulrev_property_revision',
+    ];
+    $this->assertEquals($expected, $this->tableMapping->getAllFieldTableNames('id'));
+
+    // Check a field that is stored only in the base table.
+    $expected = ['entity_test_mulrev'];
+    $this->assertEquals($expected, $this->tableMapping->getAllFieldTableNames('uuid'));
+
+    // Check a field that is stored only in the revision table.
+    $expected = ['entity_test_mulrev_revision'];
+    $this->assertEquals($expected, $this->tableMapping->getAllFieldTableNames('revision_default'));
+
+    // Check a field that field that is stored in the data and revision data
+    // tables.
+    $expected = [
+      'entity_test_mulrev_property_data',
+      'entity_test_mulrev_property_revision',
+    ];
+    $this->assertEquals($expected, $this->tableMapping->getAllFieldTableNames('name'));
+
+    // Check a field that is stored in dedicated data and revision data tables.
+    $expected = [
+      'entity_test_mulrev__multivalued_base_field',
+      'entity_test_mulrev_r__f86e511394',
+    ];
+    $this->assertEquals($expected, $this->tableMapping->getAllFieldTableNames('multivalued_base_field'));
+  }
+
+  /**
    * Tests DefaultTableMapping::getTableNames().
    *
    * @covers ::getTableNames
    */
   public function testGetTableNames() {
-    $storage_definitions = $this->entityManager->getFieldStorageDefinitions('entity_test_mulrev');
+    $storage_definitions = \Drupal::service('entity_field.manager')->getFieldStorageDefinitions('entity_test_mulrev');
     $dedicated_data_table = $this->tableMapping->getDedicatedDataTableName($storage_definitions['multivalued_base_field']);
     $dedicated_revision_table = $this->tableMapping->getDedicatedRevisionTableName($storage_definitions['multivalued_base_field']);
 

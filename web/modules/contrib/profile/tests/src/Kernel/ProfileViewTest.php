@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\profile\Kernel;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\profile\ProfileTestTrait;
 use Drupal\Tests\views\Kernel\ViewsKernelTestBase;
 use Drupal\user\Entity\User;
@@ -18,7 +17,10 @@ class ProfileViewTest extends ViewsKernelTestBase {
 
   use ProfileTestTrait;
 
-  public static $modules = ['user', 'profile', 'profile_test'];
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = ['user', 'profile', 'profile_test'];
 
   /**
    * Views used by this test.
@@ -32,7 +34,7 @@ class ProfileViewTest extends ViewsKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('user');
@@ -51,22 +53,22 @@ class ProfileViewTest extends ViewsKernelTestBase {
     $profile_type = $this->createProfileType();
 
     $user[0] = $user1 = User::create([
-      'name' => Unicode::strtolower($this->randomMachineName()),
+      'name' => mb_strtolower($this->randomMachineName()),
       'status' => TRUE,
     ]);
     $user1->save();
     $user2 = User::create([
-      'name' => Unicode::strtolower($this->randomMachineName()),
+      'name' => mb_strtolower($this->randomMachineName()),
       'status' => TRUE,
     ]);
     $user2->save();
     $user[1] = $user3 = User::create([
-      'name' => Unicode::strtolower($this->randomMachineName()),
+      'name' => mb_strtolower($this->randomMachineName()),
       'status' => TRUE,
     ]);
     $user3->save();
     $user4 = User::create([
-      'name' => Unicode::strtolower($this->randomMachineName()),
+      'name' => mb_strtolower($this->randomMachineName()),
       'status' => TRUE,
     ]);
     $user4->save();
@@ -99,7 +101,7 @@ class ProfileViewTest extends ViewsKernelTestBase {
    */
   protected function createUser() {
     $user = User::create([
-      'name' => Unicode::strtolower($this->randomMachineName()),
+      'name' => mb_strtolower($this->randomMachineName()),
       'status' => TRUE,
     ]);
     $user->save();

@@ -1,0 +1,480 @@
+@keyframes fadeInBottom {
+  0% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+// Option for 6 column layout
+.show-6 {
+  .views-row {
+    @include mq($breakpointTiny) {
+      float: left;
+      width: 50%;
+    }
+
+    @include mq($breakpointSmall) {
+      width: 25%;
+    }
+
+    @include mq($breakpointLarge) {
+      width: 20%;
+    }
+
+    @include mq($breakpointWide) {
+      width: 16.666666667%;
+    }
+  }
+}
+
+.block-system > .views-form,
+.view-content .views-form {
+  .claro-details {
+    box-shadow: none;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .views-table {
+    order: -1;
+    margin-top: 0;
+  }
+
+  [data-drupal-selector*=edit-header] {
+    order: 99;
+    position: relative;
+    left: 0;
+    padding: 0 16px 16px 16px;
+    background: rgba(#e2e5ec, .6);
+    border-radius: var(--ginBorderDefault);
+
+    [data-drupal-selector*='edit-views-bulk-operations-bulk-form'] {
+      > * {
+        margin-right: .5rem;
+      }
+
+      .form-type--select,
+      .form-actions {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+
+      .form-actions {
+        justify-content: flex-end;
+      }
+
+      .form-type--checkbox {
+        align-self: center;
+      }
+    }
+
+    .gin--dark-mode & {
+      background: rgba($colorDarkAppBackground, .98);
+    }
+
+    .form-item__label:not([for='edit-select-all']) {
+      display: block;
+      float: left;
+      top: 2px;
+      margin-right: 1rem;
+      line-height: 1.75;
+    }
+
+    &.is-sticky {
+      z-index: 4;
+      opacity: 1;
+      position: sticky;
+      left: 0;
+      bottom: .5rem;
+      background: var(--colorGinStickyBg);
+      box-shadow: 0 2px 6px 2px rgba(0, 0, 0, .03);
+      animation: fadeInBottom 320ms 1 forwards;
+
+      @supports (backdrop-filter: blur()) {
+        opacity: .999; /* Fix Chrome issue with mask */
+        background: rgba(#c8cdd8, .8);
+        backdrop-filter: blur(12px);
+
+        .gin--dark-mode & {
+          background: rgba($colorDarkAppBackground, .8);
+        }
+      }
+    }
+  }
+}
+
+.views-exposed-form.views-exposed-form {
+  padding-top: 8px;
+
+  .form-element--type-select {
+    max-width: 240px;
+  }
+
+  .form-type--boolean .form-boolean {
+    margin-left: 0;
+    margin-right: .5rem;
+  }
+
+  .fieldset--group {
+    margin-top: .75rem;
+  }
+
+  // Exposed filter with fieldgroup
+  fieldset {
+    margin-right: .75rem;
+    margin-bottom: .4rem;
+
+    > .fieldset__legend > .fieldset__label {
+      font-size: .889rem;
+      padding: 0 .5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .fieldset__wrapper {
+      display: flex;
+      margin: 0 0 0 .5rem;
+    }
+
+    .form-item {
+      margin: 0 .5rem .5rem 0;
+    }
+  }
+}
+
+.views-exposed-form__item--preceding-actions.views-exposed-form__item--preceding-actions {
+  margin-right: .5rem;
+}
+
+.view-files .view-content {
+  padding-top: 0;
+}
+
+.layer-wrapper {
+  padding: 24px;
+
+  @include mq(max-width $breakpointLarge) {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  & + .layer-wrapper {
+    margin-top: 24px;
+  }
+
+  & + h2,
+  & + h3 {
+    margin-top: 32px;
+  }
+}
+
+.views-edit-view {
+  .unit-title {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    @extend h2;
+  }
+}
+
+// Preview form
+.view-preview-form {
+  &__title {
+    padding: 0;
+    background-color: transparent;
+    border-bottom: 0 none;
+  }
+
+  .preview-section {
+    padding: 16px;
+    border: 1px dashed var(--colorGinLayer2Border)
+  }
+
+  .view-filters .preview-section {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .form-actions {
+    align-items: flex-end;
+  }
+
+  .form-item--live-preview {
+    position: static !important;
+    margin-top: 1.5rem;
+  }
+
+  .arguments-preview {
+    margin-left: 0;
+  }
+}
+
+.views-live-preview {
+  padding: 0;
+
+  .layer-wrapper {
+    border-color: var(--colorGinBorder);
+  }
+}
+
+.views-displays {
+  border: 1px solid var(--colorGinBorder);
+  border-radius: var(--ginBorderMedium);
+}
+
+.views-admin {
+  .icon.add {
+    background: none;
+
+    &:before {
+      content: "+";
+      font-size: 1rem;
+      line-height: .1;
+    }
+  }
+}
+
+.views-display-top {
+  padding: 1rem;
+  background-color: var(--colorGinTableHeader);
+  border: 0 none;
+  border-radius: var(--ginBorderMedium);
+
+  // #3186729: Drupal 9.1 fix
+  &__extra-actions-wrapper {
+    margin-bottom: 0;
+  }
+
+  .dropbutton-wrapper {
+    top: 20px;
+    right: 24px;
+  }
+}
+
+.edit-display-settings {
+  padding: 24px;
+  margin: 0;
+}
+
+.views-tabs {
+  a {
+    padding: 8px 16px;
+  }
+
+  .add a,
+  li a {
+    font-size: var(--ginFontSizeSmall);
+    font-weight: bold;
+    color: var(--colorGinPrimary);
+    padding: .5rem 1rem;
+    background: transparent;
+    border: 2px solid var(--colorGinPrimary);
+    border-radius: var(--ginBorderXSmall);
+
+    &::before {
+      display: none;
+    }
+
+    .icon.add {
+      display: block;
+    }
+  }
+
+  .add a:hover,
+  .add a:focus,
+  li a:hover,
+  li a:focus,
+  li.is-active a,
+  li.is-active a.is-active {
+    color: var(--colorGinAppBackground);
+    background: var(--colorGinPrimary);
+    border-color: transparent;
+  }
+
+  .add a:focus,
+  li a:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus);
+  }
+
+  .add {
+    &.open {
+      a {
+        background: var(--colorGinLayer2Background);
+
+        &:hover, &:focus, &:active {
+          color: var(--colorGinPrimary);
+        }
+      }
+    }
+  }
+
+  .action-list {
+    top: 36px;
+    background: var(--colorGinLayer3Background);
+    box-shadow: 0 1px 2px var(--colorGinButtonShadow);
+
+    li {
+      background-color: transparent;
+      border: none;
+
+      input.button {
+        width: 100%;
+        text-align: left;
+        line-height: 1.2;
+        box-shadow: none;
+        border: none !important;
+      }
+
+      &:hover, &:focus, &:active {
+        &,
+        input.button {
+          color: var(--colorGinButtonText);
+          background: var(--colorGinPrimary);
+        }
+      }
+    }
+  }
+}
+
+.views-ui-display-tab-bucket {
+  // #3186729: Drupal 9.1 fix
+  &__header {
+    padding: 0;
+  }
+
+  & &__title {
+    font-size: 1.2em;
+    font-weight: 500;
+    color: var(--colorGinTitle);
+    text-transform: none;
+    padding: 16px;
+  }
+
+  // #3186729: Drupal 9.1 fix
+  &__header {
+    padding: 16px 0 8px;
+
+    .views-ui-display-tab-bucket__title {
+      padding: 0 16px;
+    }
+
+    .views-ui-display-tab-bucket__actions {
+      margin-right: 1rem;
+    }
+  }
+
+  .views-display-setting,
+  .views-ui-display-tab-bucket > .views-display-setting {
+    padding: 8px 16px;
+  }
+
+  .views-display-setting {
+    color: var(--colorGinText);
+  }
+
+  .views-display-setting:nth-of-type(even) {
+    background-color: transparent;
+  }
+
+  .dropbutton-wrapper {
+    top: 14px;
+    right: 16px;
+  }
+
+  &.pager {
+    margin: 0;
+  }
+}
+
+.views-ui-display-tab-bucket.views-ui-display-tab-bucket {
+  padding-top: 0;
+  margin-bottom: 0;
+  border-bottom-color: var(--colorGinBorder);
+}
+
+.views-ui-display-tab-actions {
+  .views-ui-display-tab-setting {
+    padding: 16px;
+  }
+}
+
+.views-query-info table tr {
+  background-color: var(--colorGinLayer2Background);
+
+  td {
+    color: var(--colorGinText);
+  }
+}
+
+.system-modules,
+.locale-translation-status-form {
+  tr.even,
+  tr.odd {
+    background: none;
+    border-top: 1px solid var(--colorGinBorder);
+    border-bottom: none;
+  }
+}
+
+.system-modules td {
+  padding: 1rem;
+  height: auto;
+
+  details summary {
+    background-color: transparent;
+  }
+}
+
+.views-display-column,
+.edit-display-settings-top.views-ui-display-tab-bucket {
+  margin-bottom: 1rem;
+  border-color: var(--colorGinBorder);
+  border-radius: var(--ginBorderDefault);
+}
+
+.views-ui-dialog {
+  .form--inline {
+    padding-top: 0;
+  }
+
+  .views-override:not(:empty) {
+    background-color: var(--colorGinAppBackground);
+    border-bottom: 0 none;
+  }
+
+  .form-item--fields-area-text-custom-removed {
+    display: inline-block;
+    margin-right: 4px;
+  }
+}
+
+.views-filterable-options {
+  border-top: none;
+}
+
+.view-block-content .views-table {
+  margin-top: 0;
+}
+
+.views-display-columns {
+  .details-wrapper {
+    margin: 0;
+  }
+}
+
+.machine-name-label {
+  color: var(--colorGinText);
+}
+
+.machine-name-value {
+  color: var(--colorGinTitle);
+}
+
+.views-exposed-form .form-datetime-wrapper {
+  margin-bottom: 0;
+  margin-right: .5rem;
+}

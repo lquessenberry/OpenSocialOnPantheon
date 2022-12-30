@@ -1,0 +1,9 @@
+administer ultimate cron:
+  title: 'Administer Ultimate Cron'
+  description: 'Lets you configure everything in Ultimate Cron'
+view cron jobs:
+  title: 'View cron jobs'
+  description: 'Lets you view cron jobs and their logs'
+run cron jobs:
+  title: 'Run cron jobs'
+  description: 'Lets you run cron jobs'

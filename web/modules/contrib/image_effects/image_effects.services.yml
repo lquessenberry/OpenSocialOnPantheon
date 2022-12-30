@@ -14,6 +14,8 @@ services:
     class: Drupal\image_effects\Plugin\ImageEffectsPluginManager
     parent: default_plugin_manager
     arguments: ['font_selector', '@config.factory']
+  image_effects.converter:
+    class: Drupal\image_effects\ImageEffectsConverter
   image_effects.uninstall_validator:
     class: Drupal\image_effects\ImageEffectsUninstallValidator
     tags:

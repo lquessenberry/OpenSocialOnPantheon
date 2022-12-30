@@ -15,14 +15,28 @@ class LocaleTranslationTest extends UnitTestCase {
   /**
    * A mocked storage to use when instantiating LocaleTranslation objects.
    *
-   * @var \PHPUnit_Framework_MockObject_MockObject
+   * @var \PHPUnit\Framework\MockObject\MockObject
    */
   protected $storage;
 
   /**
+   * A mocked lock to use when instantiating LocaleTranslation objects.
+   *
+   * @var \Drupal\Core\Lock\LockBackendInterface|\PHPUnit\Framework\MockObject\MockObject
+   */
+  protected $lock;
+
+  /**
+   * A mocked cache to use when instantiating LocaleTranslation objects.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface|\PHPUnit\Framework\MockObject\MockObject
+   */
+  protected $cache;
+
+  /**
    * A mocked language manager built from LanguageManagerInterface.
    *
-   * @var \Drupal\Core\Language\LanguageManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Language\LanguageManagerInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $languageManager;
 
@@ -36,11 +50,11 @@ class LocaleTranslationTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    $this->storage = $this->getMock('Drupal\locale\StringStorageInterface');
-    $this->cache = $this->getMock('Drupal\Core\Cache\CacheBackendInterface');
-    $this->lock = $this->getMock('Drupal\Core\Lock\LockBackendInterface');
-    $this->languageManager = $this->getMock('Drupal\Core\Language\LanguageManagerInterface');
+  protected function setUp(): void {
+    $this->storage = $this->createMock('Drupal\locale\StringStorageInterface');
+    $this->cache = $this->createMock('Drupal\Core\Cache\CacheBackendInterface');
+    $this->lock = $this->createMock('Drupal\Core\Lock\LockBackendInterface');
+    $this->languageManager = $this->createMock('Drupal\Core\Language\LanguageManagerInterface');
     $this->requestStack = new RequestStack();
   }
 
@@ -50,8 +64,7 @@ class LocaleTranslationTest extends UnitTestCase {
   public function testDestruct() {
     $translation = new LocaleTranslation($this->storage, $this->cache, $this->lock, $this->getConfigFactoryStub(), $this->languageManager, $this->requestStack);
     // Prove that destruction works without errors when translations are empty.
-    $this->assertAttributeEmpty('translations', $translation);
-    $translation->destruct();
+    $this->assertNull($translation->destruct());
   }
 
 }

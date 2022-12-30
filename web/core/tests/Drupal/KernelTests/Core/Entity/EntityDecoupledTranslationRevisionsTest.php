@@ -22,7 +22,7 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'system',
     'entity_test',
     'language',
@@ -57,7 +57,7 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
   protected $previousRevisionId = [];
 
   /**
-   * The previous unstranslatable field value.
+   * The previous untranslatable field value.
    *
    * @var string[]
    */
@@ -80,7 +80,7 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $entity_type_id = 'entity_test_mulrev';
@@ -193,7 +193,7 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
   }
 
   /**
-   * Test decoupled default revisions.
+   * Tests decoupled default revisions.
    *
    * @param array[] $sequence
    *   An array with arrays of arguments for the ::doSaveNewRevision() method as
@@ -205,7 +205,7 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
    */
   public function testDecoupledPendingRevisions($sequence) {
     $revision_id = $this->doTestEditSequence($sequence);
-    $this->assertEquals(count($sequence), $revision_id);
+    $this->assertCount($revision_id, $sequence);
   }
 
   /**
@@ -255,7 +255,6 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
    * @param array[] $sequence
    *   An array with arrays of arguments for the ::doSaveNewRevision() method as
    *   values. Every child array corresponds to a method invocation.
-   *
    * @param bool $default_translation_affected
    *   Whether untranslatable field changes affect all revisions or only the
    *   default revision.
@@ -586,6 +585,60 @@ class EntityDecoupledTranslationRevisionsTest extends EntityKernelTestBase {
     $this->storage->save($en_revision);
     $en_revision = $this->storage->loadRevision($en_revision->getRevisionId());
     $this->assertFalse($en_revision->hasTranslation('it'));
+  }
+
+  /**
+   * Checks that the revision create hook works as expected.
+   *
+   * @covers ::createRevision
+   */
+  public function testCreateRevisionHook() {
+    $entity = EntityTestMulRev::create();
+    $entity->get('name')->value = 'revision_create_test_en';
+    $this->storage->save($entity);
+
+    /** @var \Drupal\Core\Entity\ContentEntityInterface $translation */
+    $translation = $entity->addTranslation('it');
+    $translation->set('name', 'revision_create_test_it');
+    /** @var \Drupal\Core\Entity\ContentEntityInterface $revision */
+    $revision = $this->storage->createRevision($translation, FALSE, TRUE);
+
+    // Assert that the alter hook can alter the new revision.
+    $this->assertEquals('revision_create_test_it_altered', $revision->get('name')->value);
+
+    // Assert the data passed to the hook.
+    $data = $this->state->get('entity_test.hooks');
+    $this->assertEquals('revision_create_test_it', $data['entity_test_mulrev_revision_create']['entity']->get('name')->value);
+    $this->assertEquals('revision_create_test_it_altered', $data['entity_test_mulrev_revision_create']['new_revision']->get('name')->value);
+    $this->assertFalse($data['entity_test_mulrev_revision_create']['entity']->isNewRevision());
+    $this->assertTrue($data['entity_test_mulrev_revision_create']['new_revision']->isNewRevision());
+    $this->assertTrue($data['entity_test_mulrev_revision_create']['entity']->isDefaultRevision());
+    $this->assertFalse($data['entity_test_mulrev_revision_create']['new_revision']->isDefaultRevision());
+    $this->assertTrue($data['entity_test_mulrev_revision_create']['keep_untranslatable_fields']);
+
+    $this->assertEquals('revision_create_test_it', $data['entity_revision_create']['entity']->get('name')->value);
+    $this->assertEquals('revision_create_test_it_altered', $data['entity_revision_create']['new_revision']->get('name')->value);
+    $this->assertFalse($data['entity_revision_create']['entity']->isNewRevision());
+    $this->assertTrue($data['entity_revision_create']['new_revision']->isNewRevision());
+    $this->assertTrue($data['entity_revision_create']['entity']->isDefaultRevision());
+    $this->assertFalse($data['entity_revision_create']['new_revision']->isDefaultRevision());
+    $this->assertTrue($data['entity_revision_create']['keep_untranslatable_fields']);
+
+    // Test again with different arguments.
+    $translation->isDefaultRevision(FALSE);
+    $this->storage->createRevision($translation);
+    $data = $this->state->get('entity_test.hooks');
+    $this->assertFalse($data['entity_revision_create']['entity']->isNewRevision());
+    $this->assertTrue($data['entity_revision_create']['new_revision']->isNewRevision());
+    $this->assertFalse($data['entity_revision_create']['entity']->isDefaultRevision());
+    $this->assertTrue($data['entity_revision_create']['new_revision']->isDefaultRevision());
+    $this->assertNull($data['entity_revision_create']['keep_untranslatable_fields']);
+
+    $this->assertFalse($data['entity_test_mulrev_revision_create']['entity']->isNewRevision());
+    $this->assertTrue($data['entity_test_mulrev_revision_create']['new_revision']->isNewRevision());
+    $this->assertFalse($data['entity_test_mulrev_revision_create']['entity']->isDefaultRevision());
+    $this->assertTrue($data['entity_test_mulrev_revision_create']['new_revision']->isDefaultRevision());
+    $this->assertNull($data['entity_test_mulrev_revision_create']['keep_untranslatable_fields']);
   }
 
 }

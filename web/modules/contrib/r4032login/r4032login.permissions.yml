@@ -1,0 +1,3 @@
+administer r4032login:
+  title: 'Administer r4032login'
+  description: 'Allows a user to configure r4032login.'

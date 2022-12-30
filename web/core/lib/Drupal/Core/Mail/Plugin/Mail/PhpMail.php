@@ -2,10 +2,11 @@
 
 namespace Drupal\Core\Mail\Plugin\Mail;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Mail\MailFormatHelper;
 use Drupal\Core\Mail\MailInterface;
 use Drupal\Core\Site\Settings;
+use Symfony\Component\Mime\Header\Headers;
+use Symfony\Component\Mime\Header\UnstructuredHeader;
 
 /**
  * Defines the default Drupal mail backend, using PHP's native mail() function.
@@ -17,6 +18,27 @@ use Drupal\Core\Site\Settings;
  * )
  */
 class PhpMail implements MailInterface {
+
+  /**
+   * A list of headers that can contain multiple email addresses.
+   *
+   * @see \Symfony\Component\Mime\Header\Headers::HEADER_CLASS_MAP
+   */
+  private const MAILBOX_LIST_HEADERS = ['from', 'to', 'reply-to', 'cc', 'bcc'];
+
+  /**
+   * The configuration factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * PhpMail constructor.
+   */
+  public function __construct() {
+    $this->configFactory = \Drupal::configFactory();
+  }
 
   /**
    * Concatenates and wraps the email body for plain-text mails.
@@ -61,13 +83,17 @@ class PhpMail implements MailInterface {
         unset($message['headers']['Return-Path']);
       }
     }
-    $mimeheaders = [];
+
+    $headers = new Headers();
     foreach ($message['headers'] as $name => $value) {
-      $mimeheaders[] = $name . ': ' . Unicode::mimeHeaderEncode($value);
+      if (in_array(strtolower($name), self::MAILBOX_LIST_HEADERS, TRUE)) {
+        $value = explode(',', $value);
+      }
+      $headers->addHeader($name, $value);
     }
     $line_endings = Settings::get('mail_line_endings', PHP_EOL);
     // Prepare mail commands.
-    $mail_subject = Unicode::mimeHeaderEncode($message['subject']);
+    $mail_subject = (new UnstructuredHeader('subject', $message['subject']))->getBodyAsString();
     // Note: email uses CRLF for line-endings. PHP's API requires LF
     // on Unix and CRLF on Windows. Drupal automatically guesses the
     // line-ending format appropriate for your system. If you need to
@@ -75,7 +101,8 @@ class PhpMail implements MailInterface {
     $mail_body = preg_replace('@\r?\n@', $line_endings, $message['body']);
     // For headers, PHP's API suggests that we use CRLF normally,
     // but some MTAs incorrectly replace LF with CRLF. See #234403.
-    $mail_headers = implode("\n", $mimeheaders);
+    $mail_headers = str_replace("\r\n", "\n", $headers->toString());
+    $mail_subject = str_replace("\r\n", "\n", $mail_subject);
 
     $request = \Drupal::request();
 
@@ -86,7 +113,10 @@ class PhpMail implements MailInterface {
       // On most non-Windows systems, the "-f" option to the sendmail command
       // is used to set the Return-Path. There is no space between -f and
       // the value of the return path.
-      $additional_headers = isset($message['Return-Path']) ? '-f' . $message['Return-Path'] : '';
+      // We validate the return path, unless it is equal to the site mail, which
+      // we assume to be safe.
+      $site_mail = $this->configFactory->get('system.site')->get('mail');
+      $additional_headers = isset($message['Return-Path']) && ($site_mail === $message['Return-Path'] || static::_isShellSafe($message['Return-Path'])) ? '-f' . $message['Return-Path'] : '';
       $mail_result = @mail(
         $message['to'],
         $mail_subject,
@@ -110,6 +140,35 @@ class PhpMail implements MailInterface {
     }
 
     return $mail_result;
+  }
+
+  /**
+   * Disallows potentially unsafe shell characters.
+   *
+   * Functionally similar to PHPMailer::isShellSafe() which resulted from
+   * CVE-2016-10045. Note that escapeshellarg and escapeshellcmd are inadequate
+   * for this purpose.
+   *
+   * @param string $string
+   *   The string to be validated.
+   *
+   * @return bool
+   *   True if the string is shell-safe.
+   *
+   * @see https://github.com/PHPMailer/PHPMailer/issues/924
+   * @see https://github.com/PHPMailer/PHPMailer/blob/v5.2.21/class.phpmailer.php#L1430
+   *
+   * @todo Rename to ::isShellSafe() and/or discuss whether this is the correct
+   *   location for this helper.
+   */
+  protected static function _isShellSafe($string) {
+    if (escapeshellcmd($string) !== $string || !in_array(escapeshellarg($string), ["'$string'", "\"$string\""])) {
+      return FALSE;
+    }
+    if (preg_match('/[^a-zA-Z0-9@_\-.]/', $string) !== 0) {
+      return FALSE;
+    }
+    return TRUE;
   }
 
 }

@@ -25,12 +25,12 @@ class ShapeOnlyColorEditableWidget extends WidgetBase {
   public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
     $element['shape'] = [
       '#type' => 'hidden',
-      '#value' => $items[$delta]->shape
+      '#value' => $items[$delta]->shape,
     ];
 
     $element['color'] = [
       '#type' => 'textfield',
-      '#default_value' => isset($items[$delta]->color) ? $items[$delta]->color : NULL,
+      '#default_value' => $items[$delta]->color ?? NULL,
       '#size' => 255,
     ];
 

@@ -7,12 +7,12 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Watermark effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class WatermarkTest extends ImageEffectsTestBase {
 
   /**
-   * Test effect on required toolkits.
+   * Watermark effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -23,21 +23,14 @@ class WatermarkTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testWatermarkEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Watermark effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testWatermarkEffect() {
     // 1. Basic test.
-    $original_uri = $this->getTestImageCopyUri('/files/image-1.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-1.png');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
-    $watermark_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $watermark_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     $effect = [
       'id' => 'image_effects_watermark',
@@ -68,7 +61,7 @@ class WatermarkTest extends ImageEffectsTestBase {
     // 2. Test for scaled watermark. Place a fuchsia watermark scaled to 5%
     // over a sample image and check the color of pixels inside/outside the
     // watermark to see that it was scaled properly.
-    $original_uri = $this->getTestImageCopyUri('/files/image-1.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-1.png');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
     $watermark_uri = $this->getTestImageCopyUri('/tests/images/fuchsia.png', 'image_effects');
@@ -105,7 +98,7 @@ class WatermarkTest extends ImageEffectsTestBase {
     $original_uri = $this->getTestImageCopyUri('/tests/images/fuchsia.png', 'image_effects');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
-    $watermark_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $watermark_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     $effect = [
       'id' => 'image_effects_watermark',
@@ -139,7 +132,7 @@ class WatermarkTest extends ImageEffectsTestBase {
     $original_uri = $this->getTestImageCopyUri('/tests/images/fuchsia.png', 'image_effects');
     $derivative_uri = $this->testImageStyle->buildUri($original_uri);
 
-    $watermark_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $watermark_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     $effect = [
       'id' => 'image_effects_watermark',

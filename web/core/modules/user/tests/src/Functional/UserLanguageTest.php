@@ -17,14 +17,22 @@ class UserLanguageTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['user', 'language'];
+  protected static $modules = ['user', 'language'];
 
   /**
-   * Test if user can change their default language.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * Tests if user can change their default language.
    */
   public function testUserLanguageConfiguration() {
     // User to add and remove language.
-    $admin_user = $this->drupalCreateUser(['administer languages', 'access administration pages']);
+    $admin_user = $this->drupalCreateUser([
+      'administer languages',
+      'access administration pages',
+    ]);
     // User to change their default language.
     $web_user = $this->drupalCreateUser();
 
@@ -40,7 +48,8 @@ class UserLanguageTest extends BrowserTestBase {
       'label' => $name,
       'direction' => LanguageInterface::DIRECTION_LTR,
     ];
-    $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add custom language'));
+    $this->drupalGet('admin/config/regional/language/add');
+    $this->submitForm($edit, 'Add custom language');
     $this->drupalLogout();
 
     // Log in as normal user and edit account settings.
@@ -48,18 +57,19 @@ class UserLanguageTest extends BrowserTestBase {
     $path = 'user/' . $web_user->id() . '/edit';
     $this->drupalGet($path);
     // Ensure language settings widget is available.
-    $this->assertText(t('Language'), 'Language selector available.');
+    $this->assertSession()->pageTextContains('Language');
     // Ensure custom language is present.
-    $this->assertText($name, 'Language present on form.');
+    $this->assertSession()->pageTextContains($name);
     // Switch to our custom language.
     $edit = [
       'preferred_langcode' => $langcode,
     ];
-    $this->drupalPostForm($path, $edit, t('Save'));
+    $this->drupalGet($path);
+    $this->submitForm($edit, 'Save');
     // Ensure form was submitted successfully.
-    $this->assertText(t('The changes have been saved.'), 'Changes were saved.');
+    $this->assertSession()->pageTextContains('The changes have been saved.');
     // Check if language was changed.
-    $this->assertOptionSelected('edit-preferred-langcode', $langcode, 'Default language successfully updated.');
+    $this->assertTrue($this->assertSession()->optionExists('edit-preferred-langcode', $langcode)->isSelected());
 
     $this->drupalLogout();
   }

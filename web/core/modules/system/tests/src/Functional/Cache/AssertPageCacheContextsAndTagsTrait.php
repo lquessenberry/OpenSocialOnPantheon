@@ -31,13 +31,8 @@ trait AssertPageCacheContextsAndTagsTrait {
    *   The header value, potentially exploded by spaces.
    */
   protected function getCacheHeaderValues($header_name) {
-    $header_value = $this->drupalGetHeader($header_name);
-    if (empty($header_value)) {
-      return [];
-    }
-    else {
-      return explode(' ', $header_value);
-    }
+    $header_value = $this->getSession()->getResponseHeader($header_name);
+    return empty($header_value) ? [] : explode(' ', $header_value);
   }
 
   /**
@@ -47,8 +42,8 @@ trait AssertPageCacheContextsAndTagsTrait {
    *   The expected cache context.
    */
   protected function assertCacheContext($expected_cache_context) {
-    $cache_contexts = explode(' ', $this->drupalGetHeader('X-Drupal-Cache-Contexts'));
-    $this->assertTrue(in_array($expected_cache_context, $cache_contexts), "'" . $expected_cache_context . "' is present in the X-Drupal-Cache-Contexts header.");
+    $cache_contexts = explode(' ', $this->getSession()->getResponseHeader('X-Drupal-Cache-Contexts'));
+    $this->assertContains($expected_cache_context, $cache_contexts, "'" . $expected_cache_context . "' is present in the X-Drupal-Cache-Contexts header.");
   }
 
   /**
@@ -58,8 +53,8 @@ trait AssertPageCacheContextsAndTagsTrait {
    *   The expected cache context.
    */
   protected function assertNoCacheContext($not_expected_cache_context) {
-    $cache_contexts = explode(' ', $this->drupalGetHeader('X-Drupal-Cache-Contexts'));
-    $this->assertFalse(in_array($not_expected_cache_context, $cache_contexts), "'" . $not_expected_cache_context . "' is not present in the X-Drupal-Cache-Contexts header.");
+    $cache_contexts = explode(' ', $this->getSession()->getResponseHeader('X-Drupal-Cache-Contexts'));
+    $this->assertNotContains($not_expected_cache_context, $cache_contexts, "'" . $not_expected_cache_context . "' is not present in the X-Drupal-Cache-Contexts header.");
   }
 
   /**
@@ -79,7 +74,7 @@ trait AssertPageCacheContextsAndTagsTrait {
 
     // Assert cache miss + expected cache contexts + tags.
     $this->drupalGet($absolute_url);
-    $this->assertEqual($this->drupalGetHeader('X-Drupal-Cache'), 'MISS');
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Cache', 'MISS');
     $this->assertCacheTags($expected_tags);
     $this->assertCacheContexts($expected_contexts);
 
@@ -89,27 +84,11 @@ trait AssertPageCacheContextsAndTagsTrait {
     $this->assertCacheContexts($expected_contexts);
 
     // Assert page cache item + expected cache tags.
-    $cid_parts = [$url->setAbsolute()->toString(), 'html'];
+    $cid_parts = [$url->setAbsolute()->toString(), ''];
     $cid = implode(':', $cid_parts);
     $cache_entry = \Drupal::cache('page')->get($cid);
     sort($cache_entry->tags);
-    $this->assertEqual($cache_entry->tags, $expected_tags);
-    $this->debugCacheTags($cache_entry->tags, $expected_tags);
-  }
-
-  /**
-   * Provides debug information for cache tags.
-   *
-   * @param string[] $actual_tags
-   *   The actual cache tags.
-   * @param string[] $expected_tags
-   *   The expected cache tags.
-   */
-  protected function debugCacheTags(array $actual_tags, array $expected_tags) {
-    if ($actual_tags !== $expected_tags) {
-      debug('Unwanted cache tags in response: ' . implode(',', array_diff($actual_tags, $expected_tags)));
-      debug('Missing cache tags in response: ' . implode(',', array_diff($expected_tags, $actual_tags)));
-    }
+    $this->assertEquals($expected_tags, $cache_entry->tags);
   }
 
   /**
@@ -132,8 +111,7 @@ trait AssertPageCacheContextsAndTagsTrait {
     $expected_tags = array_unique($expected_tags);
     sort($expected_tags);
     sort($actual_tags);
-    $this->assertIdentical($actual_tags, $expected_tags);
-    $this->debugCacheTags($actual_tags, $expected_tags);
+    $this->assertSame($expected_tags, $actual_tags);
   }
 
   /**
@@ -147,7 +125,7 @@ trait AssertPageCacheContextsAndTagsTrait {
    *   (optional) Whether the default contexts should automatically be included.
    *
    * @return bool
-   *   TRUE if the assertion succeeded, FALSE otherwise.
+   *   Always returns TRUE.
    */
   protected function assertCacheContexts(array $expected_contexts, $message = NULL, $include_default_contexts = TRUE) {
     if ($include_default_contexts) {
@@ -163,30 +141,18 @@ trait AssertPageCacheContextsAndTagsTrait {
     $actual_contexts = $this->getCacheHeaderValues('X-Drupal-Cache-Contexts');
     sort($expected_contexts);
     sort($actual_contexts);
-    $match = $actual_contexts === $expected_contexts;
-    if (!$match) {
-      debug('Unwanted cache contexts in response: ' . implode(',', array_diff($actual_contexts, $expected_contexts)));
-      debug('Missing cache contexts in response: ' . implode(',', array_diff($expected_contexts, $actual_contexts)));
-    }
-
-    $this->assertIdentical($actual_contexts, $expected_contexts, $message);
-
-    // For compatibility with both BrowserTestBase and WebTestBase always return
-    // a boolean.
-    return $match;
+    $this->assertSame($expected_contexts, $actual_contexts, $message ?? '');
+    return TRUE;
   }
 
   /**
    * Asserts the max age header.
    *
    * @param int $max_age
+   *   The maximum age of the cache.
    */
   protected function assertCacheMaxAge($max_age) {
-    $cache_control_header = $this->drupalGetHeader('Cache-Control');
-    if (strpos($cache_control_header, 'max-age:' . $max_age) === FALSE) {
-      debug('Expected max-age:' . $max_age . '; Response max-age:' . $cache_control_header);
-    }
-    $this->assertTrue(strpos($cache_control_header, 'max-age:' . $max_age));
+    $this->assertSession()->responseHeaderContains('Cache-Control', 'max-age:' . $max_age);
   }
 
 }

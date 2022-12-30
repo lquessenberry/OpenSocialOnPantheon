@@ -34,6 +34,13 @@ class MessageCron extends MessageTestBase {
   protected $cron;
 
   /**
+   * The time service.
+   *
+   * @var \Drupal\Component\Datetime\Time
+   */
+  protected $timeService;
+
+  /**
    * {@inheritdoc}
    */
   public function setUp() {
@@ -42,6 +49,7 @@ class MessageCron extends MessageTestBase {
     $this->purgeManager = $this->container->get('plugin.manager.message.purge');
     $this->account = $this->drupalCreateUser();
     $this->cron = $this->container->get('cron');
+    $this->timeService = $this->container->get('datetime.time');
   }
 
   /**
@@ -99,21 +107,21 @@ class MessageCron extends MessageTestBase {
     // Create messages.
     for ($i = 0; $i < 4; $i++) {
       Message::Create(['template' => 'template1'])
-        ->setCreatedTime(REQUEST_TIME - 3 * 86400)
+        ->setCreatedTime($this->timeService->getRequestTime() - 3 * 86400)
         ->setOwnerId($this->account->id())
         ->save();
     }
 
     for ($i = 0; $i < 3; $i++) {
       Message::Create(['template' => 'template2'])
-        ->setCreatedTime(REQUEST_TIME - 3 * 86400)
+        ->setCreatedTime($this->timeService->getRequestTime() - 3 * 86400)
         ->setOwnerId($this->account->id())
         ->save();
     }
 
     for ($i = 0; $i < 3; $i++) {
       Message::Create(['template' => 'template3'])
-        ->setCreatedTime(REQUEST_TIME - 3 * 86400)
+        ->setCreatedTime($this->timeService->getRequestTime() - 3 * 86400)
         ->setOwnerId($this->account->id())
         ->save();
     }

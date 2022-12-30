@@ -19,7 +19,7 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   - {{ 'Image'|t }}: <strong>{{ data.mask_image|e }}</strong>
   {% if data.mask_width or data.mask_height %}
     - {{ 'Mask width'|t }}:
@@ -30,4 +30,4 @@
   - {{ 'Placement'|t }}: {{ data.placement|e }}
   {% if data.x_offset %}- {{ 'X offset'|t }}: {{ data.x_offset|e }}{% endif %}
   {% if data.y_offset %}- {{ 'Y offset'|t }}: {{ data.y_offset|e }}{% endif %}
-{% endspaceless %}
+{% endapply %}

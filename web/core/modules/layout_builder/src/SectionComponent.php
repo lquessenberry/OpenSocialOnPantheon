@@ -14,19 +14,9 @@ use Drupal\layout_builder\Event\SectionComponentBuildRenderArrayEvent;
  * \Drupal\Core\Block\BlockPluginInterface, and contain the layout region
  * within the section layout where the component will be rendered.
  *
- * @internal
- *   Layout Builder is currently experimental and should only be leveraged by
- *   experimental modules and development releases of contributed modules.
- *   See https://www.drupal.org/core/experimental for more information.
- *
  * @see \Drupal\Core\Layout\LayoutDefinition
  * @see \Drupal\layout_builder\Section
  * @see \Drupal\layout_builder\SectionStorageInterface
- *
- * @todo Determine whether to retain the name 'component' in
- *   https://www.drupal.org/project/drupal/issues/2929783.
- * @todo Determine whether an interface will be provided for this in
- *   https://www.drupal.org/project/drupal/issues/2930334.
  */
 class SectionComponent {
 
@@ -97,7 +87,7 @@ class SectionComponent {
    */
   public function toRenderArray(array $contexts = [], $in_preview = FALSE) {
     $event = new SectionComponentBuildRenderArrayEvent($this, $contexts, $in_preview);
-    $this->eventDispatcher()->dispatch(LayoutBuilderEvents::SECTION_COMPONENT_BUILD_RENDER_ARRAY, $event);
+    $this->eventDispatcher()->dispatch($event, LayoutBuilderEvents::SECTION_COMPONENT_BUILD_RENDER_ARRAY);
     $output = $event->getBuild();
     $event->getCacheableMetadata()->applyTo($output);
     return $output;
@@ -114,10 +104,10 @@ class SectionComponent {
    */
   public function get($property) {
     if (property_exists($this, $property)) {
-      $value = isset($this->{$property}) ? $this->{$property} : NULL;
+      $value = $this->{$property} ?? NULL;
     }
     else {
-      $value = isset($this->additional[$property]) ? $this->additional[$property] : NULL;
+      $value = $this->additional[$property] ?? NULL;
     }
     return $value;
   }
@@ -282,7 +272,7 @@ class SectionComponent {
   /**
    * Wraps the event dispatcher.
    *
-   * @return \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   * @return \Symfony\Contracts\EventDispatcher\EventDispatcherInterface
    *   The event dispatcher.
    */
   protected function eventDispatcher() {
@@ -302,8 +292,8 @@ class SectionComponent {
       'uuid' => $this->getUuid(),
       'region' => $this->getRegion(),
       'configuration' => $this->getConfiguration(),
-      'additional' => $this->additional,
       'weight' => $this->getWeight(),
+      'additional' => $this->additional,
     ];
   }
 

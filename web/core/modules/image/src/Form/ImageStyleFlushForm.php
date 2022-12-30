@@ -37,7 +37,7 @@ class ImageStyleFlushForm extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return $this->entity->urlInfo('collection');
+    return $this->entity->toUrl('collection');
   }
 
   /**
@@ -45,7 +45,7 @@ class ImageStyleFlushForm extends EntityConfirmFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->entity->flush();
-    drupal_set_message($this->t('The image style %name has been flushed.', ['%name' => $this->entity->label()]));
+    $this->messenger()->addStatus($this->t('The image style %name has been flushed.', ['%name' => $this->entity->label()]));
     $form_state->setRedirectUrl($this->getCancelUrl());
   }
 

@@ -15,16 +15,14 @@ class UnitTest extends KernelTestBase {
   protected $tokenService;
 
   /**
-   * Modules to enable.
-   *
-   * @var array
+   * {@inheritdoc}
    */
-  public static $modules = ['file', 'node'];
+  protected static $modules = ['file', 'node'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
     $this->tokenService = \Drupal::token();
   }
@@ -33,9 +31,9 @@ class UnitTest extends KernelTestBase {
    * Test invalid tokens.
    */
   public function testGetInvalidTokens() {
-    $tests = array();
-    $tests[] = array(
-      'valid tokens' => array(
+    $tests = [];
+    $tests[] = [
+      'valid tokens' => [
         '[node:title]',
         '[node:created:short]',
         '[node:created:custom:invalid]',
@@ -46,8 +44,8 @@ class UnitTest extends KernelTestBase {
         '[current-date:short]',
         '[current-user:uid]',
         '[current-user:ip-address]',
-      ),
-      'invalid tokens' => array(
+      ],
+      'invalid tokens' => [
         '[node:title:invalid]',
         '[node:created:invalid]',
         '[node:created:short:invalid]',
@@ -62,11 +60,11 @@ class UnitTest extends KernelTestBase {
         '[node:type]',
         '[node:type-name]',
         '[date:short]',
-      ),
-      'types' => array('node'),
-    );
-    $tests[] = array(
-      'valid tokens' => array(
+      ],
+      'types' => ['node'],
+    ];
+    $tests[] = [
+      'valid tokens' => [
         '[node:title]',
         '[node:created:short]',
         '[node:created:custom:invalid]',
@@ -77,8 +75,8 @@ class UnitTest extends KernelTestBase {
         '[user:uid]',
         '[current-date:short]',
         '[current-user:uid]',
-      ),
-      'invalid tokens' => array(
+      ],
+      'invalid tokens' => [
         '[node:title:invalid]',
         '[node:created:invalid]',
         '[node:created:short:invalid]',
@@ -91,9 +89,9 @@ class UnitTest extends KernelTestBase {
         '[node:tnid]',
         '[node:type]',
         '[node:type-name]',
-      ),
-      'types' => array('all'),
-    );
+      ],
+      'types' => ['all'],
+    ];
 
     foreach ($tests as $test) {
       $tokens = array_merge($test['valid tokens'], $test['invalid tokens']);
@@ -103,7 +101,7 @@ class UnitTest extends KernelTestBase {
 
       sort($invalid_tokens);
       sort($test['invalid tokens']);
-      $this->assertEqual($invalid_tokens, $test['invalid tokens'], 'Invalid tokens detected properly: ' . implode(', ', $invalid_tokens));
+      $this->assertEquals($test['invalid tokens'], $invalid_tokens, 'Invalid tokens detected properly: ' . implode(', ', $invalid_tokens));
     }
   }
 
@@ -116,4 +114,5 @@ class UnitTest extends KernelTestBase {
     $this->assertNull($this->tokenService->getTokenInfo('user_role', 'url'));
     $this->assertNull($this->tokenService->getTypeInfo('user_role'));
   }
+
 }

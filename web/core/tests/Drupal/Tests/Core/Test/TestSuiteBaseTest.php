@@ -40,8 +40,8 @@ class TestSuiteBaseTest extends TestCase {
                 'Listener.php' => '<?php',
                 'Legacy' => [
                   'Listener.php' => '<?php',
-                ]
-              ]
+                ],
+              ],
             ],
           ],
         ],
@@ -142,7 +142,7 @@ class StubTestSuiteBase extends TestSuiteBase {
   /**
    * {@inheritdoc}
    */
-  public function addTestFiles($filenames) {
+  public function addTestFiles($filenames): void {
     // We stub addTestFiles() because the parent implementation can't deal with
     // vfsStream-based filesystems due to an error in
     // stream_resolve_include_path(). See

@@ -3,7 +3,6 @@
 namespace Drupal\Tests\views\Kernel;
 
 use Drupal\Core\Database\Database;
-use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\views\Tests\ViewResultAssertionTrait;
 use Drupal\views\Tests\ViewTestData;
@@ -28,7 +27,14 @@ abstract class ViewsKernelTestBase extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system', 'views', 'views_test_config', 'views_test_data', 'user'];
+  protected static $modules = [
+    'path_alias',
+    'system',
+    'views',
+    'views_test_config',
+    'views_test_data',
+    'user',
+  ];
 
   /**
    * {@inheritdoc}
@@ -41,13 +47,14 @@ abstract class ViewsKernelTestBase extends KernelTestBase {
   protected function setUp($import_test_views = TRUE) {
     parent::setUp();
 
-    $this->installSchema('system', ['router', 'sequences', 'key_value_expire']);
+    $this->installSchema('system', ['sequences']);
     $this->setUpFixtures();
 
     if ($import_test_views) {
-      ViewTestData::createTestViews(get_class($this), ['views_test_config']);
+      ViewTestData::createTestViews(static::class, ['views_test_config']);
     }
   }
+
   /**
    * Sets up the configuration and schema of views and views_test_data modules.
    *
@@ -64,6 +71,7 @@ abstract class ViewsKernelTestBase extends KernelTestBase {
     // Define the schema and views data variable before enabling the test module.
     $state->set('views_test_data_schema', $this->schemaDefinition());
     $state->set('views_test_data_views_data', $this->viewsData());
+    $this->container->get('views.views_data')->clear();
 
     $this->installConfig(['views', 'views_test_config', 'views_test_data']);
     foreach ($this->schemaDefinition() as $table => $schema) {
@@ -100,16 +108,13 @@ abstract class ViewsKernelTestBase extends KernelTestBase {
   protected function orderResultSet($result_set, $column, $reverse = FALSE) {
     $order = $reverse ? -1 : 1;
     usort($result_set, function ($a, $b) use ($column, $order) {
-      if ($a[$column] == $b[$column]) {
-        return 0;
-      }
-      return $order * (($a[$column] < $b[$column]) ? -1 : 1);
+      return $order * ($a[$column] <=> $b[$column]);
     });
     return $result_set;
   }
 
   /**
-   * Executes a view with debugging.
+   * Executes a view.
    *
    * @param \Drupal\views\ViewExecutable $view
    *   The view object.
@@ -120,11 +125,6 @@ abstract class ViewsKernelTestBase extends KernelTestBase {
     $view->setDisplay();
     $view->preExecute($args);
     $view->execute();
-    $verbose_message = '<pre>Executed view: ' . ((string) $view->build_info['query']) . '</pre>';
-    if ($view->build_info['query'] instanceof SelectInterface) {
-      $verbose_message .= '<pre>Arguments: ' . print_r($view->build_info['query']->getArguments(), TRUE) . '</pre>';
-    }
-    $this->verbose($verbose_message);
   }
 
   /**

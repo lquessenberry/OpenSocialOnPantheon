@@ -8,40 +8,50 @@
 (function ($, Drupal) {
   Drupal.behaviors.setTimezone = {
     attach: function attach(context, settings) {
-      var $timezone = $(context).find('.timezone-detect').once('timezone');
-      if ($timezone.length) {
-        var dateString = Date();
+      var timezone = once('timezone', '.timezone-detect', context);
 
+      if (timezone.length) {
+        var tz = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        if (tz && $(timezone).find("option[value=\"".concat(tz, "\"]")).length) {
+          timezone.forEach(function (item) {
+            item.value = tz;
+          });
+          return;
+        }
+
+        var dateString = Date();
         var matches = dateString.match(/\(([A-Z]{3,5})\)/);
         var abbreviation = matches ? matches[1] : 0;
-
         var dateNow = new Date();
         var offsetNow = dateNow.getTimezoneOffset() * -60;
-
         var dateJan = new Date(dateNow.getFullYear(), 0, 1, 12, 0, 0, 0);
         var dateJul = new Date(dateNow.getFullYear(), 6, 1, 12, 0, 0, 0);
         var offsetJan = dateJan.getTimezoneOffset() * -60;
         var offsetJul = dateJul.getTimezoneOffset() * -60;
-
-        var isDaylightSavingTime = void 0;
+        var isDaylightSavingTime;
 
         if (offsetJan === offsetJul) {
           isDaylightSavingTime = '';
         } else if (Math.max(offsetJan, offsetJul) === offsetNow) {
-            isDaylightSavingTime = 1;
-          } else {
-              isDaylightSavingTime = 0;
-            }
+          isDaylightSavingTime = 1;
+        } else {
+          isDaylightSavingTime = 0;
+        }
 
-        var path = 'system/timezone/' + abbreviation + '/' + offsetNow + '/' + isDaylightSavingTime;
+        var path = "system/timezone/".concat(abbreviation, "/").concat(offsetNow, "/").concat(isDaylightSavingTime);
         $.ajax({
           async: false,
           url: Drupal.url(path),
-          data: { date: dateString },
+          data: {
+            date: dateString
+          },
           dataType: 'json',
           success: function success(data) {
             if (data) {
-              $timezone.val(data);
+              document.querySelectorAll('.timezone-detect').forEach(function (item) {
+                item.value = data;
+              });
             }
           }
         });

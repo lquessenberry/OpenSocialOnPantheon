@@ -257,4 +257,18 @@ interface FieldsHelperInterface {
    */
   public function getNewFieldId(IndexInterface $index, $propertyPath);
 
+  /**
+   * Compares two fields for alphabetic sorting according to their labels.
+   *
+   * @param \Drupal\search_api\Item\FieldInterface $a
+   *   The first field.
+   * @param \Drupal\search_api\Item\FieldInterface $b
+   *   The second field.
+   *
+   * @return int
+   *   -1, 0 or 1 if the first field should, respectively, be considered less
+   *   than, equal to or greater than the second.
+   */
+  public function compareFieldLabels(FieldInterface $a, FieldInterface $b);
+
 }

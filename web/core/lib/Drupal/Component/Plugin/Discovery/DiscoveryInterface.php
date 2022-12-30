@@ -3,8 +3,7 @@
 namespace Drupal\Component\Plugin\Discovery;
 
 /**
- * An interface defining the minimum requirements of building a plugin
- * discovery component.
+ * Defines the minimum requirements for a plugin discovery component.
  *
  * @ingroup plugin_api
  */
@@ -33,6 +32,8 @@ interface DiscoveryInterface {
    * @return mixed[]
    *   An array of plugin definitions (empty array if no definitions were
    *   found). Keys are plugin IDs.
+   *
+   * @see \Drupal\Core\Plugin\FilteredPluginManagerInterface::getFilteredDefinitions()
    */
   public function getDefinitions();
 

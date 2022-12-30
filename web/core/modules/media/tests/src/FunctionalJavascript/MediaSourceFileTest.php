@@ -13,12 +13,18 @@ use Drupal\media\Plugin\media\Source\File;
 class MediaSourceFileTest extends MediaSourceTestBase {
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'classy';
+
+  /**
    * Tests the file media source.
    */
   public function testMediaFileSource() {
     $media_type_id = 'test_media_file_type';
     $source_field_id = 'field_media_file';
     $provided_fields = [
+      File::METADATA_ATTRIBUTE_NAME,
       File::METADATA_ATTRIBUTE_SIZE,
       File::METADATA_ATTRIBUTE_MIME,
     ];
@@ -40,6 +46,7 @@ class MediaSourceFileTest extends MediaSourceTestBase {
     $this->hideMediaTypeFieldWidget('name', $media_type_id);
 
     $this->drupalGet("admin/structure/media/manage/{$media_type_id}");
+    $page->selectFieldOption("field_map[" . File::METADATA_ATTRIBUTE_NAME . "]", 'name');
     $page->selectFieldOption("field_map[" . File::METADATA_ATTRIBUTE_SIZE . "]", 'field_string_file_size');
     $page->selectFieldOption("field_map[" . File::METADATA_ATTRIBUTE_MIME . "]", 'field_string_mime_type');
     $page->pressButton('Save');
@@ -55,10 +62,15 @@ class MediaSourceFileTest extends MediaSourceTestBase {
     $this->assertNotEmpty($result);
     $page->pressButton('Save');
 
-    $assert_session->addressEquals('media/1');
+    $assert_session->addressEquals('admin/content/media');
 
-    // Make sure the thumbnail is displayed.
-    $assert_session->elementAttributeContains('css', '.image-style-thumbnail', 'src', 'generic.png');
+    // Get the media entity view URL from the creation message.
+    $this->drupalGet($this->assertLinkToCreatedMedia());
+
+    // Make sure a link to the file is displayed.
+    $assert_session->linkExists($test_filename);
+    // The thumbnail should not be displayed.
+    $assert_session->elementNotExists('css', '.image-style-thumbnail');
 
     // Make sure checkbox changes the visibility of log message field.
     $this->drupalGet("media/1/edit");
@@ -69,19 +81,36 @@ class MediaSourceFileTest extends MediaSourceTestBase {
 
     // Load the media and check that all the fields are properly populated.
     $media = Media::load(1);
-    $this->assertEquals($test_filename, $media->getName());
-    $this->assertEquals('8', $media->get('field_string_file_size')->value);
-    $this->assertEquals('text/plain', $media->get('field_string_mime_type')->value);
+    $this->assertSame($test_filename, $media->getName());
+    $this->assertSame('8', $media->get('field_string_file_size')->value);
+    $this->assertSame('text/plain', $media->get('field_string_mime_type')->value);
 
     // Test the MIME type icon.
     $icon_base = \Drupal::config('media.settings')->get('icon_base_uri');
-    file_unmanaged_copy($icon_base . '/generic.png', $icon_base . '/text--plain.png');
+    \Drupal::service('file_system')->copy($icon_base . '/generic.png', $icon_base . '/text--plain.png');
     $this->drupalGet("media/add/{$media_type_id}");
     $page->attachFileToField("files[{$source_field_id}_0]", \Drupal::service('file_system')->realpath($test_filepath));
     $result = $assert_session->waitForButton('Remove');
     $this->assertNotEmpty($result);
     $page->pressButton('Save');
     $assert_session->elementAttributeContains('css', '.image-style-thumbnail', 'src', 'text--plain.png');
+
+    // Check if the mapped name is automatically updated.
+    $new_filename = $this->randomMachineName() . '.txt';
+    $new_filepath = 'public://' . $new_filename;
+    file_put_contents($new_filepath, $this->randomMachineName());
+    $this->drupalGet("media/1/edit");
+    $page->pressButton('Remove');
+    $result = $assert_session->waitForField("files[{$source_field_id}_0]");
+    $this->assertNotEmpty($result);
+    $page->attachFileToField("files[{$source_field_id}_0]", \Drupal::service('file_system')->realpath($new_filepath));
+    $result = $assert_session->waitForButton('Remove');
+    $this->assertNotEmpty($result);
+    $page->pressButton('Save');
+    /** @var \Drupal\media\MediaInterface $media */
+    $media = \Drupal::entityTypeManager()->getStorage('media')->loadUnchanged(1);
+    $this->assertEquals($new_filename, $media->getName());
+    $assert_session->pageTextContains("$new_filename has been updated.");
   }
 
 }

@@ -26,21 +26,24 @@ class TextFormat extends ProcessBase implements ProcessInterface {
     $element->value->setProperty('form_group', FALSE);
 
     if (isset($element->format)) {
-      $element->format->addClass('form-inline');
+      $element->format->addClass(['filter-wrapper', 'form-inline']);
 
       // Guidelines (removed).
-      $element->format->guidelines->setProperty('access', FALSE);
+      $element->format->guidelines->setProperty('access', FALSE)
+        ->addClass('filter-guidelines');
 
       // Format (select).
       $element->format->format
-        ->addClass('input-sm')
+        ->addClass(['filter-list', 'input-sm'])
         ->setProperty('title_display', 'invisible')
         ->setProperty('weight', -10);
 
       // Help (link).
+      $element->format->help->addClass('filter-help');
       $element->format->help->about
         ->setAttribute('title', t('Opens in new window'))
         ->setProperty('icon', Bootstrap::glyphicon('question-sign'));
+
       if (Bootstrap::getTheme()->getSetting('tooltip_enabled')) {
         $element->format->help->about->setAttribute('data-toggle', 'tooltip');
       }

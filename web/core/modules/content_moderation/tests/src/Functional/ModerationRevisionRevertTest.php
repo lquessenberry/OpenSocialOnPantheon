@@ -2,9 +2,9 @@
 
 namespace Drupal\Tests\content_moderation\Functional;
 
-use Drupal\simpletest\ContentTypeCreationTrait;
 use Drupal\Tests\BrowserTestBase;
-use Drupal\workflows\Entity\Workflow;
+use Drupal\Tests\content_moderation\Traits\ContentModerationTestTrait;
+use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
 
 /**
  * Test revision revert.
@@ -14,13 +14,14 @@ use Drupal\workflows\Entity\Workflow;
 class ModerationRevisionRevertTest extends BrowserTestBase {
 
   use ContentTypeCreationTrait;
+  use ContentModerationTestTrait;
 
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = [
+  protected static $modules = [
     'content_moderation',
     'node',
   ];
@@ -28,13 +29,18 @@ class ModerationRevisionRevertTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
     parent::setUp();
 
     $moderated_bundle = $this->createContentType(['type' => 'moderated_bundle']);
     $moderated_bundle->save();
 
-    $workflow = Workflow::load('editorial');
+    $workflow = $this->createEditorialWorkflow();
     $workflow->getTypePlugin()->addEntityTypeAndBundle('node', 'moderated_bundle');
     $workflow->save();
 
@@ -54,20 +60,22 @@ class ModerationRevisionRevertTest extends BrowserTestBase {
   }
 
   /**
-   * Test that reverting a revision works.
+   * Tests that reverting a revision works.
    */
   public function testEditingAfterRevertRevision() {
     // Create a draft.
-    $this->drupalPostForm('node/add/moderated_bundle', [
+    $this->drupalGet('node/add/moderated_bundle');
+    $this->submitForm([
       'title[0][value]' => 'First draft node',
       'moderation_state[0][state]' => 'draft',
-    ], t('Save'));
+    ], 'Save');
 
     // Now make it published.
-    $this->drupalPostForm('node/1/edit', [
+    $this->drupalGet('node/1/edit');
+    $this->submitForm([
       'title[0][value]' => 'Published node',
       'moderation_state[0][state]' => 'published',
-    ], t('Save'));
+    ], 'Save');
 
     // Check the editing form that show the published title.
     $this->drupalGet('node/1/edit');
@@ -85,9 +93,8 @@ class ModerationRevisionRevertTest extends BrowserTestBase {
     $this->assertSession()
       ->pageTextContains('First draft node');
     // Try to save the node.
-    $this->drupalPostForm('node/1/edit', [
-      'moderation_state[0][state]' => 'draft',
-    ], t('Save'));
+    $this->drupalGet('node/1/edit');
+    $this->submitForm(['moderation_state[0][state]' => 'draft'], 'Save');
 
     // Check if the submission passed the EntityChangedConstraintValidator.
     $this->assertSession()

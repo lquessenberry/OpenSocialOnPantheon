@@ -4,7 +4,9 @@ namespace Drupal\search_api\DataType;
 
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Plugin\DefaultPluginManager;
+use Drupal\search_api\Event\SearchApiEvents;
+use Drupal\search_api\SearchApiPluginManager;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Manages data type plugins.
@@ -14,7 +16,7 @@ use Drupal\Core\Plugin\DefaultPluginManager;
  * @see \Drupal\search_api\DataType\DataTypePluginBase
  * @see plugin_api
  */
-class DataTypePluginManager extends DefaultPluginManager {
+class DataTypePluginManager extends SearchApiPluginManager {
 
   /**
    * Static cache for the data type definitions.
@@ -45,12 +47,15 @@ class DataTypePluginManager extends DefaultPluginManager {
    *   Cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
+   *   The event dispatcher.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
-    parent::__construct('Plugin/search_api/data_type', $namespaces, $module_handler, 'Drupal\search_api\DataType\DataTypeInterface', 'Drupal\search_api\Annotation\SearchApiDataType');
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, EventDispatcherInterface $eventDispatcher) {
+    parent::__construct('Plugin/search_api/data_type', $namespaces, $module_handler, $eventDispatcher, 'Drupal\search_api\DataType\DataTypeInterface', 'Drupal\search_api\Annotation\SearchApiDataType');
 
     $this->setCacheBackend($cache_backend, 'search_api_data_type');
     $this->alterInfo('search_api_data_type_info');
+    $this->alterEvent(SearchApiEvents::GATHERING_DATA_TYPES);
   }
 
   /**

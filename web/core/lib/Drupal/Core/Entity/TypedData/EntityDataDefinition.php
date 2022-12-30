@@ -15,6 +15,9 @@ class EntityDataDefinition extends ComplexDataDefinitionBase implements EntityDa
    * @param string $entity_type_id
    *   (optional) The ID of the entity type, or NULL if the entity type is
    *   unknown. Defaults to NULL.
+   * @param string $bundle
+   *   (optional) The bundle of the entity type, or NULL if the bundle is
+   *   unknown. Defaults to NULL.
    *
    * @return static
    */
@@ -57,10 +60,7 @@ class EntityDataDefinition extends ComplexDataDefinitionBase implements EntityDa
     if ($parts[0] != 'entity') {
       throw new \InvalidArgumentException('Data type must be in the form of "entity:ENTITY_TYPE:BUNDLE."');
     }
-    return static::create(
-      isset($parts[1]) ? $parts[1] : NULL,
-      isset($parts[2]) ? $parts[2] : NULL
-    );
+    return static::create($parts[1] ?? NULL, $parts[2] ?? NULL);
   }
 
   /**
@@ -70,7 +70,7 @@ class EntityDataDefinition extends ComplexDataDefinitionBase implements EntityDa
     if (!isset($this->propertyDefinitions)) {
       if ($entity_type_id = $this->getEntityTypeId()) {
         // Return an empty array for entities that are not content entities.
-        $entity_type_class = \Drupal::entityManager()->getDefinition($entity_type_id)->getClass();
+        $entity_type_class = \Drupal::entityTypeManager()->getDefinition($entity_type_id)->getClass();
         if (!in_array('Drupal\Core\Entity\FieldableEntityInterface', class_implements($entity_type_class))) {
           $this->propertyDefinitions = [];
         }
@@ -79,10 +79,10 @@ class EntityDataDefinition extends ComplexDataDefinitionBase implements EntityDa
           // See https://www.drupal.org/node/2169813.
           $bundles = $this->getBundles();
           if (is_array($bundles) && count($bundles) == 1) {
-            $this->propertyDefinitions = \Drupal::entityManager()->getFieldDefinitions($entity_type_id, reset($bundles));
+            $this->propertyDefinitions = \Drupal::service('entity_field.manager')->getFieldDefinitions($entity_type_id, reset($bundles));
           }
           else {
-            $this->propertyDefinitions = \Drupal::entityManager()->getBaseFieldDefinitions($entity_type_id);
+            $this->propertyDefinitions = \Drupal::service('entity_field.manager')->getBaseFieldDefinitions($entity_type_id);
           }
         }
       }
@@ -117,7 +117,7 @@ class EntityDataDefinition extends ComplexDataDefinitionBase implements EntityDa
    * {@inheritdoc}
    */
   public function getEntityTypeId() {
-    return isset($this->definition['constraints']['EntityType']) ? $this->definition['constraints']['EntityType'] : NULL;
+    return $this->definition['constraints']['EntityType'] ?? NULL;
   }
 
   /**
@@ -131,7 +131,7 @@ class EntityDataDefinition extends ComplexDataDefinitionBase implements EntityDa
    * {@inheritdoc}
    */
   public function getBundles() {
-    $bundle = isset($this->definition['constraints']['Bundle']) ? $this->definition['constraints']['Bundle'] : NULL;
+    $bundle = $this->definition['constraints']['Bundle'] ?? NULL;
     return is_string($bundle) ? [$bundle] : $bundle;
   }
 

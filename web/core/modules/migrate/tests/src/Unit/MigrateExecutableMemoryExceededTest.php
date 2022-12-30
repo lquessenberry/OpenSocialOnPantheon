@@ -12,14 +12,14 @@ class MigrateExecutableMemoryExceededTest extends MigrateTestCase {
   /**
    * The mocked migration entity.
    *
-   * @var \Drupal\migrate\Plugin\MigrationInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\migrate\Plugin\MigrationInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $migration;
 
   /**
    * The mocked migrate message.
    *
-   * @var \Drupal\migrate\MigrateMessageInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\migrate\MigrateMessageInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $message;
 
@@ -49,10 +49,10 @@ class MigrateExecutableMemoryExceededTest extends MigrateTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     $this->migration = $this->getMigration();
-    $this->message = $this->getMock('Drupal\migrate\MigrateMessageInterface');
+    $this->message = $this->createMock('Drupal\migrate\MigrateMessageInterface');
 
     $this->executable = new TestMigrateExecutable($this->migration, $this->message);
     $this->executable->setStringTranslation($this->getStringTranslationStub());
@@ -78,12 +78,20 @@ class MigrateExecutableMemoryExceededTest extends MigrateTestCase {
     $this->executable->setMemoryUsage($memory_usage_first ?: $this->memoryLimit, $memory_usage_second ?: $this->memoryLimit);
     $this->executable->setMemoryThreshold(0.85);
     if ($message) {
-      $this->executable->message->expects($this->at(0))
+      $this->executable->message->expects($this->exactly(2))
         ->method('display')
-        ->with($this->stringContains('reclaiming memory'));
-      $this->executable->message->expects($this->at(1))
-        ->method('display')
-        ->with($this->stringContains($message));
+        ->withConsecutive(
+          [
+            $this->callback(function ($subject) {
+              return mb_stripos((string) $subject, 'reclaiming memory') !== FALSE;
+            }),
+          ],
+          [
+            $this->callback(function ($subject) use ($message) {
+              return mb_stripos((string) $subject, $message) !== FALSE;
+            }),
+          ],
+        );
     }
     else {
       $this->executable->message->expects($this->never())

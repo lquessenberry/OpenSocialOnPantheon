@@ -1,0 +1,11 @@
+services:
+  update_helper.generate.update:
+    class: Drupal\update_helper\Generators\ConfigurationUpdate
+    arguments: ['@extension.list.module', '@event_dispatcher', '@module_handler', '@update_helper.config_handler']
+    tags:
+      - { name: drush.generator.v2 }
+  update_helper_checklist.command_subscriber:
+    class: Drupal\update_helper\Events\CommandSubscriber
+    arguments: ['@module_handler']
+    tags:
+      - { name: event_subscriber }

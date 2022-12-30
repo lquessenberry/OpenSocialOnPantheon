@@ -8,7 +8,9 @@
 (function ($, Drupal) {
   Drupal.behaviors.tableSelect = {
     attach: function attach(context, settings) {
-      $(context).find('th.select-all').closest('table').once('table-select').each(Drupal.tableSelect);
+      once('table-select', $(context).find('th.select-all').closest('table')).forEach(function (table) {
+        return Drupal.tableSelect.call(table);
+      });
     }
   };
 
@@ -18,18 +20,18 @@
     }
 
     var table = this;
-    var checkboxes = void 0;
-    var lastChecked = void 0;
+    var checkboxes;
+    var lastChecked;
     var $table = $(table);
     var strings = {
       selectAll: Drupal.t('Select all rows in this table'),
       selectNone: Drupal.t('Deselect all rows in this table')
     };
+
     var updateSelectAll = function updateSelectAll(state) {
       $table.prev('table.sticky-header').addBack().find('th.select-all input[type="checkbox"]').each(function () {
         var $checkbox = $(this);
         var stateChanged = $checkbox.prop('checked') !== state;
-
         $checkbox.attr('title', state ? strings.selectNone : strings.selectAll);
 
         if (stateChanged) {
@@ -38,7 +40,7 @@
       });
     };
 
-    $table.find('th.select-all').prepend($('<input type="checkbox" class="form-checkbox" />').attr('title', strings.selectAll)).on('click', function (event) {
+    $table.find('th.select-all').prepend($(Drupal.theme('checkbox')).attr('title', strings.selectAll)).on('click', function (event) {
       if ($(event.target).is('input[type="checkbox"]')) {
         checkboxes.each(function () {
           var $checkbox = $(this);
@@ -50,11 +52,9 @@
 
           $checkbox.closest('tr').toggleClass('selected', this.checked);
         });
-
         updateSelectAll(event.target.checked);
       }
     });
-
     checkboxes = $table.find('td input[type="checkbox"]:enabled').on('click', function (e) {
       $(this).closest('tr').toggleClass('selected', this.checked);
 
@@ -63,10 +63,8 @@
       }
 
       updateSelectAll(checkboxes.length === checkboxes.filter(':checked').length);
-
       lastChecked = e.target;
     });
-
     updateSelectAll(checkboxes.length === checkboxes.filter(':checked').length);
   };
 
@@ -88,8 +86,8 @@
           break;
         }
       } else if ($.filter(to, [i]).r.length) {
-          break;
-        }
+        break;
+      }
     }
   };
 })(jQuery, Drupal);

@@ -1,0 +1,14 @@
+#autosave-notification {
+  font-size: .975rem;
+  bottom: 8px;
+  border-radius: var(--ginBorderXSmall);
+}
+
+[dir="ltr"] #autosave-notification {
+  right: 8px;
+}
+
+[dir="rtl"] #autosave-notification {
+  left: 8px;
+}
+

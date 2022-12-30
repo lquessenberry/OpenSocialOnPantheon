@@ -18,7 +18,7 @@
 
 <{{ wrapper_element }} {{ attributes }}>
   {% if title %}
-  <{{ title_element }}{% if collapsible %} class="field-group-toggler"{% endif %}>{{ title }}</{{ title_element }}>
+  <{{ title_element }}{{ title_attributes }}>{{ title }}</{{ title_element }}>
   {% endif %}
   {% if collapsible %}
   <div class="field-group-wrapper">

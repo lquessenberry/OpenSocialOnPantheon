@@ -7,16 +7,30 @@ use Drupal\Tests\BrowserTestBase;
 /**
  * Settings form test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class SettingsFormTest extends BrowserTestBase {
-
-  public static $modules = ['image_effects', 'jquery_colorpicker'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  protected static $modules = [
+    'image_effects',
+    'jquery_colorpicker',
+    'file_mdm',
+    'file_mdm_exif',
+    'file_mdm_font',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
     parent::setUp();
     // Create a user and log it in.
     $this->adminUser = $this->drupalCreateUser([
@@ -39,10 +53,10 @@ class SettingsFormTest extends BrowserTestBase {
     $edit = [
       'settings[color_selector][plugin_id]' => 'farbtastic',
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
+    $this->submitForm($edit, 'Save configuration');
 
     // Check config changed.
-    $this->assertEqual('farbtastic', \Drupal::config('image_effects.settings')->get('color_selector.plugin_id'));
+    $this->assertEquals('farbtastic', \Drupal::config('image_effects.settings')->get('color_selector.plugin_id'));
 
     // Change the default image selector.
     $config = \Drupal::configFactory()->getEditable('image_effects.settings');
@@ -51,10 +65,10 @@ class SettingsFormTest extends BrowserTestBase {
     $edit = [
       'settings[image_selector][plugin_settings][path]' => 'private://',
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
+    $this->submitForm($edit, 'Save configuration');
 
     // Check config changed.
-    $this->assertEqual(['path' => 'private://'], \Drupal::config('image_effects.settings')->get('image_selector.plugin_settings.dropdown'));
+    $this->assertEquals(['path' => 'private://'], \Drupal::config('image_effects.settings')->get('image_selector.plugin_settings.dropdown'));
 
     // Change the default font selector.
     $config = \Drupal::configFactory()->getEditable('image_effects.settings');
@@ -63,16 +77,16 @@ class SettingsFormTest extends BrowserTestBase {
     $edit = [
       'settings[font_selector][plugin_settings][path]' => 'public://',
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
+    $this->submitForm($edit, 'Save configuration');
 
     // Check config changed.
-    $this->assertEqual(['path' => 'public://'], \Drupal::config('image_effects.settings')->get('font_selector.plugin_settings.dropdown'));
+    $this->assertEquals(['path' => 'public://'], \Drupal::config('image_effects.settings')->get('font_selector.plugin_settings.dropdown'));
   }
 
   /**
    * Test JQuery Colorpicker color selector.
    */
-  public function testJqueryColorpickerSelector() {
+  public function testJqueryColorpickerSelector(): void {
     $admin_path = '/admin/config/media/image_effects';
 
     // Get the settings form.
@@ -82,19 +96,19 @@ class SettingsFormTest extends BrowserTestBase {
     $edit = [
       'settings[color_selector][plugin_id]' => 'jquery_colorpicker',
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
+    $this->submitForm($edit, 'Save configuration');
 
     // Check config changed.
-    $this->assertEqual('jquery_colorpicker', \Drupal::config('image_effects.settings')->get('color_selector.plugin_id'));
+    $this->assertEquals('jquery_colorpicker', \Drupal::config('image_effects.settings')->get('color_selector.plugin_id'));
 
     // Verify that the 'jquery_colorpicker' module cannot be uninstalled.
-    $this->assertNotEqual([], \Drupal::service('module_installer')->validateUninstall(['jquery_colorpicker']));
+    $this->assertNotEquals([], \Drupal::service('module_installer')->validateUninstall(['jquery_colorpicker']));
 
     // Back to the default color selector.
     $edit = [
       'settings[color_selector][plugin_id]' => 'html_color',
     ];
-    $this->drupalPostForm(NULL, $edit, t('Save configuration'));
+    $this->submitForm($edit, 'Save configuration');
 
     // Verify that the 'jquery_colorpicker' module can be uninstalled now.
     $this->assertTrue(\Drupal::service('module_installer')->uninstall(['jquery_colorpicker']));

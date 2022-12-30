@@ -22,31 +22,24 @@ use Symfony\Component\DependencyInjection\Exception\RuntimeException;
  */
 class ParameterBag implements ParameterBagInterface
 {
-    protected $parameters = array();
+    protected $parameters = [];
     protected $resolved = false;
 
-    private $normalizedNames = array();
-
-    /**
-     * @param array $parameters An array of parameters
-     */
-    public function __construct(array $parameters = array())
+    public function __construct(array $parameters = [])
     {
         $this->add($parameters);
     }
 
     /**
-     * Clears all parameters.
+     * {@inheritdoc}
      */
     public function clear()
     {
-        $this->parameters = array();
+        $this->parameters = [];
     }
 
     /**
-     * Adds parameters to the service container parameters.
-     *
-     * @param array $parameters An array of parameters
+     * {@inheritdoc}
      */
     public function add(array $parameters)
     {
@@ -68,23 +61,23 @@ class ParameterBag implements ParameterBagInterface
      */
     public function get($name)
     {
-        $name = $this->normalizeName($name);
+        $name = (string) $name;
 
-        if (!array_key_exists($name, $this->parameters)) {
+        if (!\array_key_exists($name, $this->parameters)) {
             if (!$name) {
                 throw new ParameterNotFoundException($name);
             }
 
-            $alternatives = array();
+            $alternatives = [];
             foreach ($this->parameters as $key => $parameterValue) {
                 $lev = levenshtein($name, $key);
-                if ($lev <= \strlen($name) / 3 || false !== strpos($key, $name)) {
+                if ($lev <= \strlen($name) / 3 || str_contains($key, $name)) {
                     $alternatives[] = $key;
                 }
             }
 
             $nonNestedAlternative = null;
-            if (!\count($alternatives) && false !== strpos($name, '.')) {
+            if (!\count($alternatives) && str_contains($name, '.')) {
                 $namePartsLength = array_map('strlen', explode('.', $name));
                 $key = substr($name, 0, -1 * (1 + array_pop($namePartsLength)));
                 while (\count($namePartsLength)) {
@@ -106,14 +99,11 @@ class ParameterBag implements ParameterBagInterface
     }
 
     /**
-     * Sets a service container parameter.
-     *
-     * @param string $name  The parameter name
-     * @param mixed  $value The parameter value
+     * {@inheritdoc}
      */
     public function set($name, $value)
     {
-        $this->parameters[$this->normalizeName($name)] = $value;
+        $this->parameters[(string) $name] = $value;
     }
 
     /**
@@ -121,17 +111,15 @@ class ParameterBag implements ParameterBagInterface
      */
     public function has($name)
     {
-        return array_key_exists($this->normalizeName($name), $this->parameters);
+        return \array_key_exists((string) $name, $this->parameters);
     }
 
     /**
-     * Removes a parameter.
-     *
-     * @param string $name The parameter name
+     * {@inheritdoc}
      */
     public function remove($name)
     {
-        unset($this->parameters[$this->normalizeName($name)]);
+        unset($this->parameters[(string) $name]);
     }
 
     /**
@@ -143,7 +131,7 @@ class ParameterBag implements ParameterBagInterface
             return;
         }
 
-        $parameters = array();
+        $parameters = [];
         foreach ($this->parameters as $key => $value) {
             try {
                 $value = $this->resolveValue($value);
@@ -171,10 +159,10 @@ class ParameterBag implements ParameterBagInterface
      * @throws ParameterCircularReferenceException if a circular reference if detected
      * @throws RuntimeException                    when a given parameter has a type problem
      */
-    public function resolveValue($value, array $resolving = array())
+    public function resolveValue($value, array $resolving = [])
     {
         if (\is_array($value)) {
-            $args = array();
+            $args = [];
             foreach ($value as $k => $v) {
                 $args[\is_string($k) ? $this->resolveValue($k, $resolving) : $k] = $this->resolveValue($v, $resolving);
             }
@@ -195,26 +183,25 @@ class ParameterBag implements ParameterBagInterface
      * @param string $value     The string to resolve
      * @param array  $resolving An array of keys that are being resolved (used internally to detect circular references)
      *
-     * @return string The resolved string
+     * @return mixed The resolved string
      *
      * @throws ParameterNotFoundException          if a placeholder references a parameter that does not exist
      * @throws ParameterCircularReferenceException if a circular reference if detected
      * @throws RuntimeException                    when a given parameter has a type problem
      */
-    public function resolveString($value, array $resolving = array())
+    public function resolveString($value, array $resolving = [])
     {
         // we do this to deal with non string values (Boolean, integer, ...)
         // as the preg_replace_callback throw an exception when trying
         // a non-string in a parameter value
         if (preg_match('/^%([^%\s]+)%$/', $value, $match)) {
             $key = $match[1];
-            $lcKey = strtolower($key); // strtolower() to be removed in 4.0
 
-            if (isset($resolving[$lcKey])) {
+            if (isset($resolving[$key])) {
                 throw new ParameterCircularReferenceException(array_keys($resolving));
             }
 
-            $resolving[$lcKey] = true;
+            $resolving[$key] = true;
 
             return $this->resolved ? $this->get($key) : $this->resolveValue($this->get($key), $resolving);
         }
@@ -226,19 +213,18 @@ class ParameterBag implements ParameterBagInterface
             }
 
             $key = $match[1];
-            $lcKey = strtolower($key); // strtolower() to be removed in 4.0
-            if (isset($resolving[$lcKey])) {
+            if (isset($resolving[$key])) {
                 throw new ParameterCircularReferenceException(array_keys($resolving));
             }
 
             $resolved = $this->get($key);
 
             if (!\is_string($resolved) && !is_numeric($resolved)) {
-                throw new RuntimeException(sprintf('A string value must be composed of strings and/or numbers, but found parameter "%s" of type %s inside string value "%s".', $key, \gettype($resolved), $value));
+                throw new RuntimeException(sprintf('A string value must be composed of strings and/or numbers, but found parameter "%s" of type "%s" inside string value "%s".', $key, \gettype($resolved), $value));
             }
 
             $resolved = (string) $resolved;
-            $resolving[$lcKey] = true;
+            $resolving[$key] = true;
 
             return $this->isResolved() ? $resolved : $this->resolveString($resolved, $resolving);
         }, $value);
@@ -259,7 +245,7 @@ class ParameterBag implements ParameterBagInterface
         }
 
         if (\is_array($value)) {
-            $result = array();
+            $result = [];
             foreach ($value as $k => $v) {
                 $result[$k] = $this->escapeValue($v);
             }
@@ -280,7 +266,7 @@ class ParameterBag implements ParameterBagInterface
         }
 
         if (\is_array($value)) {
-            $result = array();
+            $result = [];
             foreach ($value as $k => $v) {
                 $result[$k] = $this->unescapeValue($v);
             }
@@ -289,19 +275,5 @@ class ParameterBag implements ParameterBagInterface
         }
 
         return $value;
-    }
-
-    private function normalizeName($name)
-    {
-        if (isset($this->normalizedNames[$normalizedName = strtolower($name)])) {
-            $normalizedName = $this->normalizedNames[$normalizedName];
-            if ((string) $name !== $normalizedName) {
-                @trigger_error(sprintf('Parameter names will be made case sensitive in Symfony 4.0. Using "%s" instead of "%s" is deprecated since Symfony 3.4.', $name, $normalizedName), E_USER_DEPRECATED);
-            }
-        } else {
-            $normalizedName = $this->normalizedNames[$normalizedName] = (string) $name;
-        }
-
-        return $normalizedName;
     }
 }

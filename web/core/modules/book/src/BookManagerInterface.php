@@ -15,7 +15,7 @@ interface BookManagerInterface {
    * Gets the data structure representing a named menu tree.
    *
    * Since this can be the full tree including hidden items, the data returned
-   * may be used for generating an an admin interface or a select.
+   * may be used for generating an admin interface or a select.
    *
    * Note: based on menu_tree_all_data().
    *
@@ -31,7 +31,7 @@ interface BookManagerInterface {
    *   $link, in which case $max_depth should be greater than $link['depth'].
    *
    * @return array
-   *   An tree of menu links in an array, in the order they should be rendered.
+   *   A tree of menu links in an array, in the order they should be rendered.
    */
   public function bookTreeAllData($bid, $link = NULL, $max_depth = NULL);
 

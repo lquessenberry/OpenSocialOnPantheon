@@ -15,42 +15,14 @@ class TermStorageSchema extends SqlContentEntityStorageSchema {
    * {@inheritdoc}
    */
   protected function getEntitySchema(ContentEntityTypeInterface $entity_type, $reset = FALSE) {
-    $schema = parent::getEntitySchema($entity_type, $reset = FALSE);
+    $schema = parent::getEntitySchema($entity_type, $reset);
 
-    $schema['taxonomy_term_field_data']['indexes'] += [
-      'taxonomy_term__tree' => ['vid', 'weight', 'name'],
-      'taxonomy_term__vid_name' => ['vid', 'name'],
-    ];
-
-    $schema['taxonomy_term_hierarchy'] = [
-      'description' => 'Stores the hierarchical relationship between terms.',
-      'fields' => [
-        'tid' => [
-          'type' => 'int',
-          'unsigned' => TRUE,
-          'not null' => TRUE,
-          'default' => 0,
-          'description' => 'Primary Key: The {taxonomy_term_data}.tid of the term.',
-        ],
-        'parent' => [
-          'type' => 'int',
-          'unsigned' => TRUE,
-          'not null' => TRUE,
-          'default' => 0,
-          'description' => "Primary Key: The {taxonomy_term_data}.tid of the term's parent. 0 indicates no parent.",
-        ],
-      ],
-      'indexes' => [
-        'parent' => ['parent'],
-      ],
-      'foreign keys' => [
-        'taxonomy_term_data' => [
-          'table' => 'taxonomy_term_data',
-          'columns' => ['tid' => 'tid'],
-        ],
-      ],
-      'primary key' => ['tid', 'parent'],
-    ];
+    if ($data_table = $this->storage->getDataTable()) {
+      $schema[$data_table]['indexes'] += [
+        'taxonomy_term__tree' => ['vid', 'weight', 'name'],
+        'taxonomy_term__vid_name' => ['vid', 'name'],
+      ];
+    }
 
     $schema['taxonomy_index'] = [
       'description' => 'Maintains denormalized information about node/term relationships.',
@@ -134,6 +106,31 @@ class TermStorageSchema extends SqlContentEntityStorageSchema {
     }
 
     return $schema;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getDedicatedTableSchema(FieldStorageDefinitionInterface $storage_definition, ContentEntityTypeInterface $entity_type = NULL) {
+    $dedicated_table_schema = parent::getDedicatedTableSchema($storage_definition, $entity_type);
+
+    // Add an index on 'bundle', 'delta' and 'parent_target_id' columns to
+    // increase the performance of the query from
+    // \Drupal\taxonomy\TermStorage::getVocabularyHierarchyType().
+    if ($storage_definition->getName() === 'parent') {
+      /** @var \Drupal\Core\Entity\Sql\DefaultTableMapping $table_mapping */
+      $table_mapping = $this->storage->getTableMapping();
+      $dedicated_table_name = $table_mapping->getDedicatedDataTableName($storage_definition);
+
+      unset($dedicated_table_schema[$dedicated_table_name]['indexes']['bundle']);
+      $dedicated_table_schema[$dedicated_table_name]['indexes']['bundle_delta_target_id'] = [
+        'bundle',
+        'delta',
+        $table_mapping->getFieldColumnName($storage_definition, 'target_id'),
+      ];
+    }
+
+    return $dedicated_table_schema;
   }
 
 }

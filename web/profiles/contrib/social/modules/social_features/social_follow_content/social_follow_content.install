@@ -5,7 +5,7 @@
  * Install, update and uninstall functions for the social_follow_content module.
  */
 
-use Drupal\user\Entity\Role;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Implements hook_install().
@@ -13,57 +13,83 @@ use Drupal\user\Entity\Role;
  * Perform actions related to the installation of social_follow_content.
  */
 function social_follow_content_install() {
-
-  // Set some default permissions.
-  _social_follow_content_set_permissions();
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    'verified',
+    [
+      'flag follow_content',
+      'unflag follow_content',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'flag follow_content',
+      'unflag follow_content',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'flag follow_content',
+      'unflag follow_content',
+    ]
+  );
 }
 
 /**
- * Function to set permissions.
+ * Implements hook_update_dependencies().
  */
-function _social_follow_content_set_permissions() {
-  $roles = Role::loadMultiple();
+function social_follow_content_update_dependencies() {
+  // New config changes should run after the Update Helper module is enabled.
+  $dependencies['social_follow_content'][8801] = [
+    'social_core' => 8805,
+  ];
 
-  /** @var \Drupal\user\Entity\Role $role */
-  foreach ($roles as $role) {
-    if ($role->id() === 'administrator') {
-      continue;
-    }
+  return $dependencies;
+}
 
-    $permissions = _social_follow_content_get_permissions($role->id());
-    if (!empty($permissions)) {
-      user_role_grant_permissions($role->id(), $permissions);
+/**
+ * Remove follow content button from Topic small teasers.
+ */
+function social_follow_content_update_8001() {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_follow_content', 'social_follow_content_update_8001');
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update message template "message.template.create_comment_following_node".
+ *
+ * Added new 'preview' and 'cta_button' tokens.
+ */
+function social_follow_content_update_10301() {
+  $config_file = \Drupal::service('extension.list.module')->getPath('social_follow_content') . '/config/static/message.template.create_comment_following_node_10301.yml';
+  if (is_file($config_file)) {
+    $settings = Yaml::parse(file_get_contents($config_file));
+    if (is_array($settings)) {
+      $config = \Drupal::configFactory()
+        ->getEditable('message.template.create_comment_following_node');
+      $config->setData($settings)->save(TRUE);
     }
   }
 }
 
 /**
- * Build permissions.
- *
- * @param string $role
- *   The role.
- *
- * @return array
- *   Returns an array containing the permissions.
+ * Update exposed filter button name.
  */
-function _social_follow_content_get_permissions($role) {
-  // Anonymous.
-  $permissions['anonymous'] = [];
+function social_follow_content_update_11401(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
 
-  // Authenticated.
-  $permissions['authenticated'] = array_merge($permissions['anonymous'], [
-    'flag follow_content',
-    'unflag follow_content',
-  ]);
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_follow_content', __FUNCTION__);
 
-  // Content manager.
-  $permissions['contentmanager'] = array_merge($permissions['authenticated'], []);
-
-  // Site manager.
-  $permissions['sitemanager'] = array_merge($permissions['contentmanager'], []);
-
-  if (isset($permissions[$role])) {
-    return $permissions[$role];
-  }
-  return [];
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
 }

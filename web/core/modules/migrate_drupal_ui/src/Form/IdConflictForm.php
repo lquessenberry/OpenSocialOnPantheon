@@ -3,11 +3,8 @@
 namespace Drupal\migrate_drupal_ui\Form;
 
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\migrate\Audit\IdAuditor;
 use Drupal\migrate\Plugin\migrate\destination\EntityContentBase;
-use Drupal\migrate\Plugin\MigrationPluginManagerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Migrate Upgrade Id Conflict form.
@@ -15,36 +12,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @internal
  */
 class IdConflictForm extends MigrateUpgradeFormBase {
-
-  /**
-   * The migration plugin manager service.
-   *
-   * @var \Drupal\migrate\Plugin\MigrationPluginManagerInterface
-   */
-  protected $pluginManager;
-
-  /**
-   * IdConflictForm constructor.
-   *
-   * @param \Drupal\migrate\Plugin\MigrationPluginManagerInterface $migration_plugin_manager
-   *   The migration plugin manager service.
-   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempstore_private
-   *   The private tempstore factory.
-   */
-  public function __construct(MigrationPluginManagerInterface $migration_plugin_manager, PrivateTempStoreFactory $tempstore_private) {
-    parent::__construct($tempstore_private);
-    $this->pluginManager = $migration_plugin_manager;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('plugin.manager.migration'),
-      $container->get('tempstore.private')
-    );
-  }
 
   /**
    * {@inheritdoc}
@@ -67,7 +34,7 @@ class IdConflictForm extends MigrateUpgradeFormBase {
 
     $migration_ids = array_keys($migrations);
     // Check if there are conflicts. If none, just skip this form!
-    $migrations = $this->pluginManager->createInstances($migration_ids);
+    $migrations = $this->migrationPluginManager->createInstances($migration_ids);
 
     $translated_content_conflicts = $content_conflicts = [];
 
@@ -127,7 +94,10 @@ class IdConflictForm extends MigrateUpgradeFormBase {
 
     $form['warning'] = [
       '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('It looks like you have content on your new site which <strong>may be overwritten</strong> if you continue to run this upgrade. The upgrade should be performed on a clean Drupal 8 installation. For more information see the <a target="_blank" href=":id-conflicts-handbook">upgrade handbook</a>.', [':id-conflicts-handbook' => 'https://www.drupal.org/docs/8/upgrade/known-issues-when-upgrading-from-drupal-6-or-7-to-drupal-8#id_conflicts']) . '</p>',
+      '#markup' => '<p>' . $this->t('It looks like you have content on your new site which <strong>may be overwritten</strong> if you continue to run this upgrade. The upgrade should be performed on a clean Drupal @version installation. For more information see the <a target="_blank" href=":id-conflicts-handbook">upgrade handbook</a>.', [
+        '@version' => $this->destinationSiteVersion,
+        ':id-conflicts-handbook' => 'https://www.drupal.org/docs/8/upgrade/known-issues-when-upgrading-from-drupal-6-or-7-to-drupal-8#id_conflicts',
+      ]) . '</p>',
     ];
 
     return $form;
@@ -156,7 +126,7 @@ class IdConflictForm extends MigrateUpgradeFormBase {
     }
     sort($items, SORT_STRING);
 
-    return $items;
+    return array_unique($items);
   }
 
   /**

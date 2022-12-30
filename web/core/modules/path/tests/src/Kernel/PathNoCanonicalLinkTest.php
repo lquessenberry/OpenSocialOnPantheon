@@ -18,14 +18,20 @@ class PathNoCanonicalLinkTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['path', 'content_translation_test', 'language', 'entity_test', 'user', 'system'];
+  protected static $modules = [
+    'path',
+    'content_translation_test',
+    'language',
+    'entity_test',
+    'user',
+    'system',
+  ];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('entity_test');
     $this->installEntitySchema('entity_test_mul');
-    \Drupal::service('router.builder')->rebuild();
 
     // Adding german language.
     ConfigurableLanguage::create(['id' => 'de'])->save();
@@ -42,17 +48,17 @@ class PathNoCanonicalLinkTest extends KernelTestBase {
   public function testNoCanonicalLinkTemplate() {
     $entity_type = EntityTestTranslatableUISkip::create([
       'name' => 'name english',
-      'language' => 'en'
+      'language' => 'en',
     ]);
     $entity_type->save();
 
     $entity_type->addTranslation('de', ['name' => 'name german']);
     $entity_type->save();
-    $this->assertEqual(count($entity_type->getTranslationLanguages()), 2);
+    $this->assertCount(2, $entity_type->getTranslationLanguages());
 
     $entity_type->removeTranslation('de');
     $entity_type->save();
-    $this->assertEqual(count($entity_type->getTranslationLanguages()), 1);
+    $this->assertCount(1, $entity_type->getTranslationLanguages());
   }
 
 }

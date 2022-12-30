@@ -1,4 +1,5 @@
 <?php
+
 namespace Drush\Preflight;
 
 use Consolidation\Config\ConfigInterface;
@@ -36,11 +37,24 @@ interface PreflightArgsInterface
     public function applicationPath();
 
     /**
+     * Return the command name from the runtime args. Note that the
+     * command name also exists inside the runtime args, because the
+     * runtime args maintain the order of the options relative to the
+     * command name (save for those options removed by preflight args).
+     */
+    public function commandName();
+
+    /**
+     * Store the command name, once it is found.
+     */
+    public function setCommandName($commandName);
+
+    /**
      * Add one argument to the end of the list returned by the `args()` method.
      *
      * @param string $arg One argument
      */
-    public function addArg($arg);
+    public function addArg(string $arg);
 
     /**
      * Add everything in the provided array to the list returned by `args()`
@@ -65,5 +79,5 @@ interface PreflightArgsInterface
      *
      * @param string $alias The alias name '@site'
      */
-    public function setAlias($alias);
+    public function setAlias(string $alias);
 }

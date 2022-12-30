@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\taxonomy\Functional\Views;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\node\Entity\Node;
@@ -22,10 +21,15 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
    *
    * @var array
    */
-  public static $modules = ['taxonomy', 'views'];
+  protected static $modules = ['taxonomy', 'views'];
 
   /**
-   * An user with permissions to administer taxonomy.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * A user with permissions to administer taxonomy.
    *
    * @var \Drupal\user\UserInterface
    */
@@ -41,16 +45,19 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = []): void {
+    parent::setUp($import_test_views, $modules);
 
     // Create an administrative user.
-    $this->adminUser = $this->drupalCreateUser(['administer taxonomy', 'bypass node access']);
+    $this->adminUser = $this->drupalCreateUser([
+      'administer taxonomy',
+      'bypass node access',
+    ]);
     $this->drupalLogin($this->adminUser);
 
     // Create a vocabulary and add two term reference fields to article nodes.
 
-    $this->fieldName1 = Unicode::strtolower($this->randomMachineName());
+    $this->fieldName1 = mb_strtolower($this->randomMachineName());
 
     $handler_settings = [
       'target_bundles' => [
@@ -60,12 +67,14 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
     ];
     $this->createEntityReferenceField('node', 'article', $this->fieldName1, NULL, 'taxonomy_term', 'default', $handler_settings, FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
 
-    entity_get_form_display('node', 'article', 'default')
+    /** @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface $display_repository */
+    $display_repository = \Drupal::service('entity_display.repository');
+    $display_repository->getFormDisplay('node', 'article')
       ->setComponent($this->fieldName1, [
         'type' => 'options_select',
       ])
       ->save();
-    entity_get_display('node', 'article', 'default')
+    $display_repository->getViewDisplay('node', 'article')
       ->setComponent($this->fieldName1, [
         'type' => 'entity_reference_label',
       ])
@@ -84,12 +93,13 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
     $edit['title[0][value]'] = $original_title = $this->randomMachineName();
     $edit['body[0][value]'] = $this->randomMachineName();
     $edit["{$this->fieldName1}[]"] = $term->id();
-    $this->drupalPostForm('node/add/article', $edit, t('Save'));
+    $this->drupalGet('node/add/article');
+    $this->submitForm($edit, 'Save');
     $node = $this->drupalGetNodeByTitle($edit['title[0][value]']);
 
     $this->drupalGet('taxonomy/term/' . $term->id());
-    $this->assertText($term->label());
-    $this->assertText($node->label());
+    $this->assertSession()->pageTextContains($term->label());
+    $this->assertSession()->pageTextContains($node->label());
 
     \Drupal::service('module_installer')->install(['language', 'content_translation']);
     ConfigurableLanguage::createFromLangcode('ur')->save();
@@ -101,24 +111,21 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
       ->grantPermission('create content translations')
       ->grantPermission('translate any entity')
       ->save();
-    drupal_static_reset();
-    \Drupal::entityManager()->clearCachedDefinitions();
-    \Drupal::service('router.builder')->rebuild();
-    \Drupal::service('entity.definition_update_manager')->applyUpdates();
 
     $edit['title[0][value]'] = $translated_title = $this->randomMachineName();
 
-    $this->drupalPostForm('node/' . $node->id() . '/translations/add/en/ur', $edit, t('Save (this translation)'));
+    $this->drupalGet('node/' . $node->id() . '/translations/add/en/ur');
+    $this->submitForm($edit, 'Save (this translation)');
 
     $this->drupalGet('taxonomy/term/' . $term->id());
-    $this->assertText($term->label());
-    $this->assertText($original_title);
-    $this->assertNoText($translated_title);
+    $this->assertSession()->pageTextContains($term->label());
+    $this->assertSession()->pageTextContains($original_title);
+    $this->assertSession()->pageTextNotContains($translated_title);
 
     $this->drupalGet('ur/taxonomy/term/' . $term->id());
-    $this->assertText($term->label());
-    $this->assertNoText($original_title);
-    $this->assertText($translated_title);
+    $this->assertSession()->pageTextContains($term->label());
+    $this->assertSession()->pageTextNotContains($original_title);
+    $this->assertSession()->pageTextContains($translated_title);
 
     // Uninstall language module and ensure that the language is not part of the
     // query anymore.
@@ -141,12 +148,12 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
     $tables = $query->getTables();
 
     // Ensure that the join to node_field_data is not added by default.
-    $this->assertEqual(['node_field_data', 'taxonomy_index'], array_keys($tables));
+    $this->assertEquals(['node_field_data', 'taxonomy_index'], array_keys($tables));
     // Ensure that the filter to the language column is not there by default.
     $condition = $query->conditions();
     // We only want to check the no. of conditions in the query.
     unset($condition['#conjunction']);
-    $this->assertEqual(1, count($condition));
+    $this->assertCount(1, $condition);
 
     // Clear permissions for anonymous users to check access for default views.
     Role::load(RoleInterface::ANONYMOUS_ID)->revokePermission('access content')->save();
@@ -154,9 +161,9 @@ class TaxonomyTermViewTest extends TaxonomyTestBase {
     // Test the default views disclose no data by default.
     $this->drupalLogout();
     $this->drupalGet('taxonomy/term/' . $term->id());
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
     $this->drupalGet('taxonomy/term/' . $term->id() . '/feed');
-    $this->assertResponse(403);
+    $this->assertSession()->statusCodeEquals(403);
   }
 
 }

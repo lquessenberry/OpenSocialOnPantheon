@@ -19,6 +19,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class ModulesListConfirmForm extends ConfirmFormBase {
 
+  use ModulesEnabledTrait;
+
   /**
    * The module handler service.
    *
@@ -173,33 +175,21 @@ class ModulesListConfirmForm extends ConfirmFormBase {
         $this->moduleInstaller->install(array_keys($this->modules['install']));
       }
       catch (PreExistingConfigException $e) {
-        $config_objects = $e->flattenConfigObjects($e->getConfigObjects());
-        drupal_set_message(
-          $this->formatPlural(
-            count($config_objects),
-            'Unable to install @extension, %config_names already exists in active configuration.',
-            'Unable to install @extension, %config_names already exist in active configuration.',
-            [
-              '%config_names' => implode(', ', $config_objects),
-              '@extension' => $this->modules['install'][$e->getExtension()]
-            ]),
-          'error'
-        );
+        $this->messenger()->addError($this->modulesFailToEnableMessage($this->modules, $e));
         return;
       }
       catch (UnmetDependenciesException $e) {
-        drupal_set_message(
-          $e->getTranslatedMessage($this->getStringTranslation(), $this->modules['install'][$e->getExtension()]),
-          'error'
+        $this->messenger()->addError(
+          $e->getTranslatedMessage($this->getStringTranslation(), $this->modules['install'][$e->getExtension()])
         );
         return;
       }
 
-      $module_names = array_values($this->modules['install']);
-      drupal_set_message($this->formatPlural(count($module_names), 'Module %name has been enabled.', '@count modules have been enabled: %names.', [
-        '%name' => $module_names[0],
-        '%names' => implode(', ', $module_names),
-      ]));
+      // Unset the messenger to make sure that we'll get the service from the
+      // new container.
+      $this->messenger = NULL;
+      $this->messenger()
+        ->addStatus($this->modulesEnabledConfirmationMessage($this->modules['install']));
     }
 
     $form_state->setRedirectUrl($this->getCancelUrl());

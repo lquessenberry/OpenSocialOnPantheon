@@ -14,6 +14,7 @@ namespace Symfony\Component\Validator\Constraints;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
+use Symfony\Component\Validator\Exception\UnexpectedValueException;
 
 /**
  * @author Manuel Reinhard <manu@sprain.ch>
@@ -35,7 +36,7 @@ class IbanValidator extends ConstraintValidator
      *
      * @see https://www.swift.com/sites/default/files/resources/iban_registry.pdf
      */
-    private static $formats = array(
+    private const FORMATS = [
         'AD' => 'AD\d{2}\d{4}\d{4}[\dA-Z]{12}', // Andorra
         'AE' => 'AE\d{2}\d{3}\d{16}', // United Arab Emirates
         'AL' => 'AL\d{2}\d{8}[\dA-Z]{16}', // Albania
@@ -129,11 +130,12 @@ class IbanValidator extends ConstraintValidator
         'TN' => 'TN59\d{2}\d{3}\d{13}\d{2}', // Tunisia
         'TR' => 'TR\d{2}\d{5}[\dA-Z]{1}[\dA-Z]{16}', // Turkey
         'UA' => 'UA\d{2}\d{6}[\dA-Z]{19}', // Ukraine
+        'VA' => 'VA\d{2}\d{3}\d{15}', // Vatican City State
         'VG' => 'VG\d{2}[A-Z]{4}\d{16}', // Virgin Islands, British
         'WF' => 'FR\d{2}\d{5}\d{5}[\dA-Z]{11}\d{2}', // Wallis and Futuna Islands
         'XK' => 'XK\d{2}\d{4}\d{10}\d{2}', // Republic of Kosovo
         'YT' => 'FR\d{2}\d{5}\d{5}[\dA-Z]{11}\d{2}', // Mayotte
-    );
+    ];
 
     /**
      * {@inheritdoc}
@@ -141,15 +143,15 @@ class IbanValidator extends ConstraintValidator
     public function validate($value, Constraint $constraint)
     {
         if (!$constraint instanceof Iban) {
-            throw new UnexpectedTypeException($constraint, __NAMESPACE__.'\Iban');
+            throw new UnexpectedTypeException($constraint, Iban::class);
         }
 
         if (null === $value || '' === $value) {
             return;
         }
 
-        if (!is_scalar($value) && !(\is_object($value) && method_exists($value, '__toString'))) {
-            throw new UnexpectedTypeException($value, 'string');
+        if (!\is_scalar($value) && !(\is_object($value) && method_exists($value, '__toString'))) {
+            throw new UnexpectedValueException($value, 'string');
         }
 
         $value = (string) $value;
@@ -180,7 +182,7 @@ class IbanValidator extends ConstraintValidator
         }
 
         // ...have a format available
-        if (!array_key_exists($countryCode, self::$formats)) {
+        if (!\array_key_exists($countryCode, self::FORMATS)) {
             $this->context->buildViolation($constraint->message)
                 ->setParameter('{{ value }}', $this->formatValue($value))
                 ->setCode(Iban::NOT_SUPPORTED_COUNTRY_CODE_ERROR)
@@ -190,7 +192,7 @@ class IbanValidator extends ConstraintValidator
         }
 
         // ...and have a valid format
-        if (!preg_match('/^'.self::$formats[$countryCode].'$/', $canonicalized)
+        if (!preg_match('/^'.self::FORMATS[$countryCode].'$/', $canonicalized)
         ) {
             $this->context->buildViolation($constraint->message)
                 ->setParameter('{{ value }}', $this->formatValue($value))
@@ -223,7 +225,7 @@ class IbanValidator extends ConstraintValidator
         }
     }
 
-    private static function toBigInt($string)
+    private static function toBigInt(string $string): string
     {
         $chars = str_split($string);
         $bigInt = '';
@@ -243,7 +245,7 @@ class IbanValidator extends ConstraintValidator
         return $bigInt;
     }
 
-    private static function bigModulo97($bigInt)
+    private static function bigModulo97(string $bigInt): int
     {
         $parts = str_split($bigInt, 7);
         $rest = 0;

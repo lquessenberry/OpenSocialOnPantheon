@@ -1,7 +1,7 @@
-@api @security @stability @perfect @critical @DS-3605 @DS-5350 @stability-1 @private-file-uploads
+@api @security @stability @perfect @critical @DS-3605 @DS-5350 @YANG-4759 @private-file-uploads
 Feature: Private files
   Benefit: Upload files to private file directory
-  Role: As a LU
+  Role: As a Verified
   Goal/desire: Make sure uploaded files can not be accessed by unauthorised users
 
   Scenario: Create the files
@@ -9,21 +9,21 @@ Feature: Private files
     And I enable the module "social_comment_upload"
     And I set the configuration item "entity_access_by_field.settings" with key "default_visibility" to "community"
     And users:
-      | name                  | mail                            | status | field_profile_first_name  | field_profile_last_name | field_profile_organization | field_profile_function |
-      | private_file_user_1   | private_file_user_1@example.com | 1      | Private                   | Ryan                    | Privateering               | Private              |
+      | name                  | mail                            | status | field_profile_first_name  | field_profile_last_name | field_profile_organization | field_profile_function | roles    |
+      | private_file_user_1   | private_file_user_1@example.com | 1      | Private                   | Ryan                    | Privateering               | Private                | verified |
     And I am logged in as "private_file_user_1"
 
     # Create a topic with one attachment.
     Given I am on "node/add/topic"
-    And I click radio button "Discussion"
+    And I check the box "News"
     When I fill in the following:
       | Title | Private: topic |
     And I fill in the "edit-body-0-value" WYSIWYG editor with "Private: topic text"
     And I attach the file "/files/opensocial.jpg" to "Image"
     And I wait for AJAX to finish
-    And I attach the file "/files/humans.txt" to "Add a new file"
+    And I attach the file "/files/humans.txt" to "edit-field-files-0-upload"
     And I wait for AJAX to finish
-    And I press "Save"
+    And I press "Create topic"
     Then I should see "Topic Private: topic has been created."
     And I should see "Private: topic" in the "Hero block"
 
@@ -47,7 +47,7 @@ Feature: Private files
     Given I am on the homepage
     When I attach the file "/files/opensocial.jpg" to hidden field "edit-field-post-image-0-upload"
     And I wait for AJAX to finish
-    And I fill in "Say something about this photo" with "Private: post photo"
+    And I fill in "Say something about these image(s)" with "Private: post photo"
     And I select post visibility "Community"
     And I press "Post"
     Then I should see the success message "Your post has been posted."
@@ -63,12 +63,12 @@ Feature: Private files
     Given I enable the module "social_file_private"
     And I set the configuration item "entity_access_by_field.settings" with key "default_visibility" to "community"
     And users:
-      | name                     | mail                               | status | field_profile_first_name  | field_profile_last_name | field_profile_organization | field_profile_function |
-      | wysiwyg_private_user_1   | wysiwyg_private_user_1@example.com | 1      | Real Slim                 | Shady                    | Privateering               | Private              |
+      | name                     | mail                               | status | field_profile_first_name  | field_profile_last_name | field_profile_organization | field_profile_function | roles    |
+      | wysiwyg_private_user_1   | wysiwyg_private_user_1@example.com | 1      | Real Slim                 | Shady                    | Privateering               | Private               | verified |
     And I am logged in as "wysiwyg_private_user_1"
 
     Given I am on "node/add/topic"
-    And I click radio button "Discussion"
+    And I check the box "News"
     When I fill in the following:
       | Title | Private WYSIWYG: topic |
     And I click on the image icon in the WYSIWYG editor
@@ -78,8 +78,7 @@ Feature: Private files
     And I fill in "Alternative text" with "Just a private image test"
     And I click the xth "0" element with the css ".editor-image-dialog .form-actions .ui-button"
     And I wait for AJAX to finish
-    And I wait for "3" seconds
-    And I press "Save"
+    And I press "Create topic"
     Then I should see "Topic Private WYSIWYG: topic has been created."
     And I should see "Private WYSIWYG: topic" in the "Hero block"
     And The image path in the body description should be private

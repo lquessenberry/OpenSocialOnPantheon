@@ -3,8 +3,6 @@
 namespace Drupal\address\Plugin\Field\FieldWidget;
 
 use CommerceGuys\Addressing\Country\CountryRepositoryInterface;
-use Drupal\address\Event\AddressEvents;
-use Drupal\address\Event\InitialValuesEvent;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -12,6 +10,7 @@ use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Render\Element;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Validator\ConstraintViolationInterface;
@@ -98,112 +97,36 @@ class AddressDefaultWidget extends WidgetBase implements ContainerFactoryPluginI
   /**
    * {@inheritdoc}
    */
-  public static function defaultSettings() {
-    return [
-      'default_country' => NULL,
-    ] + parent::defaultSettings();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function settingsForm(array $form, FormStateInterface $form_state) {
-    $country_list = $this->countryRepository->getList();
-    $element = [];
-    $element['default_country'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Default country'),
-      '#options' => ['site_default' => $this->t('- Site default -')] + $country_list,
-      '#default_value' => $this->getSetting('default_country'),
-      '#empty_value' => '',
-    ];
-
-    return $element;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function settingsSummary() {
-    $default_country = $this->getSetting('default_country');
-    if (empty($default_country)) {
-      $default_country = $this->t('None');
-    }
-    elseif ($default_country == 'site_default') {
-      $default_country = $this->t('Site default');
-    }
-    else {
-      $country_list = $this->countryRepository->getList();
-      $default_country = $country_list[$default_country];
-    }
-    $summary = [];
-    $summary['default_country'] = $this->t('Default country: @country', ['@country' => $default_country]);
-
-    return $summary;
-  }
-
-  /**
-   * Gets the initial values for the widget.
-   *
-   * This is a replacement for the disabled default values functionality.
-   *
-   * @see address_form_field_config_edit_form_alter()
-   *
-   * @return array
-   *   The initial values, keyed by property.
-   */
-  protected function getInitialValues() {
-    $default_country = $this->getSetting('default_country');
-    // Resolve the special site_default option.
-    if ($default_country == 'site_default') {
-      $default_country = $this->configFactory->get('system.date')->get('country.default');
-    }
-
-    $initial_values = [
-      'country_code' => $default_country,
-      'administrative_area' => '',
-      'locality' => '',
-      'dependent_locality' => '',
-      'postal_code' => '',
-      'sorting_code' => '',
-      'address_line1' => '',
-      'address_line2' => '',
-      'organization' => '',
-      'given_name' => '',
-      'additional_name' => '',
-      'family_name' => '',
-    ];
-    // Allow other modules to alter the values.
-    $event = new InitialValuesEvent($initial_values, $this->fieldDefinition);
-    $this->eventDispatcher->dispatch(AddressEvents::INITIAL_VALUES, $event);
-    $initial_values = $event->getInitialValues();
-
-    return $initial_values;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
     $item = $items[$delta];
-    $value = $item->getEntity()->isNew() ? $this->getInitialValues() : $item->toArray();
+    $value = $item->toArray();
     // Calling initializeLangcode() every time, and not just when the field
     // is empty, ensures that the langcode can be changed on subsequent
     // edits (because the entity or interface language changed, for example).
     $value['langcode'] = $item->initializeLangcode();
 
+    // If cardinality is multiple then there is no need to set address field
+    // as required since $element handles this already.
+    $required = FALSE;
+    if ($this->fieldDefinition->getFieldStorageDefinition()->getCardinality() == 1) {
+      $required = $this->fieldDefinition->isRequired();
+    }
+
     $element += [
       '#type' => 'details',
-      '#collapsible' => TRUE,
       '#open' => TRUE,
     ];
     $element['address'] = [
       '#type' => 'address',
       '#default_value' => $value,
-      '#required' => $this->fieldDefinition->isRequired(),
+      '#required' => $required,
       '#available_countries' => $item->getAvailableCountries(),
       '#field_overrides' => $item->getFieldOverrides(),
     ];
+    // Make sure no properties are required on the default value widget.
+    if ($this->isDefaultValueWidget($form_state)) {
+      $element['address']['#after_build'][] = [get_class($this), 'makeFieldsOptional'];
+    }
 
     return $element;
   }
@@ -225,6 +148,18 @@ class AddressDefaultWidget extends WidgetBase implements ContainerFactoryPluginI
       $new_values[$delta] = $value['address'];
     }
     return $new_values;
+  }
+
+  /**
+   * Form API callback: Makes all address field properties optional.
+   */
+  public static function makeFieldsOptional(array $element, FormStateInterface $form_state) {
+    foreach (Element::getVisibleChildren($element) as $key) {
+      if (!empty($element[$key]['#required'])) {
+        $element[$key]['#required'] = FALSE;
+      }
+    }
+    return $element;
   }
 
 }

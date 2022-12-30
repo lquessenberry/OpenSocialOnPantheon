@@ -127,7 +127,7 @@ interface BackendSpecificInterface {
    * Notifies the server that an index attached to it has been changed.
    *
    * If any user action is necessary as a result of this, the method should
-   * use drupal_set_message() to notify the user.
+   * set a message to notify the user.
    *
    * @param \Drupal\search_api\IndexInterface $index
    *   The updated index.

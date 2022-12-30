@@ -65,7 +65,7 @@ interface NodeInterface extends ContentEntityInterface, EntityChangedInterface, 
    * @param string $title
    *   The node title.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return $this
    *   The called node entity.
    */
   public function setTitle($title);
@@ -84,7 +84,7 @@ interface NodeInterface extends ContentEntityInterface, EntityChangedInterface, 
    * @param int $timestamp
    *   The node creation timestamp.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return $this
    *   The called node entity.
    */
   public function setCreatedTime($timestamp);
@@ -103,7 +103,7 @@ interface NodeInterface extends ContentEntityInterface, EntityChangedInterface, 
    * @param bool $promoted
    *   TRUE to set this node to promoted, FALSE to set it to not promoted.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return $this
    *   The called node entity.
    */
   public function setPromoted($promoted);
@@ -122,7 +122,7 @@ interface NodeInterface extends ContentEntityInterface, EntityChangedInterface, 
    * @param bool $sticky
    *   TRUE to set this node to sticky, FALSE to set it to not sticky.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return $this
    *   The called node entity.
    */
   public function setSticky($sticky);
@@ -141,34 +141,9 @@ interface NodeInterface extends ContentEntityInterface, EntityChangedInterface, 
    * @param int $timestamp
    *   The UNIX timestamp of when this revision was created.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return $this
    *   The called node entity.
    */
   public function setRevisionCreationTime($timestamp);
-
-  /**
-   * Gets the node revision author.
-   *
-   * @return \Drupal\user\UserInterface
-   *   The user entity for the revision author.
-   *
-   * @deprecated in Drupal 8.2.0, will be removed before Drupal 9.0.0. Use
-   *   \Drupal\Core\Entity\RevisionLogInterface::getRevisionUser() instead.
-   */
-  public function getRevisionAuthor();
-
-  /**
-   * Sets the node revision author.
-   *
-   * @param int $uid
-   *   The user ID of the revision author.
-   *
-   * @return \Drupal\node\NodeInterface
-   *   The called node entity.
-   *
-   * @deprecated in Drupal 8.2.0, will be removed before Drupal 9.0.0. Use
-   *   \Drupal\Core\Entity\RevisionLogInterface::setRevisionUserId() instead.
-   */
-  public function setRevisionAuthorId($uid);
 
 }

@@ -12,11 +12,6 @@ use Symfony\Component\Routing\RouteCompiler as SymfonyRouteCompiler;
 class RouteCompiler extends SymfonyRouteCompiler implements RouteCompilerInterface {
 
   /**
-   * Utility constant to use for regular expressions against the path.
-   */
-  const REGEX_DELIMITER = '#';
-
-  /**
    * Compiles the current route instance.
    *
    * Because so much of the parent class is private, we need to call the parent
@@ -31,7 +26,9 @@ class RouteCompiler extends SymfonyRouteCompiler implements RouteCompilerInterfa
    *   A CompiledRoute instance.
    */
   public static function compile(Route $route) {
-
+    // Symfony 4 requires that all UTF-8 route patterns have the "utf8" option
+    // set and Drupal does not support non UTF-8 routes.
+    $route->setOption('utf8', TRUE);
     $symfony_compiled = parent::compile($route);
 
     // The Drupal-specific compiled information.

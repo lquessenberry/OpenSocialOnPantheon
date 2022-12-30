@@ -20,7 +20,6 @@ interface VoteResultFunctionInterface {
    */
   public function getLabel();
 
-
   /**
    * Retrieve the description for the voting result.
    *
@@ -39,4 +38,5 @@ interface VoteResultFunctionInterface {
    *   A result based on the supplied votes.
    */
   public function calculateResult($votes);
+
 }

@@ -5,7 +5,7 @@ namespace Drupal\like_and_dislike;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
-use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\votingapi\Entity\VoteType;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -41,14 +41,14 @@ class LikeDislikePermissions implements ContainerInjectionInterface {
   /**
    * Constructs a \Drupal\like_and_dislike\Form\SettingsForm object.
    *
-   * @param \Drupal\Core\Entity\EntityTypeManager $entity_type_manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
    * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $bundle_info_service
    *   The bundle info service.
    */
-  public function __construct(EntityTypeManager $entity_type_manager, ConfigFactoryInterface $config_factory, EntityTypeBundleInfoInterface $bundle_info_service) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory, EntityTypeBundleInfoInterface $bundle_info_service) {
     $this->entityTypeManager = $entity_type_manager;
     $this->configFactory = $config_factory;
     $this->bundleInfoService = $bundle_info_service;
@@ -95,7 +95,7 @@ class LikeDislikePermissions implements ContainerInjectionInterface {
    * @param array $bundles
    *   An array of bundles. Empty in case entity has no bundles.
    */
-  protected function addLikeAndDislikePermission(array &$permissions, $vote_types, $entity_type_id, array $bundles) {
+  protected function addLikeAndDislikePermission(array &$permissions, array $vote_types, $entity_type_id, array $bundles) {
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id, FALSE);
 
     // The entity type has no bundles other than the default one.

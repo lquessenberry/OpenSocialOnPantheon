@@ -24,7 +24,7 @@ class FileStorageTest extends ConfigStorageTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
     // Create a directory.
     $this->directory = PublicStream::basePath() . '/config';
@@ -63,7 +63,7 @@ class FileStorageTest extends ConfigStorageTestBase {
     ];
 
     $config_files = $this->storage->listAll();
-    $this->assertIdentical($config_files, $expected_files, 'Relative path, two config files found.');
+    $this->assertSame($expected_files, $config_files, 'Relative path, two config files found.');
 
     // @todo https://www.drupal.org/node/2666954 FileStorage::listAll() is
     //   case-sensitive. However, \Drupal\Core\Config\DatabaseStorage::listAll()
@@ -73,18 +73,15 @@ class FileStorageTest extends ConfigStorageTestBase {
   }
 
   /**
-   * Test UnsupportedDataTypeConfigException displays path of
-   * erroneous file during read.
+   * Tests UnsupportedDataTypeConfigException.
    */
-  public function testReadUnsupportedDataTypeConfigException() {
-    file_put_contents($this->storage->getFilePath('core.extension'), PHP_EOL . 'foo : [bar}', FILE_APPEND);
-    try {
-      $config_parsed = $this->storage->read('core.extension');
-    }
-    catch (UnsupportedDataTypeConfigException $e) {
-      $this->pass('Exception thrown when trying to read a field containing invalid data type.');
-      $this->assertTrue((strpos($e->getMessage(), $this->storage->getFilePath('core.extension')) !== FALSE), 'Erroneous file path is displayed.');
-    }
+  public function testUnsupportedDataTypeConfigException() {
+    $name = 'core.extension';
+    $path = $this->storage->getFilePath($name);
+    $this->expectException(UnsupportedDataTypeConfigException::class);
+    $this->expectExceptionMessageMatches("@Invalid data type in config $name, found in file $path: @");
+    file_put_contents($path, PHP_EOL . 'foo : @bar', FILE_APPEND);
+    $this->storage->read($name);
   }
 
 }

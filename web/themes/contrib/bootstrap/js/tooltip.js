@@ -15,6 +15,7 @@ var Drupal = Drupal || {};
     return {
       DEFAULTS: {
         animation: !!settings.tooltip_animation,
+        enabled: settings.tooltip_enabled,
         html: !!settings.tooltip_html,
         placement: settings.tooltip_placement,
         selector: settings.tooltip_selector,
@@ -32,6 +33,11 @@ var Drupal = Drupal || {};
    */
   Drupal.behaviors.bootstrapTooltips = {
     attach: function (context) {
+      // Immediately return if tooltips are not available.
+      if (!$.fn.tooltip || !$.fn.tooltip.Constructor.DEFAULTS.enabled) {
+        return;
+      }
+
       var elements = $(context).find('[data-toggle="tooltip"]').toArray();
       for (var i = 0; i < elements.length; i++) {
         var $element = $(elements[i]);
@@ -40,6 +46,11 @@ var Drupal = Drupal || {};
       }
     },
     detach: function (context) {
+      // Immediately return if tooltips are not available.
+      if (!$.fn.tooltip || !$.fn.tooltip.Constructor.DEFAULTS.enabled) {
+        return;
+      }
+
       // Destroy all tooltips.
       $(context).find('[data-toggle="tooltip"]').tooltip('destroy');
     }

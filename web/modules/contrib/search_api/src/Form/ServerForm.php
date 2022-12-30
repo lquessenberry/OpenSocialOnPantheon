@@ -2,15 +2,18 @@
 
 namespace Drupal\search_api\Form;
 
+use Drupal\Component\Plugin\Exception\PluginException;
 use Drupal\Core\Entity\EntityForm;
+use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\Core\Form\SubformState;
 use Drupal\Core\Url;
 use Drupal\Core\Utility\Error;
 use Drupal\search_api\Backend\BackendPluginManager;
-use Drupal\search_api\SearchApiException;
 use Drupal\search_api\ServerInterface;
+use Drupal\search_api\Utility\Utility;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -26,20 +29,33 @@ class ServerForm extends EntityForm {
   protected $backendPluginManager;
 
   /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Constructs a ServerForm object.
    *
    * @param \Drupal\search_api\Backend\BackendPluginManager $backend_plugin_manager
    *   The backend plugin manager.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
    */
-  public function __construct(BackendPluginManager $backend_plugin_manager) {
+  public function __construct(BackendPluginManager $backend_plugin_manager, MessengerInterface $messenger) {
     $this->backendPluginManager = $backend_plugin_manager;
+    $this->messenger = $messenger;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static($container->get('plugin.manager.search_api.backend'));
+    $backend_plugin_manager = $container->get('plugin.manager.search_api.backend');
+    $messenger = $container->get('messenger');
+
+    return new static($backend_plugin_manager, $messenger);
   }
 
   /**
@@ -126,10 +142,19 @@ class ServerForm extends EntityForm {
     foreach ($backends as $backend_id => $definition) {
       $config = $backend_id === $server->getBackendId() ? $server->getBackendConfig() : [];
       $config['#server'] = $server;
-      $backend = $this->backendPluginManager
-        ->createInstance($backend_id, $config);
-      $backend_options[$backend_id] = $backend->label();
-      $descriptions[$backend_id]['#description'] = $backend->getDescription();
+      try {
+        /** @var \Drupal\search_api\Backend\BackendInterface $backend */
+        $backend = $this->backendPluginManager
+          ->createInstance($backend_id, $config);
+      }
+      catch (PluginException $e) {
+        continue;
+      }
+      if ($backend->isHidden()) {
+        continue;
+      }
+      $backend_options[$backend_id] = Utility::escapeHtml($backend->label());
+      $descriptions[$backend_id]['#description'] = Utility::escapeHtml($backend->getDescription());
     }
     asort($backend_options, SORT_NATURAL | SORT_FLAG_CASE);
     if ($backend_options) {
@@ -154,9 +179,23 @@ class ServerForm extends EntityForm {
       $form['backend'] += $descriptions;
     }
     else {
-      drupal_set_message($this->t('There are no backend plugins available for the Search API. Please install a <a href=":url">module that provides a backend plugin</a> to proceed.', [':url' => Url::fromUri('https://www.drupal.org/node/1254698')->toString()]), 'error');
+      $url = 'https://www.drupal.org/docs/8/modules/search-api/getting-started/server-backends-and-features';
+      $args[':url'] = Url::fromUri($url)->toString();
+      $error = $this->t('There are no backend plugins available for the Search API. Please install a <a href=":url">module that provides a backend plugin</a> to proceed.', $args);
+      $this->messenger->addError($error);
       $form = [];
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function actions(array $form, FormStateInterface $form_state) {
+    if ($form === []) {
+      return [];
+    }
+
+    return parent::actions($form, $form_state);
   }
 
   /**
@@ -176,7 +215,7 @@ class ServerForm extends EntityForm {
       $form_state->set('backend', $backend->getPluginId());
       if ($backend instanceof PluginFormInterface) {
         if ($form_state->isRebuilding()) {
-          drupal_set_message($this->t('Please configure the selected backend.'), 'warning');
+          $this->messenger->addWarning($this->t('Please configure the selected backend.'));
         }
         // Attach the backend plugin configuration form.
         $backend_form_state = SubformState::createForSubform($form['backend_config'], $form, $form_state);
@@ -191,7 +230,7 @@ class ServerForm extends EntityForm {
     // Only notify the user of a missing backend plugin if we're editing an
     // existing server.
     elseif (!$server->isNew()) {
-      drupal_set_message($this->t('The backend plugin is missing or invalid.'), 'error');
+      $this->messenger->addError($this->t('The backend plugin is missing or invalid.'));
       return;
     }
     $form['backend_config'] += [
@@ -238,7 +277,7 @@ class ServerForm extends EntityForm {
       // be discarded.
       $input = &$form_state->getUserInput();
       $input['backend_config'] = [];
-      $new_backend = $this->backendPluginManager->createInstance($form_state->getValues()['backend']);
+      $new_backend = $this->backendPluginManager->createInstance($form_state->getValue('backend'));
       if ($new_backend instanceof PluginFormInterface) {
         $form_state->setRebuild();
       }
@@ -282,17 +321,17 @@ class ServerForm extends EntityForm {
       try {
         $server = $this->getEntity();
         $server->save();
-        drupal_set_message($this->t('The server was successfully saved.'));
+        $this->messenger->addStatus($this->t('The server was successfully saved.'));
         $form_state->setRedirect('entity.search_api_server.canonical', ['search_api_server' => $server->id()]);
       }
-      catch (SearchApiException $e) {
+      catch (EntityStorageException $e) {
         $form_state->setRebuild();
 
         $message = '%type: @message in %function (line %line of %file).';
         $variables = Error::decodeException($e);
         $this->getLogger('search_api')->error($message, $variables);
 
-        drupal_set_message($this->t('The server could not be saved.'), 'error');
+        $this->messenger->addError($this->t('The server could not be saved.'));
       }
     }
   }

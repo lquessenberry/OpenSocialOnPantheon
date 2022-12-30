@@ -15,33 +15,31 @@
   ],
   "require": {
     "composer/installers": "^1.2",
-    "drupal-composer/drupal-scaffold": "^2.5",
     "cweagans/composer-patches": "^1.6.5",
 
-    "drupal/core": "8.5.6",
 
-    "drupal/console": "^1.0.2",
-    "drush/drush": "^9.0.0",
+    "drush/drush": "^11.4",
     "drupal/address": "~1.0",
-    "goalgorilla/open_social": "^3.0",
-    "doctrine/cache": "1.8.0",
-    "doctrine/collections": "1.5.0",
-    "doctrine/common": "2.8",
-    "doctrine/inflector": "1.3.0"
+    "goalgorilla/open_social": "^11.5",
+    "doctrine/cache": "*",
+    "doctrine/collections": "^2.1",
+    "doctrine/common": "^3.4",
+    "doctrine/inflector": "^2.0",
+    "drupal/core-recommended": "~9.4.8",
+    "phpunit/phpunit": "^9.5",
+    "symfony/css-selector": "~5.0",
+    "fabpot/goutte": "~3.3.1",
+    "behat/mink-goutte-driver": "~1.3.0",
+    "drupal/drupal-extension": "^4.2",
+    "behat/behat": "^3.12"
   },
   "require-dev": {
-    "webflo/drupal-core-require-dev": "8.5.6",
     "mikey179/vfsstream": "~1.2",
-    "behat/behat": "3.*",
     "behat/mink": "~1.7",
     "behat/mink-extension": "*",
-    "behat/mink-goutte-driver": "~1.2",
     "jcalderonzumba/gastonjs": "~1.0.2",
     "jcalderonzumba/mink-phantomjs-driver": "~0.3.1",
-    "drupal/drupal-extension": "*",
-    "drush-ops/behat-drush-endpoint": "*",
-    "phpunit/phpunit": "6.5",
-    "symfony/css-selector": "^3.4.0"
+    "drush-ops/behat-drush-endpoint": "*"
   },
   "conflict": {
       "drupal/drupal": "*"
@@ -123,5 +121,13 @@
             ]
         },
         "enable-patching": true
+    },
+  "config": {
+    "allow-plugins": {
+      "composer/installers": true,
+      "drupal/core-composer-scaffold": true,
+      "cweagans/composer-patches": true,
+      "oomphinc/composer-installers-extender": true
     }
+  }
 }

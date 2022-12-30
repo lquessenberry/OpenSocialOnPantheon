@@ -81,6 +81,8 @@ class LanguageNegotiator implements LanguageNegotiatorInterface {
    *   The configuration factory.
    * @param \Drupal\Core\Site\Settings $settings
    *   The settings instance.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+   *   The request stack service.
    */
   public function __construct(ConfigurableLanguageManagerInterface $language_manager, PluginManagerInterface $negotiator_manager, ConfigFactoryInterface $config_factory, Settings $settings, RequestStack $requestStack) {
     $this->languageManager = $language_manager;
@@ -187,7 +189,7 @@ class LanguageNegotiator implements LanguageNegotiatorInterface {
     }
 
     $languages = $this->languageManager->getLanguages();
-    return isset($languages[$langcode]) ? $languages[$langcode] : NULL;
+    return $languages[$langcode] ?? NULL;
   }
 
   /**
@@ -251,6 +253,9 @@ class LanguageNegotiator implements LanguageNegotiatorInterface {
     $definitions = $this->getNegotiationMethods();
     $default_types = $this->languageManager->getLanguageTypes();
 
+    // Ensure that the weights are integers.
+    $enabled_methods = array_map('intval', $enabled_methods);
+
     // Order the language negotiation method list by weight.
     asort($enabled_methods);
     foreach ($enabled_methods as $method_id => $weight) {
@@ -268,7 +273,7 @@ class LanguageNegotiator implements LanguageNegotiatorInterface {
         unset($enabled_methods[$method_id]);
       }
     }
-    $this->configFactory->getEditable('language.types')->set('negotiation.' . $type . '.enabled', $enabled_methods)->save();
+    $this->configFactory->getEditable('language.types')->set('negotiation.' . $type . '.enabled', $enabled_methods)->save(TRUE);
   }
 
   /**

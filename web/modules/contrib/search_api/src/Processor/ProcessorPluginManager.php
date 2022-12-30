@@ -4,9 +4,11 @@ namespace Drupal\search_api\Processor;
 
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\search_api\Event\SearchApiEvents;
+use Drupal\search_api\SearchApiPluginManager;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Manages processor plugins.
@@ -16,7 +18,7 @@ use Drupal\Core\StringTranslation\TranslationInterface;
  * @see \Drupal\search_api\Processor\ProcessorPluginBase
  * @see plugin_api
  */
-class ProcessorPluginManager extends DefaultPluginManager {
+class ProcessorPluginManager extends SearchApiPluginManager {
 
   use StringTranslationTrait;
 
@@ -30,13 +32,17 @@ class ProcessorPluginManager extends DefaultPluginManager {
    *   Cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
+   *   The event dispatcher.
    * @param \Drupal\Core\StringTranslation\TranslationInterface $translation
    *   The string translation manager.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, TranslationInterface $translation) {
-    parent::__construct('Plugin/search_api/processor', $namespaces, $module_handler, 'Drupal\search_api\Processor\ProcessorInterface', 'Drupal\search_api\Annotation\SearchApiProcessor');
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, EventDispatcherInterface $eventDispatcher, TranslationInterface $translation) {
+    parent::__construct('Plugin/search_api/processor', $namespaces, $module_handler, $eventDispatcher, 'Drupal\search_api\Processor\ProcessorInterface', 'Drupal\search_api\Annotation\SearchApiProcessor');
+
     $this->setCacheBackend($cache_backend, 'search_api_processors');
     $this->alterInfo('search_api_processor_info');
+    $this->alterEvent(SearchApiEvents::GATHERING_PROCESSORS);
     $this->setStringTranslation($translation);
   }
 

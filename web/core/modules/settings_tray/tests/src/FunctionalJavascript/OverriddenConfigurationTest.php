@@ -16,7 +16,7 @@ class OverriddenConfigurationTest extends SettingsTrayTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'settings_tray_override_test',
     'menu_ui',
     'menu_link_content',
@@ -25,7 +25,12 @@ class OverriddenConfigurationTest extends SettingsTrayTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
     parent::setUp();
 
     $user = $this->createUser([
@@ -37,7 +42,7 @@ class OverriddenConfigurationTest extends SettingsTrayTestBase {
   }
 
   /**
-   * Test  blocks with overridden related configuration removed when overridden.
+   * Tests blocks with overridden related configuration removed when overridden.
    */
   public function testOverriddenConfigurationRemoved() {
     $web_assert = $this->assertSession();
@@ -151,8 +156,10 @@ class OverriddenConfigurationTest extends SettingsTrayTestBase {
    *   The overridden block.
    * @param string $override_text
    *   The override text that should appear in the block.
+   *
+   * @internal
    */
-  protected function assertOverriddenBlockDisabled(Block $overridden_block, $override_text) {
+  protected function assertOverriddenBlockDisabled(Block $overridden_block, string $override_text): void {
     $web_assert = $this->assertSession();
     $page = $this->getSession()->getPage();
     $block_selector = $this->getBlockSelector($overridden_block);
@@ -161,7 +168,7 @@ class OverriddenConfigurationTest extends SettingsTrayTestBase {
     $contextual_links = $page->findAll('css', "$block_selector .contextual-links li a");
     $this->assertNotEmpty($contextual_links);
     foreach ($contextual_links as $link) {
-      $this->assertNotContains("/admin/structure/block/manage/$block_id/off-canvas", $link->getAttribute('href'));
+      $this->assertStringNotContainsString("/admin/structure/block/manage/$block_id/off-canvas", $link->getAttribute('href'));
     }
     // Confirm the block is not marked as Settings Tray editable.
     $this->assertFalse($page->find('css', $block_selector)

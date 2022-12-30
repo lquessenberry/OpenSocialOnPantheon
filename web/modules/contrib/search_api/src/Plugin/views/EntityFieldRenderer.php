@@ -26,6 +26,13 @@ class EntityFieldRenderer extends ViewsEntityFieldRenderer {
   protected $datasourceId;
 
   /**
+   * The property path to the entities rendered by this renderer.
+   *
+   * @var string|null
+   */
+  protected $parentPath;
+
+  /**
    * Retrieves the datasource ID.
    *
    * @return string|null
@@ -49,6 +56,29 @@ class EntityFieldRenderer extends ViewsEntityFieldRenderer {
   }
 
   /**
+   * Retrieves the parent path.
+   *
+   * @return string|null
+   *   The property path to the entities rendered by this renderer.
+   */
+  public function getParentPath() {
+    return $this->parentPath;
+  }
+
+  /**
+   * Sets the parent path.
+   *
+   * @param string|null $parent_path
+   *   The property path to the entities rendered by this renderer.
+   *
+   * @return $this
+   */
+  public function setParentPath($parent_path) {
+    $this->parentPath = $parent_path;
+    return $this;
+  }
+
+  /**
    * Determines whether this renderer can handle the given field.
    *
    * @param \Drupal\views\Plugin\views\field\FieldHandlerInterface $field
@@ -64,8 +94,8 @@ class EntityFieldRenderer extends ViewsEntityFieldRenderer {
         && $field->options['field_rendering']
         && $field->relationship === $this->relationship
         && $field->getDatasourceId() === $this->datasourceId
-        && !empty($field->definition['entity_type'])
-        && $field->definition['entity_type'] === $this->getEntityTypeId()) {
+        && $field->getParentPath() === $this->parentPath
+        && ($field->definition['entity_type'] ?? '') === $this->getEntityTypeId()) {
       return TRUE;
     }
 
@@ -77,7 +107,7 @@ class EntityFieldRenderer extends ViewsEntityFieldRenderer {
    */
   protected function getEntityTranslationRenderer() {
     if (!isset($this->entityTranslationRenderer)) {
-      $entity_type = $this->getEntityManager()
+      $entity_type = $this->getEntityTypeManager()
         ->getDefinition($this->getEntityTypeId());
       $this->entityTranslationRenderer = new EntityTranslationRenderer($this->view, $this->getLanguageManager(), $entity_type);
     }

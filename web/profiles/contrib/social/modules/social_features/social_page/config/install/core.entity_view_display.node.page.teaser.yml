@@ -29,7 +29,7 @@ content:
   field_page_image:
     type: image
     weight: 0
-    label: above
+    label: hidden
     settings:
       image_style: social_x_large
       image_link: content
@@ -51,3 +51,4 @@ hidden:
   groups_type_closed_group: true
   groups_type_open_group: true
   groups_type_public_group: true
+  search_api_excerpt: true

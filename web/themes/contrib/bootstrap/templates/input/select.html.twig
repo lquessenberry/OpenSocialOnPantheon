@@ -15,7 +15,7 @@
  * @see template_preprocess_select()
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   {% if input_group %}
     <div class="input-group">
   {% endif %}
@@ -58,4 +58,4 @@
   {% if input_group %}
     </div>
   {% endif %}
-{% endspaceless %}
+{% endapply %}

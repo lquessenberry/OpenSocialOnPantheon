@@ -40,10 +40,11 @@ CONFIGURATION
 
     1. Navigate to Administration > Extend and enable the Private Message
        module.
-    2. Navigate to Administration > People > Permissions and give permission to
-       use the private messaging system to at least one role. Save permissions.
+    2. Navigate to Administration > People > Permissions and give the two
+       permissions (use private messaging system, access user profiles)
+       to the roles that should use the messaging system. Save permissions.
     3. To write a private message to another user, navigate to the path
-       /private_messages.
+       /private-messages.
 
 Configuring the Private Message Inbox Block
     1. Navigate to Administration > Structure > Block Layout.
@@ -58,8 +59,8 @@ Configuring the Private Message Inbox Block
        visibility: Content types, Pages and Roles.
     8. The user may also want to set the block to only show on the following
        paths:
-        * /private_messages
-        * /private_messages/*
+        * /private-messages
+        * /private-messages/*
        This will limit the block to only show on private message thread pages.
     9. Select to region for block display from the Region dropdown.
     10. Save block.

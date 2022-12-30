@@ -21,9 +21,9 @@ class HtmlEscapedTextTest extends TestCase {
    * @dataProvider providerToString
    */
   public function testToString($text, $expected, $message) {
-    $escapeable_string = new HtmlEscapedText($text);
-    $this->assertEquals($expected, (string) $escapeable_string, $message);
-    $this->assertEquals($expected, $escapeable_string->jsonSerialize());
+    $escapable_string = new HtmlEscapedText($text);
+    $this->assertEquals($expected, (string) $escapable_string, $message);
+    $this->assertEquals($expected, $escapable_string->jsonSerialize());
   }
 
   /**
@@ -33,9 +33,9 @@ class HtmlEscapedTextTest extends TestCase {
    */
   public function providerToString() {
     // Checks that invalid multi-byte sequences are escaped.
-    $tests[] = ["Foo\xC0barbaz", 'Foo�barbaz', 'Escapes invalid sequence "Foo\xC0barbaz"'];
+    $tests[] = ["Foo\xC0bar", 'Foo�bar', 'Escapes invalid sequence "Foo\xC0bar"'];
     $tests[] = ["\xc2\"", '�&quot;', 'Escapes invalid sequence "\xc2\""'];
-    $tests[] = ["Fooÿñ", "Fooÿñ", 'Does not escape valid sequence "Fooÿñ"'];
+    $tests[] = ["Foo ÿñ", "Foo ÿñ", 'Does not escape valid sequence "Foo ÿñ"'];
 
     // Checks that special characters are escaped.
     $script_tag = $this->prophesize(MarkupInterface::class);
@@ -57,8 +57,8 @@ class HtmlEscapedTextTest extends TestCase {
    */
   public function testCount() {
     $string = 'Can I please have a <em>kitten</em>';
-    $escapeable_string = new HtmlEscapedText($string);
-    $this->assertEquals(strlen($string), $escapeable_string->count());
+    $escapable_string = new HtmlEscapedText($string);
+    $this->assertEquals(strlen($string), $escapable_string->count());
   }
 
 }

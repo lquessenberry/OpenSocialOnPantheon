@@ -3,13 +3,13 @@
 namespace Drupal\Tests\search_api\Kernel\Processor;
 
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
-use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
+use Drupal\Tests\field\Traits\EntityReferenceTestTrait;
 use Drupal\node\Entity\NodeType;
 use Drupal\search_api\Item\Field;
 use Drupal\search_api\Query\Query;
-use Drupal\simpletest\NodeCreationTrait;
+use Drupal\Tests\node\Traits\NodeCreationTrait;
 use Drupal\Tests\search_api\Kernel\ResultsTrait;
-use Drupal\Tests\taxonomy\Functional\TaxonomyTestTrait;
+use Drupal\Tests\taxonomy\Traits\TaxonomyTestTrait;
 
 /**
  * Tests the "Hierarchy" processor.
@@ -30,7 +30,7 @@ class AddHierarchyTest extends ProcessorTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'filter',
     'taxonomy',
   ];
@@ -77,7 +77,7 @@ class AddHierarchyTest extends ProcessorTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp($processor = NULL) {
+  public function setUp($processor = NULL): void {
     parent::setUp();
 
     $this->installConfig(['filter']);
@@ -249,6 +249,55 @@ class AddHierarchyTest extends ProcessorTestBase {
     $query->addCondition('term_field', $this->terms['vegetable']->id());
     $result = $query->execute();
     $expected = ['node' => [0, 1, 3]];
+    $this->assertResults($result, $expected);
+  }
+
+  /**
+   * Tests adding values to Fulltext fields.
+   *
+   * @see https://www.drupal.org/node/3059312
+   *
+   * @covers ::preprocessIndexItems
+   */
+  public function testRegression3059312() {
+    // Add hierarchical terms to 3 nodes.
+    foreach (['vegetable.turnip', 'vegetable', 'fruit.pear'] as $i => $term) {
+      $this->nodes[$i] = $this->createNode([
+        'type' => 'page',
+        'term_field' => [
+          'target_id' => $this->terms[$term]->id(),
+        ],
+      ]);
+    }
+
+    // Also add a term with multiple parents.
+    $this->terms['avocado'] = $this->createTerm($this->vocabulary, [
+      'name' => 'Avocado',
+      'parent' => [$this->terms['fruit']->id(), $this->terms['vegetable']->id()],
+    ]);
+    $this->nodes[3] = $this->createNode([
+      'type' => 'page',
+      'term_field' => [
+        'target_id' => $this->terms['avocado']->id(),
+      ],
+    ]);
+
+    // Enable hierarchical indexing.
+    $processor = $this->index->getProcessor('hierarchy');
+    $processor->setConfiguration([
+      'fields' => [
+        'term_field' => 'taxonomy_term-parent',
+      ],
+    ]);
+    // Set the field type to "Fulltext".
+    $this->index->getField('term_field')->setType('text');
+    $this->index->save();
+    $this->indexItems();
+
+    $query = new Query($this->index);
+    $query->addCondition('term_field', $this->terms['fruit']->id());
+    $result = $query->execute();
+    $expected = ['node' => [2, 3]];
     $this->assertResults($result, $expected);
   }
 

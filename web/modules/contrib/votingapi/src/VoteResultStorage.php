@@ -14,14 +14,7 @@ use Drupal\Core\Entity\Sql\SqlContentEntityStorage;
 class VoteResultStorage extends SqlContentEntityStorage implements VoteResultStorageInterface {
 
   /**
-   * @inheritdoc
-   *
-   * @param string $entity_type_id
-   * @param int $entity_id
-   * @param string $vote_type
-   * @param string $function
-   *
-   * @return \Drupal\votingapi\Entity\VoteResult[]
+   * {@inheritdoc}
    */
   public function getEntityResults($entity_type_id, $entity_id, $vote_type, $function) {
     $query = \Drupal::entityQuery('vote_result')
@@ -35,4 +28,5 @@ class VoteResultStorage extends SqlContentEntityStorage implements VoteResultSto
     $vote_ids = $query->execute();
     return VoteResult::loadMultiple($vote_ids);
   }
+
 }

@@ -38,7 +38,7 @@ class ViewsMenuLink extends DeriverBase implements ContainerDeriverInterface {
    */
   public static function create(ContainerInterface $container, $base_plugin_id) {
     return new static(
-      $container->get('entity.manager')->getStorage('view')
+      $container->get('entity_type.manager')->getStorage('view')
     );
   }
 
@@ -50,7 +50,7 @@ class ViewsMenuLink extends DeriverBase implements ContainerDeriverInterface {
     $views = Views::getApplicableViews('uses_menu_links');
 
     foreach ($views as $data) {
-      list($view_id, $display_id) = $data;
+      [$view_id, $display_id] = $data;
       /** @var \Drupal\views\ViewExecutable $executable */
       $executable = $this->viewStorage->load($view_id)->getExecutable();
       $executable->initDisplay();

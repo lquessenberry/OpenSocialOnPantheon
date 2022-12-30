@@ -169,7 +169,8 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *
    * @param $distinct
    *   TRUE to flag this query DISTINCT, FALSE to disable it.
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   *
+   * @return $this
    *   The called object.
    */
   public function distinct($distinct = TRUE);
@@ -188,6 +189,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   automatically based on the $table_alias and $field. The alias will be
    *   checked for uniqueness, so the requested alias may not be the alias
    *   that is assigned in all cases.
+   *
    * @return
    *   The unique alias that was assigned for this field.
    */
@@ -211,7 +213,8 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   An indexed array of fields present in the specified table that should be
    *   included in this query. If not specified, $table_alias.* will be generated
    *   without any aliases.
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   *
+   * @return $this
    *   The called object.
    */
   public function fields($table_alias, array $fields = []);
@@ -232,6 +235,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   in all cases.
    * @param $arguments
    *   Any placeholder arguments needed for this expression.
+   *
    * @return
    *   The unique alias that was assigned for this expression.
    */
@@ -260,6 +264,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   system, for example, when joining the same table more than once.
    * @param $arguments
    *   An array of arguments to replace into the $condition of this join.
+   *
    * @return
    *   The unique alias that was assigned for this table.
    */
@@ -286,6 +291,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   system, for example, when joining the same table more than once.
    * @param $arguments
    *   An array of arguments to replace into the $condition of this join.
+   *
    * @return
    *   The unique alias that was assigned for this table.
    */
@@ -312,44 +318,11 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   system, for example, when joining the same table more than once.
    * @param $arguments
    *   An array of arguments to replace into the $condition of this join.
+   *
    * @return
    *   The unique alias that was assigned for this table.
    */
   public function leftJoin($table, $alias = NULL, $condition = NULL, $arguments = []);
-
-  /**
-   * Right Outer Join against another table in the database.
-   *
-   * @param $table
-   *   The table against which to join. May be a string or another SelectQuery
-   *   object. If a query object is passed, it will be used as a subselect.
-   *   Unless the table name starts with the database / schema name and a dot
-   *   it will be prefixed.
-   * @param $alias
-   *   The alias for the table. In most cases this should be the first letter
-   *   of the table, or the first letter of each "word" in the table.
-   * @param $condition
-   *   The condition on which to join this table. If the join requires values,
-   *   this clause should use a named placeholder and the value or values to
-   *   insert should be passed in the 4th parameter. For the first table joined
-   *   on a query, this value is ignored as the first table is taken as the base
-   *   table. The token %alias can be used in this string to be replaced with
-   *   the actual alias. This is useful when $alias is modified by the database
-   *   system, for example, when joining the same table more than once.
-   * @param $arguments
-   *   An array of arguments to replace into the $condition of this join.
-   * @return
-   *   The unique alias that was assigned for this table.
-   *
-   * @deprecated as of Drupal 8.1.x, will be removed in Drupal 9.0.0. Instead,
-   *   change the query to use leftJoin(). For instance:
-   *   db_query('A')->rightJoin('B') is identical to
-   *   db_query('B')->leftJoin('A'). This functionality has been deprecated
-   *   because SQLite does not support it.
-   *
-   * @see https://www.drupal.org/node/2765249
-   */
-  public function rightJoin($table, $alias = NULL, $condition = NULL, $arguments = []);
 
   /**
    * Join against another table in the database.
@@ -359,7 +332,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    * fields on which to join.
    *
    * @param $type
-   *   The type of join. Typically one one of INNER, LEFT OUTER, and RIGHT OUTER.
+   *   The type of join. Typically one of INNER, LEFT OUTER, and RIGHT OUTER.
    * @param $table
    *   The table against which to join. May be a string or another SelectQuery
    *   object. If a query object is passed, it will be used as a subselect.
@@ -379,6 +352,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   system, for example, when joining the same table more than once.
    * @param $arguments
    *   An array of arguments to replace into the $condition of this join.
+   *
    * @return
    *   The unique alias that was assigned for this table.
    */
@@ -405,13 +379,14 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *
    *   Example:
    *   @code
-   *   $query->addExpression('SUBSTRING(thread, 1, (LENGTH(thread) - 1))', 'order_field');
+   *   $query->addExpression('SUBSTRING([thread], 1, (LENGTH([thread]) - 1))', 'order_field');
    *   $query->orderBy('order_field', 'ASC');
    *   @endcode
    * @param $direction
    *   The direction to sort. Legal values are "ASC" and "DESC". Any other value
    *   will be converted to "ASC".
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   *
+   * @return $this
    *   The called object.
    */
   public function orderBy($field, $direction = 'ASC');
@@ -433,7 +408,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *
    * for an example of such an alternate sorting mechanism.
    *
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   * @return $this
    *   The called object
    */
   public function orderRandom();
@@ -449,7 +424,8 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   range directives that are set.
    * @param $length
    *   The number of records to return from the result set.
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   *
+   * @return $this
    *   The called object.
    */
   public function range($start = NULL, $length = NULL);
@@ -474,7 +450,8 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    * @param $type
    *   The type of UNION to add to the query. Defaults to plain
    *   UNION.
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   *
+   * @return $this
    *   The called object.
    */
   public function union(SelectInterface $query, $type = '');
@@ -484,7 +461,8 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *
    * @param $field
    *   The field on which to group. This should be the field as aliased.
-   * @return \Drupal\Core\Database\Query\SelectInterface
+   *
+   * @return $this
    *   The called object.
    */
   public function groupBy($field);
@@ -539,6 +517,7 @@ interface SelectInterface extends ConditionInterface, AlterableInterface, Extend
    *   The comparison operator, such as =, <, or >=. It also accepts more complex
    *   options such as IN, LIKE, or BETWEEN. Defaults to IN if $value is an array
    *   = otherwise.
+   *
    * @return \Drupal\Core\Database\Query\ConditionInterface
    *   The called object.
    */

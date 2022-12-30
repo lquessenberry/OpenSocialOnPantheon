@@ -36,6 +36,11 @@ interface PrivateMessageThreadInterface extends ContentEntityInterface {
   public function addMemberById($id);
 
   /**
+   * Retrieve the ids of the members of the private message thread.
+   */
+  public function getMembersId();
+
+  /**
    * Retrieve the members of the private message thread.
    */
   public function getMembers();
@@ -95,32 +100,12 @@ interface PrivateMessageThreadInterface extends ContentEntityInterface {
   public function getNewestMessageCreationTimestamp();
 
   /**
-   * Add an an access time to the current thread for the given user.
+   * Add a history record to the current thread for the given user.
    *
    * @param \Drupal\Core\Session\AccountInterface $account
    *   The user whose access time should be updated.
    */
-  public function addLastAccessTime(AccountInterface $account);
-
-  /**
-   * Get the last access time object for the given user.
-   *
-   * @param \Drupal\Core\Session\AccountInterface $account
-   *   The user whose last access time should be retrieved.
-   *
-   * @return Drupal\private_message\Entity\PrivateMessageThreadAccessTimeInterface
-   *   The PrivateMessagegThreadAccessTime object for the user's last access of
-   *   the thread.
-   */
-  public function getLastAccessTime(AccountInterface $account);
-
-  /**
-   * Get the PrivateMessageThreadAccessTime entites referenced by this thread.
-   *
-   * @return \Drupal\private_message\Entity\PrivateMessageThreadAccessTime[]
-   *   An array of PrivateMessageThreadAccessTime entities
-   */
-  public function getLastAccessTimes();
+  public function addHistoryRecord(AccountInterface $account);
 
   /**
    * Get the last access timestamp for the given user.
@@ -142,27 +127,6 @@ interface PrivateMessageThreadInterface extends ContentEntityInterface {
   public function updateLastAccessTime(AccountInterface $account);
 
   /**
-   * Add an a delete time to the current thread for the given user.
-   *
-   * @param \Drupal\Core\Session\AccountInterface $account
-   *   The user whose last delete time should be added.
-   */
-  public function addLastDeleteTime(AccountInterface $account);
-
-  /**
-   * Get the last delete time object for the given user.
-   *
-   * @param \Drupal\Core\Session\AccountInterface $account
-   *   The user whose last delete time should be retrieved.
-   *
-   * @return bool|\Drupal\private_message\Entity\PrivateMessageThreadDeleteTimeInterface
-   *   - If the user has not deleted the thread, FALSE
-   *   - If the user has deleted the thread, a
-   *     PrivateMessageThreadAccessTimeInterface object
-   */
-  public function getLastDeleteTime(AccountInterface $account);
-
-  /**
    * Get the last delete timestamp for the given user.
    *
    * @param \Drupal\Core\Session\AccountInterface $account
@@ -175,14 +139,6 @@ interface PrivateMessageThreadInterface extends ContentEntityInterface {
   public function getLastDeleteTimestamp(AccountInterface $account);
 
   /**
-   * Retrieve the last delete timestamps for all members of the thread.
-   *
-   * @return Drupal\private_message\Entity\PrivateMessageThreadAccessTime[]
-   *   An array of PrivateMessageLastDeleteTime entities
-   */
-  public function getLastDeleteTimes();
-
-  /**
    * Update the last delete time for the given user.
    *
    * @param \Drupal\Core\Session\AccountInterface $account
@@ -191,11 +147,14 @@ interface PrivateMessageThreadInterface extends ContentEntityInterface {
   public function updateLastDeleteTime(AccountInterface $account);
 
   /**
-   * Perform a delete action on the private message thread.
+   * Perform a complete delete action on the private message thread including all messages.
+   */
+  public function delete();
+
+  /**
+   * Provides clear thread history feature.
    *
-   * When this method is called, the following process happens:
-   *   - If no user has been provided, the thread is deleted
-   *     outright. Otherwise the following steps are taken.
+   * The following steps will happen:
    *   - The delete timestamp for the given user is updated
    *   - The created timestamp for the newest message in the
    *     thread is retrieved
@@ -203,8 +162,12 @@ interface PrivateMessageThreadInterface extends ContentEntityInterface {
    *     are compared to the timestamp of the newest private message.
    *   - If no messages have been created after every member has deleted
    *     the thread, the entire thread is deleted from the system.
+   *
+   * @param \Drupal\Core\Session\AccountInterface|null $account
+   *    (Optional) Account for which thread history will be cleared.
+   *    If no account provided, the current user will be used.
    */
-  public function delete();
+  public function clearAccountHistory(AccountInterface $account = NULL);
 
   /**
    * Filter messages in the thread deleted by the given account.

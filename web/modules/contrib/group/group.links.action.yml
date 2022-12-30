@@ -27,12 +27,12 @@ group.add_member:
 
 group_content.add_page:
   route_name: 'entity.group_content.add_page'
-  title: 'Relate existing entity to group'
+  title: 'Add existing entity'
   appears_on:
     - 'entity.group_content.collection'
 
 group_content.create_page:
   route_name: 'entity.group_content.create_page'
-  title: 'Create new entity in group'
+  title: 'Add new entity'
   appears_on:
     - 'entity.group_content.collection'

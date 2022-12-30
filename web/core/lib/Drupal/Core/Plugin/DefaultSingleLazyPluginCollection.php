@@ -2,9 +2,9 @@
 
 namespace Drupal\Core\Plugin;
 
+use Drupal\Component\Plugin\PluginHelper;
 use Drupal\Component\Plugin\PluginManagerInterface;
 use Drupal\Component\Plugin\LazyPluginCollection;
-use Drupal\Component\Plugin\ConfigurablePluginInterface;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 
 /**
@@ -67,7 +67,7 @@ class DefaultSingleLazyPluginCollection extends LazyPluginCollection {
    */
   public function getConfiguration() {
     $plugin = $this->get($this->instanceId);
-    if ($plugin instanceof ConfigurablePluginInterface) {
+    if (PluginHelper::isConfigurable($plugin)) {
       return $plugin->getConfiguration();
     }
     else {
@@ -81,7 +81,7 @@ class DefaultSingleLazyPluginCollection extends LazyPluginCollection {
   public function setConfiguration($configuration) {
     $this->configuration = $configuration;
     $plugin = $this->get($this->instanceId);
-    if ($plugin instanceof ConfigurablePluginInterface) {
+    if (PluginHelper::isConfigurable($plugin)) {
       $plugin->setConfiguration($configuration);
     }
     return $this;
@@ -93,7 +93,7 @@ class DefaultSingleLazyPluginCollection extends LazyPluginCollection {
   public function addInstanceId($id, $configuration = NULL) {
     $this->instanceId = $id;
     // Reset the list of instance IDs since there can be only one.
-    $this->instanceIDs = [];
+    $this->instanceIds = [];
     parent::addInstanceId($id, $configuration);
     if ($configuration !== NULL) {
       $this->setConfiguration($configuration);

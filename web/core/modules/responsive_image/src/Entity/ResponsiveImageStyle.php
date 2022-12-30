@@ -12,6 +12,13 @@ use Drupal\responsive_image\ResponsiveImageStyleInterface;
  * @ConfigEntityType(
  *   id = "responsive_image_style",
  *   label = @Translation("Responsive image style"),
+ *   label_collection = @Translation("Responsive image styles"),
+ *   label_singular = @Translation("responsive image style"),
+ *   label_plural = @Translation("responsive image styles"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count responsive image style",
+ *     plural = "@count responsive image styles",
+ *   ),
  *   handlers = {
  *     "list_builder" = "Drupal\responsive_image\ResponsiveImageStyleListBuilder",
  *     "form" = {
@@ -26,6 +33,13 @@ use Drupal\responsive_image\ResponsiveImageStyleInterface;
  *   entity_keys = {
  *     "id" = "id",
  *     "label" = "label"
+ *   },
+ *   config_export = {
+ *     "id",
+ *     "label",
+ *     "image_style_mappings",
+ *     "breakpoint_group",
+ *     "fallback_image_style",
  *   },
  *   links = {
  *     "edit-form" = "/admin/config/media/responsive-image-style/{responsive_image_style}",
@@ -223,6 +237,7 @@ class ResponsiveImageStyle extends ConfigEntityBase implements ResponsiveImageSt
             return FALSE;
           }
           break;
+
         case 'image_style':
           // The image style mapping must have an image style selected.
           if ($image_style_mapping['image_mapping']) {
@@ -256,6 +271,7 @@ class ResponsiveImageStyle extends ConfigEntityBase implements ResponsiveImageSt
           case 'image_style':
             $image_styles[] = $image_style_mapping['image_mapping'];
             break;
+
           case 'sizes':
             $image_styles = array_merge($image_styles, $image_style_mapping['image_mapping']['sizes_image_styles']);
             break;

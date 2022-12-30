@@ -93,7 +93,7 @@ abstract class ResourceTestBase extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['rest'];
+  protected static $modules = ['rest'];
 
   /**
    * {@inheritdoc}
@@ -143,13 +143,15 @@ abstract class ResourceTestBase extends BrowserTestBase {
    *   The allowed formats for this resource.
    * @param string[] $authentication
    *   The allowed authentication providers for this resource.
+   * @param string[] $methods
+   *   The allowed methods for this resource.
    */
-  protected function provisionResource($formats = [], $authentication = []) {
+  protected function provisionResource($formats = [], $authentication = [], array $methods = ['GET', 'POST', 'PATCH', 'DELETE']) {
     $this->resourceConfigStorage->create([
       'id' => static::$resourceConfigId,
       'granularity' => RestResourceConfigInterface::RESOURCE_GRANULARITY,
       'configuration' => [
-        'methods' => ['GET', 'POST', 'PATCH', 'DELETE'],
+        'methods' => $methods,
         'formats' => $formats,
         'authentication' => $authentication,
       ],
@@ -163,7 +165,6 @@ abstract class ResourceTestBase extends BrowserTestBase {
    *
    * Should be called after every change made to:
    * - RestResourceConfig entities
-   * - the 'rest.settings' simple configuration
    */
   protected function refreshTestStateAfterRestConfigChange() {
     // Ensure that the cache tags invalidator has its internal values reset.
@@ -171,8 +172,8 @@ abstract class ResourceTestBase extends BrowserTestBase {
     $this->refreshVariables();
 
     // Tests using this base class may trigger route rebuilds due to changes to
-    // RestResourceConfig entities or 'rest.settings'. Ensure the test generates
-    // routes using an up-to-date router.
+    // RestResourceConfig entities. Ensure the test generates routes using an
+    // up-to-date router.
     \Drupal::service('router.builder')->rebuildIfNeeded();
   }
 
@@ -384,7 +385,7 @@ abstract class ResourceTestBase extends BrowserTestBase {
       // sets it to 'text/html' by default. We also cannot detect the presence
       // of Apache either here in the CLI. For now having this documented here
       // is all we can do.
-      // $this->assertSame(FALSE, $response->hasHeader('Content-Type'));
+      // $this->assertFalse($response->hasHeader('Content-Type'));
       $this->assertSame('', (string) $response->getBody());
     }
     else {
@@ -397,13 +398,13 @@ abstract class ResourceTestBase extends BrowserTestBase {
     // Expected cache tags: X-Drupal-Cache-Tags header.
     $this->assertSame($expected_cache_tags !== FALSE, $response->hasHeader('X-Drupal-Cache-Tags'));
     if (is_array($expected_cache_tags)) {
-      $this->assertSame($expected_cache_tags, explode(' ', $response->getHeader('X-Drupal-Cache-Tags')[0]));
+      $this->assertEqualsCanonicalizing($expected_cache_tags, explode(' ', $response->getHeader('X-Drupal-Cache-Tags')[0]));
     }
 
     // Expected cache contexts: X-Drupal-Cache-Contexts header.
     $this->assertSame($expected_cache_contexts !== FALSE, $response->hasHeader('X-Drupal-Cache-Contexts'));
     if (is_array($expected_cache_contexts)) {
-      $this->assertSame($expected_cache_contexts, explode(' ', $response->getHeader('X-Drupal-Cache-Contexts')[0]));
+      $this->assertEqualsCanonicalizing($expected_cache_contexts, explode(' ', $response->getHeader('X-Drupal-Cache-Contexts')[0]));
     }
 
     // Expected Page Cache header value: X-Drupal-Cache header.
@@ -479,6 +480,29 @@ abstract class ResourceTestBase extends BrowserTestBase {
       }
     }
     return $request_options;
+  }
+
+  /**
+   * Recursively sorts an array by key.
+   *
+   * @param array $array
+   *   An array to sort.
+   *
+   * @return array
+   *   The sorted array.
+   */
+  protected static function recursiveKSort(array &$array) {
+    // First, sort the main array.
+    ksort($array);
+
+    // Then check for child arrays.
+    foreach ($array as $key => &$value) {
+      if (is_array($value)) {
+        static::recursiveKSort($value);
+      }
+    }
+
+    return $array;
   }
 
 }

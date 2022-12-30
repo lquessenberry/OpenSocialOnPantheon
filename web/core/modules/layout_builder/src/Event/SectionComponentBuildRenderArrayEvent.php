@@ -3,8 +3,9 @@
 namespace Drupal\layout_builder\Event;
 
 use Drupal\Core\Cache\CacheableResponseTrait;
+use Drupal\Core\Plugin\PreviewAwarePluginInterface;
 use Drupal\layout_builder\SectionComponent;
-use Symfony\Component\EventDispatcher\Event;
+use Drupal\Component\EventDispatcher\Event;
 
 /**
  * Event fired when a section component's render array is being built.
@@ -13,11 +14,6 @@ use Symfony\Component\EventDispatcher\Event;
  * build array in this event.
  *
  * @see \Drupal\layout_builder\LayoutBuilderEvents::SECTION_COMPONENT_BUILD_RENDER_ARRAY
- *
- * @internal
- *   Layout Builder is currently experimental and should only be leveraged by
- *   experimental modules and development releases of contributed modules.
- *   See https://www.drupal.org/core/experimental for more information.
  */
 class SectionComponentBuildRenderArrayEvent extends Event {
 
@@ -73,6 +69,10 @@ class SectionComponentBuildRenderArrayEvent extends Event {
     $this->contexts = $contexts;
     $this->plugin = $component->getPlugin($contexts);
     $this->inPreview = $in_preview;
+
+    if ($this->plugin instanceof PreviewAwarePluginInterface) {
+      $this->plugin->setInPreview($in_preview);
+    }
   }
 
   /**

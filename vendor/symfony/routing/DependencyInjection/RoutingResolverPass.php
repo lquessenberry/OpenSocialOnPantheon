@@ -28,7 +28,7 @@ class RoutingResolverPass implements CompilerPassInterface
     private $resolverServiceId;
     private $loaderTag;
 
-    public function __construct($resolverServiceId = 'routing.resolver', $loaderTag = 'routing.loader')
+    public function __construct(string $resolverServiceId = 'routing.resolver', string $loaderTag = 'routing.loader')
     {
         $this->resolverServiceId = $resolverServiceId;
         $this->loaderTag = $loaderTag;
@@ -43,7 +43,7 @@ class RoutingResolverPass implements CompilerPassInterface
         $definition = $container->getDefinition($this->resolverServiceId);
 
         foreach ($this->findAndSortTaggedServices($this->loaderTag, $container) as $id) {
-            $definition->addMethodCall('addLoader', array(new Reference($id)));
+            $definition->addMethodCall('addLoader', [new Reference($id)]);
         }
     }
 }

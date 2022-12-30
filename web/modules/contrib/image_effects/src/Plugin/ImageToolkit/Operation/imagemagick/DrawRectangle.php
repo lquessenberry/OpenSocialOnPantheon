@@ -26,19 +26,19 @@ class DrawRectangle extends ImagemagickImageToolkitOperationBase {
   protected function execute(array $arguments) {
     $arg = '';
     if ($arguments['fill_color']) {
-      $arg .= '-fill ' . $this->getToolkit()->escapeShellArg($arguments['fill_color']);
+      $arg .= '-fill ' . $this->escapeArgument($arguments['fill_color']);
     }
     else {
       $arg .= '-fill none';
     }
     if ($arguments['border_color']) {
-      $arg .= ' -stroke ' . $this->getToolkit()->escapeShellArg($arguments['border_color']) . ' -strokewidth 1';
+      $arg .= ' -stroke ' . $this->escapeArgument($arguments['border_color']) . ' -strokewidth 1';
     }
     $a = $arguments['rectangle']->getPoint('c_a');
     $b = $arguments['rectangle']->getPoint('c_b');
     $c = $arguments['rectangle']->getPoint('c_c');
     $d = $arguments['rectangle']->getPoint('c_d');
-    $this->getToolkit()->addArgument($arg . ' -draw ' . $this->getToolkit()->escapeShellArg("polygon {$d[0]},{$d[1]} {$c[0]},{$c[1]} {$b[0]},{$b[1]} {$a[0]},{$a[1]}"));
+    $this->addArgument($arg . ' -draw ' . $this->escapeArgument("polygon {$d[0]},{$d[1]} {$c[0]},{$c[1]} {$b[0]},{$b[1]} {$a[0]},{$a[1]}"));
     return TRUE;
   }
 

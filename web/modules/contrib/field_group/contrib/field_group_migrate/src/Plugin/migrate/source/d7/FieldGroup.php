@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\field_group_migrate\Plugin\migrate\source\d7\FieldGroup.
- */
-
 namespace Drupal\field_group_migrate\Plugin\migrate\source\d7;
 
 use Drupal\migrate\Row;
@@ -14,7 +9,9 @@ use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
  * Drupal 7 field_group source.
  *
  * @MigrateSource(
- *   id = "d7_field_group"
+ *   id = "d7_field_group",
+ *   source_module = "field_group",
+ *   destination_module = "field_group"
  * )
  */
 class FieldGroup extends DrupalSqlBase {
@@ -23,7 +20,19 @@ class FieldGroup extends DrupalSqlBase {
    * {@inheritdoc}
    */
   public function query() {
-    return $this->select('field_group', 'f')->fields('f');
+    $query = $this->select('field_group', 'f')->fields('f');
+    $entity_type = $this->configuration['entity_type'] ?? NULL;
+    $bundle = $this->configuration['bundle'] ?? NULL;
+
+    if ($entity_type) {
+      $query->condition('f.entity_type', $entity_type);
+
+      if ($bundle) {
+        $query->condition('f.bundle', $bundle);
+      }
+    }
+
+    return $query;
   }
 
   /**
@@ -33,14 +42,15 @@ class FieldGroup extends DrupalSqlBase {
     $data = unserialize($row->getSourceProperty('data'));
     $format_settings = $data['format_settings'] + $data['format_settings']['instance_settings'];
     unset($format_settings['instance_settings']);
-    $settings = array(
+    $settings = [
       'children' => $data['children'],
       'parent_name' => $row->getSourceProperty('parent_name'),
       'weight' => $data['weight'],
       'label' => $data['label'],
       'format_settings' => $format_settings,
       'format_type' => $data['format_type'],
-    );
+      'region' => 'content',
+    ];
     switch ($data['format_type']) {
       case 'div':
         $settings['format_type'] = 'html_element';
@@ -67,8 +77,12 @@ class FieldGroup extends DrupalSqlBase {
         break;
 
       case 'multipage':
-      // @todo Check if there is a better way to deal with this format type.
+        // @todo Check if there is a better way to deal with this format type.
         $settings['format_type'] = 'tab';
+        break;
+
+      case 'html-element':
+        $settings['format_type'] = 'html_element';
         break;
 
     }
@@ -88,7 +102,7 @@ class FieldGroup extends DrupalSqlBase {
    * {@inheritdoc}
    */
   public function fields() {
-    $fields = array(
+    $fields = [
       'id' => $this->t('ID'),
       'identifier' => $this->t('Identifier'),
       'group_name' => $this->t('Group name'),
@@ -96,8 +110,9 @@ class FieldGroup extends DrupalSqlBase {
       'bundle' => $this->t('Bundle'),
       'mode' => $this->t('View mode'),
       'parent_name' => $this->t('Parent name'),
+      'region' => $this->t('Region'),
       'data' => $this->t('Data'),
-    );
+    ];
     return $fields;
   }
 

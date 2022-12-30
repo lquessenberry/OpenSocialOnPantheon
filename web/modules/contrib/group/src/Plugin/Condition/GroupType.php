@@ -14,7 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @Condition(
  *   id = "group_type",
  *   label = @Translation("Group type"),
- *   context = {
+ *   context_definitions = {
  *     "group" = @ContextDefinition("entity:group", label = @Translation("Group"))
  *   }
  * )

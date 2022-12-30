@@ -2,68 +2,28 @@
 
 namespace Drupal\social_demo;
 
-use Drupal\user\UserStorageInterface;
-use Drupal\file\FileStorageInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\group\Entity\GroupInterface;
-use Drush\Log\LogLevel;
 
 /**
- * Class DemoGroup.
+ * Abstract class for demo group creation.
  *
  * @package Drupal\social_demo
  */
 abstract class DemoGroup extends DemoContent {
 
   /**
-   * The user storage.
-   *
-   * @var \Drupal\user\UserStorageInterface
-   */
-  protected $userStorage;
-
-  /**
-   * The file storage.
-   *
-   * @var \Drupal\file\FileStorageInterface
-   */
-  protected $fileStorage;
-
-  /**
-   * DemoGroup constructor.
-   */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, DemoContentParserInterface $parser, UserStorageInterface $user_storage, FileStorageInterface $file_storage) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition);
-
-    $this->parser = $parser;
-    $this->userStorage = $user_storage;
-    $this->fileStorage = $file_storage;
-  }
-
-  /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static(
-      $configuration,
-      $plugin_id,
-      $plugin_definition,
-      $container->get('social_demo.yaml_parser'),
-      $container->get('entity.manager')->getStorage('user'),
-      $container->get('entity.manager')->getStorage('file')
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function createContent() {
+  public function createContent($generate = FALSE, $max = NULL) {
     $data = $this->fetchData();
+    if ($generate === TRUE) {
+      $data = $this->scrambleData($data, $max);
+    }
 
     foreach ($data as $uuid => $item) {
       // Must have uuid and same key value.
       if ($uuid !== $item['uuid']) {
-        drush_log(dt("Group with uuid: {$uuid} has a different uuid in content."), LogLevel::ERROR);
+        $this->loggerChannelFactory->get('social_demo')->error("Group with uuid: {$uuid} has a different uuid in content.");
         continue;
       }
 
@@ -73,7 +33,7 @@ abstract class DemoGroup extends DemoContent {
       ]);
 
       if ($groups) {
-        drush_log(dt("Group with uuid: {$uuid} already exists."), LogLevel::WARNING);
+        $this->loggerChannelFactory->get('social_demo')->warning("Group with uuid: {$uuid} already exists.");
         continue;
       }
 
@@ -81,7 +41,7 @@ abstract class DemoGroup extends DemoContent {
       $account = $this->loadByUuid('user', $item['uid']);
 
       if (!$account) {
-        drush_log(dt("Account with uuid: {$item['uid']} doesn't exists."), LogLevel::ERROR);
+        $this->loggerChannelFactory->get('social_demo')->error("Account with uuid: {$item['uid']} doesn't exists.");
         continue;
       }
 
@@ -190,7 +150,7 @@ abstract class DemoGroup extends DemoContent {
 
       if (($account = current($account)) && !$entity->getMember($account)) {
         $values = [];
-        // If the user should have the manager role, grant it to him now.
+        // If the user should have the manager role, grant it to them now.
         if (in_array($account_uuid, $managers)) {
           $values = ['group_roles' => [$entity->bundle() . '-group_manager']];
         }

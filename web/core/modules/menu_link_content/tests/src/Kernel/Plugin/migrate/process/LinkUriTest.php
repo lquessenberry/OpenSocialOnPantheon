@@ -2,12 +2,13 @@
 
 namespace Drupal\Tests\menu_link_content\Kernel\Plugin\migrate\process;
 
+use Drupal\KernelTests\KernelTestBase;
 use Drupal\menu_link_content\Plugin\migrate\process\LinkUri;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Row;
 use Drupal\node\Entity\Node;
-use Drupal\KernelTests\KernelTestBase;
+use Drupal\Tests\user\Traits\UserCreationTrait;
 
 /**
  * Tests \Drupal\menu_link_content\Plugin\migrate\process\LinkUri.
@@ -18,26 +19,28 @@ use Drupal\KernelTests\KernelTestBase;
  */
 class LinkUriTest extends KernelTestBase {
 
+  use UserCreationTrait;
+
   /**
    * Modules to enable.
    *
    * @var array
    */
-  public static $modules = ['node', 'user'];
+  protected static $modules = ['node', 'user'];
 
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
+    $this->setUpCurrentUser();
     $this->installEntitySchema('node');
-    $this->installEntitySchema('user');
   }
 
   /**
    * Tests LinkUri::transform().
    *
-   * @param array $value
+   * @param string $value
    *   The value to pass to LinkUri::transform().
    * @param string $expected
    *   The expected return value of LinkUri::transform().
@@ -46,7 +49,7 @@ class LinkUriTest extends KernelTestBase {
    *
    * @covers ::transform
    */
-  public function testRouted(array $value, $expected) {
+  public function testRouted($value, $expected) {
     $actual = $this->doTransform($value);
     $this->assertSame($expected, $actual);
   }
@@ -62,13 +65,17 @@ class LinkUriTest extends KernelTestBase {
   public function providerTestRouted() {
     $tests = [];
 
-    $value = ['http://example.com'];
+    $value = 'http://example.com';
     $expected = 'http://example.com';
     $tests['with_scheme'] = [$value, $expected];
 
-    $value = ['<front>'];
+    $value = '<front>';
     $expected = 'internal:/';
     $tests['front'] = [$value, $expected];
+
+    $value = '<nolink>';
+    $expected = 'route:<nolink>';
+    $tests['nolink'] = [$value, $expected];
 
     return $tests;
   }
@@ -76,15 +83,16 @@ class LinkUriTest extends KernelTestBase {
   /**
    * Tests that Non routed URLs throws an exception.
    *
-   * @param array $value
+   * @param string $value
    *   The value to pass to LinkUri::transform().
    * @param string $exception_message
    *   The expected exception message.
    *
    * @dataProvider providerTestNotRouted
    */
-  public function testNotRouted(array $value, $exception_message) {
-    $this->setExpectedException(MigrateException::class, $exception_message);
+  public function testNotRouted($value, $exception_message) {
+    $this->expectException(MigrateException::class);
+    $this->expectExceptionMessage($exception_message);
     $this->doTransform($value);
   }
 
@@ -102,12 +110,12 @@ class LinkUriTest extends KernelTestBase {
 
     $message = 'The path "%s" failed validation.';
 
-    $value = ['/test'];
+    $value = '/test';
     $expected = 'internal:/test';
     $exception_message = sprintf($message, $expected);
     $tests['leading_slash'] = [$value, $exception_message];
 
-    $value = ['test'];
+    $value = 'test';
     $expected = 'internal:/test';
     $exception_message = sprintf($message, $expected);
     $tests['without_scheme'] = [$value, $exception_message];
@@ -118,7 +126,7 @@ class LinkUriTest extends KernelTestBase {
   /**
    * Tests disabling route validation in LinkUri::transform().
    *
-   * @param array $value
+   * @param string $value
    *   The value to pass to LinkUri::transform().
    * @param string $expected
    *   The expected return value of LinkUri::transform().
@@ -127,7 +135,7 @@ class LinkUriTest extends KernelTestBase {
    *
    * @covers ::transform
    */
-  public function testDisablingRouteValidation(array $value, $expected) {
+  public function testDisablingRouteValidation($value, $expected) {
     // Create a node so we have a valid route.
     Node::create([
       'nid' => 1,
@@ -150,11 +158,11 @@ class LinkUriTest extends KernelTestBase {
   public function providerTestDisablingRouteValidation() {
     $tests = [];
 
-    $value = ['node/1'];
+    $value = 'node/1';
     $expected = 'entity:node/1';
     $tests['routed'] = [$value, $expected];
 
-    $value = ['node/2'];
+    $value = 'node/2';
     $expected = 'base:node/2';
     $tests['unrouted'] = [$value, $expected];
 
@@ -164,7 +172,7 @@ class LinkUriTest extends KernelTestBase {
   /**
    * Transforms a link path into an 'internal:' or 'entity:' URI.
    *
-   * @param array $value
+   * @param string $value
    *   The value to pass to LinkUri::transform().
    * @param array $configuration
    *   The plugin configuration.
@@ -172,14 +180,14 @@ class LinkUriTest extends KernelTestBase {
    * @return string
    *   The transformed link.
    */
-  public function doTransform(array $value, $configuration = []) {
+  public function doTransform($value, $configuration = []) {
     $entityTypeManager = $this->container->get('entity_type.manager');
     $routeBuilder = $this->container->get('router.builder');
     $row = new Row();
     $executable = $this->prophesize(MigrateExecutableInterface::class)->reveal();
 
     $plugin = new LinkUri($configuration, 'link_uri', [], $entityTypeManager, $routeBuilder);
-    $actual = $plugin->transform($value, $executable, $row, 'destinationproperty');
+    $actual = $plugin->transform($value, $executable, $row, 'destination_property');
 
     return $actual;
   }

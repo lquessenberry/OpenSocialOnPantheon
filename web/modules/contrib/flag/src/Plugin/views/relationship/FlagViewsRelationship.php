@@ -4,6 +4,7 @@ namespace Drupal\flag\Plugin\views\relationship;
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\flag\FlagServiceInterface;
 use Drupal\user\RoleInterface;
@@ -20,9 +21,9 @@ class FlagViewsRelationship extends RelationshipPluginBase {
   /**
    * The Page Cache Kill switch.
    *
-   * @var Drupal\Core\PageCache\ResponsePolicy\KillSwitch
+   * @var \Drupal\Core\PageCache\ResponsePolicy\KillSwitch
    */
-  protected $pachCacheKillSwitch;
+  protected $pageCacheKillSwitch;
 
   /**
    * The flag service.
@@ -30,6 +31,13 @@ class FlagViewsRelationship extends RelationshipPluginBase {
    * @var \Drupal\flag\FlagServiceInterface
    */
   protected $flagService;
+
+  /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $currentUser;
 
   /**
    * Constructs a FlagViewsRelationship object.
@@ -44,11 +52,14 @@ class FlagViewsRelationship extends RelationshipPluginBase {
    *   The kill switch.
    * @param \Drupal\flag\FlagServiceInterface $flag_service
    *   The flag service.
+   * @param \Drupal\Core\Session\AccountProxyInterface $current_user
+   *   The current user.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, KillSwitch $page_cache_kill_switch, FlagServiceInterface $flag_service) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, KillSwitch $page_cache_kill_switch, FlagServiceInterface $flag_service, AccountProxyInterface $current_user) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->flagService = $flag_service;
     $this->pageCacheKillSwitch = $page_cache_kill_switch;
+    $this->currentUser = $current_user;
     $this->definition = $plugin_definition + $configuration;
   }
 
@@ -58,7 +69,8 @@ class FlagViewsRelationship extends RelationshipPluginBase {
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     $flag_service = $container->get('flag');
     $page_cache_kill_switch = $container->get('page_cache_kill_switch');
-    return new static($configuration, $plugin_id, $plugin_definition, $page_cache_kill_switch, $flag_service);
+    $current_user = $container->get('current_user');
+    return new static($configuration, $plugin_id, $plugin_definition, $page_cache_kill_switch, $flag_service, $current_user);
   }
 
   /**
@@ -67,7 +79,7 @@ class FlagViewsRelationship extends RelationshipPluginBase {
   public function defineOptions() {
     $options = parent::defineOptions();
     $options['flag'] = ['default' => NULL];
-    $options['required'] = ['default' => 1];
+    $options['required'] = ['default' => TRUE];
     $options['user_scope'] = ['default' => 'current'];
     return $options;
   }
@@ -79,7 +91,7 @@ class FlagViewsRelationship extends RelationshipPluginBase {
     parent::buildOptionsForm($form, $form_state);
 
     $entity_type = $this->definition['flaggable'];
-    $form['label']['#description'] .= ' ' . $this->t('The name of the selected flag makes a good label.');
+    $form['admin_label']['admin_label']['#description'] = $this->t('The name of the selected flag makes a good label.');
 
     $flags = $this->flagService->getAllFlags($entity_type);
 
@@ -134,15 +146,14 @@ class FlagViewsRelationship extends RelationshipPluginBase {
         'numeric' => TRUE,
       ];
       $flag_roles = user_roles(FALSE, "flag " . $flag->id());
-      if (isset($flag_roles[RoleInterface::ANONYMOUS_ID])) {
+      if (isset($flag_roles[RoleInterface::ANONYMOUS_ID]) && $this->currentUser->isAnonymous()) {
         // Disable page caching for anonymous users.
         $this->pageCacheKillSwitch->trigger();
 
-        // Add in the SID from Session API for anonymous users.
+        // Add a condition to the join on the PHP session id for anonymous users.
         $this->definition['extra'][] = [
-          'field' => 'sid',
+          'field' => 'session_id',
           'value' => '***FLAG_CURRENT_USER_SID***',
-          'numeric' => TRUE,
         ];
       }
     }

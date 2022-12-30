@@ -3,6 +3,7 @@ label: Taxonomy terms
 migration_tags:
   - Drupal 6
   - Content
+  - Multilingual
 source:
   plugin: d6_taxonomy_term
   translations: true
@@ -12,7 +13,7 @@ process:
   tid: tid
   langcode: language
   vid:
-    plugin: migration
+    plugin: migration_lookup
     migration: d6_taxonomy_vocabulary
     source: vid
   name: name
@@ -25,7 +26,7 @@ process:
       method: process
       source: parent
     -
-      plugin: migration
+      plugin: migration_lookup
       migration: d6_taxonomy_term
   parent:
     plugin: default_value
@@ -34,7 +35,9 @@ process:
   changed: timestamp
 destination:
   plugin: entity:taxonomy_term
+  destination_module: content_translation
 migration_dependencies:
   required:
     - d6_taxonomy_vocabulary
     - d6_taxonomy_term
+    - language

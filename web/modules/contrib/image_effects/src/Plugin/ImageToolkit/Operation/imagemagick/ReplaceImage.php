@@ -27,19 +27,24 @@ class ReplaceImage extends ImagemagickImageToolkitOperationBase {
     $replacement = $arguments['replacement_image'];
 
     // Replacement image local path.
-    $local_path = $replacement->getToolkit()->getSourceLocalPath();
+    $local_path = $replacement->getToolkit()->ensureSourceLocalPath();
     if ($local_path === '') {
       $source_path = $replacement->getToolkit()->getSource();
       throw new \InvalidArgumentException("Missing local path for image at {$source_path}");
     }
 
+    $this->getToolkit()->arguments()
+      ->reset()
+      ->setSourceLocalPath($replacement->getToolkit()->ensureSourceLocalPath())
+      ->setSourceFormat($replacement->getToolkit()->arguments()->getSourceFormat());
     $this->getToolkit()
-      ->resetArguments()
-      ->setSourceLocalPath($replacement->getToolkit()->getSourceLocalPath())
-      ->setSourceFormat($replacement->getToolkit()->getSourceFormat())
-      ->setExifOrientation($replacement->getToolkit()->getExifOrientation())
       ->setWidth($replacement->getWidth())
-      ->setHeight($replacement->getHeight());
+      ->setHeight($replacement->getHeight())
+      ->setExifOrientation($replacement->getToolkit()->getExifOrientation())
+      ->setColorspace($replacement->getToolkit()->getColorspace())
+      ->setProfiles($replacement->getToolkit()->getProfiles())
+      ->setFrames($replacement->getToolkit()->getFrames());
+
     return TRUE;
   }
 

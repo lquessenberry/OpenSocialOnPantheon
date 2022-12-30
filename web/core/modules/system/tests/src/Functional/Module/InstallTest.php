@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\system\Functional\Module;
 
+use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Core\Database\Database;
 use Drupal\Core\Extension\ExtensionNameLengthException;
 use Drupal\Tests\BrowserTestBase;
 
@@ -17,15 +19,20 @@ class InstallTest extends BrowserTestBase {
    *
    * @var array
    */
-  public static $modules = ['module_test'];
+  protected static $modules = ['module_test'];
 
   /**
-   * Verify that drupal_get_schema() can be used during module installation.
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * Verify that module's schema can be used during module installation.
    */
   public function testGetSchemaAtInstallTime() {
     // @see module_test_install()
-    $value = db_query("SELECT data FROM {module_test}")->fetchField();
-    $this->assertIdentical($value, 'varchar');
+    $value = Database::getConnection()->select('module_test', 'mt')->fields('mt', ['data'])->execute()->fetchField();
+    $this->assertSame('varchar', $value);
   }
 
   /**
@@ -37,21 +44,23 @@ class InstallTest extends BrowserTestBase {
    */
   public function testEnableUserTwice() {
     \Drupal::service('module_installer')->install(['user'], FALSE);
-    $this->assertIdentical($this->config('core.extension')->get('module.user'), 0);
+    $this->assertSame(0, $this->config('core.extension')->get('module.user'));
   }
 
   /**
    * Tests recorded schema versions of early installed modules in the installer.
    */
   public function testRequiredModuleSchemaVersions() {
-    $version = drupal_get_installed_schema_version('system', TRUE);
-    $this->assertTrue($version > 0, 'System module version is > 0.');
-    $version = drupal_get_installed_schema_version('user', TRUE);
-    $this->assertTrue($version > 0, 'User module version is > 0.');
+    /** @var \Drupal\Core\Update\UpdateHookRegistry $update_registry */
+    $update_registry = \Drupal::service('update.update_hook_registry');
+    $version = $update_registry->getInstalledVersion('system');
+    $this->assertGreaterThan(0, $version);
+    $version = $update_registry->getInstalledVersion('user');
+    $this->assertGreaterThan(0, $version);
 
     $post_update_key_value = \Drupal::keyValue('post_update');
     $existing_updates = $post_update_key_value->get('existing_updates', []);
-    $this->assertTrue(in_array('module_test_post_update_test', $existing_updates));
+    $this->assertContains('module_test_post_update_test', $existing_updates);
   }
 
   /**
@@ -62,7 +71,7 @@ class InstallTest extends BrowserTestBase {
 
     $post_update_key_value = \Drupal::keyValue('post_update');
     $existing_updates = $post_update_key_value->get('existing_updates', []);
-    $this->assertFalse(in_array('module_test_post_update_test', $existing_updates));
+    $this->assertNotContains('module_test_post_update_test', $existing_updates);
   }
 
   /**
@@ -70,23 +79,23 @@ class InstallTest extends BrowserTestBase {
    */
   public function testModuleNameLength() {
     $module_name = 'invalid_module_name_over_the_maximum_allowed_character_length';
-    $message = format_string('Exception thrown when enabling module %name with a name length over the allowed maximum', ['%name' => $module_name]);
+    $message = new FormattableMarkup('Exception thrown when enabling module %name with a name length over the allowed maximum', ['%name' => $module_name]);
     try {
       $this->container->get('module_installer')->install([$module_name]);
       $this->fail($message);
     }
-    catch (ExtensionNameLengthException $e) {
-      $this->pass($message);
+    catch (\Exception $e) {
+      $this->assertInstanceOf(ExtensionNameLengthException::class, $e);
     }
 
     // Since for the UI, the submit callback uses FALSE, test that too.
-    $message = format_string('Exception thrown when enabling as if via the UI the module %name with a name length over the allowed maximum', ['%name' => $module_name]);
+    $message = new FormattableMarkup('Exception thrown when enabling as if via the UI the module %name with a name length over the allowed maximum', ['%name' => $module_name]);
     try {
       $this->container->get('module_installer')->install([$module_name], FALSE);
       $this->fail($message);
     }
-    catch (ExtensionNameLengthException $e) {
-      $this->pass($message);
+    catch (\Exception $e) {
+      $this->assertInstanceOf(ExtensionNameLengthException::class, $e);
     }
   }
 

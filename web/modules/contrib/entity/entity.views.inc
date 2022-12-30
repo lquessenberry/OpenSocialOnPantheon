@@ -15,16 +15,30 @@ function entity_views_data() {
   $data = [];
   foreach ($entity_types as $entity_type) {
     /** @var \Drupal\Core\Entity\EntityTypeInterface $entity_type */
-    $base_table = $entity_type->getBaseTable() ?: $entity_type->id();
+    if ($entity_type->isRevisionable()) {
+      $entity_type_id = $entity_type->id();
+      $revision_table = $entity_type->getRevisionDataTable() ?: $entity_type->getRevisionTable();
 
-    if ($entity_type->hasViewBuilderClass()) {
-      $data[$base_table]['rendered_entity'] = [
-        'field' => [
-          'title' => t('Rendered entity'),
-          'help' => t('Renders an entity in a view mode.'),
-          'id' => 'rendered_entity',
-        ],
-      ];
+      if ($entity_type->hasLinkTemplate('revision')) {
+        $data[$revision_table]['view_revision_' . $entity_type_id] = [
+          'field' => [
+            'title' => t('Link to revision'),
+            'help' => t('Provide a simple link to the revision.'),
+            'id' => 'entity_link_revision',
+            'click sortable' => FALSE,
+          ],
+        ];
+      }
+      if ($entity_type->hasLinkTemplate('revision-revert-form')) {
+        $data[$revision_table]['revert_revision_' . $entity_type_id] = [
+          'field' => [
+            'title' => t('Link to revert revision'),
+            'help' => t('Provide a simple link to revert to the revision.'),
+            'id' => 'entity_link_revision_revert',
+            'click sortable' => FALSE,
+          ],
+        ];
+      }
     }
   }
 

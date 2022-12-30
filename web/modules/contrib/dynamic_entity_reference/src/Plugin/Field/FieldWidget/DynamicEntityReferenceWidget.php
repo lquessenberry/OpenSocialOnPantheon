@@ -5,13 +5,18 @@ namespace Drupal\dynamic_entity_reference\Plugin\Field\FieldWidget;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\EntityFormInterface;
+use Drupal\Core\Entity\EntityTypeRepositoryInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\Plugin\Field\FieldWidget\EntityReferenceAutocompleteWidget;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\KeyValueStore\KeyValueFactoryInterface;
+use Drupal\Core\Render\ElementInfoManagerInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
 use Drupal\dynamic_entity_reference\Plugin\Field\FieldType\DynamicEntityReferenceItem;
 use Drupal\user\EntityOwnerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Plugin implementation of the 'dynamic_entity_reference autocomplete' widget.
@@ -28,12 +33,81 @@ use Drupal\user\EntityOwnerInterface;
 class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
 
   /**
+   * The entity type repository.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeRepositoryInterface
+   */
+  protected EntityTypeRepositoryInterface $entityTypeRepository;
+
+  /**
+   * The element info manager.
+   *
+   * @var \Drupal\Core\Render\ElementInfoManagerInterface
+   */
+  protected ElementInfoManagerInterface $elementInfo;
+
+  /**
+   * The current active user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected AccountProxyInterface $currentUser;
+
+  /**
+   * The key value manager.
+   *
+   * @var \Drupal\Core\KeyValueStore\KeyValueFactoryInterface
+   */
+  protected KeyValueFactoryInterface $keyValue;
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+    $instance->setEntityTypeRepository($container->get('entity_type.repository'));
+    $instance->setElementInfo($container->get('element_info'));
+    $instance->setCurrentUser($container->get('current_user'));
+    $instance->setKeyValue($container->get('keyvalue'));
+    return $instance;
+  }
+
+  /**
+   * Sets entity type repository service.
+   */
+  public function setEntityTypeRepository(EntityTypeRepositoryInterface $entity_type_repository) {
+    $this->entityTypeRepository = $entity_type_repository;
+  }
+
+  /**
+   * Sets element info manager.
+   */
+  public function setElementInfo(ElementInfoManagerInterface $element_info) {
+    $this->elementInfo = $element_info;
+  }
+
+  /**
+   * Sets current user.
+   */
+  public function setCurrentUser(AccountProxyInterface $current_user) {
+    $this->currentUser = $current_user;
+  }
+
+  /**
+   * Sets key value manager.
+   */
+  public function setKeyValue(KeyValueFactoryInterface $key_value) {
+    $this->keyValue = $key_value;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public static function defaultSettings() {
     return [
       'match_operator' => 'CONTAINS',
-      'size' => '40',
+      'match_limit' => 10,
+      'size' => 40,
       'placeholder' => '',
     ] + parent::defaultSettings();
   }
@@ -45,17 +119,23 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
     $entity = $items->getEntity();
     $referenced_entities = $items->referencedEntities();
 
-    $settings = $this->getFieldSettings();
-    $labels = \Drupal::service('entity_type.repository')->getEntityTypeLabels();
+    $settings = $this->getFieldSettings() + DynamicEntityReferenceItem::defaultFieldSettings();
+    $labels = $this->entityTypeRepository->getEntityTypeLabels();
     $available = DynamicEntityReferenceItem::getTargetTypes($settings);
     $cardinality = $items->getFieldDefinition()->getFieldStorageDefinition()->getCardinality();
     $target_type = $items->get($delta)->target_type ?: reset($available);
+
+    // Append the match operation to the selection settings.
+    $selection_settings = $settings[$target_type]['handler_settings'] + [
+      'match_operator' => $this->getSetting('match_operator'),
+      'match_limit' => $this->getSetting('match_limit'),
+    ];
 
     $element += [
       '#type' => 'entity_autocomplete',
       '#target_type' => $target_type,
       '#selection_handler' => $settings[$target_type]['handler'],
-      '#selection_settings' => $settings[$target_type]['handler_settings'],
+      '#selection_settings' => $selection_settings,
       // Dynamic entity reference field items are handling validation themselves
       // via the 'ValidDynamicReference' constraint.
       '#validate_reference' => FALSE,
@@ -65,7 +145,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
       '#placeholder' => $this->getSetting('placeholder'),
       '#element_validate' => array_merge(
         [[$this, 'elementValidate']],
-        \Drupal::service('element_info')->getInfoProperty('entity_autocomplete', '#element_validate', [])
+        $this->elementInfo->getInfoProperty('entity_autocomplete', '#element_validate', [])
       ),
       '#field_name' => $items->getName(),
     ];
@@ -73,7 +153,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
     if ($this->getSelectionHandlerSetting('auto_create', $target_type)) {
       $element['#autocreate'] = [
         'bundle' => $this->getAutocreateBundle($target_type),
-        'uid' => ($entity instanceof EntityOwnerInterface) ? $entity->getOwnerId() : \Drupal::currentUser()->id(),
+        'uid' => ($entity instanceof EntityOwnerInterface) ? $entity->getOwnerId() : $this->currentUser->id(),
       ];
     }
 
@@ -83,7 +163,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
       $target_type_element = [
         '#type' => 'select',
         '#options' => array_intersect_key($labels, array_combine($available, $available)),
-        '#title' => $this->t('Entity type'),
+        '#title' => $this->t('Type'),
         '#default_value' => $target_type,
         '#weight' => -50,
         '#attributes' => [
@@ -144,7 +224,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
   public static function processFormElement(array &$element, FormStateInterface $form_state, array &$complete_form) {
     $name = implode('-', $element['#parents']);
     $js_class = Html::cleanCssIdentifier("js-dynamic-entity-reference-{$name}-target_type");
-    $element['target_type']['#attributes']['class'][] = $js_class;
+    $element['target_type']['#attributes']['data-dynamic-entity-reference'] = $element['target_type']['#attributes']['class'][] = $js_class;
     $auto_complete_paths = $element['#attached']['drupalSettings']['dynamic_entity_reference']['auto_complete_paths'];
     unset($element['#attached']['drupalSettings']['dynamic_entity_reference']['auto_complete_paths']);
     $element['#attached']['drupalSettings']['dynamic_entity_reference'][$js_class] = $auto_complete_paths;
@@ -170,7 +250,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
         array_pop($parents);
         $values = $form_state->getValue($parents);
       }
-      $settings = $this->getFieldSettings();
+      $settings = $this->getFieldSettings() + DynamicEntityReferenceItem::defaultFieldSettings();
       $element['#target_type'] = $values['target_type'];
       $element['#selection_handler'] = $settings[$values['target_type']]['handler'];
       $element['#selection_settings'] = $settings[$values['target_type']]['handler_settings'];
@@ -179,7 +259,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
         $entity = $form_object instanceof EntityFormInterface ? $form_object->getEntity() : '';
         $element['#autocreate'] = [
           'bundle' => $this->getAutocreateBundle($values['target_type']),
-          'uid' => ($entity instanceof EntityOwnerInterface) ? $entity->getOwnerId() : \Drupal::currentUser()->id(),
+          'uid' => ($entity instanceof EntityOwnerInterface) ? $entity->getOwnerId() : $this->currentUser->id(),
         ];
       }
       else {
@@ -204,7 +284,7 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
     if ($target_type === NULL) {
       return parent::getSelectionHandlerSetting($setting_name);
     }
-    $settings = $this->getFieldSettings();
+    $settings = $this->getFieldSettings() + DynamicEntityReferenceItem::defaultFieldSettings();
     return isset($settings[$target_type]['handler_settings'][$setting_name]) ? $settings[$target_type]['handler_settings'][$setting_name] : NULL;
   }
 
@@ -215,23 +295,31 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
     if ($target_type === NULL) {
       return parent::getAutocreateBundle();
     }
-    $bundle = NULL;
     if ($this->getSelectionHandlerSetting('auto_create', $target_type)) {
-      // If the 'target_bundles' setting is restricted to a single choice, we
-      // can use that.
-      if (($target_bundles = $this->getSelectionHandlerSetting('target_bundles', $target_type)) && count($target_bundles) == 1) {
-        $bundle = reset($target_bundles);
+      $target_bundles = $this->getSelectionHandlerSetting('target_bundles', $target_type);
+      // If there's no target bundle at all, use the target_type. It's the
+      // default for bundleless entity types.
+      if (empty($target_bundles)) {
+        return $target_type;
       }
-      // Otherwise use the first bundle as a fallback.
-      else {
-        // @todo Expose a proper UI for choosing the bundle for autocreated
-        // entities in https://www.drupal.org/node/2412569.
-        $bundles = entity_get_bundles($target_type);
-        $bundle = key($bundles);
+      // If there's only one target bundle, use it.
+      if (count($target_bundles) == 1) {
+        return reset($target_bundles);
+      }
+      // If there's more than one target bundle, use the autocreate bundle
+      // stored in selection handler settings.
+      if (!$this->getSelectionHandlerSetting('auto_create_bundle', $target_type)) {
+        // If no bundle has been set as auto create target means that there is
+        // an inconsistency in entity reference field settings.
+        trigger_error(sprintf(
+          "The 'Create referenced entities if they don't already exist' option is enabled but a specific destination bundle is not set. You should re-visit and fix the settings of the '%s' (%s) field.",
+          $this->fieldDefinition->getLabel(),
+          $this->fieldDefinition->getName()
+        ), E_USER_WARNING);
       }
     }
 
-    return $bundle;
+    return NULL;
   }
 
   /**
@@ -245,14 +333,18 @@ class DynamicEntityReferenceWidget extends EntityReferenceAutocompleteWidget {
    */
   protected function createAutoCompletePaths(array $target_types) {
     $auto_complete_paths = [];
-    $settings = $this->getFieldSettings();
+    $settings = $this->getFieldSettings() + DynamicEntityReferenceItem::defaultFieldSettings();
     foreach ($target_types as $target_type) {
       // Store the selection settings in the key/value store and pass a hashed
       // key in the route parameters.
       $selection_settings = $settings[$target_type]['handler_settings'] ?: [];
+      $selection_settings += [
+        'match_operator' => $this->getSetting('match_operator'),
+        'match_limit' => $this->getSetting('match_limit'),
+      ];
       $data = serialize($selection_settings) . $target_type . $settings[$target_type]['handler'];
       $selection_settings_key = Crypt::hmacBase64($data, Settings::getHashSalt());
-      $key_value_storage = \Drupal::keyValue('entity_autocomplete');
+      $key_value_storage = $this->keyValue->get('entity_autocomplete');
       if (!$key_value_storage->has($selection_settings_key)) {
         $key_value_storage->set($selection_settings_key, $selection_settings);
       }

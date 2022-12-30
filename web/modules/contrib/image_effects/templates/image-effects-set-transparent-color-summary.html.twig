@@ -17,10 +17,10 @@
  * @ingroup themeable
  */
 #}
-{% spaceless %}
+{% apply spaceless %}
   {% if data.transparent_color %}
     {{ data.color_info }}
   {% else %}
     - <em>{{ 'Source image'|t }}</em>
   {% endif %}
-{% endspaceless %}
+{% endapply %}

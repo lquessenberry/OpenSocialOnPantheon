@@ -7,7 +7,7 @@ use Drupal\block_content\Entity\BlockContentType;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Language\LanguageInterface;
-use Drupal\system\Tests\Entity\EntityCacheTagsTestBase;
+use Drupal\Tests\system\Functional\Entity\EntityCacheTagsTestBase;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -20,7 +20,12 @@ class BlockContentCacheTagsTest extends EntityCacheTagsTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['block_content'];
+  protected static $modules = ['block_content'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * {@inheritdoc}
@@ -29,7 +34,7 @@ class BlockContentCacheTagsTest extends EntityCacheTagsTestBase {
     $block_content_type = BlockContentType::create([
       'id' => 'basic',
       'label' => 'basic',
-      'revision' => FALSE
+      'revision' => FALSE,
     ]);
     $block_content_type->save();
     block_content_add_body_field($block_content_type->id());
@@ -71,7 +76,7 @@ class BlockContentCacheTagsTest extends EntityCacheTagsTestBase {
    */
   public function testBlock() {
     $block = $this->drupalPlaceBlock('block_content:' . $this->entity->uuid());
-    $build = $this->container->get('entity.manager')->getViewBuilder('block')->view($block, 'block');
+    $build = $this->container->get('entity_type.manager')->getViewBuilder('block')->view($block, 'block');
 
     // Render the block.
     // @todo The request stack manipulation won't be necessary once

@@ -19,10 +19,15 @@ class CommentAccessTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'node',
     'comment',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Node for commenting.
@@ -34,7 +39,7 @@ class CommentAccessTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $node_type = NodeType::create([
@@ -78,7 +83,7 @@ class CommentAccessTest extends BrowserTestBase {
     $assert->statusCodeEquals(403);
 
     // Publishing the node grants access.
-    $this->unpublishedNode->setPublished(TRUE)->save();
+    $this->unpublishedNode->setPublished()->save();
     $this->drupalGet($comment_url);
     $assert->statusCodeEquals(200);
   }
@@ -112,7 +117,7 @@ class CommentAccessTest extends BrowserTestBase {
     $assert->statusCodeEquals(403);
 
     // Publishing the node grants access.
-    $this->unpublishedNode->setPublished(TRUE)->save();
+    $this->unpublishedNode->setPublished()->save();
     $this->drupalGet($comment_url);
     $assert->statusCodeEquals(200);
   }

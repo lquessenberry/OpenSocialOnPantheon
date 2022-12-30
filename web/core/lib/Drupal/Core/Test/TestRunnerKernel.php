@@ -4,6 +4,7 @@ namespace Drupal\Core\Test;
 
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Extension\Extension;
+use Drupal\Core\Extension\ExtensionDiscovery;
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -31,16 +32,21 @@ class TestRunnerKernel extends DrupalKernel {
     // Prime the module list and corresponding Extension objects.
     // @todo Remove System module. Needed because
     //   \Drupal\Core\Datetime\DateFormatter has a (needless) dependency on the
-    //   'date_format' entity, so calls to format_date()/format_interval() cause
-    //   a plugin not found exception.
+    //   'date_format' entity, so calls to DateFormatter::format() and
+    //   DateFormatter::formatInterval() cause a plugin not found exception.
     $this->moduleList = [
       'system' => 0,
-      'simpletest' => 0,
     ];
     $this->moduleData = [
       'system' => new Extension($this->root, 'module', 'core/modules/system/system.info.yml', 'system.module'),
-      'simpletest' => new Extension($this->root, 'module', 'core/modules/simpletest/simpletest.info.yml', 'simpletest.module'),
     ];
+    // In order to support Simpletest in Drupal 9 conditionally include the
+    // module.
+    $extensions = (new ExtensionDiscovery($this->root, FALSE, [], 'ignore_site_path_does_not_exist'))->scan('module', FALSE);
+    if (isset($extensions['simpletest'])) {
+      $this->moduleList['simpletest'] = 0;
+      $this->moduleData['simpletest'] = $extensions['simpletest'];
+    }
   }
 
   /**
@@ -70,16 +76,22 @@ class TestRunnerKernel extends DrupalKernel {
 
     $this->getContainer()->get('module_handler')->loadAll();
 
-    $this->getContainer()->get('test_discovery')->registerTestNamespaces();
+    $test_discovery = new TestDiscovery(
+      $this->getContainer()->getParameter('app.root'),
+      $this->getContainer()->get('class_loader')
+    );
+    $test_discovery->registerTestNamespaces();
 
     // Register stream wrappers.
     $this->getContainer()->get('stream_wrapper_manager')->register();
 
     // Create the build/artifacts directory if necessary.
     include_once $this->getAppRoot() . '/core/includes/file.inc';
-    if (!is_dir('public://simpletest')) {
-      mkdir('public://simpletest', 0777, TRUE);
+    if (!is_dir('public://simpletest') && !@mkdir('public://simpletest', 0777, TRUE) && !is_dir('public://simpletest')) {
+      throw new \RuntimeException('Unable to create directory: public://simpletest');
     }
+
+    return $this;
   }
 
   /**
@@ -90,6 +102,7 @@ class TestRunnerKernel extends DrupalKernel {
     // The test runner does not require an installed Drupal site to exist.
     // Therefore, its environment is identical to that of the early installer.
     $this->serviceProviderClasses['app']['Test'] = 'Drupal\Core\Installer\InstallerServiceProvider';
+    return $this->serviceProviderClasses;
   }
 
 }

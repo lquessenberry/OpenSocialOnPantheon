@@ -3,6 +3,7 @@
 namespace Drupal\search_api\Query;
 
 use Drupal\search_api\Item\ItemInterface;
+use Drupal\search_api\SearchApiException;
 
 /**
  * Represents the result set of a search query.
@@ -109,6 +110,31 @@ class ResultSet implements \IteratorAggregate, ResultSetInterface {
   /**
    * {@inheritdoc}
    */
+  public function preLoadResultItems() {
+    $item_ids = [];
+    foreach ($this->resultItems as $item_id => $object) {
+      try {
+        if (!$object->getOriginalObject(FALSE)) {
+          $item_ids[] = $item_id;
+        }
+      }
+      catch (SearchApiException $e) {
+        // Can't actually be thrown here, but catch for the static analyzer's
+        // sake.
+      }
+    }
+    if (!$item_ids) {
+      return;
+    }
+    $objects = $this->getQuery()->getIndex()->loadItemsMultiple($item_ids);
+    foreach ($objects as $item_id => $object) {
+      $this->resultItems[$item_id]->setOriginalObject($object);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getWarnings() {
     return $this->warnings;
   }
@@ -177,7 +203,7 @@ class ResultSet implements \IteratorAggregate, ResultSetInterface {
    * {@inheritdoc}
    */
   public function setExtraData($key, $data = NULL) {
-    if (isset($data)) {
+    if ($data !== NULL) {
       $this->extraData[$key] = $data;
     }
     else {
@@ -198,6 +224,7 @@ class ResultSet implements \IteratorAggregate, ResultSetInterface {
   /**
    * {@inheritdoc}
    */
+  #[\ReturnTypeWillChange]
   public function getIterator() {
     return new \ArrayIterator($this->resultItems);
   }

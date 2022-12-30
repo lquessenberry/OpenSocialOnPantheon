@@ -3,6 +3,7 @@
 namespace Drupal\session_test\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\session_test\Session\TestSessionBag;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -110,7 +111,7 @@ class SessionTestController extends ControllerBase {
    *   A notification message.
    */
   public function setMessage() {
-    drupal_set_message($this->t('This is a dummy message.'));
+    $this->messenger()->addStatus($this->t('This is a dummy message.'));
     return new Response($this->t('A message was set.'));
     // Do not return anything, so the current request does not result in a themed
     // page with messages. The message will be displayed in the following request
@@ -123,7 +124,7 @@ class SessionTestController extends ControllerBase {
    * @return string
    *   A notification message.
    */
-  public function setMessageButDontSave() {
+  public function setMessageButDoNotSave() {
     \Drupal::service('session_handler.write_safe')->setSessionWritable(FALSE);
     $this->setMessage();
     return ['#markup' => ''];
@@ -193,6 +194,56 @@ class SessionTestController extends ControllerBase {
     $session = $request->getSession();
     $session->set('test_value', $test_value);
     return new JsonResponse(['session' => $session->all(), 'user' => $this->currentUser()->id()]);
+  }
+
+  /**
+   * Sets the test flag in the session test bag.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response object.
+   */
+  public function setSessionBagFlag(Request $request) {
+    /** @var \Drupal\session_test\Session\TestSessionBag */
+    $bag = $request->getSession()->getBag(TestSessionBag::BAG_NAME);
+    $bag->setFlag();
+    return new Response();
+  }
+
+  /**
+   * Clears the test flag from the session test bag.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response object.
+   */
+  public function clearSessionBagFlag(Request $request) {
+    /** @var \Drupal\session_test\Session\TestSessionBag */
+    $bag = $request->getSession()->getBag(TestSessionBag::BAG_NAME);
+    $bag->clearFlag();
+    return new Response();
+  }
+
+  /**
+   * Prints a message if the flag in the session bag is set.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response object.
+   */
+  public function hasSessionBagFlag(Request $request) {
+    /** @var \Drupal\session_test\Session\TestSessionBag */
+    $bag = $request->getSession()->getBag(TestSessionBag::BAG_NAME);
+    return new Response(empty($bag->hasFlag())
+      ? $this->t('Flag is absent from session bag')
+      : $this->t('Flag is present in session bag')
+    );
   }
 
 }

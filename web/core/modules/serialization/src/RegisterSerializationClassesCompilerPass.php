@@ -2,7 +2,6 @@
 
 namespace Drupal\serialization;
 
-use Drupal\Core\Config\BootstrapConfigStorageFactory;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
@@ -23,17 +22,17 @@ class RegisterSerializationClassesCompilerPass implements CompilerPassInterface 
 
     // Retrieve registered Normalizers and Encoders from the container.
     foreach ($container->findTaggedServiceIds('normalizer') as $id => $attributes) {
-      // If there is a BC key present, pass this to determine if the normalizer
-      // should be skipped.
-      if (isset($attributes[0]['bc']) && $this->normalizerBcSettingIsEnabled($attributes[0]['bc'], $attributes[0]['bc_config_name'])) {
-        continue;
-      }
+      // The 'serializer' service is the public API: mark normalizers private.
+      $container->getDefinition($id)->setPublic(FALSE);
 
-      $priority = isset($attributes[0]['priority']) ? $attributes[0]['priority'] : 0;
+      $priority = $attributes[0]['priority'] ?? 0;
       $normalizers[$priority][] = new Reference($id);
     }
     foreach ($container->findTaggedServiceIds('encoder') as $id => $attributes) {
-      $priority = isset($attributes[0]['priority']) ? $attributes[0]['priority'] : 0;
+      // The 'serializer' service is the public API: mark encoders private.
+      $container->getDefinition($id)->setPublic(FALSE);
+
+      $priority = $attributes[0]['priority'] ?? 0;
       $encoders[$priority][] = new Reference($id);
     }
 
@@ -61,18 +60,6 @@ class RegisterSerializationClassesCompilerPass implements CompilerPassInterface 
   }
 
   /**
-   * Returns whether a normalizer BC setting is disabled or not.
-   *
-   * @param string $key
-   *
-   * @return bool
-   */
-  protected function normalizerBcSettingIsEnabled($key, $config_name) {
-    $settings = BootstrapConfigStorageFactory::get()->read($config_name);
-    return !empty($settings[$key]);
-  }
-
-  /**
    * Sorts by priority.
    *
    * Order services from highest priority number to lowest (reverse sorting).
@@ -87,15 +74,8 @@ class RegisterSerializationClassesCompilerPass implements CompilerPassInterface 
    *   to low priority.
    */
   protected function sort($services) {
-    $sorted = [];
     krsort($services);
-
-    // Flatten the array.
-    foreach ($services as $a) {
-      $sorted = array_merge($sorted, $a);
-    }
-
-    return $sorted;
+    return array_merge([], ...$services);
   }
 
 }

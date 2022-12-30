@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\text\Kernel;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\filter\Entity\FilterFormat;
 use Drupal\KernelTests\Core\Entity\EntityKernelTestBase;
@@ -33,12 +34,12 @@ class TextFormatterTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['text'];
+  protected static $modules = ['text'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     FilterFormat::create([
@@ -90,8 +91,8 @@ class TextFormatterTest extends EntityKernelTestBase {
       // Verify the text field formatter's render array.
       $build = $entity->get('formatted_text')->view(['type' => $formatter]);
       \Drupal::service('renderer')->renderRoot($build[0]);
-      $this->assertEqual($build[0]['#markup'], "<p>Hello, world!</p>\n");
-      $this->assertEqual($build[0]['#cache']['tags'], FilterFormat::load('my_text_format')->getCacheTags(), format_string('The @formatter formatter has the expected cache tags when formatting a formatted text field.', ['@formatter' => $formatter]));
+      $this->assertEquals("<p>Hello, world!</p>\n", $build[0]['#markup']);
+      $this->assertEquals(FilterFormat::load('my_text_format')->getCacheTags(), $build[0]['#cache']['tags'], new FormattableMarkup('The @formatter formatter has the expected cache tags when formatting a formatted text field.', ['@formatter' => $formatter]));
     }
   }
 

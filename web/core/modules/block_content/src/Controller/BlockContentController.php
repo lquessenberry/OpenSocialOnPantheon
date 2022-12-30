@@ -37,10 +37,10 @@ class BlockContentController extends ControllerBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    $entity_manager = $container->get('entity.manager');
+    $entity_type_manager = $container->get('entity_type.manager');
     return new static(
-      $entity_manager->getStorage('block_content'),
-      $entity_manager->getStorage('block_content_type'),
+      $entity_type_manager->getStorage('block_content'),
+      $entity_type_manager->getStorage('block_content_type'),
       $container->get('theme_handler')
     );
   }
@@ -74,6 +74,7 @@ class BlockContentController extends ControllerBase {
    */
   public function add(Request $request) {
     $types = $this->blockContentTypeStorage->loadMultiple();
+    uasort($types, [$this->blockContentTypeStorage->getEntityType()->getClass(), 'sort']);
     if ($types && count($types) == 1) {
       $type = reset($types);
       return $this->addForm($type, $request);
@@ -103,7 +104,7 @@ class BlockContentController extends ControllerBase {
    */
   public function addForm(BlockContentTypeInterface $block_content_type, Request $request) {
     $block = $this->blockContentStorage->create([
-      'type' => $block_content_type->id()
+      'type' => $block_content_type->id(),
     ]);
     if (($theme = $request->query->get('theme')) && in_array($theme, array_keys($this->themeHandler->listInfo()))) {
       // We have navigated to this page from the block library and will keep track

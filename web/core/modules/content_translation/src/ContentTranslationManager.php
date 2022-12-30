@@ -3,8 +3,9 @@
 namespace Drupal\content_translation;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\workflows\Entity\Workflow;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
  * Provides common functionality for content translation.
@@ -12,27 +13,37 @@ use Drupal\workflows\Entity\Workflow;
 class ContentTranslationManager implements ContentTranslationManagerInterface, BundleTranslationSettingsInterface {
 
   /**
+   * The entity type bundle info provider.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  protected $entityTypeBundleInfo;
+
+  /**
    * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a ContentTranslationManageAccessCheck object.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
+   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
+   *   The entity type bundle info provider.
    */
-  public function __construct(EntityManagerInterface $manager) {
-    $this->entityManager = $manager;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, EntityTypeBundleInfoInterface $entity_type_bundle_info) {
+    $this->entityTypeManager = $entity_type_manager;
+    $this->entityTypeBundleInfo = $entity_type_bundle_info;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getTranslationHandler($entity_type_id) {
-    return $this->entityManager->getHandler($entity_type_id, 'translation');
+    return $this->entityTypeManager->getHandler($entity_type_id, 'translation');
   }
 
   /**
@@ -49,7 +60,7 @@ class ContentTranslationManager implements ContentTranslationManagerInterface, B
    * {@inheritdoc}
    */
   public function isSupported($entity_type_id) {
-    $entity_type = $this->entityManager->getDefinition($entity_type_id);
+    $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
     return $entity_type->isTranslatable() && ($entity_type->hasLinkTemplate('drupal:content-translation-overview') || $entity_type->get('content_translation_ui_skip'));
   }
 
@@ -58,7 +69,7 @@ class ContentTranslationManager implements ContentTranslationManagerInterface, B
    */
   public function getSupportedEntityTypes() {
     $supported_types = [];
-    foreach ($this->entityManager->getDefinitions() as $entity_type_id => $entity_type) {
+    foreach ($this->entityTypeManager->getDefinitions() as $entity_type_id => $entity_type) {
       if ($this->isSupported($entity_type_id)) {
         $supported_types[$entity_type_id] = $entity_type;
       }
@@ -81,7 +92,7 @@ class ContentTranslationManager implements ContentTranslationManagerInterface, B
     $enabled = FALSE;
 
     if ($this->isSupported($entity_type_id)) {
-      $bundles = !empty($bundle) ? [$bundle] : array_keys($this->entityManager->getBundleInfo($entity_type_id));
+      $bundles = !empty($bundle) ? [$bundle] : array_keys($this->entityTypeBundleInfo->getBundleInfo($entity_type_id));
       foreach ($bundles as $bundle) {
         $config = $this->loadContentLanguageSettings($entity_type_id, $bundle);
         if ($config->getThirdPartySetting('content_translation', 'enabled', FALSE)) {
@@ -127,9 +138,9 @@ class ContentTranslationManager implements ContentTranslationManagerInterface, B
     if ($entity_type_id == NULL || $bundle == NULL) {
       return NULL;
     }
-    $config = $this->entityManager->getStorage('language_content_settings')->load($entity_type_id . '.' . $bundle);
+    $config = $this->entityTypeManager->getStorage('language_content_settings')->load($entity_type_id . '.' . $bundle);
     if ($config == NULL) {
-      $config = $this->entityManager->getStorage('language_content_settings')->create(['target_entity_type_id' => $entity_type_id, 'target_bundle' => $bundle]);
+      $config = $this->entityTypeManager->getStorage('language_content_settings')->create(['target_entity_type_id' => $entity_type_id, 'target_bundle' => $bundle]);
     }
     return $config;
   }

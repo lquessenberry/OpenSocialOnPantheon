@@ -1,0 +1,419 @@
+.media-library {
+  &-edit__link,
+  &-item &-item__edit,
+  &-item &-item__remove,
+  &-item &-item__remove.button {
+    border-color: var(--colorGinBorder) !important;
+
+    &:link,
+    &:hover,
+    &:focus,
+    &:active,
+    &:not(:hover):not(:checked) {
+      border-color: transparent !important;
+    }
+
+    &:hover,
+    &:focus,
+    &:active {
+      box-shadow: 0 0 0 1px var(--colorGinFocusBorder),
+                  0 0 0 4px var(--colorGinFocus) !important;
+    }
+
+    &,
+    &:hover,
+    &:focus,
+    &:active {
+      width: 32px;
+      height: 32px;
+      margin: .75rem;
+      background-color: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .15);
+      box-sizing: border-box;
+    }
+  }
+
+  &-edit__link,
+  &-item &-item__edit {
+    top: .625rem;
+    right: 3.125rem;
+    background-image: icon('media-edit');
+    background-size: .75rem .75rem;
+  }
+
+  &-item &-item__remove {
+    background-image: icon('media-remove');
+  }
+}
+
+.media-library-item {
+  background: none;
+
+  img {
+    @include color-pattern;
+  }
+
+  &--grid {
+    border-radius: var(--ginBorderBig);
+
+    &::before,
+    &.is-hover::before,
+    &.checked::before,
+    &.is-focus::before {
+      display: none;
+    }
+
+    // User is dragging item.
+    &.sortable-chosen {
+      background: var(--colorGinLayerBackground);
+      box-shadow: 0 0 48px rgba(0, 0, 0, 0.075) !important;
+      outline: none;
+
+      // Hide remove button on ghost.
+      .media-library-item__remove {
+        display: none;
+      }
+    }
+
+    // Show where to drag to.
+    &.sortable-ghost {
+      border: 2px dashed var(--colorGinBorder);
+    }
+  }
+
+  &__content {
+    display: flex;
+    height: 100%;
+
+    article {
+      width: 100%;
+    }
+  }
+
+  &__click-to-select-trigger {
+    overflow: inherit;
+  }
+
+  &__name {
+    color: var(--colorGinText);
+    word-break: break-all;
+    text-overflow: initial;
+    white-space: initial;
+    overflow: visible;
+    margin: 0;
+  }
+
+  &__attributes {
+    position: static;
+    padding: .5rem;
+    background: none;
+  }
+
+  // Hide Claro outline, we use Gin's instead
+  &:focus &__preview-wrapper {
+    box-shadow: none;
+  }
+
+  & &__preview {
+    position: relative;
+    padding-bottom: 100%;
+    border: 1px solid var(--colorGinBorder);
+    border-radius: var(--ginBorderBig);
+    overflow: hidden;
+
+    .field {
+      img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+
+  &.is-hover &__preview {
+    border-color: var(--colorGinText);
+    box-shadow: 0 0 0 2px var(--colorGinText);
+  }
+
+  &.checked &__preview,
+  &.is-active &__preview {
+    border-color: var(--colorGinPrimary);
+    box-shadow: 0 0 0 2px var(--colorGinPrimary);
+  }
+
+  &__click-to-select-checkbox .form-boolean {
+    width: 29px;
+    height: 29px;
+    border-radius: var(--ginBorderXSmall);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .15);
+
+    &,
+    .gin--dark-mode & {
+      border-radius: var(--ginBorderXSmall);
+
+      &:not(:checked) {
+        background-color: white;
+      }
+
+      &:not(:hover):not(:checked) {
+        border-color: transparent !important;
+      }
+
+      &:focus {
+        box-shadow: 0 0 0 1px var(--colorGinFocusBorder), 0 0 0 4px var(--colorGinFocus) !important;
+      }
+
+      &:checked {
+        background-color: var(--colorGinPrimary);
+        border-color: var(--colorGinPrimary);
+        box-shadow: none;
+      }
+    }
+  }
+
+  .form-item {
+    margin: .5rem;
+  }
+
+  // Drupal 9.2 Throbber Fix
+  .ajax-progress {
+    transform: translateY(-50%);
+  }
+}
+
+.media-library-views-form {
+  flex-wrap: initial;
+}
+
+fieldset.media-library-widget {
+  padding: 1.5rem;
+  border: 1px solid var(--colorGinBorder);
+  border-radius: 6px;
+
+  .media-library-widget__toggle-weight {
+    font-size: .75em;
+    padding: 8px;
+  }
+
+  .fieldset__wrapper {
+    margin-bottom: 0;
+  }
+}
+
+.media-library-widget-empty-text {
+  color: var(--colorGinTextLight);
+  margin: 0 0 -.5rem 0;
+}
+
+.media-library-open-button {
+  margin-top: 0;
+}
+
+.media-library-add-form {
+  &__preview {
+    background: var(--colorGinAppBackground);
+  }
+
+  &__input-wrapper {
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+
+    .form-item--upload {
+      margin-top: 0;
+      margin-right: 0;
+    }
+
+    .dropzone-enable {
+      .button {
+        margin: 0;
+      }
+    }
+  }
+}
+
+.media-library-menu {
+  border-color: var(--colorGinBorder);
+  background-color: var(--colorGinAppBackground);
+
+  &__link {
+    color: var(--colorGinText);
+    text-shadow: none;
+    border-color: var(--colorGinBorder);
+    background-color: transparent;
+
+    &:active,
+    &:hover,
+    &:focus,
+    &.active,
+    &:hover:focus,
+    &.active:hover,
+    &.active:focus {
+      color: var(--colorGinPrimary);
+      text-shadow: none;
+      background-color: var(--colorGinLayerBackground);
+      border-right: 0 none;
+      border-bottom: 1px solid var(--colorGinBorder);
+      box-shadow: none;
+    }
+
+    &.active::before {
+      border-left-color: var(--colorGinPrimary);
+    }
+
+    &:focus::after {
+      border: 4px solid var(--colorGinFocus);
+    }
+  }
+}
+
++ .media-library-content {
+  border-left: 1px solid var(--colorGinBorder);
+}
+
+.media-library-view {
+  .view-header {
+    padding: 1rem;
+    color: var(--colorGinText);
+    text-decoration: none;
+    background: var(--colorGinLayer3Background);
+    border-radius: var(--ginBorderDefault);
+    box-shadow: var(--ginShadowLevel1);
+  }
+}
+
+.media-library-wrapper {
+  .views-display-link {
+    position: relative;
+    color: var(--colorGinText);
+    text-decoration: none;
+    background-image: none;
+    white-space: nowrap;
+
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      position: absolute;
+      left: 0;
+      top: 1px;
+      background-color: var(--colorGinText);
+    }
+
+    &.is-active {
+      color: var(--colorGinPrimary);
+
+      &::before {
+        background-color: var(--colorGinPrimary);
+      }
+    }
+  }
+
+  .views-display-link-widget {
+    &::before {
+      mask-image: icon('grid');
+    }
+  }
+
+  .views-display-link-widget_table {
+    &::before {
+      mask-image: icon('list');
+    }
+  }
+}
+
+.media-library-content {
+  border-left: 0 none;
+  border-color: var(--colorGinBorder);
+}
+
+.media-library-select-all {
+  margin-top: 0;
+  padding: 1rem;
+  color: var(--colorGinTitle);
+  background: var(--colorGinTableHeader);
+  box-shadow: 0 2px 6px 2px rgba(0, 0, 0, .03);
+  border-radius: var(--ginBorderDefault);
+}
+
+.views-field-thumbnail__target-id {
+  img {
+    vertical-align: middle;
+  }
+}
+
+// UI Dialog overrode
+.ui-dialog {
+  .views-exposed-form,
+  .views-form {
+    .gin--dark-mode & {
+      background: var(--colorGinLayer2Background);
+    }
+  }
+}
+
+.media-library-widget-modal .media-library-item--grid {
+  @include mq($breakpointBig) {
+    width: 20%;
+  }
+}
+
+.media-library-widget-modal .ui-dialog-buttonpane {
+  .form-actions {
+    flex-grow: 0;
+    white-space: nowrap;
+  }
+
+  .media-library-selected-count {
+    flex-grow: 1;
+  }
+}
+
+.media-library-selection .media-library-item--grid {
+  @include mq($breakpointWide) {
+    width: 20%;
+  }
+}
+
+.field--name-field-media {
+  &.field--widget-entity-reference-autocomplete {
+    fieldset.form-item {
+      padding: 2rem 1.25rem 1rem 1.25rem;
+      border: 1px solid var(--colorGinBorder);
+
+      > legend {
+        font-weight: bold;
+        position: relative;
+        top: 1.25rem;
+        transform: translateY(50%);
+
+        &::before {
+          content: "";
+          display: block;
+          width: 100%;
+          height: 1px;
+          position: absolute;
+          top: -1.25rem;
+          left: 0;
+          background: var(--colorGinBorder);
+        }
+      }
+
+      > .form-item {
+        h4 {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+}
+
+.media-library-selected-count {
+  color: var(--colorGinTextLight);
+}

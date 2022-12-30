@@ -3,6 +3,7 @@
 namespace Drupal\Core\Ajax;
 
 use Drupal\Component\Render\PlainTextOutput;
+use Drupal\Core\Asset\AttachedAssets;
 
 /**
  * Defines an AJAX command to open certain content in a dialog.
@@ -57,8 +58,8 @@ class OpenDialogCommand implements CommandInterface, CommandWithAttachedAssetsIn
    *
    * @param string $selector
    *   The selector of the dialog.
-   * @param string $title
-   *   The title of the dialog.
+   * @param string|array $title
+   *   The title of the dialog, either a render array or a string.
    * @param string|array $content
    *   The content that will be placed in the dialog, either a render array
    *   or an HTML string.
@@ -71,7 +72,6 @@ class OpenDialogCommand implements CommandInterface, CommandWithAttachedAssetsIn
    *   populated automatically from the current request.
    */
   public function __construct($selector, $title, $content, array $dialog_options = [], $settings = NULL) {
-    $title = PlainTextOutput::renderFromHtml($title);
     $dialog_options += ['title' => $title];
     $this->selector = $selector;
     $this->content = $content;
@@ -128,6 +128,15 @@ class OpenDialogCommand implements CommandInterface, CommandWithAttachedAssetsIn
   public function render() {
     // For consistency ensure the modal option is set to TRUE or FALSE.
     $this->dialogOptions['modal'] = isset($this->dialogOptions['modal']) && $this->dialogOptions['modal'];
+
+    if (is_array($this->dialogOptions['title'])) {
+      $rendered_title = \Drupal::service('renderer')->renderPlain($this->dialogOptions['title']);
+      $this->addAttachedAssets(AttachedAssets::createFromRenderArray($this->dialogOptions['title']));
+      $this->dialogOptions['title'] = $rendered_title;
+    }
+
+    $this->dialogOptions['title'] = PlainTextOutput::renderFromHtml($this->dialogOptions['title']);
+
     return [
       'command' => 'openDialog',
       'selector' => $this->selector,

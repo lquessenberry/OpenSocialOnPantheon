@@ -7,7 +7,7 @@ use Drupal\Core\Cache\ListCacheBinsPass;
 use Drupal\Core\DependencyInjection\Compiler\AuthenticationProviderPass;
 use Drupal\Core\DependencyInjection\Compiler\BackendCompilerPass;
 use Drupal\Core\DependencyInjection\Compiler\CorsCompilerPass;
-use Drupal\Core\DependencyInjection\Compiler\GuzzleMiddlewarePass;
+use Drupal\Core\DependencyInjection\Compiler\DeprecatedServicePass;
 use Drupal\Core\DependencyInjection\Compiler\ContextProvidersPass;
 use Drupal\Core\DependencyInjection\Compiler\ProxyServicesPass;
 use Drupal\Core\DependencyInjection\Compiler\DependencySerializationTraitPass;
@@ -19,6 +19,7 @@ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
 use Drupal\Core\DependencyInjection\ServiceProviderInterface;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\Compiler\ModifyServiceDefinitionsPass;
+use Drupal\Core\DependencyInjection\Compiler\MimeTypePass;
 use Drupal\Core\DependencyInjection\Compiler\TaggedHandlersPass;
 use Drupal\Core\DependencyInjection\Compiler\RegisterEventSubscribersPass;
 use Drupal\Core\DependencyInjection\Compiler\RegisterAccessChecksPass;
@@ -73,9 +74,8 @@ class CoreServiceProvider implements ServiceProviderInterface, ServiceModifierIn
 
     // Collect tagged handler services as method calls on consumer services.
     $container->addCompilerPass(new TaggedHandlersPass());
+    $container->addCompilerPass(new MimeTypePass());
     $container->addCompilerPass(new RegisterStreamWrappersPass());
-    $container->addCompilerPass(new GuzzleMiddlewarePass());
-
     $container->addCompilerPass(new TwigExtensionPass());
 
     // Add a compiler pass for registering event subscribers.
@@ -96,6 +96,7 @@ class CoreServiceProvider implements ServiceProviderInterface, ServiceModifierIn
     $container->addCompilerPass(new PluginManagerPass());
 
     $container->addCompilerPass(new DependencySerializationTraitPass());
+    $container->addCompilerPass(new DeprecatedServicePass());
   }
 
   /**
@@ -127,6 +128,11 @@ class CoreServiceProvider implements ServiceProviderInterface, ServiceModifierIn
   protected function registerTest(ContainerBuilder $container) {
     // Do nothing if we are not in a test environment.
     if (!drupal_valid_test_ua()) {
+      return;
+    }
+    // The test middleware is not required for kernel tests as there is no child
+    // site. DRUPAL_TEST_IN_CHILD_SITE is not defined in this case.
+    if (!defined('DRUPAL_TEST_IN_CHILD_SITE')) {
       return;
     }
     // Add the HTTP request middleware to Guzzle.

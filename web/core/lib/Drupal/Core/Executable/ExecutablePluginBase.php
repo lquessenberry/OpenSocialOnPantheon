@@ -2,20 +2,25 @@
 
 namespace Drupal\Core\Executable;
 
-use Drupal\Core\Plugin\ContextAwarePluginBase;
 use Drupal\Component\Plugin\Exception\PluginException;
+use Drupal\Core\Cache\CacheableDependencyInterface;
+use Drupal\Core\Plugin\ContextAwarePluginInterface;
+use Drupal\Core\Plugin\ContextAwarePluginTrait;
+use Drupal\Core\Plugin\PluginBase;
 
 /**
  * Provides the basic architecture for executable plugins.
  */
-abstract class ExecutablePluginBase extends ContextAwarePluginBase implements ExecutableInterface {
+abstract class ExecutablePluginBase extends PluginBase implements ExecutableInterface, CacheableDependencyInterface, ContextAwarePluginInterface {
+
+  use ContextAwarePluginTrait;
 
   /**
    * Gets an array of definitions of available configuration options.
    *
    * @todo: This needs to go into an interface.
    *
-   * @return array
+   * @return \Drupal\Core\TypedData\DataDefinitionInterface[]
    *   An array of typed data definitions describing available configuration
    *   options, keyed by option name.
    */
@@ -30,9 +35,12 @@ abstract class ExecutablePluginBase extends ContextAwarePluginBase implements Ex
   /**
    * Gets the definition of a configuration option.
    *
+   * @param string $key
+   *   The key of the configuration option to get.
+   *
    * @todo: This needs to go into an interface.
    *
-   * @return array
+   * @return \Drupal\Core\TypedData\DataDefinitionInterface|false
    *   The typed data definition describing the configuration option, or FALSE
    *   if the option does not exist.
    */
@@ -69,8 +77,11 @@ abstract class ExecutablePluginBase extends ContextAwarePluginBase implements Ex
    *   https://www.drupal.org/node/1764380.
    * @todo This does not set a value in \Drupal::config(), so the name is confusing.
    *
-   * @return \Drupal\Core\Executable\ExecutablePluginBase
+   * @return $this
    *   The executable object for chaining.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\PluginException
+   *   If the provided configuration value does not pass validation.
    */
   public function setConfig($key, $value) {
     if ($definition = $this->getConfigDefinition($key)) {

@@ -43,6 +43,8 @@ abstract class Query implements PlaceholderInterface {
 
   /**
    * A unique identifier for this query object.
+   *
+   * @var string
    */
   protected $uniqueIdentifier;
 
@@ -175,6 +177,16 @@ abstract class Query implements PlaceholderInterface {
    */
   public function &getComments() {
     return $this->comments;
+  }
+
+  /**
+   * Gets the database connection to be used for the query.
+   *
+   * @return \Drupal\Core\Database\Connection
+   *   The database connection to be used for the query.
+   */
+  public function getConnection() {
+    return $this->connection;
   }
 
 }

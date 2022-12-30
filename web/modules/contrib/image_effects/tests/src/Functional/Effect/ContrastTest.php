@@ -7,7 +7,7 @@ use Drupal\Tests\image_effects\Functional\ImageEffectsTestBase;
 /**
  * Contrast effect test.
  *
- * @group Image Effects
+ * @group image_effects
  */
 class ContrastTest extends ImageEffectsTestBase {
 
@@ -22,7 +22,7 @@ class ContrastTest extends ImageEffectsTestBase {
   }
 
   /**
-   * Test effect on required toolkits.
+   * Contrast effect test.
    *
    * @param string $toolkit_id
    *   The id of the toolkit to set up.
@@ -33,18 +33,11 @@ class ContrastTest extends ImageEffectsTestBase {
    *
    * @dataProvider providerToolkits
    */
-  public function testOnToolkits($toolkit_id, $toolkit_config, array $toolkit_settings) {
+  public function testContrastEffect($toolkit_id, $toolkit_config, array $toolkit_settings) {
     $this->changeToolkit($toolkit_id, $toolkit_config, $toolkit_settings);
-  }
 
-  /**
-   * Contrast effect test.
-   *
-   * @depends testOnToolkits
-   */
-  public function testContrastEffect() {
     // Test on the PNG test image.
-    $original_uri = $this->getTestImageCopyUri('/files/image-test.png', 'simpletest');
+    $original_uri = $this->getTestImageCopyUri('core/tests/fixtures/files/image-test.png');
 
     // Test data.
     $test_data = [
@@ -81,7 +74,7 @@ class ContrastTest extends ImageEffectsTestBase {
           $this->transparent,
           $this->grey,
         ],
-        'tolerance' => 4,
+        'tolerance' => 16000,
       ],
 
       // Adjust contrast by 50%.

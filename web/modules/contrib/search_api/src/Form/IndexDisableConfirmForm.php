@@ -4,12 +4,40 @@ namespace Drupal\search_api\Form;
 
 use Drupal\Core\Entity\EntityConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Defines a confirm form for disabling an index.
  */
 class IndexDisableConfirmForm extends EntityConfirmFormBase {
+
+  /**
+   * The messenger.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
+   * Constructs an IndexDisableConfirmForm object.
+   *
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
+   */
+  public function __construct(MessengerInterface $messenger) {
+    $this->messenger = $messenger;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    $messenger = $container->get('messenger');
+
+    return new static($messenger);
+  }
 
   /**
    * {@inheritdoc}
@@ -47,7 +75,7 @@ class IndexDisableConfirmForm extends EntityConfirmFormBase {
     $entity = $this->entity;
 
     $entity->setStatus(FALSE)->save();
-    drupal_set_message($this->t('The search index %name has been disabled.', ['%name' => $this->entity->label()]));
+    $this->messenger->addStatus($this->t('The search index %name has been disabled.', ['%name' => $this->entity->label()]));
     $form_state->setRedirect('search_api.overview');
   }
 

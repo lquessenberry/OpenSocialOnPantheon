@@ -37,10 +37,10 @@ class PhpTransliterationTest extends UnitTestCase {
 
     // Test each case both with a new instance of the transliteration class,
     // and with one that builds as it goes.
-    $module_handler = $this->getMock('Drupal\Core\Extension\ModuleHandlerInterface');
+    $module_handler = $this->createMock('Drupal\Core\Extension\ModuleHandlerInterface');
     $module_handler->expects($this->any())
       ->method('alter')
-      ->will($this->returnCallback(function ($hook, &$overrides, $langcode) {
+      ->willReturnCallback(function ($hook, &$overrides, $langcode) {
         if ($langcode == 'zz') {
           // The default transliteration of Ä is A, but change it to Z for testing.
           $overrides[0xC4] = 'Z';
@@ -49,7 +49,7 @@ class PhpTransliterationTest extends UnitTestCase {
           $overrides[0x10330] = 'A';
           $overrides[0x10338] = 'Th';
         }
-      }));
+      });
     $transliteration = new PhpTransliteration(NULL, $module_handler);
 
     $actual = $transliteration->transliterate($original, $langcode);
@@ -66,6 +66,7 @@ class PhpTransliterationTest extends UnitTestCase {
     $random = $random_generator->string(10);
     // Make some strings with two, three, and four-byte characters for testing.
     // Note that the 3-byte character is overridden by the 'kg' language.
+    // cSpell:disable-next-line
     $two_byte = 'Ä Ö Ü Å Ø äöüåøhello';
     // These are two Gothic alphabet letters. See
     // http://wikipedia.org/wiki/Gothic_alphabet
@@ -77,6 +78,7 @@ class PhpTransliterationTest extends UnitTestCase {
     $cases = [
       // Test the language override hook in the test module, which changes
       // the transliteration of Ä to Z and provides for the 5-byte characters.
+      // cSpell:disable-next-line
       ['zz', $two_byte, 'Z O U A O aouaohello'],
       ['zz', $random, $random],
       ['zz', $five_byte, 'ATh', $five_byte_printable],

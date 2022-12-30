@@ -6,7 +6,7 @@
  * added to the main element, and a target element is included.
  */
 (function ($, Drupal) {
-  function init(i, tab) {
+  function init(tab) {
     const $tab = $(tab);
     const $target = $tab.find('[data-drupal-nav-tabs-target]');
     const isCollapsible = $tab.hasClass('is-collapsible');
@@ -18,7 +18,8 @@
     function handleResize(e) {
       $tab.addClass('is-horizontal');
       const $tabs = $tab.find('.tabs');
-      const isHorizontal = $tabs.outerHeight() <= $tabs.find('.tabs__tab').outerHeight();
+      const isHorizontal =
+        $tabs.outerHeight() <= $tabs.find('.tabs__tab').outerHeight();
       $tab.toggleClass('is-horizontal', isHorizontal);
       if (isCollapsible) {
         $tab.toggleClass('is-collapse-enabled', !isHorizontal);
@@ -31,21 +32,20 @@
     $tab.addClass('position-container is-horizontal-enabled');
 
     $tab.on('click.tabs', '[data-drupal-nav-tabs-trigger]', openMenu);
-    $(window).on('resize.tabs', Drupal.debounce(handleResize, 150)).trigger('resize.tabs');
+    $(window)
+      .on('resize.tabs', Drupal.debounce(handleResize, 150))
+      .trigger('resize.tabs');
   }
 
   /**
-   * Initialise the tabs JS.
+   * Initialize the tabs JS.
    */
   Drupal.behaviors.navTabs = {
     attach(context, settings) {
-      const $tabs = $(context).find('[data-drupal-nav-tabs]');
-      if ($tabs.length) {
-        const notSmartPhone = window.matchMedia('(min-width: 300px)');
-        if (notSmartPhone.matches) {
-          $tabs.once('nav-tabs').each(init);
-        }
+      const notSmartPhone = window.matchMedia('(min-width: 300px)');
+      if (notSmartPhone.matches) {
+        once('nav-tabs', '[data-drupal-nav-tabs]', context).forEach(init);
       }
     },
   };
-}(jQuery, Drupal));
+})(jQuery, Drupal);

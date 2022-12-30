@@ -4,7 +4,7 @@ namespace Drupal\Tests\menu_ui\Functional;
 
 use Drupal\Core\Url;
 use Drupal\menu_link_content\Entity\MenuLinkContent;
-use Drupal\system\Tests\Cache\PageCacheTagsTestBase;
+use Drupal\Tests\system\Functional\Cache\PageCacheTagsTestBase;
 use Drupal\system\Entity\Menu;
 
 /**
@@ -17,7 +17,12 @@ class MenuCacheTagsTest extends PageCacheTagsTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['menu_ui', 'block', 'test_page_test'];
+  protected static $modules = ['menu_ui', 'block', 'test_page_test'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Tests cache tags presence and invalidation of the Menu entity.
@@ -59,7 +64,6 @@ class MenuCacheTagsTest extends PageCacheTagsTestBase {
     $this->verifyPageCache($url, 'HIT', $expected_tags);
 
     // Verify that after modifying the menu, there is a cache miss.
-    $this->pass('Test modification of menu.', 'Debug');
     $menu->set('label', 'Awesome llama');
     $menu->save();
     $this->verifyPageCache($url, 'MISS');
@@ -69,14 +73,12 @@ class MenuCacheTagsTest extends PageCacheTagsTestBase {
 
     // Verify that after modifying the menu link weight, there is a cache miss.
     $menu_link_manager->updateDefinition('test_page_test.test_page', ['weight' => -10]);
-    $this->pass('Test modification of menu link.', 'Debug');
     $this->verifyPageCache($url, 'MISS');
 
     // Verify a cache hit.
     $this->verifyPageCache($url, 'HIT');
 
     // Verify that after adding a menu link, there is a cache miss.
-    $this->pass('Test addition of menu link.', 'Debug');
     $menu_link_2 = MenuLinkContent::create([
       'id' => '',
       'parent' => '',
@@ -94,7 +96,6 @@ class MenuCacheTagsTest extends PageCacheTagsTestBase {
     $this->verifyPageCache($url, 'HIT');
 
     // Verify that after resetting the first menu link, there is a cache miss.
-    $this->pass('Test reset of menu link.', 'Debug');
     $this->assertTrue($menu_link->isResettable(), 'First link can be reset');
     $menu_link = $menu_link_manager->resetLink($menu_link->getPluginId());
     $this->verifyPageCache($url, 'MISS');
@@ -103,7 +104,6 @@ class MenuCacheTagsTest extends PageCacheTagsTestBase {
     $this->verifyPageCache($url, 'HIT', $expected_tags);
 
     // Verify that after deleting the menu, there is a cache miss.
-    $this->pass('Test deletion of menu.', 'Debug');
     $menu->delete();
     $this->verifyPageCache($url, 'MISS');
 

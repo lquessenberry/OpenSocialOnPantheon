@@ -1,0 +1,200 @@
+<?php
+/**
+ * @file
+ * Installation file for Ultimate Cron
+ */
+
+use Drupal\Core\Url;
+use Drupal\ultimate_cron\Entity\CronJob;
+
+/**
+ * Implements hook_schema().
+ */
+function ultimate_cron_schema() {
+  $schema = array();
+
+  $schema['ultimate_cron_log'] = array(
+    'description' => 'Logs',
+    'fields' => array(
+      'lid' => array(
+        'description' => 'Lock ID',
+        'type' => 'varchar',
+        'length' => 176,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => 'Name',
+        'type' => 'varchar',
+        'length' => 166,
+        'not null' => TRUE,
+      ),
+      'log_type' => array(
+        'description' => 'Log type',
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'start_time' => array(
+        'description' => 'Timestamp of execution start',
+        'type' => 'float',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'end_time' => array(
+        'description' => 'Timestamp of execution end',
+        'type' => 'float',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'description' => 'User ID',
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'init_message' => array(
+        'description' => 'Initial message',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'message' => array(
+        'description' => 'Message',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'severity' => array(
+        'description' => 'Max severity level of the execution',
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => FALSE,
+        'default' => -1,
+      ),
+    ),
+    'primary key' => array('lid'),
+    'indexes' => array(
+      'idx_last' => array(
+        array('name', 80),
+        'start_time',
+        'end_time',
+        'log_type',
+      ),
+    ),
+  );
+
+  $schema['ultimate_cron_lock'] = array(
+    'description' => 'Locks',
+    'fields' => array(
+      'lid' => array(
+        'description' => 'Lock ID',
+        'type' => 'serial',
+        'size' => 'big',
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => 'Name',
+        'type' => 'varchar',
+        'length' => 166,
+        'not null' => TRUE,
+      ),
+      'current' => array(
+        'description' => 'Current lock',
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'expire' => array(
+        'description' => 'Expiration time of lock',
+        'type' => 'float',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('lid'),
+    'unique keys' => array(
+      'idx_name' => array('name', 'current'),
+    ),
+  );
+
+  $schema['ultimate_cron_signal'] = array(
+    'description' => 'Signals',
+    'fields' => array(
+      'job_name' => array(
+        'description' => 'Name of job',
+        'type' => 'varchar',
+        'length' => 166,
+        'not null' => TRUE,
+      ),
+      'signal_name' => array(
+        'description' => 'Name of signal',
+        'type' => 'varchar',
+        'length' => 166,
+        'not null' => TRUE,
+      ),
+      'claimed' => array(
+        'description' => 'Is signal claimed',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('job_name', 'signal_name'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function ultimate_cron_install() {
+  \Drupal::service('ultimate_cron.discovery')->discoverCronJobs();
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function ultimate_cron_requirements($phase) {
+  $requirements = array();
+
+  switch ($phase) {
+    case 'runtime':
+      $requirements['cron_jobs']['title'] = 'Ultimate Cron';
+      $requirements['cron_jobs']['severity'] = REQUIREMENT_OK;
+
+      // Check if any jobs are behind.
+      $jobs_behind = 0;
+      $jobs = CronJob::loadMultiple();
+
+      foreach ($jobs as $job) {
+        if ($job->isBehindSchedule()) {
+          $jobs_behind++;
+        }
+      }
+
+      if ($jobs_behind) {
+        $requirements['cron_jobs']['severity'] = REQUIREMENT_WARNING;
+        $requirements['cron_jobs']['value'] = \Drupal::translation()->formatPlural(
+          $jobs_behind,
+          '@count job is behind schedule',
+          '@count jobs are behind schedule'
+        );
+        $requirements['cron_jobs']['description'] = [
+          '#markup' => t('Some jobs are behind their schedule. Please check if <a href=":system_cron_url">Cron</a> is running properly.', [
+            ':system_cron_url' => Url::fromRoute('system.cron', ['key' => \Drupal::state()->get('system.cron_key')])->toString()
+          ])
+        ];
+      }
+      else {
+        $requirements['cron_jobs']['value'] = t('Cron is running properly.');
+      }
+  }
+
+  return $requirements;
+}

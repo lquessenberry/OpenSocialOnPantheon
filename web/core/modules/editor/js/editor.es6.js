@@ -21,6 +21,46 @@
   }
 
   /**
+   * Filter away XSS attack vectors when switching text formats.
+   *
+   * @param {HTMLElement} field
+   *   The textarea DOM element.
+   * @param {object} format
+   *   The text format that's being activated, from
+   *   drupalSettings.editor.formats.
+   * @param {string} originalFormatID
+   *   The text format ID of the original text format.
+   * @param {function} callback
+   *   A callback to be called (with no parameters) after the field's value has
+   *   been XSS filtered.
+   */
+  function filterXssWhenSwitching(field, format, originalFormatID, callback) {
+    // A text editor that already is XSS-safe needs no additional measures.
+    if (format.editor.isXssSafe) {
+      callback(field, format);
+    }
+    // Otherwise, ensure XSS safety: let the server XSS filter this value.
+    else {
+      $.ajax({
+        url: Drupal.url(`editor/filter_xss/${format.format}`),
+        type: 'POST',
+        data: {
+          value: field.value,
+          original_format_id: originalFormatID,
+        },
+        dataType: 'json',
+        success(xssFilteredValue) {
+          // If the server returns false, then no XSS filtering is needed.
+          if (xssFilteredValue !== false) {
+            field.value = xssFilteredValue;
+          }
+          callback(field, format);
+        },
+      });
+    }
+  }
+
+  /**
    * Changes the text editor on a text area.
    *
    * @param {HTMLElement} field
@@ -31,11 +71,16 @@
    *   format will be attached.
    */
   function changeTextEditor(field, newFormatID) {
-    const previousFormatID = field.getAttribute('data-editor-active-text-format');
+    const previousFormatID = field.getAttribute(
+      'data-editor-active-text-format',
+    );
 
     // Detach the current editor (if any) and attach a new editor.
     if (drupalSettings.editor.formats[previousFormatID]) {
-      Drupal.editorDetach(field, drupalSettings.editor.formats[previousFormatID]);
+      Drupal.editorDetach(
+        field,
+        drupalSettings.editor.formats[previousFormatID],
+      );
     }
     // When no text editor is currently active, stop tracking changes.
     else {
@@ -45,7 +90,12 @@
     // Attach the new text editor (if any).
     if (drupalSettings.editor.formats[newFormatID]) {
       const format = drupalSettings.editor.formats[newFormatID];
-      filterXssWhenSwitching(field, format, previousFormatID, Drupal.editorAttach);
+      filterXssWhenSwitching(
+        field,
+        format,
+        previousFormatID,
+        Drupal.editorAttach,
+      );
     }
 
     // Store the new active format.
@@ -59,10 +109,10 @@
    *   The text format change event.
    */
   function onTextFormatChange(event) {
-    const $select = $(event.target);
+    const select = event.target;
     const field = event.data.field;
     const activeFormatID = field.getAttribute('data-editor-active-text-format');
-    const newFormatID = $select.val();
+    const newFormatID = select.value;
 
     // Prevent double-attaching if the change event is triggered manually.
     if (newFormatID === activeFormatID) {
@@ -73,13 +123,18 @@
     // with it that supports content filtering, then first ask for
     // confirmation, because switching text formats might cause certain
     // markup to be stripped away.
-    const supportContentFiltering = drupalSettings.editor.formats[newFormatID] && drupalSettings.editor.formats[newFormatID].editorSupportsContentFiltering;
+    const supportContentFiltering =
+      drupalSettings.editor.formats[newFormatID] &&
+      drupalSettings.editor.formats[newFormatID].editorSupportsContentFiltering;
     // If there is no content yet, it's always safe to change the text format.
     const hasContent = field.value !== '';
     if (hasContent && supportContentFiltering) {
-      const message = Drupal.t('Changing the text format to %text_format will permanently remove content that is not allowed in that text format.<br><br>Save your changes before switching the text format to avoid losing data.', {
-        '%text_format': $select.find('option:selected').text(),
-      });
+      const message = Drupal.t(
+        'Changing the text format to %text_format will permanently remove content that is not allowed in that text format.<br><br>Save your changes before switching the text format to avoid losing data.',
+        {
+          '%text_format': $(select).find('option:selected')[0].textContent,
+        },
+      );
       const confirmationDialog = Drupal.dialog(`<div>${message}</div>`, {
         title: Drupal.t('Change text format?'),
         dialogClass: 'editor-change-text-format-modal',
@@ -101,7 +156,7 @@
               // cannot simply call event.preventDefault() because jQuery's
               // change event is only triggered after the change has already
               // been accepted.
-              $select.val(activeFormatID);
+              select.value = activeFormatID;
               confirmationDialog.close();
             },
           },
@@ -120,8 +175,7 @@
       });
 
       confirmationDialog.showModal();
-    }
-    else {
+    } else {
       changeTextEditor(field, newFormatID);
     }
   }
@@ -150,8 +204,8 @@
         return;
       }
 
-      $(context).find('[data-editor-for]').once('editor').each(function () {
-        const $this = $(this);
+      once('editor', '[data-editor-for]', context).forEach((editor) => {
+        const $this = $(editor);
         const field = findFieldForFormatSelector($this);
 
         // Opt-out if no supported text area was found.
@@ -160,7 +214,7 @@
         }
 
         // Store the current active format.
-        const activeFormatID = $this.val();
+        const activeFormatID = editor.value;
         field.setAttribute('data-editor-active-text-format', activeFormatID);
 
         // Directly attach this text editor, if the text format is enabled.
@@ -190,7 +244,11 @@
           }
           // Detach the current editor (if any).
           if (settings.editor.formats[activeFormatID]) {
-            Drupal.editorDetach(field, settings.editor.formats[activeFormatID], 'serialize');
+            Drupal.editorDetach(
+              field,
+              settings.editor.formats[activeFormatID],
+              'serialize',
+            );
           }
         });
       });
@@ -203,18 +261,21 @@
       if (trigger === 'serialize') {
         // Removing the editor-processed class guarantees that the editor will
         // be reattached. Only do this if we're planning to destroy the editor.
-        editors = $(context).find('[data-editor-for]').findOnce('editor');
-      }
-      else {
-        editors = $(context).find('[data-editor-for]').removeOnce('editor');
+        editors = once.filter('editor', '[data-editor-for]', context);
+      } else {
+        editors = once.remove('editor', '[data-editor-for]', context);
       }
 
-      editors.each(function () {
-        const $this = $(this);
-        const activeFormatID = $this.val();
+      editors.forEach((editor) => {
+        const $this = $(editor);
+        const activeFormatID = editor.value;
         const field = findFieldForFormatSelector($this);
         if (field && activeFormatID in settings.editor.formats) {
-          Drupal.editorDetach(field, settings.editor.formats[activeFormatID], trigger);
+          Drupal.editorDetach(
+            field,
+            settings.editor.formats[activeFormatID],
+            trigger,
+          );
         }
       });
     },
@@ -271,44 +332,4 @@
       }
     }
   };
-
-  /**
-   * Filter away XSS attack vectors when switching text formats.
-   *
-   * @param {HTMLElement} field
-   *   The textarea DOM element.
-   * @param {object} format
-   *   The text format that's being activated, from
-   *   drupalSettings.editor.formats.
-   * @param {string} originalFormatID
-   *   The text format ID of the original text format.
-   * @param {function} callback
-   *   A callback to be called (with no parameters) after the field's value has
-   *   been XSS filtered.
-   */
-  function filterXssWhenSwitching(field, format, originalFormatID, callback) {
-    // A text editor that already is XSS-safe needs no additional measures.
-    if (format.editor.isXssSafe) {
-      callback(field, format);
-    }
-    // Otherwise, ensure XSS safety: let the server XSS filter this value.
-    else {
-      $.ajax({
-        url: Drupal.url(`editor/filter_xss/${format.format}`),
-        type: 'POST',
-        data: {
-          value: field.value,
-          original_format_id: originalFormatID,
-        },
-        dataType: 'json',
-        success(xssFilteredValue) {
-          // If the server returns false, then no XSS filtering is needed.
-          if (xssFilteredValue !== false) {
-            field.value = xssFilteredValue;
-          }
-          callback(field, format);
-        },
-      });
-    }
-  }
-}(jQuery, Drupal, drupalSettings));
+})(jQuery, Drupal, drupalSettings);

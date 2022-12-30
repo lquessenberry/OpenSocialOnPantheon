@@ -17,7 +17,12 @@ class RowPluginTest extends NodeTestBase {
    *
    * @var array
    */
-  public static $modules = ['node'];
+  protected static $modules = ['node'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * Views used by this test.
@@ -36,8 +41,8 @@ class RowPluginTest extends NodeTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
-    parent::setUp($import_test_views);
+  protected function setUp($import_test_views = TRUE, $modules = ['node_test_views']): void {
+    parent::setUp($import_test_views, $modules);
 
     $this->drupalCreateContentType(['type' => 'article']);
 
@@ -74,8 +79,8 @@ class RowPluginTest extends NodeTestBase {
     $output = $view->preview();
     $output = $renderer->renderRoot($output);
     foreach ($this->nodes as $node) {
-      $this->assertFalse(strpos($output, $node->body->summary) !== FALSE, 'Make sure the teaser appears in the output of the view.');
-      $this->assertTrue(strpos($output, $node->body->value) !== FALSE, 'Make sure the full text appears in the output of the view.');
+      $this->assertStringNotContainsString($node->body->summary, $output, 'Make sure the teaser appears in the output of the view.');
+      $this->assertStringContainsString($node->body->value, $output, 'Make sure the full text appears in the output of the view.');
     }
 
     // Test with teasers.
@@ -83,8 +88,8 @@ class RowPluginTest extends NodeTestBase {
     $output = $view->preview();
     $output = $renderer->renderRoot($output);
     foreach ($this->nodes as $node) {
-      $this->assertTrue(strpos($output, $node->body->summary) !== FALSE, 'Make sure the teaser appears in the output of the view.');
-      $this->assertFalse(strpos($output, $node->body->value) !== FALSE, 'Make sure the full text does not appears in the output of the view if teaser is set as viewmode.');
+      $this->assertStringContainsString($node->body->summary, $output, 'Make sure the teaser appears in the output of the view.');
+      $this->assertStringNotContainsString($node->body->value, $output, 'Make sure the full text does not appears in the output of the view if teaser is set as viewmode.');
     }
   }
 

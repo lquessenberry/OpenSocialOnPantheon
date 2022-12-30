@@ -1,0 +1,62 @@
+#toolbar-item-workbench-tray {
+  // Hide logo
+  .menu-item__tools {
+    display: none;
+  }
+
+  // Custom icons
+  .toolbar-icon {
+    &:before {
+      left: .75rem;
+      background: var(--colorGinIcons);
+      background-image: none;
+      mask-size: var(--iconGinToolbar) var(--iconGinToolbar);
+      mask-repeat: no-repeat;
+      mask-position: center center;
+    }
+
+    &:hover:before,
+    &.is-active:before {
+      background: var(--colorGinPrimary);
+    }
+  }
+
+  .toolbar-icon-workbench-content {
+    &:before {
+      mask-image: icon('tool');
+    }
+  }
+
+  .toolbar-icon-workbench-create-content {
+    &:before {
+      mask-image: icon('edit');
+    }
+  }
+
+  .toolbar-icon-workbench-my-edited {
+    &:before {
+      mask-image: icon('list');
+    }
+  }
+
+  .toolbar-icon-workbench-all-content {
+    &:before {
+      mask-image: icon('content');
+    }
+  }
+
+  .toolbar-icon-workbench-configure {
+    &:before {
+      mask-image: icon('config');
+    }
+  }
+}
+
+.gin-secondary-toolbar .toolbar-secondary {
+  // Hide icons
+  .toolbar-tray .toolbar-icon {
+    &:before {
+      display: none;
+    }
+  }
+}

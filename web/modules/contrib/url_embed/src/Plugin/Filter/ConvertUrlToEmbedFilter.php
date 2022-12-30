@@ -139,15 +139,14 @@ class ConvertUrlToEmbedFilter extends FilterBase {
             $pattern,
             function ($match) {
               try {
-                $embed = \Drupal::service('url_embed')->getEmbed(Html::decodeEntities($match[1]));
-                if ($embed) {
+                $info = \Drupal::service('url_embed')->getUrlInfo(Html::decodeEntities($match[1]));
+                if ($info) {
                   return '<drupal-url data-embed-url="' . $match[1] . '"></drupal-url>';
                 }
                 else {
                   return $match[1];
                 }
-              }
-              catch (\Exception $e) {
+              } catch (\Exception $e) {
                 // If anything goes wrong while retrieving remote data, catch
                 // the exception to avoid a WSOD and leave the URL as is.
                 watchdog_exception('url_embed', $e);

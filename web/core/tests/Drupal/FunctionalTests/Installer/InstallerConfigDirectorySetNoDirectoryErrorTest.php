@@ -5,11 +5,16 @@ namespace Drupal\FunctionalTests\Installer;
 use Drupal\Component\Utility\Crypt;
 
 /**
- * Tests the installer when a config_directory set up but does not exist.
+ * Tests installation when a config_sync_directory is set up but does not exist.
  *
  * @group Installer
  */
 class InstallerConfigDirectorySetNoDirectoryErrorTest extends InstallerTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
 
   /**
    * The directory where the sync directory should be created during install.
@@ -24,7 +29,7 @@ class InstallerConfigDirectorySetNoDirectoryErrorTest extends InstallerTestBase 
   protected function prepareEnvironment() {
     parent::prepareEnvironment();
     $this->configDirectory = $this->publicFilesDirectory . '/config_' . Crypt::randomBytesBase64();
-    $this->settings['config_directories'][CONFIG_SYNC_DIRECTORY] = (object) [
+    $this->settings['settings']['config_sync_directory'] = (object) [
       'value' => $this->configDirectory . '/sync',
       'required' => TRUE,
     ];
@@ -45,6 +50,15 @@ class InstallerConfigDirectorySetNoDirectoryErrorTest extends InstallerTestBase 
   /**
    * {@inheritdoc}
    */
+  protected function setUpRequirementsProblem() {
+    // The parent method asserts that there are no requirements errors, but
+    // this test expects a requirements error in the test method below.
+    // Therefore, we override this method to suppress the parent's assertions.
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   protected function setUpSite() {
     // This step should not appear as we had a failure prior to the settings
     // screen.
@@ -54,8 +68,8 @@ class InstallerConfigDirectorySetNoDirectoryErrorTest extends InstallerTestBase 
    * Verifies that installation failed.
    */
   public function testError() {
-    $this->assertText("An automated attempt to create the directory {$this->configDirectory}/sync failed, possibly due to a permissions problem.");
-    $this->assertFalse(file_exists($this->configDirectory . '/sync') && is_dir($this->configDirectory . '/sync'), "The directory {$this->configDirectory}/sync does not exist.");
+    $this->assertSession()->pageTextContains("An automated attempt to create the directory {$this->configDirectory}/sync failed, possibly due to a permissions problem.");
+    $this->assertDirectoryDoesNotExist($this->configDirectory . '/sync');
   }
 
 }

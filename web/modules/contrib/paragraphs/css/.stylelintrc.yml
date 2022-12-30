@@ -35,7 +35,7 @@ rules:
   #
   # This order definition is taken from:
   # - https://github.com/sasstools/sass-lint/blob/develop/lib/config/property-sort-orders/smacss.yml
-  order/declaration-block-properties-specified-order:
+  order/properties-order:
     # Box
 
     - display
@@ -226,7 +226,7 @@ rules:
     - ignoreProperties:
         - contain
   # There is no reason that a specific ID would be needed for UI components
-  selector-no-id: true
+  selector-max-id: 0
   # Qualifying types are not needed when using a naming system like BEM
   selector-no-qualifying-type: true
   # In general, we should *never* be modifying elements within our components, since we can't
@@ -235,12 +235,12 @@ rules:
   # we want our UI components within that fieldset to be disabled as well.
   # Other exceptions to this may be in packages/material-components-web, in which case this rule could
   # be disabled for that file, with an explanation.
-  selector-no-type:
-    - true
+  selector-max-type:
+    - 0
     - ignoreTypes:
         - fieldset
   # Styles for components should never need the universal selector.
-  selector-no-universal: true
+  selector-max-universal: 0
   # Ensure any defined symbols are prefixed with "mdc-"
   # TODO: Remove "md-" pattern.
   #custom-media-pattern: ^mdc?-.+
@@ -291,4 +291,4 @@ rules:
   scss/at-import-no-partial-leading-underscore: true
   # Since mixins are explicit (`@include`) and parens are unnecessary for argumentless mixins, they
   # can be omitted.
-  scss/at-mixin-no-argumentless-call-parentheses: true
+  scss/at-mixin-argumentless-call-parentheses: never

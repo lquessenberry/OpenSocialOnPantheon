@@ -3,6 +3,7 @@
 namespace Drupal\forum\Form;
 
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\taxonomy\TermForm;
 
@@ -73,22 +74,22 @@ class ForumForm extends TermForm {
    */
   public function save(array $form, FormStateInterface $form_state) {
     $term = $this->entity;
-    $term_storage = $this->entityManager->getStorage('taxonomy_term');
+    $term_storage = $this->entityTypeManager->getStorage('taxonomy_term');
     $status = $term_storage->save($term);
 
     $route_name = $this->urlStub == 'container' ? 'entity.taxonomy_term.forum_edit_container_form' : 'entity.taxonomy_term.forum_edit_form';
-    $route_parameters  = ['taxonomy_term' => $term->id()];
-    $link = $this->l($this->t('Edit'), new Url($route_name, $route_parameters));
-    $view_link = $term->link($term->getName());
+    $route_parameters = ['taxonomy_term' => $term->id()];
+    $link = Link::fromTextAndUrl($this->t('Edit'), new Url($route_name, $route_parameters))->toString();
+    $view_link = $term->toLink($term->getName())->toString();
     switch ($status) {
       case SAVED_NEW:
-        drupal_set_message($this->t('Created new @type %term.', ['%term' => $view_link, '@type' => $this->forumFormType]));
+        $this->messenger()->addStatus($this->t('Created new @type %term.', ['%term' => $view_link, '@type' => $this->forumFormType]));
         $this->logger('forum')->notice('Created new @type %term.', ['%term' => $term->getName(), '@type' => $this->forumFormType, 'link' => $link]);
         $form_state->setValue('tid', $term->id());
         break;
 
       case SAVED_UPDATED:
-        drupal_set_message($this->t('The @type %term has been updated.', ['%term' => $term->getName(), '@type' => $this->forumFormType]));
+        $this->messenger()->addStatus($this->t('The @type %term has been updated.', ['%term' => $term->getName(), '@type' => $this->forumFormType]));
         $this->logger('forum')->notice('Updated @type %term.', ['%term' => $term->getName(), '@type' => $this->forumFormType, 'link' => $link]);
         break;
     }
@@ -104,7 +105,7 @@ class ForumForm extends TermForm {
     $actions = parent::actions($form, $form_state);
 
     if (!$this->entity->isNew() && $this->entity->hasLinkTemplate('forum-delete-form')) {
-      $actions['delete']['#url'] = $this->entity->urlInfo('forum-delete-form');
+      $actions['delete']['#url'] = $this->entity->toUrl('forum-delete-form');
     }
     else {
       unset($actions['delete']);
@@ -125,7 +126,7 @@ class ForumForm extends TermForm {
    *   A select form element.
    */
   protected function forumParentSelect($tid, $title) {
-    $taxonomy_storage = $this->entityManager->getStorage('taxonomy_term');
+    $taxonomy_storage = $this->entityTypeManager->getStorage('taxonomy_term');
     $parents = $taxonomy_storage->loadParents($tid);
     if ($parents) {
       $parent = array_shift($parents);

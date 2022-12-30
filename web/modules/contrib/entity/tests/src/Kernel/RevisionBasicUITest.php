@@ -3,7 +3,6 @@
 namespace Drupal\Tests\entity\Kernel;
 
 use Drupal\entity_module_test\Entity\EnhancedEntity;
-use Drupal\entity_module_test\Entity\EnhancedEntityBundle;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\user\Entity\Role;
 use Drupal\user\Entity\User;
@@ -17,26 +16,31 @@ class RevisionBasicUITest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['entity_module_test', 'system', 'user', 'entity'];
+  protected static $modules = ['entity_module_test', 'system', 'user', 'entity'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('user');
     $this->installEntitySchema('entity_test_enhanced');
-    $this->installSchema('system', 'router');
-    $this->installConfig(['system']);
+    $this->installSchema('system', 'sequences');
+    $this->installConfig(['system', 'user']);
 
-    $bundle = EnhancedEntityBundle::create([
-      'id' => 'default',
-      'label' => 'Default',
+    $this->container->get('router.builder')->rebuild();
+
+    // Create a test user so that the mock requests performed below have a valid
+    // current user context.
+    $user = User::create([
+      // Make sure not to create user 1 which would bypass any access
+      // restrictions.
+      'uid' => 2,
+      'name' => 'Test user',
     ]);
-    $bundle->save();
-
-    \Drupal::service('router.builder')->rebuild();
+    $user->save();
+    $this->container->get('account_switcher')->switchTo($user);
   }
 
   /**
@@ -56,35 +60,43 @@ class RevisionBasicUITest extends KernelTestBase {
     $revision->save();
 
     /** @var \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel */
-    $http_kernel = \Drupal::service('http_kernel');
+    $http_kernel = $this->container->get('http_kernel');
     $request = Request::create($revision->toUrl('version-history')->toString());
     $response = $http_kernel->handle($request);
     $this->assertEquals(403, $response->getStatusCode());
 
-    $role_admin = Role::create(['id' => 'test_role_admin']);
+    $role_admin = Role::create([
+      'id' => 'test_role_admin',
+      'label' => 'Test role admin',
+    ]);
     $role_admin->grantPermission('administer entity_test_enhanced');
     $role_admin->save();
 
-    $role = Role::create(['id' => 'test_role']);
+    $role = Role::create([
+      'id' => 'test_role',
+      'label' => 'Test role',
+    ]);
     $role->grantPermission('view all entity_test_enhanced revisions');
     $role->grantPermission('administer entity_test_enhanced');
     $role->save();
 
     $user_admin = User::create([
-      'name' => 'Test user admin',
+      'name' => 'Test administrator',
     ]);
     $user_admin->addRole($role_admin->id());
-    \Drupal::service('account_switcher')->switchTo($user_admin);
+    $user_admin->save();
+    $this->container->get('account_switcher')->switchTo($user_admin);
 
     $request = Request::create($revision->toUrl('version-history')->toString());
     $response = $http_kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());
 
     $user = User::create([
-      'name' => 'Test user',
+      'name' => 'Test editor',
     ]);
     $user->addRole($role->id());
-    \Drupal::service('account_switcher')->switchTo($user);
+    $user->save();
+    $this->container->get('account_switcher')->switchTo($user);
 
     $request = Request::create($revision->toUrl('version-history')->toString());
     $response = $http_kernel->handle($request);
@@ -123,41 +135,49 @@ class RevisionBasicUITest extends KernelTestBase {
     $revision->save();
 
     /** @var \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel */
-    $http_kernel = \Drupal::service('http_kernel');
+    $http_kernel = $this->container->get('http_kernel');
     $request = Request::create($revision->toUrl('revision')->toString());
     $response = $http_kernel->handle($request);
     $this->assertEquals(403, $response->getStatusCode());
 
-    $role_admin = Role::create(['id' => 'test_role_admin']);
+    $role_admin = Role::create([
+      'id' => 'test_role_admin',
+      'label' => 'Test role admin',
+    ]);
     $role_admin->grantPermission('administer entity_test_enhanced');
     $role_admin->save();
 
-    $role = Role::create(['id' => 'test_role']);
+    $role = Role::create([
+      'id' => 'test_role',
+      'label' => 'Test role',
+    ]);
     $role->grantPermission('view all entity_test_enhanced revisions');
     $role->grantPermission('administer entity_test_enhanced');
     $role->save();
 
     $user_admin = User::create([
-      'name' => 'Test user admin',
+      'name' => 'Test administrator',
     ]);
     $user_admin->addRole($role_admin->id());
-    \Drupal::service('account_switcher')->switchTo($user_admin);
+    $user_admin->save();
+    $this->container->get('account_switcher')->switchTo($user_admin);
 
     $request = Request::create($revision->toUrl('version-history')->toString());
     $response = $http_kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());
 
     $user = User::create([
-      'name' => 'Test user',
+      'name' => 'Test editor',
     ]);
     $user->addRole($role->id());
-    \Drupal::service('account_switcher')->switchTo($user);
+    $user->save();
+    $this->container->get('account_switcher')->switchTo($user);
 
     $request = Request::create($revision->toUrl('revision')->toString());
     $response = $http_kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());
-    $this->assertNotContains('rev 1', $response->getContent());
-    $this->assertContains('rev 2', $response->getContent());
+    $this->assertStringNotContainsString('rev 1', $response->getContent());
+    $this->assertStringContainsString('rev 2', $response->getContent());
   }
 
   public function testRevisionRevert() {
@@ -171,19 +191,23 @@ class RevisionBasicUITest extends KernelTestBase {
     $entity->isDefaultRevision(TRUE);
     $entity->save();
 
-    $role = Role::create(['id' => 'test_role']);
+    $role = Role::create([
+      'id' => 'test_role',
+      'label' => 'Test role',
+    ]);
     $role->grantPermission('administer entity_test_enhanced');
     $role->grantPermission('revert all entity_test_enhanced revisions');
     $role->save();
 
     $user = User::create([
-      'name' => 'Test user',
+      'name' => 'Test administrator',
     ]);
     $user->addRole($role->id());
-    \Drupal::service('account_switcher')->switchTo($user);
+    $user->save();
+    $this->container->get('account_switcher')->switchTo($user);
 
     /** @var \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel */
-    $http_kernel = \Drupal::service('http_kernel');
+    $http_kernel = $this->container->get('http_kernel');
     $request = Request::create($entity->toUrl('revision-revert-form')->toString());
     $response = $http_kernel->handle($request);
     $this->assertEquals(200, $response->getStatusCode());

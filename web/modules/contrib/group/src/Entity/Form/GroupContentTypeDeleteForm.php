@@ -2,7 +2,6 @@
 
 namespace Drupal\group\Entity\Form;
 
-use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Entity\EntityDeleteForm;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -16,32 +15,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * trigger the deletion of the group content type.
  */
 class GroupContentTypeDeleteForm extends EntityDeleteForm {
-
-  /**
-   * The query factory to create entity queries.
-   *
-   * @var \Drupal\Core\Entity\Query\QueryFactory
-   */
-  protected $queryFactory;
-
-  /**
-   * Constructs a new GroupContentTypeDeleteForm object.
-   *
-   * @param \Drupal\Core\Entity\Query\QueryFactory $query_factory
-   *   The entity query object.
-   */
-  public function __construct(QueryFactory $query_factory) {
-    $this->queryFactory = $query_factory;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('entity.query')
-    );
-  }
 
   /**
    * {@inheritdoc}
@@ -86,7 +59,9 @@ class GroupContentTypeDeleteForm extends EntityDeleteForm {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $entity_count = $this->queryFactory->get('group_content')
+    $entity_count = $this->entityTypeManager->getStorage('group_content')
+      ->getQuery()
+      ->accessCheck(FALSE)
       ->condition('type', $this->entity->id())
       ->count()
       ->execute();
@@ -119,7 +94,7 @@ class GroupContentTypeDeleteForm extends EntityDeleteForm {
     ]);
 
     $form_state->setRedirect('entity.group_type.content_plugins', ['group_type' => $group_type->id()]);
-    drupal_set_message($this->t('The content plugin was uninstalled from the group type.'));
+    $this->messenger()->addStatus($this->t('The content plugin was uninstalled from the group type.'));
   }
 
 }

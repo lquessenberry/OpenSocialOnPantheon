@@ -1,0 +1,7 @@
+lazy.config_form:
+  path: 'admin/config/content/lazy'
+  defaults:
+    _title: 'Lazy-load'
+    _form: 'Drupal\lazy\Form\LazyForm'
+  requirements:
+    _permission: 'administer filters'

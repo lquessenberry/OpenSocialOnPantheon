@@ -25,16 +25,7 @@ class ThemeRenderAndAutoescapeTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['system'];
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp() {
-    parent::setUp();
-
-    \Drupal::service('router.builder')->rebuild();
-  }
+  protected static $modules = ['system'];
 
   /**
    * @dataProvider providerTestThemeRenderAndAutoescape
@@ -53,7 +44,7 @@ class ThemeRenderAndAutoescapeTest extends KernelTestBase {
     $renderer = \Drupal::service('renderer');
     $output = $renderer->executeInRenderContext($context, $theme_render_and_autoescape);
     $this->assertEquals($expected, $output);
-    $this->assertInternalType('string', $output);
+    $this->assertIsString($output);
   }
 
   /**
@@ -64,7 +55,7 @@ class ThemeRenderAndAutoescapeTest extends KernelTestBase {
       'empty string unchanged' => ['', ''],
       'simple string unchanged' => ['ab', 'ab'],
       'int (scalar) cast to string' => [111, '111'],
-      'float (scalar) cast to string' => [2.10, '2.10'],
+      'float (scalar) cast to string' => [2.10, '2.1'],
       '> is escaped' => ['>', '&gt;'],
       'Markup EM tag is unchanged' => [Markup::create('<em>hi</em>'), '<em>hi</em>'],
       'Markup SCRIPT tag is unchanged' => [Markup::create('<script>alert("hi");</script>'), '<script>alert("hi");</script>'],
@@ -73,7 +64,7 @@ class ThemeRenderAndAutoescapeTest extends KernelTestBase {
       'type markup with EM tags is rendered' => [['#markup' => '<em>hi</em>'], '<em>hi</em>'],
       'SCRIPT tag in string is escaped' => [
         '<script>alert(123)</script>',
-        Html::escape('<script>alert(123)</script>')
+        Html::escape('<script>alert(123)</script>'),
       ],
       'type plain_text render array EM tag is escaped' => [['#plain_text' => '<em>hi</em>'], Html::escape('<em>hi</em>')],
       'type hidden render array is rendered' => [['#type' => 'hidden', '#name' => 'foo', '#value' => 'bar'], "<input type=\"hidden\" name=\"foo\" value=\"bar\" />\n"],
@@ -84,7 +75,7 @@ class ThemeRenderAndAutoescapeTest extends KernelTestBase {
    * Ensures invalid content is handled correctly.
    */
   public function testThemeEscapeAndRenderNotPrintable() {
-    $this->setExpectedException(\Exception::class);
+    $this->expectException(\Exception::class);
     theme_render_and_autoescape(new NonPrintable());
   }
 

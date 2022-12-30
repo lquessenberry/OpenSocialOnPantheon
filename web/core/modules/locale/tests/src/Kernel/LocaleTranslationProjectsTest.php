@@ -14,7 +14,7 @@ class LocaleTranslationProjectsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['locale', 'locale_test', 'system'];
+  protected static $modules = ['locale', 'locale_test', 'system'];
 
   /**
    * The module handler used in this test.
@@ -33,14 +33,13 @@ class LocaleTranslationProjectsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->moduleHandler = $this->container->get('module_handler');
     $this->projectStorage = $this->container->get('locale.project');
     \Drupal::state()->set('locale.remove_core_project', TRUE);
   }
-
 
   /**
    * Tests locale_translation_clear_cache_projects().
@@ -49,16 +48,16 @@ class LocaleTranslationProjectsTest extends KernelTestBase {
     $this->moduleHandler->loadInclude('locale', 'inc', 'locale.translation');
 
     $expected = [];
-    $this->assertIdentical($expected, locale_translation_get_projects());
+    $this->assertSame($expected, locale_translation_get_projects());
 
     $this->projectStorage->set('foo', []);
     $expected['foo'] = new \stdClass();
-    $this->assertEqual($expected, locale_translation_get_projects());
+    $this->assertEquals($expected, locale_translation_get_projects());
 
     $this->projectStorage->set('bar', []);
     locale_translation_clear_cache_projects();
     $expected['bar'] = new \stdClass();
-    $this->assertEqual($expected, locale_translation_get_projects());
+    $this->assertEquals($expected, locale_translation_get_projects());
   }
 
 }

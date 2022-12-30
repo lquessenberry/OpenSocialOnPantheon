@@ -2,7 +2,12 @@
 
 namespace Drupal\Tests\search_api\Unit\Processor;
 
+use Drupal\search_api\IndexInterface;
+use Drupal\search_api\Item\Field;
+use Drupal\search_api\Plugin\search_api\data_type\value\TextToken;
+use Drupal\search_api\Plugin\search_api\data_type\value\TextValue;
 use Drupal\search_api\Plugin\search_api\processor\HtmlFilter;
+use Drupal\search_api\Query\Condition;
 use Drupal\search_api\Utility\Utility;
 use Drupal\Tests\UnitTestCase;
 
@@ -21,7 +26,7 @@ class HtmlFilterTest extends UnitTestCase {
   /**
    * Creates a new processor object for use in the tests.
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->setUpMockContainer();
@@ -30,7 +35,7 @@ class HtmlFilterTest extends UnitTestCase {
   }
 
   /**
-   * Tests preprocessing field values with "title" settings.
+   * Tests preprocessing field values with different "title" settings.
    *
    * @param string $passed_value
    *   The value that should be passed into process().
@@ -72,7 +77,7 @@ class HtmlFilterTest extends UnitTestCase {
   }
 
   /**
-   * Tests preprocessing field values with "alt" settings.
+   * Tests preprocessing field values with different "alt" settings.
    *
    * @param string $passed_value
    *   The value that should be passed into process().
@@ -148,7 +153,7 @@ class HtmlFilterTest extends UnitTestCase {
   }
 
   /**
-   * Tests preprocessing field values with "alt" settings.
+   * Tests preprocessing field values with different "tags" settings.
    *
    * @param string $passed_value
    *   The value that should be passed into process().
@@ -278,6 +283,64 @@ class HtmlFilterTest extends UnitTestCase {
     unset($config['tags']);
     $configs[] = [$config];
     return $configs;
+  }
+
+  /**
+   * Tests whether "IS NULL" conditions are correctly kept.
+   *
+   * @see https://www.drupal.org/project/search_api/issues/3212925
+   */
+  public function testIsNullConditions() {
+    $index = $this->createMock(IndexInterface::class);
+    $index->method('getFields')->willReturn([
+      'field' => (new Field($index, 'field'))->setType('string'),
+    ]);
+    $this->processor->setIndex($index);
+
+    $passed_value = NULL;
+    $this->invokeMethod('processConditionValue', [&$passed_value]);
+    $this->assertNull($passed_value);
+
+    $condition = new Condition('field', NULL);
+    $conditions = [$condition];
+    $this->invokeMethod('processConditions', [&$conditions]);
+    $this->assertSame([$condition], $conditions);
+  }
+
+  /**
+   * Tests empty values handling.
+   *
+   * @see https://www.drupal.org/project/search_api/issues/3212925
+   */
+  public function testEmptyValueHandling() {
+    $index = $this->createMock(IndexInterface::class);
+    $field = (new Field($index, 'field'))
+      ->setType('text');
+    $index->method('getFields')->willReturn([
+      'field' => $field,
+    ]);
+
+    $field->setValues([new TextValue('<p></p>')]);
+    $this->invokeMethod('processField', [$field]);
+    $this->assertEquals([], $field->getValues());
+
+    $value = new TextValue('<p></p>');
+    $value->setTokens([new TextToken('<p></p>')]);
+    $field->setValues([$value]);
+    $this->invokeMethod('processField', [$field]);
+    $this->assertEquals([], $field->getValues());
+
+    // In theory, setting the value of a "text" field to a string instead of a
+    // TextValue object is not allowed, but when it happens we might as well
+    // handle it graciously (though other parts of the framework might not).
+    $field->setValues(['<p></p>']);
+    $this->invokeMethod('processField', [$field]);
+    $this->assertEquals([], $field->getValues());
+
+    $field->setType('string');
+    $field->setValues(['<p></p>']);
+    $this->invokeMethod('processField', [$field]);
+    $this->assertEquals([], $field->getValues());
   }
 
 }

@@ -26,7 +26,7 @@ interface EntityStorageInterface {
   const FIELD_LOAD_REVISION = 'FIELD_LOAD_REVISION';
 
   /**
-   * Resets the internal, static entity cache.
+   * Resets the internal entity cache.
    *
    * @param $ids
    *   (optional) If specified, the cache is reset for the entities with the
@@ -155,6 +155,28 @@ interface EntityStorageInterface {
   public function save(EntityInterface $entity);
 
   /**
+   * Restores a previously saved entity.
+   *
+   * Note that the entity is assumed to be in a valid state for the storage, so
+   * the restore process does not invoke any hooks, nor does it perform any pre
+   * or post-save operations.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity to restore.
+   *
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *   In case of failures, an exception is thrown.
+   *
+   * @internal
+   *   This method should never be used to perform a regular entity save. Its
+   *   only use-case is to assist updating entity types when there are complex
+   *   schema changes, for example, to make them revisionable. Note that
+   *   overriding this method to fix data prior to restoring is a likely sign
+   *   that the current data is corrupt.
+   */
+  public function restore(EntityInterface $entity);
+
+  /**
    * Determines if the storage contains any data.
    *
    * @return bool
@@ -207,5 +229,17 @@ interface EntityStorageInterface {
    *   Entity type definition.
    */
   public function getEntityType();
+
+  /**
+   * Retrieves the class name used to create the entity.
+   *
+   * @param string|null $bundle
+   *   (optional) A specific entity type bundle identifier. Can be omitted in
+   *   the case of entity types without bundles, like User.
+   *
+   * @return string
+   *   The entity class name.
+   */
+  public function getEntityClass(?string $bundle = NULL): string;
 
 }

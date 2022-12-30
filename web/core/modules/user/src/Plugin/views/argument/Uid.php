@@ -23,7 +23,7 @@ class Uid extends NumericArgument {
   protected $storage;
 
   /**
-   * Constructs a Drupal\Component\Plugin\PluginBase object.
+   * Constructs a \Drupal\user\Plugin\views\argument\Uid object.
    *
    * @param array $configuration
    *   A configuration array containing information about the plugin instance.
@@ -43,8 +43,12 @@ class Uid extends NumericArgument {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static($configuration, $plugin_id, $plugin_definition,
-      $container->get('entity.manager')->getStorage('user'));
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('entity_type.manager')->getStorage('user')
+    );
   }
 
   /**

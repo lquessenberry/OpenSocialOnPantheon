@@ -25,7 +25,7 @@ class CommandHelperTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = [
+  protected static $modules = [
     'search_api',
     'search_api_test',
     'user',
@@ -43,11 +43,11 @@ class CommandHelperTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->installSchema('search_api', ['search_api_item']);
-    $this->installSchema('system', ['key_value_expire', 'sequences']);
+    $this->installSchema('system', ['sequences']);
     $this->installEntitySchema('entity_test_mulrev_changed');
     $this->installEntitySchema('search_api_task');
     $this->installConfig('search_api');
@@ -103,7 +103,12 @@ class CommandHelperTest extends KernelTestBase {
     $this->insertExampleContent();
     $this->indexItems('test_index');
 
-    $this->systemUnderTest = new CommandHelper(\Drupal::entityTypeManager(), \Drupal::moduleHandler(), 't');
+    $this->systemUnderTest = new CommandHelper(
+      \Drupal::entityTypeManager(),
+      \Drupal::moduleHandler(),
+      \Drupal::getContainer()->get('event_dispatcher'),
+      't'
+    );
     $this->systemUnderTest->setLogger(new NullLogger());
   }
 
@@ -114,7 +119,7 @@ class CommandHelperTest extends KernelTestBase {
    */
   public function testListCommand() {
     $results = $this->systemUnderTest->indexListCommand();
-    $this->assertInternalType('array', $results);
+    $this->assertIsArray($results);
     $this->assertCount(2, $results);
     $this->assertArrayHasKey('test_index', $results);
     $this->assertArrayHasKey('second_index', $results);
@@ -132,7 +137,7 @@ class CommandHelperTest extends KernelTestBase {
     $index->delete();
 
     $results = $this->systemUnderTest->indexListCommand();
-    $this->assertInternalType('array', $results);
+    $this->assertIsArray($results);
     $this->assertArrayNotHasKey('test_index', $results);
     $this->assertArrayHasKey('second_index', $results);
   }
@@ -144,7 +149,7 @@ class CommandHelperTest extends KernelTestBase {
    */
   public function testStatusCommand() {
     $results = $this->systemUnderTest->indexStatusCommand();
-    $this->assertInternalType('array', $results);
+    $this->assertIsArray($results);
     $this->assertCount(2, $results);
     $this->assertArrayHasKey('test_index', $results);
     $this->assertArrayHasKey('id', $results['test_index']);
@@ -171,7 +176,7 @@ class CommandHelperTest extends KernelTestBase {
     $index = Index::load('second_index');
     $this->assertTrue($index->status());
 
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->enableIndexCommand(['foo']);
   }
 
@@ -187,7 +192,7 @@ class CommandHelperTest extends KernelTestBase {
       $index->delete();
     }
 
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->enableIndexCommand(['second_index']);
   }
 
@@ -217,7 +222,7 @@ class CommandHelperTest extends KernelTestBase {
     $index = Index::load('test_index');
     $this->assertFalse($index->status());
 
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->disableIndexCommand(['foo']);
   }
 
@@ -273,7 +278,7 @@ class CommandHelperTest extends KernelTestBase {
    */
   public function testServerListCommand() {
     $result = $this->systemUnderTest->serverListCommand();
-    $this->assertInternalType('array', $result);
+    $this->assertIsArray($result);
     $this->assertCount(1, $result);
     $this->assertArrayHasKey('test_server', $result);
     $this->assertSame('test_server', $result['test_server']['id']);
@@ -286,7 +291,7 @@ class CommandHelperTest extends KernelTestBase {
     $server->save();
 
     $result = $this->systemUnderTest->serverListCommand();
-    $this->assertInternalType('array', $result);
+    $this->assertIsArray($result);
     $this->assertCount(1, $result);
     $this->assertArrayHasKey('test_server', $result);
     $this->assertSame('test_server', $result['test_server']['id']);
@@ -294,7 +299,7 @@ class CommandHelperTest extends KernelTestBase {
     $this->assertSame('disabled', (string) $result['test_server']['status']);
 
     $server->delete();
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->serverListCommand();
   }
 
@@ -313,7 +318,7 @@ class CommandHelperTest extends KernelTestBase {
     $server = Server::load('test_server');
     $this->assertTrue($server->status());
 
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->enableServerCommand('foo');
   }
 
@@ -328,7 +333,7 @@ class CommandHelperTest extends KernelTestBase {
     $server = Server::load('test_server');
     $this->assertFalse($server->status());
 
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->enableServerCommand('foo');
   }
 
@@ -357,7 +362,7 @@ class CommandHelperTest extends KernelTestBase {
     $index->save();
 
     $index = Index::load('test_index');
-    $this->assertSame(NULL, $index->getServerId());
+    $this->assertNull($index->getServerId());
 
     $this->systemUnderTest->setIndexServerCommand('test_index', 'test_server');
 
@@ -371,7 +376,7 @@ class CommandHelperTest extends KernelTestBase {
    * @covers ::setIndexServerCommand
    */
   public function testSetIndexServerCommandWithInvalidIndex() {
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->setIndexServerCommand('foo', 'test_server');
   }
 
@@ -381,7 +386,7 @@ class CommandHelperTest extends KernelTestBase {
    * @covers ::setIndexServerCommand
    */
   public function testSetIndexServerCommandWithInvalidServer() {
-    $this->setExpectedException(ConsoleException::class);
+    $this->expectException(ConsoleException::class);
     $this->systemUnderTest->setIndexServerCommand('test_index', 'bar');
   }
 

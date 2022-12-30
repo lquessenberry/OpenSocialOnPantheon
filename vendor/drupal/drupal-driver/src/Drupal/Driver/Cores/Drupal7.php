@@ -40,11 +40,6 @@ class Drupal7 extends AbstractCore {
    * {@inheritdoc}
    */
   public function nodeCreate($node) {
-    // Set original if not set.
-    if (!isset($node->original)) {
-      $node->original = clone $node;
-    }
-
     // Assign authorship if none exists and `author` is passed.
     if (!isset($node->uid) && !empty($node->author) && ($user = user_load_by_name($node->author))) {
       $node->uid = $user->uid;
@@ -105,7 +100,7 @@ class Drupal7 extends AbstractCore {
    * {@inheritdoc}
    */
   public function userDelete(\stdClass $user) {
-    user_cancel(array(), $user->uid, 'user_cancel_delete');
+    user_cancel([], $user->uid, 'user_cancel_delete');
   }
 
   /**
@@ -127,7 +122,7 @@ class Drupal7 extends AbstractCore {
       throw new \RuntimeException(sprintf('No role "%s" exists.', $role_name));
     }
 
-    user_multiple_role_edit(array($user->uid), 'add_role', $role->rid);
+    user_multiple_role_edit([$user->uid], 'add_role', $role->rid);
     $account = user_load($user->uid);
     $user->roles = $account->roles;
 
@@ -212,11 +207,11 @@ class Drupal7 extends AbstractCore {
         $drupal_base_url = parse_url($this->uri);
       }
       // Fill in defaults.
-      $drupal_base_url += array(
+      $drupal_base_url += [
         'path' => NULL,
         'host' => NULL,
         'port' => NULL,
-      );
+      ];
       $_SERVER['HTTP_HOST'] = $drupal_base_url['host'];
 
       if ($drupal_base_url['port']) {
@@ -257,7 +252,7 @@ class Drupal7 extends AbstractCore {
   /**
    * Expands properties on the given entity object to the expected structure.
    *
-   * @param \stdClass $entity
+   * @param object $entity
    *   The entity object.
    */
   protected function expandEntityProperties(\stdClass $entity) {
@@ -294,9 +289,9 @@ class Drupal7 extends AbstractCore {
     if (!isset($term->vid)) {
 
       // Try to load vocabulary by machine name.
-      $vocabularies = \taxonomy_vocabulary_load_multiple(FALSE, array(
+      $vocabularies = \taxonomy_vocabulary_load_multiple(FALSE, [
         'machine_name' => $term->vocabulary_machine_name,
-      ));
+      ]);
       if (!empty($vocabularies)) {
         $vids = array_keys($vocabularies);
         $term->vid = reset($vids);
@@ -313,7 +308,7 @@ class Drupal7 extends AbstractCore {
     }
 
     if (empty($term->vid)) {
-      throw new \Exception(sprintf('No "%s" vocabulary found.'));
+      throw new \Exception(sprintf('No "%s" vocabulary found.', $term->vocabulary_machine_name));
     }
 
     // Attempt to decipher any fields that may be specified.
@@ -351,7 +346,7 @@ class Drupal7 extends AbstractCore {
 
     // If the language code is not valid then throw an InvalidArgumentException.
     if (!isset($predefined_languages[$language->langcode])) {
-      throw new InvalidArgumentException("There is no predefined language with langcode '{$language->langcode}'.");
+      throw new \InvalidArgumentException("There is no predefined language with langcode '{$language->langcode}'.");
     }
 
     // Enable a language only if it has not been enabled already.
@@ -370,7 +365,7 @@ class Drupal7 extends AbstractCore {
   public function languageDelete(\stdClass $language) {
     $langcode = $language->langcode;
     // Do not remove English or the default language.
-    if (!in_array($langcode, array(language_default('language'), 'en'))) {
+    if (!in_array($langcode, [language_default('language'), 'en'])) {
       // @see locale_languages_delete_form_submit().
       $languages = language_list();
       if (isset($languages[$langcode])) {
@@ -387,7 +382,7 @@ class Drupal7 extends AbstractCore {
           ->condition('language', $langcode)
           ->execute();
         db_update('node')
-          ->fields(array('language' => ''))
+          ->fields(['language' => ''])
           ->condition('language', $langcode)
           ->execute();
         if ($languages[$langcode]->enabled) {
@@ -412,6 +407,13 @@ class Drupal7 extends AbstractCore {
   /**
    * {@inheritdoc}
    */
+  public function configGetOriginal($name, $key = '') {
+    throw new \Exception('Getting original config is not yet implemented for Drupal 7.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function configSet($name, $key, $value) {
     throw new \Exception('Setting config is not yet implemented for Drupal 7.');
   }
@@ -424,7 +426,7 @@ class Drupal7 extends AbstractCore {
    *   value.
    */
   protected function getAllPermissions() {
-    $permissions = array();
+    $permissions = [];
     foreach (module_invoke_all('permission') as $name => $permission) {
       $permissions[$name] = $permission['title'];
     }
@@ -442,7 +444,7 @@ class Drupal7 extends AbstractCore {
    * {@inheritdoc}
    */
   public function getExtensionPathList() {
-    $paths = array();
+    $paths = [];
 
     // Get enabled modules.
     $modules = $this->getModuleList();
@@ -456,8 +458,8 @@ class Drupal7 extends AbstractCore {
   /**
    * {@inheritdoc}
    */
-  public function getEntityFieldTypes($entity_type) {
-    $return = array();
+  public function getEntityFieldTypes($entity_type, array $base_fields = []) {
+    $return = [];
     $fields = field_info_field_map();
     foreach ($fields as $field_name => $field) {
       if (array_key_exists($entity_type, $field['bundles'])) {
@@ -486,16 +488,85 @@ class Drupal7 extends AbstractCore {
    * {@inheritdoc}
    */
   public function entityCreate($entity_type, $entity) {
-    // @todo: create a D7 version of this function
-    throw new \Exception('Creation of entities via the generic Entity API is not yet implemented for Drupal 7.');
+    $info = entity_get_info($entity_type);
+    // If the bundle field is empty, put the inferred bundle value in it.
+    $bundle_key = $info['entity keys']['bundle'];
+    if (!isset($entity->$bundle_key) && isset($entity->step_bundle)) {
+      $entity->$bundle_key = $entity->step_bundle;
+    }
+
+    // Throw an exception if a bundle is specified but does not exist.
+    if (isset($entity->$bundle_key) && ($entity->$bundle_key !== NULL)) {
+      $bundles = $info['bundles'];
+      if (!in_array($entity->$bundle_key, array_keys($bundles))) {
+        throw new \Exception("Cannot create entity because provided bundle {$entity->$bundle_key} does not exist.");
+      }
+    }
+    if (empty($entity_type)) {
+      throw new \Exception("You must specify an entity type to create an entity.");
+    }
+
+    $this->expandEntityFields($entity_type, $entity);
+    $createdEntity = entity_create($entity_type, (array) $entity);
+
+    // In D7 it's possible that $createdEntity is not of class Entity, so we
+    // must use entity_save().
+    entity_save($entity_type, $createdEntity);
+
+    list($id) = entity_extract_ids($entity_type, $createdEntity);
+    $createdEntity->id = $id;
+
+    return $createdEntity;
   }
 
   /**
    * {@inheritdoc}
    */
   public function entityDelete($entity_type, $entity) {
-    // @todo: create a D7 version of this function
-    throw new \Exception('Deletion of entities via the generic Entity API is not yet implemented for Drupal 7.');
+    // In D7 it's possible that $entity is not of class Entity, so we must use
+    // entity_delete().
+    list($id) = entity_extract_ids($entity_type, $entity);
+    entity_delete($entity_type, $id);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function startCollectingMail() {
+    // @todo create a D7 version of this function
+    throw new \Exception('Mail testing is not yet implemented for Drupal 7.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stopCollectingMail() {
+    // @todo create a D7 version of this function
+    throw new \Exception('Mail testing is not yet implemented for Drupal 7.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMail() {
+    // @todo create a D7 version of this function
+    throw new \Exception('Mail testing is not yet implemented for Drupal 7.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function clearMail() {
+    // @todo create a D7 version of this function
+    throw new \Exception('Mail testing is not yet implemented for Drupal 7.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function sendMail($body, $subject = '', $to = '', $langcode = '') {
+    // @todo create a D7 version of this function
+    throw new \Exception('Mail testing is not yet implemented for Drupal 7.');
   }
 
 }

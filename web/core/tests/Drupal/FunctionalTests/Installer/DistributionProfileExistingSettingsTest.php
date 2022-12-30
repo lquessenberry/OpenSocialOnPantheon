@@ -5,7 +5,6 @@ namespace Drupal\FunctionalTests\Installer;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Database\Database;
 use Drupal\Core\DrupalKernel;
-use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -25,11 +24,16 @@ class DistributionProfileExistingSettingsTest extends InstallerTestBase {
   /**
    * {@inheritdoc}
    */
+  protected $defaultTheme = 'stark';
+
+  /**
+   * {@inheritdoc}
+   */
   protected function prepareEnvironment() {
     parent::prepareEnvironment();
     $this->info = [
       'type' => 'profile',
-      'core' => \Drupal::CORE_COMPATIBILITY,
+      'core_version_requirement' => '*',
       'name' => 'Distribution profile',
       'distribution' => [
         'name' => 'My Distribution',
@@ -39,9 +43,9 @@ class DistributionProfileExistingSettingsTest extends InstallerTestBase {
       ],
     ];
     // File API functions are not available yet.
-    $path = $this->siteDirectory . '/profiles/mydistro';
+    $path = $this->siteDirectory . '/profiles/my_distro';
     mkdir($path, 0777, TRUE);
-    file_put_contents("$path/mydistro.info.yml", Yaml::encode($this->info));
+    file_put_contents("$path/my_distro.info.yml", Yaml::encode($this->info));
 
     // Pre-configure hash salt.
     // Any string is valid, so simply use the class name of this test.
@@ -64,13 +68,11 @@ class DistributionProfileExistingSettingsTest extends InstallerTestBase {
     // not be available at this point in the install process.
     $site_path = DrupalKernel::findSitePath(Request::createFromGlobals());
     // Pre-configure config directories.
-    $this->settings['config_directories'] = [
-      CONFIG_SYNC_DIRECTORY => (object) [
-        'value' => $site_path . '/files/config_staging',
-        'required' => TRUE,
-      ],
+    $this->settings['settings']['config_sync_directory'] = (object) [
+      'value' => $site_path . '/files/config_staging',
+      'required' => TRUE,
     ];
-    mkdir($this->settings['config_directories'][CONFIG_SYNC_DIRECTORY]->value, 0777, TRUE);
+    mkdir($this->settings['settings']['config_sync_directory']->value, 0777, TRUE);
   }
 
   /**
@@ -84,11 +86,11 @@ class DistributionProfileExistingSettingsTest extends InstallerTestBase {
     chmod($filename, 0444);
 
     // Verify that the distribution name appears.
-    $this->assertRaw($this->info['distribution']['name']);
+    $this->assertSession()->pageTextContains($this->info['distribution']['name']);
     // Verify that the requested theme is used.
-    $this->assertRaw($this->info['distribution']['install']['theme']);
+    $this->assertSession()->responseContains($this->info['distribution']['install']['theme']);
     // Verify that the "Choose profile" step does not appear.
-    $this->assertNoText('profile');
+    $this->assertSession()->pageTextNotContains('profile');
 
     parent::setUpLanguage();
   }
@@ -112,19 +114,17 @@ class DistributionProfileExistingSettingsTest extends InstallerTestBase {
    * Confirms that the installation succeeded.
    */
   public function testInstalled() {
-    $this->assertUrl('user/1');
-    $this->assertResponse(200);
+    $this->assertSession()->addressEquals('user/1');
+    $this->assertSession()->statusCodeEquals(200);
     // Confirm that we are logged-in after installation.
-    $this->assertText($this->rootUser->getUsername());
+    $this->assertSession()->pageTextContains($this->rootUser->getAccountName());
 
     // Confirm that Drupal recognizes this distribution as the current profile.
-    $this->assertEqual(\Drupal::installProfile(), 'mydistro');
-    $this->assertNull(Settings::get('install_profile'), 'The install profile has not been written to settings.php.');
-    $this->assertEqual($this->config('core.extension')->get('profile'), 'mydistro', 'The install profile has been written to core.extension configuration.');
+    $this->assertEquals('my_distro', \Drupal::installProfile());
+    $this->assertEquals('my_distro', $this->config('core.extension')->get('profile'), 'The install profile has been written to core.extension configuration.');
 
     $this->rebuildContainer();
-    $this->pass('Container can be rebuilt even though distribution is not written to settings.php.');
-    $this->assertEqual(\Drupal::installProfile(), 'mydistro');
+    $this->assertEquals('my_distro', \Drupal::installProfile());
   }
 
 }

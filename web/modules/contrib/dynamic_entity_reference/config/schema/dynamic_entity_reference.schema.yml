@@ -72,18 +72,5 @@ field.formatter.settings.dynamic_entity_reference_label:
       label: 'Link label to the referenced entity'
 
 field.widget.settings.dynamic_entity_reference_default:
-  type: mapping
+  type: field.widget.settings.entity_reference_autocomplete
   label: 'Dynamic entity reference autocomplete display format settings'
-  mapping:
-    match_operator:
-      type: string
-      label: 'Autocomplete matching'
-    size:
-      type: integer
-      label: 'Size of textfield'
-    autocomplete_type:
-      type: string
-      label: 'Autocomplete type'
-    placeholder:
-      type: label
-      label: 'Placeholder'

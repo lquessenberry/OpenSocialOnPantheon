@@ -13,7 +13,7 @@ use Drupal\bootstrap\Plugin\Setting\SettingBase;
  *   id = "include_deprecated",
  *   type = "checkbox",
  *   weight = -3,
- *   title = @Translation("Include deprecated functions"),
+ *   title = @Translation("Include <code>deprecated.php</code>"),
  *   defaultValue = 0,
  *   description = @Translation("Enabling this setting will include any <code>deprecated.php</code> file found in your theme or base themes."),
  *   groups = {

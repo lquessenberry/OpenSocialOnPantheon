@@ -14,7 +14,13 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['layout_discovery', 'field_layout', 'entity_test', 'field_layout_test', 'system'];
+  protected static $modules = [
+    'layout_discovery',
+    'field_layout',
+    'entity_test',
+    'field_layout_test',
+    'system',
+  ];
 
   /**
    * @covers ::preSave
@@ -29,8 +35,10 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
       'status' => TRUE,
       'content' => [
         'foo' => ['type' => 'visible'],
-        'bar' => ['type' => 'hidden'],
         'name' => ['type' => 'hidden', 'region' => 'content'],
+      ],
+      'hidden' => [
+        'bar' => TRUE,
       ],
     ]);
 
@@ -41,7 +49,9 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
       'third_party_settings' => [
         'field_layout' => [
           'id' => 'layout_onecol',
-          'settings' => [],
+          'settings' => [
+            'label' => '',
+          ],
         ],
       ],
       'id' => 'entity_test.entity_test.default',
@@ -52,11 +62,10 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
         'foo' => [
           'type' => 'visible',
         ],
-        'bar' => [
-          'type' => 'hidden',
-        ],
       ],
-      'hidden' => [],
+      'hidden' => [
+        'bar' => TRUE,
+      ],
     ];
     $this->assertEntityValues($expected, $entity_display->toArray());
 
@@ -74,10 +83,6 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
     $expected['third_party_settings']['entity_test'] = ['foo' => 'bar'];
     // The visible field is assigned the default region.
     $expected['content']['foo']['region'] = 'content';
-    // The hidden field is removed from the list of visible fields, and marked
-    // as hidden.
-    unset($expected['content']['bar']);
-    $expected['hidden'] = ['bar' => TRUE];
 
     $this->assertEntityValues($expected, $entity_display->toArray());
 
@@ -144,7 +149,9 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
     // The layout has been updated.
     $expected['third_party_settings']['field_layout'] = [
       'id' => 'test_layout_content_and_footer',
-      'settings' => [],
+      'settings' => [
+        'label' => '',
+      ],
     ];
     // The field remains in its current region instead of moving to the default.
     $this->assertEntityValues($expected, $entity_display->toArray());
@@ -168,11 +175,16 @@ class FieldLayoutEntityDisplayTest extends KernelTestBase {
   /**
    * Asserts than an entity has the correct values.
    *
-   * @param mixed $expected
+   * @param array $expected
+   *   The expected values.
    * @param array $values
+   *   The actual values.
    * @param string $message
+   *   (optional) An error message.
+   *
+   * @internal
    */
-  public static function assertEntityValues($expected, array $values, $message = '') {
+  public static function assertEntityValues(array $expected, array $values, string $message = ''): void {
 
     static::assertArrayHasKey('uuid', $values);
     unset($values['uuid']);

@@ -23,6 +23,13 @@ drupal.bootstrap:
     - core/drupalSettings
     - bootstrap/framework
 
+dialog:
+  js:
+    js/dialog.js: {}
+  dependencies:
+    - bootstrap/theme
+    - bootstrap/modal
+
 # Create a library placeholder for livereload.
 # This is altered dynamically based on the set URL.
 # @see \Drupal\bootstrap\Plugin\Alter\LibraryInfo::alter
@@ -42,7 +49,7 @@ theme-settings:
     js/theme-settings.js: {}
   dependencies:
     - core/jquery
-    - core/jquery.once
+    - core/once
     - core/drupal
     - core/drupalSettings
 
@@ -94,12 +101,18 @@ drupal.autocomplete:
 drupal.dialog.ajax:
   js:
     js/misc/dialog.ajax.js: {}
+  dependencies:
+    - bootstrap/drupal.bootstrap
 
 drupal.form:
   js:
     js/misc/form.js: {}
   dependencies:
     - bootstrap/theme
+
+drupal.message:
+  js:
+    js/misc/message.js: {}
 
 drupal.progress:
   js:
@@ -112,6 +125,10 @@ drupal.states:
 drupal.tabledrag:
   js:
     js/misc/tabledrag.js: {}
+
+drupal.tableheader:
+  js:
+    js/misc/tableheader.js: {}
 
 image_widget_crop:
   js:
@@ -129,7 +146,7 @@ drupal.batch:
     - bootstrap/theme
     - core/drupal.ajax
     - core/drupal.progress
-    - core/jquery.once
+    - core/once
 
 drupal.filter:
   version: VERSION
@@ -138,14 +155,14 @@ drupal.filter:
   dependencies:
     - core/jquery
     - core/drupal
-    - core/jquery.once
+    - core/once
 
 drupal.text:
   js:
     js/text/text.js: {}
   dependencies:
     - core/jquery
-    - core/jquery.once
+    - core/once
     - core/drupal
 
 drupal.vertical-tabs:
@@ -153,6 +170,5 @@ drupal.vertical-tabs:
     js/misc/vertical-tabs.js: {}
   dependencies:
     - bootstrap/theme
-    - core/jquery.once
+    - core/once
     - core/drupal.form
-    - core/matchmedia

@@ -2,7 +2,7 @@
 
 namespace Drupal\views\EventSubscriber;
 
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\State\StateInterface;
 use Drupal\Core\Routing\RouteSubscriberBase;
 use Drupal\Core\Routing\RoutingEvents;
@@ -54,13 +54,13 @@ class RouteSubscriber extends RouteSubscriberBase {
   /**
    * Constructs a \Drupal\views\EventSubscriber\RouteSubscriber instance.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
    * @param \Drupal\Core\State\StateInterface $state
    *   The state key value store.
    */
-  public function __construct(EntityManagerInterface $entity_manager, StateInterface $state) {
-    $this->viewStorage = $entity_manager->getStorage('view');
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, StateInterface $state) {
+    $this->viewStorage = $entity_type_manager->getStorage('view');
     $this->state = $state;
   }
 
@@ -94,7 +94,7 @@ class RouteSubscriber extends RouteSubscriberBase {
       // @todo Convert this method to some service.
       $views = $this->getApplicableViews();
       foreach ($views as $data) {
-        list($view_id, $display_id) = $data;
+        [$view_id, $display_id] = $data;
         $this->viewsDisplayPairs[] = $view_id . '.' . $display_id;
       }
       $this->viewsDisplayPairs = array_combine($this->viewsDisplayPairs, $this->viewsDisplayPairs);
@@ -111,7 +111,7 @@ class RouteSubscriber extends RouteSubscriberBase {
   public function routes() {
     $collection = new RouteCollection();
     foreach ($this->getViewsDisplayIDsWithRoute() as $pair) {
-      list($view_id, $display_id) = explode('.', $pair);
+      [$view_id, $display_id] = explode('.', $pair);
       $view = $this->viewStorage->load($view_id);
       // @todo This should have an executable factory injected.
       if (($view = $view->getExecutable()) && $view instanceof ViewExecutable) {
@@ -133,7 +133,7 @@ class RouteSubscriber extends RouteSubscriberBase {
    */
   protected function alterRoutes(RouteCollection $collection) {
     foreach ($this->getViewsDisplayIDsWithRoute() as $pair) {
-      list($view_id, $display_id) = explode('.', $pair);
+      [$view_id, $display_id] = explode('.', $pair);
       $view = $this->viewStorage->load($view_id);
       // @todo This should have an executable factory injected.
       if (($view = $view->getExecutable()) && $view instanceof ViewExecutable) {

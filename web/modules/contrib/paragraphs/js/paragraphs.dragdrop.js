@@ -53,15 +53,23 @@
 
   Drupal.behaviors.paragraphsDraggable = {
     attach: function (context) {
+      // Prevent default click handling on the drag handle.
+      $('.paragraphs-dragdrop__handle', context).on('click', function (event) {
+        event.preventDefault();
+      });
 
       // Initialize drag and drop.
-      $('ul.paragraphs-dragdrop', context).each(function (i, item) {
+      $('ul.paragraphs-dragdrop__list', context).each(function (i, item) {
         $(item).paragraphsSortable({
           group: "paragraphs",
           sort: true,
-          handle: ".tabledrag-handle",
+          handle: ".paragraphs-dragdrop__handle",
           onMove: isAllowed,
-          onEnd: handleReorder
+          onEnd: function(evt) {
+            handleReorder(evt);
+            endDragClasses();
+          },
+          onStart: startDragClasses,
         });
       });
 
@@ -72,17 +80,16 @@
        *   The Sortable event.
        */
       function handleReorder(evt) {
-        var $item = $(evt.item);
-        var $parent = $item.closest('.paragraphs-dragdrop');
-        var $children = $parent.children('li');
-        var $srcParent = $(evt.to);
-        var $srcChildren = $srcParent.children('li');
-
         // Update both the source and target children.
-        updateWeightsAndPath($srcChildren);
-        updateWeightsAndPath($children);
+        if (evt.from === evt.to) {
+          updateWeightsAndPath($(evt.to).children('li'));
+        }
+        else {
+          updateWeightsAndPath($(evt.from).children('li'));
+          updateWeightsAndPath($(evt.to).children('li'));
+        }
+        endDragClasses();
       }
-
 
       /**
        * Update weight and recursively update path of the provided paragraphs.
@@ -173,7 +180,10 @@
         var drageeType = dragee.dataset.paragraphsDragdropBundle;
         var allowedTypes = target.dataset.paragraphsDragdropAllowedTypes;
         var hasSameContainer = evt.to === evt.from;
-        return hasSameContainer || (contains(drageeType, allowedTypes) && hasRoom(target));
+        var allowed = hasSameContainer || (contains(drageeType, allowedTypes) && hasRoom(target));
+        targetAllowedClasses(target, allowed);
+
+        return allowed;
       }
 
       /**
@@ -216,6 +226,46 @@
           }
         }
         return false;
+      }
+
+      /**
+       * Provides a helper class indicating drag status on <html> element when
+       * dragging starts.
+       */
+      function startDragClasses() {
+        $('html').addClass('is-dragging-paragraphs');
+        // Fix race condition when the drag event start results in a scrollbar
+        // position change triggered by a collapsing item with children. Add a
+        // min-height for the current height as a workaround.
+        $('.paragraphs-dragdrop__list').eq(0).css('min-height', function() {
+          return $(this).height();
+        });
+      }
+
+      /**
+       * Provides a helper class indicating a valid drop target via isAllowed().
+       *
+       * @param target
+       *   The target list/paragraph field.
+       *
+       * @param {boolean} allowed
+       *   TRUE if the target type is allowed.
+       */
+      function targetAllowedClasses(target, allowed) {
+        $('.is-droppable-target').removeClass('is-droppable-target');
+        if (allowed) {
+          $(target).addClass('is-droppable-target');
+        }
+      }
+
+      /**
+       * Removes helper classes when dragging ends.
+       */
+      function endDragClasses() {
+        $('html').removeClass('is-dragging-paragraphs');
+        $('.is-droppable-target').removeClass('is-droppable-target');
+        // Remove the custom min-height definition added in startDragClasses().
+        $('.paragraphs-dragdrop__list').eq(0).removeAttr('style');
       }
 
       // Fix for an iOS 10 bug. Binding empty event handler on the touchmove

@@ -3,7 +3,7 @@
 namespace Drupal\views\Plugin\Menu;
 
 use Drupal\Core\Menu\MenuLinkBase;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\views\ViewExecutableFactory;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -29,11 +29,11 @@ class ViewsMenuLink extends MenuLinkBase implements ContainerFactoryPluginInterf
   ];
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The view executable factory.
@@ -58,15 +58,15 @@ class ViewsMenuLink extends MenuLinkBase implements ContainerFactoryPluginInterf
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\views\ViewExecutableFactory $view_executable_factory
    *   The view executable factory
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager, ViewExecutableFactory $view_executable_factory) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, ViewExecutableFactory $view_executable_factory) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
 
-    $this->entityManager = $entity_manager;
+    $this->entityTypeManager = $entity_type_manager;
     $this->viewExecutableFactory = $view_executable_factory;
   }
 
@@ -78,7 +78,7 @@ class ViewsMenuLink extends MenuLinkBase implements ContainerFactoryPluginInterf
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('entity.manager'),
+      $container->get('entity_type.manager'),
       $container->get('views.executable')
     );
   }
@@ -94,7 +94,7 @@ class ViewsMenuLink extends MenuLinkBase implements ContainerFactoryPluginInterf
       $metadata = $this->getMetaData();
       $view_id = $metadata['view_id'];
       $display_id = $metadata['display_id'];
-      $view_entity = $this->entityManager->getStorage('view')->load($view_id);
+      $view_entity = $this->entityTypeManager->getStorage('view')->load($view_id);
       $view = $this->viewExecutableFactory->get($view_entity);
       $view->setDisplay($display_id);
       $view->initDisplay();
@@ -125,7 +125,6 @@ class ViewsMenuLink extends MenuLinkBase implements ContainerFactoryPluginInterf
   public function isExpanded() {
     return (bool) $this->loadView()->display_handler->getOption('menu')['expanded'];
   }
-
 
   /**
    * {@inheritdoc}

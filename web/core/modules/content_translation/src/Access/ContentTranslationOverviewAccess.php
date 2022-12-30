@@ -3,7 +3,7 @@
 namespace Drupal\content_translation\Access;
 
 use Drupal\Core\Access\AccessResult;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\Access\AccessInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountInterface;
@@ -14,20 +14,20 @@ use Drupal\Core\Session\AccountInterface;
 class ContentTranslationOverviewAccess implements AccessInterface {
 
   /**
-   * The entity type manager.
+   * The entity type manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a ContentTranslationOverviewAccess object.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $manager
-   *   The entity type manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
    */
-  public function __construct(EntityManagerInterface $manager) {
-    $this->entityManager = $manager;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -44,14 +44,14 @@ class ContentTranslationOverviewAccess implements AccessInterface {
    *   The access result.
    */
   public function access(RouteMatchInterface $route_match, AccountInterface $account, $entity_type_id) {
-    /* @var \Drupal\Core\Entity\ContentEntityInterface $entity */
+    /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
     $entity = $route_match->getParameter($entity_type_id);
     if ($entity && $entity->isTranslatable()) {
       // Get entity base info.
       $bundle = $entity->bundle();
 
       // Get entity access callback.
-      $definition = $this->entityManager->getDefinition($entity_type_id);
+      $definition = $this->entityTypeManager->getDefinition($entity_type_id);
       $translation = $definition->get('translation');
       $access_callback = $translation['content_translation']['access_callback'];
       $access = call_user_func($access_callback, $entity);

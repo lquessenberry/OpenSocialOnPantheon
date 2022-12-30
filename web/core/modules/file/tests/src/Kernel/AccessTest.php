@@ -18,7 +18,7 @@ class AccessTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['file', 'system', 'user'];
+  protected static $modules = ['file', 'system', 'user'];
 
   /**
    * An authenticated user.
@@ -44,7 +44,7 @@ class AccessTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('file');
@@ -93,7 +93,7 @@ class AccessTest extends KernelTestBase {
     \Drupal::currentUser()->setAccount($this->user1);
     /** @var \Drupal\file\FileInterface $file */
     $file = File::create([
-      'uri' => 'public://test.png'
+      'uri' => 'public://test.png',
     ]);
     // While creating a file entity access will be allowed for create-only
     // fields.
@@ -131,8 +131,8 @@ class AccessTest extends KernelTestBase {
       'filename' => 'green-scarf',
       'uri' => 'private://green-scarf',
       'filemime' => 'text/plain',
-      'status' => FILE_STATUS_PERMANENT,
     ]);
+    $file->setPermanent();
     $file->save();
     \Drupal::service('session')->set('anonymous_allowed_file_ids', [$file->id() => $file->id()]);
 

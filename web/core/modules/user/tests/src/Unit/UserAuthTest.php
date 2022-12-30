@@ -2,8 +2,16 @@
 
 namespace Drupal\Tests\user\Unit;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Routing\RequestContext;
+use Drupal\Core\Routing\TrustedRedirectResponse;
 use Drupal\Tests\UnitTestCase;
+use Drupal\user\Authentication\Provider\Cookie;
 use Drupal\user\UserAuth;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 
 /**
  * @coversDefaultClass \Drupal\user\UserAuth
@@ -14,21 +22,21 @@ class UserAuthTest extends UnitTestCase {
   /**
    * The mock user storage.
    *
-   * @var \Drupal\Core\Entity\EntityStorageInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Entity\EntityStorageInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $userStorage;
 
   /**
    * The mocked password service.
    *
-   * @var \Drupal\Core\Password\PasswordInterface|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\Core\Password\PasswordInterface|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $passwordService;
 
   /**
    * The mock user.
    *
-   * @var \Drupal\user\Entity\User|\PHPUnit_Framework_MockObject_MockObject
+   * @var \Drupal\user\Entity\User|\PHPUnit\Framework\MockObject\MockObject
    */
   protected $testUser;
 
@@ -56,23 +64,24 @@ class UserAuthTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
-    $this->userStorage = $this->getMock('Drupal\Core\Entity\EntityStorageInterface');
+  protected function setUp(): void {
+    $this->userStorage = $this->createMock('Drupal\Core\Entity\EntityStorageInterface');
 
-    $entity_manager = $this->getMock('Drupal\Core\Entity\EntityManagerInterface');
-    $entity_manager->expects($this->any())
+    /** @var \Drupal\Core\Entity\EntityTypeManagerInterface|\PHPUnit\Framework\MockObject\MockObject $entity_type_manager */
+    $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
+    $entity_type_manager->expects($this->any())
       ->method('getStorage')
       ->with('user')
       ->will($this->returnValue($this->userStorage));
 
-    $this->passwordService = $this->getMock('Drupal\Core\Password\PasswordInterface');
+    $this->passwordService = $this->createMock('Drupal\Core\Password\PasswordInterface');
 
     $this->testUser = $this->getMockBuilder('Drupal\user\Entity\User')
       ->disableOriginalConstructor()
-      ->setMethods(['id', 'setPassword', 'save', 'getPassword'])
+      ->onlyMethods(['id', 'setPassword', 'save', 'getPassword'])
       ->getMock();
 
-    $this->userAuth = new UserAuth($entity_manager, $this->passwordService);
+    $this->userAuth = new UserAuth($entity_type_manager, $this->passwordService);
   }
 
   /**
@@ -156,7 +165,7 @@ class UserAuthTest extends UnitTestCase {
       ->with($this->password, $this->testUser->getPassword())
       ->will($this->returnValue(TRUE));
 
-    $this->assertsame(1, $this->userAuth->authenticate($this->username, $this->password));
+    $this->assertSame(1, $this->userAuth->authenticate($this->username, $this->password));
   }
 
   /**
@@ -183,11 +192,11 @@ class UserAuthTest extends UnitTestCase {
       ->with(0, 0)
       ->will($this->returnValue(TRUE));
 
-    $this->assertsame(2, $this->userAuth->authenticate($this->username, 0));
+    $this->assertSame(2, $this->userAuth->authenticate($this->username, 0));
   }
 
   /**
-   * Tests the authenticate method with a correct password and new password hash.
+   * Tests the authenticate method with a correct password & new password hash.
    *
    * @covers ::authenticate
    */
@@ -215,7 +224,60 @@ class UserAuthTest extends UnitTestCase {
       ->with($this->testUser->getPassword())
       ->will($this->returnValue(TRUE));
 
-    $this->assertsame(1, $this->userAuth->authenticate($this->username, $this->password));
+    $this->assertSame(1, $this->userAuth->authenticate($this->username, $this->password));
+  }
+
+  /**
+   * Tests the auth that ends in a redirect from subdomain to TLD.
+   */
+  public function testAddCheckToUrlForTrustedRedirectResponse(): void {
+    $site_domain = 'site.com';
+    $frontend_url = "https://$site_domain";
+    $backend_url = "https://api.$site_domain";
+    $request = Request::create($backend_url);
+    $response = new TrustedRedirectResponse($frontend_url);
+
+    $request_context = $this->createMock(RequestContext::class);
+    $request_context
+      ->method('getCompleteBaseUrl')
+      ->willReturn($backend_url);
+
+    $container = new ContainerBuilder();
+    $container->set('router.request_context', $request_context);
+    \Drupal::setContainer($container);
+
+    $session_mock = $this->createMock(SessionInterface::class);
+    $session_mock
+      ->expects($this->once())
+      ->method('has')
+      ->with('check_logged_in')
+      ->willReturn(TRUE);
+    $session_mock
+      ->expects($this->once())
+      ->method('remove')
+      ->with('check_logged_in');
+
+    $event_mock = $this->createMock(ResponseEvent::class);
+    $event_mock
+      ->expects($this->once())
+      ->method('getResponse')
+      ->willReturn($response);
+    $event_mock
+      ->expects($this->exactly(3))
+      ->method('getRequest')
+      ->willReturn($request);
+
+    $request
+      ->setSession($session_mock);
+
+    $this
+      ->getMockBuilder(Cookie::class)
+      ->disableOriginalConstructor()
+      ->onlyMethods([])
+      ->getMock()
+      ->addCheckToUrl($event_mock);
+
+    $this->assertSame("$frontend_url?check_logged_in=1", $response->getTargetUrl());
   }
 
 }

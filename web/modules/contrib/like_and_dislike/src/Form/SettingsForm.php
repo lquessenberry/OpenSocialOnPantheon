@@ -5,10 +5,11 @@ namespace Drupal\like_and_dislike\Form;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 
 /**
  * Class SettingsForm.
@@ -43,14 +44,18 @@ class SettingsForm extends ConfigFormBase {
   /**
    * Constructs a \Drupal\like_and_dislike\Form\SettingsForm object.
    *
-   * @param \Drupal\Core\Entity\EntityTypeManager $entity_type_manager
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The factory for configuration objects.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager .
    * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
    *   The entity field manager.
    * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $bundle_info_service
    *   The bundle info service.
    */
-  public function __construct(EntityTypeManager $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $bundle_info_service) {
+  public function __construct(ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $bundle_info_service) {
+    parent::__construct($config_factory);
+
     $this->entityTypeManager = $entity_type_manager;
     $this->entityFieldManager = $entity_field_manager;
     $this->bundleInfoService = $bundle_info_service;
@@ -61,6 +66,7 @@ class SettingsForm extends ConfigFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
+      $container->get('config.factory'),
       $container->get('entity_type.manager'),
       $container->get('entity_field.manager'),
       $container->get('entity_type.bundle.info')
@@ -100,8 +106,8 @@ class SettingsForm extends ConfigFormBase {
 
     $form['enabled_types'] = [
       '#type' => 'fieldset',
-      '#title' => t('Entity types with Like & Dislike widgets enabled'),
-      '#description' => t('If you disable any type here, already existing data will remain untouched.'),
+      '#title' => $this->t('Entity types with Like & Dislike widgets enabled'),
+      '#description' => $this->t('If you disable any type here, already existing data will remain untouched.'),
       '#tree' => TRUE,
     ];
 
@@ -151,9 +157,17 @@ class SettingsForm extends ConfigFormBase {
     // Checkbox to allow vote cancellation.
     $form['allow_cancel_vote'] = [
       '#type' => 'checkbox',
-      '#title' => t('Allow vote cancellation'),
-      '#description' => t('Whether the users should be allowed to cancel their own votes by voting again for the same choice of the same poll.'),
+      '#title' => $this->t('Allow vote cancellation'),
+      '#description' => $this->t('Whether the users should be allowed to cancel their own votes by voting again for the same choice of the same poll.'),
       '#default_value' => $config->get('allow_cancel_vote'),
+    ];
+
+    // Checkbox to allow hiding of vote widgets on missing permission.
+    $form['hide_vote_widget'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Hide vote widget instead of disabling it'),
+      '#description' => $this->t('If checked then instead of disabled widget user will not see widget at all if vote permission is missing.'),
+      '#default_value' => $config->get('hide_vote_widget'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -185,6 +199,7 @@ class SettingsForm extends ConfigFormBase {
 
     $config->set('enabled_types', $enabled_types);
     $config->set('allow_cancel_vote', $form_state->getValue('allow_cancel_vote'));
+    $config->set('hide_vote_widget', $form_state->getValue('hide_vote_widget'));
     $config->save();
 
     parent::submitForm($form, $form_state);

@@ -2,7 +2,7 @@
 
 namespace Drush\Preflight;
 
-use Webmozart\PathUtil\Path;
+use Symfony\Component\Filesystem\Path;
 
 /**
  * RedispatchToSiteLocal forces an `exec` to the site-local Drush if it
@@ -13,7 +13,6 @@ use Webmozart\PathUtil\Path;
  */
 class RedispatchToSiteLocal
 {
-
     /**
      * Determine if a local redispatch is needed, and do so if it is.
      *
@@ -25,16 +24,8 @@ class RedispatchToSiteLocal
      * @return bool
      *   True if redispatch occurred, and was returned successfully.
      */
-    public static function redispatchIfSiteLocalDrush($argv, $root, $vendor, PreflightLog $preflightLog)
+    public static function redispatchIfSiteLocalDrush(array $argv, string $root, string $vendor, PreflightLog $preflightLog)
     {
-        // Special check for the SUT, which is always a site-local install.
-        // The symlink that Composer sets up can make it challenging to
-        // detect that the vendor directory is in the same place. Do not
-        // set DRUSH_AUTOLOAD_PHP unless you know what you are doing! This
-        // mechanism should be reserved for use with test fixtures.
-        if (getenv('DRUSH_AUTOLOAD_PHP')) {
-            return false;
-        }
 
         // Try to find the site-local Drush. If there is none, we are done.
         $siteLocalDrush = static::findSiteLocalDrush($root);
@@ -49,12 +40,12 @@ class RedispatchToSiteLocal
 
         // Do another special check to detect symlinked Drush folder similar
         // to what the SUT sets up for Drush functional tests.
-        if (dirname($vendor) == dirname($siteLocalDrush)) {
+        if (dirname($vendor) === dirname($siteLocalDrush)) {
             return false;
         }
 
         // Redispatch!
-        $command = $siteLocalDrush;
+        $command = escapeshellarg($siteLocalDrush);
         $preflightLog->log(dt('Redispatch to site-local Drush: !cmd.', ['!cmd' => $command]));
         array_shift($argv);
         $args = array_map(
@@ -72,9 +63,9 @@ class RedispatchToSiteLocal
      * Find a site-local Drush, if there is one in the selected site's
      * vendor directory.
      *
-     * @param string $root The selected site root
+     * @param $root The selected site root
      */
-    protected static function findSiteLocalDrush($root)
+    protected static function findSiteLocalDrush(string $root)
     {
         $candidates = [
             "$root/vendor/drush/drush/drush",

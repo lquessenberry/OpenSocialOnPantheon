@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\group\Kernel;
 
+use Drupal\Core\Entity\EntityStorageException;
+
 /**
  * Tests the behavior of group content storage handler.
  *
@@ -76,12 +78,13 @@ class GroupContentStorageTest extends GroupKernelTestBase {
    * Tests the creation of a GroupContent entity using an unsaved group.
    *
    * @covers ::createForEntityInGroup
-   * @expectedException \Drupal\Core\Entity\EntityStorageException
-   * @expectedExceptionMessage Cannot add an entity to an unsaved group.
    */
   public function testCreateForUnsavedGroup() {
     $group = $this->createUnsavedGroup();
     $account = $this->createUser();
+
+    $this->expectException(EntityStorageException::class);
+    $this->expectExceptionMessage('Cannot add an entity to an unsaved group.');
     $this->storage->createForEntityInGroup($account, $group, 'user_as_content');
   }
 
@@ -89,12 +92,13 @@ class GroupContentStorageTest extends GroupKernelTestBase {
    * Tests the creation of a GroupContent entity using an unsaved entity.
    *
    * @covers ::createForEntityInGroup
-   * @expectedException \Drupal\Core\Entity\EntityStorageException
-   * @expectedExceptionMessage Cannot add an unsaved entity to a group.
    */
   public function testCreateForUnsavedEntity() {
     $group = $this->createGroup();
     $account = $this->createUnsavedUser();
+
+    $this->expectException(EntityStorageException::class);
+    $this->expectExceptionMessage('Cannot add an unsaved entity to a group.');
     $this->storage->createForEntityInGroup($account, $group, 'user_as_content');
   }
 
@@ -102,12 +106,13 @@ class GroupContentStorageTest extends GroupKernelTestBase {
    * Tests the creation of a GroupContent entity using an incorrect plugin ID.
    *
    * @covers ::createForEntityInGroup
-   * @expectedException \Drupal\Core\Entity\EntityStorageException
-   * @expectedExceptionMessage Invalid plugin provided for adding the entity to the group.
    */
   public function testCreateForInvalidPluginId() {
     $group = $this->createGroup();
     $account = $this->createUser();
+
+    $this->expectException(EntityStorageException::class);
+    $this->expectExceptionMessage('Invalid plugin provided for adding the entity to the group.');
     $this->storage->createForEntityInGroup($account, $group, 'group_as_content');
   }
 
@@ -115,12 +120,13 @@ class GroupContentStorageTest extends GroupKernelTestBase {
    * Tests the creation of a GroupContent entity using an incorrect bundle.
    *
    * @covers ::createForEntityInGroup
-   * @expectedException \Drupal\Core\Entity\EntityStorageException
-   * @expectedExceptionMessage The provided plugin provided does not support the entity's bundle.
    */
   public function testCreateForInvalidBundle() {
     $group = $this->createGroup();
     $subgroup = $this->createGroup(['type' => 'other']);
+
+    $this->expectException(EntityStorageException::class);
+    $this->expectExceptionMessage("The provided plugin provided does not support the entity's bundle.");
     $this->storage->createForEntityInGroup($subgroup, $group, 'group_as_content');
   }
 
@@ -152,11 +158,11 @@ class GroupContentStorageTest extends GroupKernelTestBase {
    * Tests the loading of GroupContent entities for an unsaved group.
    *
    * @covers ::loadByGroup
-   * @expectedException \Drupal\Core\Entity\EntityStorageException
-   * @expectedExceptionMessage Cannot load GroupContent entities for an unsaved group.
    */
   public function testLoadByUnsavedGroup() {
     $group = $this->createUnsavedGroup();
+    $this->expectException(EntityStorageException::class);
+    $this->expectExceptionMessage('Cannot load GroupContent entities for an unsaved group.');
     $this->storage->loadByGroup($group);
   }
 
@@ -174,11 +180,11 @@ class GroupContentStorageTest extends GroupKernelTestBase {
    * Tests the loading of GroupContent entities for an unsaved entity.
    *
    * @covers ::loadByEntity
-   * @expectedException \Drupal\Core\Entity\EntityStorageException
-   * @expectedExceptionMessage Cannot load GroupContent entities for an unsaved entity.
    */
   public function testLoadByUnsavedEntity() {
     $group = $this->createUnsavedGroup();
+    $this->expectException(EntityStorageException::class);
+    $this->expectExceptionMessage('Cannot load GroupContent entities for an unsaved entity.');
     $this->storage->loadByEntity($group);
   }
 

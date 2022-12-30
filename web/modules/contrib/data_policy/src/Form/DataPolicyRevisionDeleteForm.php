@@ -66,10 +66,8 @@ class DataPolicyRevisionDeleteForm extends ConfirmFormBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    $entity_manager = $container->get('entity.manager');
-
     return new static(
-      $entity_manager->getStorage('data_policy'),
+      $container->get('entity_type.manager')->getStorage('data_policy'),
       $container->get('database'),
       $container->get('date.formatter')
     );
@@ -95,7 +93,7 @@ class DataPolicyRevisionDeleteForm extends ConfirmFormBase {
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return new Url('entity.data_policy.version_history');
+    return new Url('entity.data_policy.version_history', ['entity_id' => $this->revision->id()]);
   }
 
   /**

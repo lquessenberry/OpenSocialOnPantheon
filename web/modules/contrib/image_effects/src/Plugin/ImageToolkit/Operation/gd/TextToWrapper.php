@@ -2,9 +2,9 @@
 
 namespace Drupal\image_effects\Plugin\ImageToolkit\Operation\gd;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\system\Plugin\ImageToolkit\Operation\gd\GDImageToolkitOperationBase;
 use Drupal\image_effects\Component\ColorUtility;
+use Drupal\image_effects\Component\ImageUtility;
 use Drupal\image_effects\Component\PositionedRectangle;
 use Drupal\image_effects\Component\TextUtility;
 use Drupal\image_effects\Plugin\ImageToolkit\Operation\FontOperationTrait;
@@ -243,8 +243,8 @@ class TextToWrapper extends GDImageToolkitOperationBase {
 
     // Determine wrapper offset, based on placement option and direct
     // offset indicated in settings.
-    $wrapper_xpos = ceil(image_filter_keyword($arguments['layout_x_pos'], $arguments['canvas_width'], $original_wrapper_width)) + $arguments['layout_x_offset'];
-    $wrapper_ypos = ceil(image_filter_keyword($arguments['layout_y_pos'], $arguments['canvas_height'], $original_wrapper_height)) + $arguments['layout_y_offset'];
+    $wrapper_xpos = ImageUtility::getKeywordOffset($arguments['layout_x_pos'], $arguments['canvas_width'], $original_wrapper_width) + $arguments['layout_x_offset'];
+    $wrapper_ypos = ImageUtility::getKeywordOffset($arguments['layout_y_pos'], $arguments['canvas_height'], $original_wrapper_height) + $arguments['layout_y_offset'];
 
     // Position of wrapper's bottom right point.
     $xc_pos = $wrapper_xpos + $original_wrapper_width;
@@ -385,14 +385,14 @@ class TextToWrapper extends GDImageToolkitOperationBase {
       // Find the next wrap point (always after trailing whitespace).
       $match = [];
       if (TextUtility::unicodePregMatch('/[' . TextUtility::PREG_CLASS_PUNCTUATION . '][' . TextUtility::PREG_CLASS_SEPARATOR . ']*|[' . TextUtility::PREG_CLASS_SEPARATOR . ']+/u', $text, $match, PREG_OFFSET_CAPTURE, $end)) {
-        $end = $match[0][1] + Unicode::strlen($match[0][0]);
+        $end = $match[0][1] + mb_strlen($match[0][0]);
       }
       else {
-        $end = Unicode::strlen($text);
+        $end = mb_strlen($text);
       }
 
       // Fetch text, removing trailing white-space, and measure it.
-      $line = preg_replace('/[' . TextUtility::PREG_CLASS_SEPARATOR . ']+$/u', '', Unicode::substr($text, $begin, $end - $begin));
+      $line = preg_replace('/[' . TextUtility::PREG_CLASS_SEPARATOR . ']+$/u', '', mb_substr($text, $begin, $end - $begin));
       $width = $this->getTextWidth($line, $font_size, $font_uri);
 
       // See if line extends past the available space.
@@ -400,22 +400,22 @@ class TextToWrapper extends GDImageToolkitOperationBase {
         // If this is the first word, we need to truncate it.
         if ($fit == $begin) {
           // Cut off letters until it fits.
-          while (Unicode::strlen($line) > 0 && $width > $maximum_width) {
-            $line = Unicode::substr($line, 0, -1);
+          while (mb_strlen($line) > 0 && $width > $maximum_width) {
+            $line = mb_substr($line, 0, -1);
             $width = $this->getTextWidth($line, $font_size, $font_uri);
           }
           // If no fit was found, the image is too narrow.
-          $fit = Unicode::strlen($line) ? $begin + Unicode::strlen($line) : $end;
+          $fit = mb_strlen($line) ? $begin + mb_strlen($line) : $end;
         }
         // We have a valid fit for the next line. Insert a line-break and reset
         // the search interval.
-        if (Unicode::substr($text, $fit - 1, 1) == ' ') {
-          $first_part = Unicode::substr($text, 0, $fit - 1);
+        if (mb_substr($text, $fit - 1, 1) == ' ') {
+          $first_part = mb_substr($text, 0, $fit - 1);
         }
         else {
-          $first_part = Unicode::substr($text, 0, $fit);
+          $first_part = mb_substr($text, 0, $fit);
         }
-        $last_part = Unicode::substr($text, $fit);
+        $last_part = mb_substr($text, $fit);
         $text = $first_part . "\n" . $last_part;
         $begin = ++$fit;
         $end = $begin;
@@ -425,7 +425,7 @@ class TextToWrapper extends GDImageToolkitOperationBase {
         $fit = $end;
       }
 
-      if ($end == Unicode::strlen($text)) {
+      if ($end == mb_strlen($text)) {
         // All text fits. No more changes are needed.
         break;
       }

@@ -1,0 +1,236 @@
+ultimate_cron.settings:
+  type: config_object
+  label: Ultimate cron settings
+  mapping:
+    bypass_transactional_safe_connection:
+      type: boolean
+      label: 'Bypass transactional connection'
+    queue:
+      type: mapping
+      label: Queue settings
+      mapping:
+        enabled:
+          type: boolean
+          label: Toggle queing jobs
+        timeouts:
+          type: mapping
+          label: Timeouts
+          mapping:
+            lease_time:
+              type: float
+              label: Time to claim item
+            time:
+              type: float
+              label: Time to process item
+        delays:
+          type: mapping
+          label: Delays
+          mapping:
+            empty_delay:
+              type: float
+              lebel: Time to idle when queue is empty
+            item_delay:
+              type: float
+              label: Time to idle when finished with item
+        throttle:
+          type: mapping
+          label: Timeouts
+          mapping:
+            enabled:
+              type: boolean
+              label: Toggles throttling of queues
+            threads:
+              type: integer
+              label: Number of threads for queues
+            threshold:
+              type: integer
+              label: Number of items needed for a queue
+    launcher:
+      type: mapping
+      label: Launcher
+      mapping:
+        thread:
+          type: string
+          label: Which thread to use
+        max_threads:
+          type: integer
+          label: Maximum number of threads
+        lock_timeout:
+          type: integer
+          label: Time to lock job
+        max_execution_time:
+          type: integer
+          label: Maximum time for the job to run
+    logger:
+      type: mapping
+      label: Logger
+      mapping:
+        cache:
+          type: mapping
+          label: Cache
+          mapping:
+            bin:
+              type: string
+              label: The cache bin to use
+            timeout:
+              type: integer
+              label: Time until cache expires
+        database:
+          type: mapping
+          label: Database
+          mapping:
+            method:
+              type: integer
+              label: The method used for log retention
+            expire:
+              type: integer
+              label: Time until expiration
+            retain:
+              type: integer
+              label: Maximum number of logs to keep
+    scheduler:
+      type: mapping
+      label: Schedulr
+      mapping:
+        crontab:
+          type: mapping
+          label: Crontab
+          mapping:
+            catch_up:
+              type: integer
+              label: Stop between job runs
+            rules:
+              type: sequence
+              label: Array with rules
+              sequence:
+                type: string
+                label: Formatted rule
+        simple:
+          type: mapping
+          label: Simple
+          mapping:
+            rule:
+              type: string
+              label: Rule for Simple scheduler
+
+ultimate_cron.job.*:
+  type: config_entity
+  label: 'Cron Job'
+  mapping:
+    title:
+      type: label
+      label: 'Title'
+    id:
+      type: string
+      label: 'Machine-readable name'
+    weight:
+      type: integer
+      label: 'Weight'
+    module:
+      type: string
+      label: 'Module Name'
+    callback:
+      type: string
+      label: 'Callback'
+    scheduler:
+      type: mapping
+      label: 'Scheduler'
+      mapping:
+        id:
+          type: string
+          label: 'Scheduler ID'
+        configuration:
+          type: ultimate_cron.plugin.scheduler.[%parent.id]
+    launcher:
+      type: mapping
+      label: 'Scheduler'
+      mapping:
+        id:
+          type: string
+          label: 'Launcher ID'
+        configuration:
+          type: ultimate_cron.plugin.launcher.[%parent.id]
+    logger:
+      type: mapping
+      label: 'Scheduler'
+      mapping:
+        id:
+          type: string
+          label: 'Logger ID'
+        configuration:
+          type: ultimate_cron.plugin.logger.[%parent.id]
+
+ultimate_cron.plugin.scheduler.simple:
+  type: mapping
+  label: 'Scheduler configuration'
+  mapping:
+    rules:
+      type: sequence
+      label: 'Scheduler rules'
+      sequence:
+        type: string
+        label: 'Scheduling rule'
+
+ultimate_cron.plugin.scheduler.crontab:
+  type: mapping
+  label: 'Scheduler configuration'
+  mapping:
+    rules:
+      type: sequence
+      label: 'Scheduler rules'
+      sequence:
+        type: string
+        label: 'Scheduling rule'
+    catch_up:
+      type: integer
+      label: 'Timeout (s) after job run'
+
+ultimate_cron.plugin.launcher.serial:
+  type: mapping
+  label: 'Scheduler configuration'
+  mapping:
+    timeouts:
+      type: mapping
+      label: 'Timeout settings'
+      mapping:
+        lock_timeout:
+          type: integer
+          label: 'Lock timeout'
+        max_execution_time:
+          type: integer
+          label: 'Max execution time'
+    launcher:
+      type: mapping
+      label: 'Launcher settings'
+      mapping:
+        max_threads:
+          type: integer
+          label: 'Max threads'
+        thread:
+          type: integer
+          label: 'Thread'
+
+ultimate_cron.plugin.logger.database:
+  type: mapping
+  label: 'Scheduler configuration'
+  mapping:
+    method:
+      type: string
+      label: 'Method'
+    expire:
+      type: integer
+      label: 'Expiration'
+    retain:
+      type: integer
+      label: 'Retain X amount of logs'
+
+ultimate_cron.plugin.logger.cache:
+  type: mapping
+  label: 'Scheduler configuration'
+  mapping:
+    bin:
+      type: string
+      label: 'Cache bin to use for storing logs'
+    timeout:
+      type: integer
+      label: 'Timeout (s) before cache entry expires'

@@ -70,6 +70,15 @@ interface ResultSetInterface extends \Traversable {
   public function setResultItems(array $result_items);
 
   /**
+   * Loads all "original objects" of the result items that have not been loaded.
+   *
+   * This can be used in case original objects are needed for all results, to
+   * make sure they are multi-loaded, avoiding the performance penalty
+   * associated with loading them individually.
+   */
+  public function preLoadResultItems();
+
+  /**
    * Returns the warnings triggered by the search query.
    *
    * @return string[]
@@ -174,9 +183,6 @@ interface ResultSetInterface extends \Traversable {
    *   key instead.
    *
    * @return $this
-   *
-   * @todo Add unsetExtraData() instead of special NULL handling? And/or
-   *  just have to use &getAllExtraData()?
    */
   public function setExtraData($key, $data = NULL);
 

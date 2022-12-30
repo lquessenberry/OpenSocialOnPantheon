@@ -31,6 +31,19 @@ interface IndexInterface extends ConfigEntityInterface {
   const DATASOURCE_ID_SEPARATOR = '/';
 
   /**
+   * String used to separate individual properties within a property path.
+   *
+   * Property paths are used throughout the Search API to reference properties
+   * that are not (necessarily) present directly on some entity or item, but
+   * could be nested in some referenced entity/item, even over multiple levels.
+   * Properties in such a path are separated by this value.
+   *
+   * An example for a property path would be "field_tags:entity:name" for the
+   * name of the associated tag(s) of an entity.
+   */
+  const PROPERTY_PATH_SEPARATOR = ':';
+
+  /**
    * Retrieves the index description.
    *
    * @return string
@@ -68,6 +81,8 @@ interface IndexInterface extends ConfigEntityInterface {
    * - cron_limit: The maximum number of items to be indexed per cron batch.
    * - index_directly: Boolean setting whether entities are indexed immediately
    *   after they are created or updated.
+   * - track_changes_in_references: Boolean setting whether changes to
+   *   referenced entities should be tracked by this index.
    *
    * @return array
    *   An associative array of option values, keyed by the option name.
@@ -399,18 +414,15 @@ interface IndexInterface extends ConfigEntityInterface {
   /**
    * Adds a field to this index.
    *
-   * If the field is already present (with the same datasource and property
-   * path) its settings will be updated.
-   *
    * @param \Drupal\search_api\Item\FieldInterface $field
-   *   The field to add, or update.
+   *   The field to add.
    *
    * @return $this
    *
    * @throws \Drupal\search_api\SearchApiException
-   *   Thrown if the field could not be added, either because a different field
-   *   with the same field ID would be overwritten, or because the field
-   *   identifier is one of the pseudo-fields that can be used in search
+   *   Thrown if the field could not be added, either because a field with the
+   *   same field ID already exists, or because the field identifier is one of
+   *   the reserved field IDs of pseudo-fields that can be used in search
    *   queries.
    */
   public function addField(FieldInterface $field);
@@ -694,6 +706,14 @@ interface IndexInterface extends ConfigEntityInterface {
    *   Thrown if the server couldn't be loaded, for example.
    */
   public function clear();
+
+  /**
+   * Starts a rebuild of the index's tracking information.
+   *
+   * @see \Drupal\search_api\Task\IndexTaskManagerInterface::stopTracking()
+   * @see \Drupal\search_api\Task\IndexTaskManagerInterface::startTracking()
+   */
+  public function rebuildTracker();
 
   /**
    * Determines whether reindexing has been triggered in this page request.

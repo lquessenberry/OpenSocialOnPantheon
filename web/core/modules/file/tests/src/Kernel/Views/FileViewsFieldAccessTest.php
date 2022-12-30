@@ -17,12 +17,12 @@ class FileViewsFieldAccessTest extends FieldFieldAccessTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['file', 'entity_test', 'language', 'user'];
+  protected static $modules = ['file', 'entity_test', 'language', 'user'];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp($import_test_views = TRUE) {
+  protected function setUp($import_test_views = TRUE): void {
     parent::setUp($import_test_views);
 
     $this->installEntitySchema('file');
@@ -48,7 +48,7 @@ class FileViewsFieldAccessTest extends FieldFieldAccessTestBase {
       'uri' => 'public://test.txt',
       'status' => TRUE,
       'langcode' => 'fr',
-      'uid' => $user->id()
+      'uid' => $user->id(),
     ]);
     $file->save();
 
@@ -62,7 +62,7 @@ class FileViewsFieldAccessTest extends FieldFieldAccessTestBase {
     $this->assertFieldAccess('file', 'uri', $file->getFileUri());
     $this->assertFieldAccess('file', 'filemime', $file->filemime->value);
     $this->assertFieldAccess('file', 'filesize', '4 bytes');
-    $this->assertFieldAccess('file', 'status', t('Permanent'));
+    $this->assertFieldAccess('file', 'status', 'Permanent');
     // $this->assertFieldAccess('file', 'created', \Drupal::service('date.formatter')->format(123456));
     // $this->assertFieldAccess('file', 'changed', \Drupal::service('date.formatter')->format(REQUEST_TIME));
   }

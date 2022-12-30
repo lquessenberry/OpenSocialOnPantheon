@@ -6,17 +6,17 @@
 }
 
 [dir="rtl"] .horizontal-tabs {
-    margin: 0 0 1em 0;
+  margin: 0 0 1em 0;
 }
 
 .horizontal-tabs .horizontal-tabs-list {
   display: inline-block;
   margin: 0;
   border: 0;
-  padding: 0px;
+  padding: 0;
   list-style: none;
-  background-color: #dedede;
-  border-right: 1px solid #dedede; /* LTR */
+  background-color: #eee;
+  border-bottom: 1px solid #ccc; /* LTR */
   width: 100%;
   height: auto;
   clear: both;
@@ -27,9 +27,11 @@
   border-left: 1px solid #dedede;
 }
 
-.horizontal-tabs-pane {
+.horizontal-tabs-panes .horizontal-tabs-pane {
   padding: 0 1em;
   border: 0;
+  background-color: unset;
+  box-shadow: unset;
 }
 
 .horizontal-tabs-pane > summary {
@@ -40,7 +42,6 @@
 .horizontal-tabs  .horizontal-tab-button {
   background: #eee;
   border-right: 1px solid #ccc; /* LTR */
-  padding: 1px;
   padding-top: 0;
   margin: 0;
   min-width: 5em; /* IE7 */
@@ -61,7 +62,7 @@
 
 .horizontal-tabs .horizontal-tab-button a:hover {
   outline: none;
-  background-color: #ededdd;
+  background-color: #fff;
 }
 
 .horizontal-tabs .horizontal-tab-button li:hover,
@@ -82,7 +83,8 @@
 
 .horizontal-tab-button.selected {
   background-color: #fff;
-  padding: 0 0 1px 0;
+  border-bottom: 1px solid #fff;
+  margin-bottom: -1px;
 }
 
 [dir="rtl"] .horizontal-tab-button.selected {
@@ -94,9 +96,9 @@
 .horizontal-tabs ul.horizontal-tabs-list li.selected a {
   display: block;
   text-decoration: none;
-  padding: 0.5em 0.6em 0.3em 0.6em;
-  position:relative;
-  top: 0px;
+  padding: 0.6em 1em;
+  position: relative;
+  top: 0;
 }
 
 .horizontal-tab-button .selected strong {
@@ -120,10 +122,3 @@ div.field-group-htabs-wrapper .field-group-format-wrapper {
   padding: 0 0 0.6em;
 }
 
-/*hide*/
-.horizontal-tabs .horizontal-tab-hidden {
-  display: block;
-  position: absolute;
-  top: -100000px;
-  width: 100%;
-}

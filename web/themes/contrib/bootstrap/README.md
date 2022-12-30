@@ -15,11 +15,11 @@ This base theme bridges the gap between Drupal and the [Bootstrap Framework].
 - Extensive integration and template/preprocessor overrides for most of the
   [Bootstrap Framework] CSS, Components and JavaScript
 - Theme settings to further enhance the Drupal Bootstrap integration:
-  - [Breadcrumbs](https://getbootstrap.com/docs/3.3/components/#breadcrumbs)
-  - [Navbar](https://getbootstrap.com/docs/3.3/components/#navbar)
-  - [Popovers](https://getbootstrap.com/docs/3.3/javascript/#popovers)
-  - [Tooltips](https://getbootstrap.com/docs/3.3/javascript/#tooltips)
-  - [Wells](https://getbootstrap.com/docs/3.3/components/#wells) (per region)
+  - [Breadcrumbs](https://getbootstrap.com/docs/3.4/components/#breadcrumbs)
+  - [Navbar](https://getbootstrap.com/docs/3.4/components/#navbar)
+  - [Popovers](https://getbootstrap.com/docs/3.4/javascript/#popovers)
+  - [Tooltips](https://getbootstrap.com/docs/3.4/javascript/#tooltips)
+  - [Wells](https://getbootstrap.com/docs/3.4/components/#wells) (per region)
 
 ### Documentation
 Visit the project's [official documentation site](https://drupal-bootstrap.org)
@@ -41,4 +41,4 @@ or the markdown files inside the `./docs` directory.
 ### 5 Year Evolution (gource)
 https://youtu.be/Cvq6MPJp2dI
 
-[Bootstrap Framework]: https://getbootstrap.com/docs/3.3/
+[Bootstrap Framework]: https://getbootstrap.com/docs/3.4/

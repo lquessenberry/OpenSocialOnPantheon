@@ -3,7 +3,8 @@
 namespace Drupal\private_message\Plugin\Field\FieldFormatter;
 
 use Drupal\Core\Access\CsrfTokenGenerator;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -12,6 +13,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 
 /**
  * Defines the private message thread message field formatter.
@@ -29,9 +31,9 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
   /**
    * The entity manager service.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * The current user.
@@ -55,6 +57,20 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
   protected $userManager;
 
   /**
+   * The configuration factory.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  protected $config;
+
+  /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
+
+  /**
    * Construct a PrivateMessageThreadFormatter object.
    *
    * @param string $plugin_id
@@ -71,12 +87,16 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
    *   The current view mode.
    * @param array $third_party_settings
    *   The third party settings.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entityManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity manager service.
    * @param |Drupal\Core\Session\AccountProxyInterface $currentUser
    *   The current user.
    * @param \Drupal\Core\Access\CsrfTokenGenerator $csrfTokenGenerator
    *   The CSRF token generator.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The configuration factory.
+   * @param \Drupal\Core\Entity\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository.
    */
   public function __construct(
     $plugin_id,
@@ -86,16 +106,19 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
     $label,
     $view_mode,
     array $third_party_settings,
-    EntityManagerInterface $entityManager,
+    EntityTypeManagerInterface $entityTypeManager,
     AccountProxyInterface $currentUser,
-    CsrfTokenGenerator $csrfTokenGenerator
-  ) {
+    CsrfTokenGenerator $csrfTokenGenerator,
+    ConfigFactoryInterface $configFactory,
+    EntityDisplayRepositoryInterface $entity_display_repository) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
 
-    $this->entityManager = $entityManager;
+    $this->entityTypeManager = $entityTypeManager;
     $this->currentUser = $currentUser;
     $this->csrfTokenGenerator = $csrfTokenGenerator;
-    $this->userManager = $entityManager->getStorage('user');
+    $this->userManager = $entityTypeManager->getStorage('user');
+    $this->config = $configFactory->get('private_message.settings');
+    $this->entityDisplayRepository = $entity_display_repository;
   }
 
   /**
@@ -110,9 +133,11 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
       $configuration['label'],
       $configuration['view_mode'],
       $configuration['third_party_settings'],
-      $container->get('entity.manager'),
+      $container->get('entity_type.manager'),
       $container->get('current_user'),
-      $container->get('csrf_token')
+      $container->get('csrf_token'),
+      $container->get('config.factory'),
+      $container->get('entity_display.repository')
     );
   }
 
@@ -132,6 +157,7 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
       'ajax_previous_load_count' => 5,
       'message_order' => 'asc',
       'ajax_refresh_rate' => 20,
+      'view_mode' => 'default',
     ] + parent::defaultSettings();
   }
 
@@ -142,15 +168,17 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
     $summary = [];
     $settings = $this->getSettings();
 
-    $summary[] = $this->t('Number of threads to show on load: @count', ['@count' => $settings['message_count']]);
-    $summary[] = $this->t('Number of threads to show when clicking load previous: @count', ['@count' => $settings['ajax_previous_load_count']]);
-    $summary[] = $this->t('Order of messages: @order', ['@order' => $this->translateKey('order', $settings['message_order'])]);
+    $summary['message_count'] = $this->t('Number of threads to show on load: @count', ['@count' => $settings['message_count']]);
+    $summary['ajax_previous_load_count'] = $this->t('Number of threads to show when clicking load previous: @count', ['@count' => $settings['ajax_previous_load_count']]);
+    $summary['message_order'] = $this->t('Order of messages: @order', ['@order' => $this->translateKey('order', $settings['message_order'])]);
     if ($settings['ajax_refresh_rate']) {
-      $summary[] = $this->t('Ajax refresh rate: @count seconds', ['@count' => $settings['ajax_refresh_rate']]);
+      $summary['ajax_refresh_rate'] = $this->t('Ajax refresh rate: @count seconds', ['@count' => $settings['ajax_refresh_rate']]);
     }
     else {
-      $summary[] = $this->t('Ajax refresh rate: Ajax refresh disabled');
+      $summary['ajax_refresh_rate'] = $this->t('Ajax refresh rate: Ajax refresh disabled');
     }
+
+    $summary['view_mode'] = $this->t('Private Message View Mode: @view_mode', ['@view_mode' => $settings['view_mode']]);
 
     return $summary;
   }
@@ -191,6 +219,13 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
       '#default_value' => $this->getSetting('message_order'),
     ];
 
+    $element['view_mode'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Private Message view mode'),
+      '#options' => $this->entityDisplayRepository->getViewModeOptions('private_message', TRUE),
+      '#default_value' => $this->getSetting('view_mode'),
+    ];
+
     return $element;
   }
 
@@ -207,14 +242,15 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
       '#suffix' => '</div>',
     ];
 
-    $view_builder = $this->entityManager->getViewBuilder('private_message');
+    $view_builder = $this->entityTypeManager->getViewBuilder('private_message');
 
     $user = $this->userManager->load($this->currentUser->id());
     $messages = $private_message_thread->filterUserDeletedMessages($user);
+    $total = count($messages);
     $messages = array_slice($messages, -1 * $this->getSetting('message_count'));
 
     foreach ($messages as $message) {
-      $element[$message->id()] = $view_builder->view($message, 'full');
+      $element[$message->id()] = $view_builder->view($message, $this->getSetting('view_mode'));
     }
 
     if ($this->getSetting('message_order') == 'desc') {
@@ -223,25 +259,33 @@ class PrivateMessageThreadMessageFormatter extends FormatterBase implements Cont
 
     $new_url = Url::fromRoute('private_message.ajax_callback', ['op' => 'get_new_messages']);
     $token = $this->csrfTokenGenerator->get($new_url->getInternalPath());
-    $new_url->setOptions(['absolute' => TRUE, 'query' => ['token' => $token]]);
+    $new_url->setOptions(['query' => ['token' => $token]]);
 
     $prev_url = Url::fromRoute('private_message.ajax_callback', ['op' => 'get_old_messages']);
     $token = $this->csrfTokenGenerator->get($prev_url->getInternalPath());
-    $prev_url->setOptions(['absolute' => TRUE, 'query' => ['token' => $token]]);
+    $prev_url->setOptions(['query' => ['token' => $token]]);
 
     $load_url = Url::fromRoute('private_message.ajax_callback', ['op' => 'load_thread']);
     $load_token = $this->csrfTokenGenerator->get($load_url->getInternalPath());
-    $load_url->setOptions(['absolute' => TRUE, 'query' => ['token' => $load_token]]);
+    $load_url->setOptions(['query' => ['token' => $load_token]]);
 
     $element['#attached']['drupalSettings']['privateMessageThread'] = [
+      'threadId' => (int) $private_message_thread->id(),
       'newMessageCheckUrl' => $new_url->toString(),
       'previousMessageCheckUrl' => $prev_url->toString(),
       'messageOrder' => $this->getSetting('message_order'),
       'refreshRate' => $this->getSetting('ajax_refresh_rate') * 1000,
       'loadThreadUrl' => $load_url->toString(),
+      'previousLoadCount' => $this->getSetting('ajax_previous_load_count'),
+      'messageCount' => $this->getSetting('message_count'),
+      'messageTotal' => $total,
     ];
 
-    $element['#attached']['library'][] = 'private_message/private_message_thread';
+    $element['#attached']['library'][] = 'private_message/private_message_thread_script';
+    $style_disabled = $this->config->get('remove_css');
+    if (!$style_disabled) {
+      $element['#attached']['library'][] = 'private_message/private_message_thread_style';
+    }
 
     return $element;
   }

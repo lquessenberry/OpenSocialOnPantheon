@@ -1,0 +1,17 @@
+{
+  "name": "drupal/shariff",
+  "description": "Integrating Shariff library and providing some options.",
+  "type": "drupal-module",
+  "license": "GPL-2.0+",
+  "support": {
+    "issues": "https://drupal.org/project/issues/shariff",
+    "source": "https://drupal.org/project/shariff"
+  },
+  "keywords": [
+    "Drupal",
+    "Shariff"
+  ],
+  "require": {
+    "drupal/core": "^8 || ^9"
+  }
+}

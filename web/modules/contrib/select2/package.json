@@ -1,0 +1,36 @@
+{
+  "name": "select2",
+  "version": "1.0.0",
+  "description": "This is a [select2](https://select2.org/) integration for Drupal 8. It provides a render element (for usage in forms) and two field widgets. One for simple select fields and another for entity reference fields.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thunder/select2.git"
+  },
+  "author": "Christian Fritsch",
+  "license": "GPL-2.0-or-later",
+  "bugs": {
+    "url": "https://github.com/thunder/select2/issues"
+  },
+  "homepage": "https://github.com/thunder/select2#readme",
+  "scripts": {
+    "build:css": "node-sass --output-style expanded -o css sass",
+    "lint:css": "stylelint sass/*",
+    "postbuild:css": "postcss --no-map --remove-all --config postcss.config.json -r css",
+    "watch:css": "onchange \"sass\" -- npm run build:css"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.2.4",
+    "eslint": "^6.8.0",
+    "node-sass": "^4.14.1",
+    "onchange": "^7.1.0",
+    "postcss": "^8.2.6",
+    "postcss-calc": "^7.0.5",
+    "postcss-cli": "^8.3.1",
+    "postcss-custom-properties": "^10.0.0",
+    "postcss-discard-comments": "^4.0.2",
+    "stylelint": "^13.10.0",
+    "stylelint-config-standard": "^20.0.0",
+    "stylelint-scss": "^3.19.0"
+  },
+  "dependencies": {}
+}

@@ -11,11 +11,9 @@ default:
       filters:
         tags: "@blackbox"
   extensions:
-    Behat\MinkExtension:
+    Drupal\MinkExtension:
       goutte: ~
-      zombie: ~
       base_url: http://127.0.0.1:8888/blackbox
-      javascript_session: zombie
     Drupal\DrupalExtension:
       blackbox: ~
       region_map:
@@ -32,29 +30,6 @@ default:
         warning_message_selector: '.messages.warning'
 
 # Separate profile for testing using the api driver. This assumes a
-# stock Drupal 6 install.
-drupal6:
-  suites:
-    default:
-      contexts:
-        - FeatureContext
-        - Drupal\DrupalExtension\Context\DrupalContext
-        - Drupal\DrupalExtension\Context\MinkContext
-        - Drupal\DrupalExtension\Context\MarkupContext
-      filters:
-        tags: "@d6"
-  extensions:
-    Behat\MinkExtension:
-      base_url: http://127.0.0.1:8888
-    Drupal\DrupalExtension:
-      api_driver: "drupal"
-      drupal:
-        # Change this to the absolute path to Drupal install.
-        drupal_root: "drupal"
-      region_map:
-        left sidebar: "#sidebar-first"
-        content: "#content"
-# Separate profile for testing using the api driver. This assumes a
 # stock Drupal 7 install.
 drupal7:
   suites:
@@ -67,7 +42,7 @@ drupal7:
       filters:
         tags: "@d7"
   extensions:
-    Behat\MinkExtension:
+    Drupal\MinkExtension:
       base_url: http://127.0.0.1:8888
     Drupal\DrupalExtension:
       api_driver: "drupal"
@@ -92,7 +67,7 @@ drush:
       filters:
         tags: "@drushTest"
   extensions:
-    Behat\MinkExtension:
+    Drupal\MinkExtension:
       base_url: http://127.0.0.1:8888
     Drupal\DrupalExtension:
       api_driver: "drush"
@@ -114,10 +89,42 @@ drupal8:
         - Drupal\DrupalExtension\Context\MinkContext
         - Drupal\DrupalExtension\Context\MarkupContext
         - Drupal\DrupalExtension\Context\MessageContext
+        - Drupal\DrupalExtension\Context\MailContext
+        - Drupal\DrupalExtension\Context\RandomContext
       filters:
         tags: "@d8&&~@d8wip"
   extensions:
-    Behat\MinkExtension:
+    Drupal\MinkExtension:
+      base_url: http://127.0.0.1:8888
+    Drupal\DrupalExtension:
+      api_driver: "drupal"
+      drupal:
+        # Change this to the absolute path to Drupal install.
+        drupal_root: "drupal"
+      region_map:
+        left sidebar: "#sidebar-first"
+        content: "#content"
+      selectors:
+        error_message_selector: '.messages--error'
+
+# Separate profile for testing D9. Assumes a stock Drupal 9 install.
+# This uses the same tags as Drupal 8.
+drupal9:
+  suites:
+    default:
+      contexts:
+        - FeatureContext
+        - Drupal\DrupalExtension\Context\ConfigContext
+        - Drupal\DrupalExtension\Context\DrupalContext
+        - Drupal\DrupalExtension\Context\MinkContext
+        - Drupal\DrupalExtension\Context\MarkupContext
+        - Drupal\DrupalExtension\Context\MessageContext
+        - Drupal\DrupalExtension\Context\MailContext
+        - Drupal\DrupalExtension\Context\RandomContext
+      filters:
+        tags: "@d8&&~@d8wip"
+  extensions:
+    Drupal\MinkExtension:
       base_url: http://127.0.0.1:8888
     Drupal\DrupalExtension:
       api_driver: "drupal"

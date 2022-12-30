@@ -52,7 +52,7 @@ class FieldCustomTest extends ViewsKernelTestBase {
 
     $this->executeView($view);
 
-    $this->assertEqual($random, $view->style_plugin->getField(0, 'name'));
+    $this->assertEquals($random, $view->style_plugin->getField(0, 'name'));
   }
 
   /**
@@ -86,7 +86,7 @@ class FieldCustomTest extends ViewsKernelTestBase {
     $output = $renderer->renderRoot($preview);
 
     $expected_text = 'Amount of kittens: ' . $view->style_plugin->getField(0, 'age');
-    $this->assertTrue(strpos((string) $output, $expected_text), 'The views token has been successfully replaced.');
+    $this->assertStringContainsString($expected_text, (string) $output, 'The views token has been successfully replaced.');
   }
 
   /**
@@ -110,7 +110,7 @@ class FieldCustomTest extends ViewsKernelTestBase {
       ],
     ]);
     $this->executeView($view);
-    $this->assertEqual(Xss::filter($text), $view->style_plugin->getField(0, 'name'));
+    $this->assertEquals(Xss::filter($text), $view->style_plugin->getField(0, 'name'));
   }
 
 }

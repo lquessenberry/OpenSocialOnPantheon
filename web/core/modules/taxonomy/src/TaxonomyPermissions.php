@@ -3,7 +3,8 @@
 namespace Drupal\taxonomy;
 
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Entity\BundlePermissionHandlerTrait;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -14,31 +15,31 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @see taxonomy.permissions.yml
  */
 class TaxonomyPermissions implements ContainerInjectionInterface {
-
+  use BundlePermissionHandlerTrait;
   use StringTranslationTrait;
 
   /**
-   * The entity manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityManager;
+  protected $entityTypeManager;
 
   /**
    * Constructs a TaxonomyPermissions instance.
    *
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
-   *   The entity manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
-  public function __construct(EntityManagerInterface $entity_manager) {
-    $this->entityManager = $entity_manager;
+  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static($container->get('entity.manager'));
+    return new static($container->get('entity_type.manager'));
   }
 
   /**
@@ -48,11 +49,7 @@ class TaxonomyPermissions implements ContainerInjectionInterface {
    *   Permissions array.
    */
   public function permissions() {
-    $permissions = [];
-    foreach (Vocabulary::loadMultiple() as $vocabulary) {
-      $permissions += $this->buildPermissions($vocabulary);
-    }
-    return $permissions;
+    return $this->generatePermissions(Vocabulary::loadMultiple(), [$this, 'buildPermissions']);
   }
 
   /**

@@ -9,13 +9,14 @@ use Drupal\Tests\migrate\Kernel\MigrateSqlSourceTestBase;
  *
  * @covers \Drupal\aggregator\Plugin\migrate\source\AggregatorFeed
  * @group aggregator
+ * @group legacy
  */
 class AggregatorFeedTest extends MigrateSqlSourceTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['aggregator', 'migrate_drupal'];
+  protected static $modules = ['aggregator', 'migrate_drupal'];
 
   /**
    * {@inheritdoc}

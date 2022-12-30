@@ -21,7 +21,7 @@ class FileAccessControlHandler extends EntityAccessControlHandler {
   protected function checkAccess(EntityInterface $entity, $operation, AccountInterface $account) {
     /** @var \Drupal\file\FileInterface $entity */
     if ($operation == 'download' || $operation == 'view') {
-      if (\Drupal::service('file_system')->uriScheme($entity->getFileUri()) === 'public') {
+      if (\Drupal::service('stream_wrapper_manager')->getScheme($entity->getFileUri()) === 'public') {
         if ($operation === 'download') {
           return AccessResult::allowed();
         }
@@ -31,7 +31,7 @@ class FileAccessControlHandler extends EntityAccessControlHandler {
       }
       elseif ($references = $this->getFileReferences($entity)) {
         foreach ($references as $field_name => $entity_map) {
-          foreach ($entity_map as $referencing_entity_type => $referencing_entities) {
+          foreach ($entity_map as $referencing_entities) {
             /** @var \Drupal\Core\Entity\EntityInterface $referencing_entity */
             foreach ($referencing_entities as $referencing_entity) {
               $entity_and_field_access = $referencing_entity->access('view', $account, TRUE)->andIf($referencing_entity->$field_name->access('view', $account, TRUE));
@@ -64,11 +64,11 @@ class FileAccessControlHandler extends EntityAccessControlHandler {
     if ($operation == 'delete' || $operation == 'update') {
       $account = $this->prepareUser($account);
       $file_uid = $entity->get('uid')->getValue();
-      // Only the file owner can delete and update the file entity.
+      // Only the file owner can update or delete the file entity.
       if ($account->id() == $file_uid[0]['target_id']) {
         return AccessResult::allowed();
       }
-      return AccessResult::forbidden();
+      return AccessResult::forbidden('Only the file owner can update or delete the file entity.');
     }
 
     // No opinion.
@@ -125,10 +125,8 @@ class FileAccessControlHandler extends EntityAccessControlHandler {
     // The file entity has no "create" permission because by default Drupal core
     // does not allow creating file entities independently. It allows you to
     // create file entities that are referenced from another entity
-    // (e.g. an image for a article). A contributed module is free to alter
+    // (e.g. an image for an article). A contributed module is free to alter
     // this to allow file entities to be created directly.
-    // @todo Update comment to mention REST module when
-    //   https://www.drupal.org/node/1927648 is fixed.
     return AccessResult::neutral();
   }
 

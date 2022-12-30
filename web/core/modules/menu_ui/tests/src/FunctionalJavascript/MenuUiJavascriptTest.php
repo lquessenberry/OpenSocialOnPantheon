@@ -2,8 +2,9 @@
 
 namespace Drupal\Tests\menu_ui\FunctionalJavascript;
 
-use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
+use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\system\Entity\Menu;
+use Drupal\system\MenuStorage;
 use Drupal\Tests\contextual\FunctionalJavascript\ContextualLinkClickTrait;
 use Drupal\Tests\menu_ui\Traits\MenuUiTrait;
 
@@ -12,7 +13,7 @@ use Drupal\Tests\menu_ui\Traits\MenuUiTrait;
  *
  * @group menu_ui
  */
-class MenuUiJavascriptTest extends JavascriptTestBase {
+class MenuUiJavascriptTest extends WebDriverTestBase {
 
   use ContextualLinkClickTrait;
   use MenuUiTrait;
@@ -29,6 +30,11 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
   ];
 
   /**
+   * {@inheritdoc}
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * Tests the contextual links on a menu block.
    */
   public function testBlockContextualLinks() {
@@ -41,7 +47,7 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
 
     $block = $this->drupalPlaceBlock('system_menu_block:' . $menu->id(), [
       'label' => 'Custom menu',
-      'provider' => 'system'
+      'provider' => 'system',
     ]);
     $this->addMenuLink('', '/', $menu->id());
 
@@ -69,7 +75,7 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
   protected function addCustomMenu() {
     // Try adding a menu using a menu_name that is too long.
     $label = $this->randomMachineName(16);
-    $menu_id = strtolower($this->randomMachineName(MENU_MAX_MENU_NAME_LENGTH_UI + 1));
+    $menu_id = strtolower($this->randomMachineName(MenuStorage::MAX_ID_LENGTH + 1));
 
     $this->drupalGet('admin/structure/menu/add');
     $page = $this->getSession()->getPage();
@@ -83,7 +89,7 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
     $page->fillField('Menu name', $menu_id);
     $page->pressButton('Save');
     // Check that the menu was saved with the ID truncated to the max length.
-    $menu = Menu::load(substr($menu_id, 0, MENU_MAX_MENU_NAME_LENGTH_UI));
+    $menu = Menu::load(substr($menu_id, 0, MenuStorage::MAX_ID_LENGTH));
     $this->assertEquals($label, $menu->label());
 
     // Check that the menu was added.
@@ -123,7 +129,6 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
   protected function addMenuLink($parent = '', $path = '/', $menu_id = 'tools', $expanded = FALSE, $weight = '0') {
     // View add menu link page.
     $this->drupalGet("admin/structure/menu/manage/$menu_id/add");
-    $this->assertSession()->statusCodeEquals(200);
 
     $title = '!link_' . $this->randomMachineName(16);
     $edit = [
@@ -137,8 +142,7 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
     ];
 
     // Add menu link.
-    $this->drupalPostForm(NULL, $edit, 'Save');
-    $this->assertSession()->statusCodeEquals(200);
+    $this->submitForm($edit, 'Save');
     $this->assertSession()->pageTextContains('The menu link has been saved.');
 
     $storage = $this->container->get('entity_type.manager')->getStorage('menu_link_content');
@@ -150,7 +154,7 @@ class MenuUiJavascriptTest extends JavascriptTestBase {
     $this->assertMenuLink([
       'menu_name' => $menu_id,
       'children' => [],
-      'parent' => $parent
+      'parent' => $parent,
     ], $menu_link->getPluginId());
 
     return $menu_link;

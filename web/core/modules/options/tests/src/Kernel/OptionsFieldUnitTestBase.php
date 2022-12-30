@@ -16,7 +16,7 @@ abstract class OptionsFieldUnitTestBase extends FieldKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['options'];
+  protected static $modules = ['options'];
 
   /**
    * The field name used in the test.
@@ -51,7 +51,6 @@ abstract class OptionsFieldUnitTestBase extends FieldKernelTestBase {
    */
   protected function setUp() {
     parent::setUp();
-    $this->container->get('router.builder')->rebuild();
 
     $this->fieldStorageDefinition = [
       'field_name' => $this->fieldName,
@@ -71,7 +70,8 @@ abstract class OptionsFieldUnitTestBase extends FieldKernelTestBase {
     ]);
     $this->field->save();
 
-    entity_get_form_display('entity_test', 'entity_test', 'default')
+    \Drupal::service('entity_display.repository')
+      ->getFormDisplay('entity_test', 'entity_test')
       ->setComponent($this->fieldName, [
         'type' => 'options_buttons',
       ])

@@ -1,0 +1,191 @@
+{
+  "name": "emoji-picker-element",
+  "version": "1.14.1",
+  "description": "Lightweight emoji picker distributed as a web component",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "type": "module",
+  "customElements": "custom-elements.json",
+  "files": [
+    "/database.js*",
+    "/index.js*",
+    "/picker.js*",
+    "/trimEmojiData.*",
+    "/svelte.js*",
+    "/*.d.ts",
+    "/custom-elements.json",
+    "/i18n/*"
+  ],
+  "scripts": {
+    "prepare": "run-s build && husky install",
+    "build": "run-s build:rollup build:i18n build:css-docs build:i18n-docs build:toc",
+    "build:rollup": "cross-env NODE_ENV=production rollup -c",
+    "build:css-docs": "node ./bin/generateCssDocs",
+    "build:i18n-docs": "node ./bin/generateI18nDocs",
+    "build:toc": "node ./bin/generateTOC",
+    "build:i18n": "node ./bin/buildI18n",
+    "benchmark:runtime": "cross-env PERF=1 run-s build:rollup && ./bin/run-benchmark.sh",
+    "benchmark:bundlesize": "run-s build:rollup benchmark:bundle benchmark:run-bundlesize",
+    "benchmark:bundle": "rollup -c ./test/bundlesize/rollup.config.js",
+    "benchmark:memory": "run-s build:rollup benchmark:bundle && run-p --race benchmark:memory:server benchmark:memory:test",
+    "benchmark:memory:server": "node ./test/memory/server.js",
+    "benchmark:memory:test": "node ./test/memory/test.js",
+    "benchmark:run-bundlesize": "node ./bin/bundlesize.js",
+    "benchmark:storage": "cross-env PERF=1 run-s build:rollup && run-p --race test:adhoc benchmark:storage:test",
+    "benchmark:storage:test": "node ./test/storage/test.js",
+    "test:leak": "run-p --race test:leak:server test:leak:test",
+    "test:leak:server": "node ./test/leak/server.js",
+    "test:leak:test": "node ./test/leak/test.js",
+    "dev": "run-p --race dev:rollup dev:server",
+    "dev:rollup": "cross-env NODE_ENV=development rollup -c -w",
+    "dev:server": "node ./test/adhoc/server.js",
+    "lint": "standard && stylelint '**/*.scss'",
+    "lint:fix": "standard --fix && stylelint --fix '**/*.scss'",
+    "test": "node ./bin/buildStylesForJest.js && jest --runInBand",
+    "test:adhoc": "node ./test/adhoc/server.js",
+    "cover": "node ./bin/buildStylesForJest.js && jest --runInBand --coverage",
+    "docs": "node bin/processCustomEmoji.js",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "version": "run-s changelog docs && git add CHANGELOG.md docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nolanlawson/emoji-picker-element.git"
+  },
+  "keywords": [
+    "emoji",
+    "picker",
+    "IndexedDB",
+    "custom",
+    "element",
+    "web",
+    "component",
+    "svelte"
+  ],
+  "author": "Nolan Lawson <nolan@nolanlawson.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/nolanlawson/emoji-picker-element/issues"
+  },
+  "homepage": "https://github.com/nolanlawson/emoji-picker-element#readme",
+  "//": {
+    "tachometer": "cannot upgrade to 0.6.0 due to https://github.com/google/tachometer/issues/244"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.16.11",
+    "@peculiar/webcrypto": "^1.2.3",
+    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-node-resolve": "^13.1.3",
+    "@rollup/plugin-replace": "^3.1.0",
+    "@rollup/plugin-strip": "^2.0.1",
+    "@testing-library/dom": "^8.11.3",
+    "@testing-library/jest-dom": "^5.16.2",
+    "@testing-library/user-event": "^13.5.0",
+    "babel-jest": "^27.5.1",
+    "blob-util": "^2.0.2",
+    "compression": "^1.7.4",
+    "conventional-changelog-cli": "^2.2.2",
+    "cross-env": "^7.0.3",
+    "csso": "^5.0.2",
+    "d2l-resize-aware": "BrightspaceUI/resize-aware#semver:^1.2.2",
+    "emoji-picker-element-data": "^1.3.0",
+    "emojibase-data": "^5.1.1",
+    "express": "^4.18.2",
+    "fake-indexeddb": "3.1.7",
+    "fetch-mock-jest": "^1.5.1",
+    "flat-color-icons": "^1.1.0",
+    "focus-visible": "^5.2.0",
+    "get-folder-size": "^3.1.0",
+    "husky": "^7.0.0",
+    "jest": "^27.5.1",
+    "lint-staged": "^12.3.4",
+    "lodash-es": "^4.17.15",
+    "markdown-table": "^3.0.2",
+    "markdown-toc": "^1.2.0",
+    "mkdirp": "^1.0.4",
+    "node-fetch": "^2.6.7",
+    "npm-run-all": "^4.1.5",
+    "playwright": "^1.29.0",
+    "pretty-bytes": "^6.0.0",
+    "puppeteer": "^13.3.2",
+    "recursive-readdir": "^2.2.3",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.67.3",
+    "rollup-plugin-analyzer": "^4.0.0",
+    "rollup-plugin-svelte": "^7.1.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "sass": "^1.49.8",
+    "shx": "^0.3.4",
+    "standard": "^17.0.0",
+    "string.prototype.replaceall": "^1.0.6",
+    "stylelint": "^14.5.1",
+    "stylelint-config-recommended-scss": "^5.0.2",
+    "stylelint-scss": "^4.1.0",
+    "svelte": "^3.55.0",
+    "svelte-jester": "^2.3.2",
+    "svelte-preprocess": "^4.10.3",
+    "svgo": "^2.8.0",
+    "tachometer": "0.5.10",
+    "terser": "^5.12.1"
+  },
+  "standard": {
+    "ignore": [
+      "/database.js",
+      "/index.js",
+      "/picker.js",
+      "/trimEmojiData.js",
+      "/trimEmojiData.cjs",
+      "/svelte.js",
+      "/docs"
+    ],
+    "global": [
+      "btoa",
+      "crypto",
+      "customElements",
+      "CustomEvent",
+      "Event",
+      "fetch",
+      "getComputedStyle",
+      "indexedDB",
+      "IDBKeyRange",
+      "Headers",
+      "HTMLElement",
+      "matchMedia",
+      "performance",
+      "ResizeObserver",
+      "Response",
+      "requestAnimationFrame",
+      "requestIdleCallback",
+      "test",
+      "expect",
+      "jest",
+      "beforeAll",
+      "afterAll",
+      "beforeEach",
+      "afterEach",
+      "describe"
+    ]
+  },
+  "stylelint": {
+    "extends": "stylelint-config-recommended-scss",
+    "rules": {
+      "selector-type-no-unknown": [
+        true,
+        {
+          "ignoreTypes": [
+            "emoji-picker"
+          ]
+        }
+      ]
+    }
+  },
+  "lint-staged": {
+    "*.js": "standard --fix",
+    "*.(css|scss)": "stylelint --fix '**/*.scss'"
+  },
+  "volta": {
+    "node": "16.19.0",
+    "yarn": "1.22.19"
+  }
+}

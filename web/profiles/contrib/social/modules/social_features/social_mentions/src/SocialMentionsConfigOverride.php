@@ -4,6 +4,7 @@ namespace Drupal\social_mentions;
 
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryOverrideInterface;
+use Drupal\Core\Config\StorageInterface;
 
 /**
  * Class SocialMentionsConfigOverride.
@@ -23,12 +24,11 @@ class SocialMentionsConfigOverride implements ConfigFactoryOverrideInterface {
     $config_name = 'filter.format.basic_html';
     if (in_array($config_name, $names)) {
       $config = \Drupal::service('config.factory')->getEditable($config_name);
+      $dependencies = $config->getOriginal('dependencies.module');
+      $overrides[$config_name]['dependencies']['module'] = $dependencies;
+      $overrides[$config_name]['dependencies']['module'][] = 'mentions';
 
-      $dependencies = $config->get('dependencies.module');
-      $dependencies[] = 'mentions';
-
-      $filters = $config->get('filters');
-      $filters['filter_mentions'] = [
+      $overrides[$config_name]['filters']['filter_mentions'] = [
         'id' => 'filter_mentions',
         'provider' => 'mentions',
         'status' => TRUE,
@@ -40,14 +40,8 @@ class SocialMentionsConfigOverride implements ConfigFactoryOverrideInterface {
           ],
         ],
       ];
-
-      $overrides[$config_name] = [
-        'dependencies' => [
-          'module' => $dependencies,
-        ],
-        'filters' => $filters,
-      ];
     }
+
     return $overrides;
   }
 

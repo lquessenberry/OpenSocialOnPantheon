@@ -5,7 +5,6 @@ namespace Drupal\KernelTests\Core\Entity;
 use Drupal\comment\Entity\Comment;
 use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 use Drupal\comment\Tests\CommentTestTrait;
-use Drupal\Core\Database\Database;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\block\Entity\Block;
 use Drupal\entity_test\Entity\EntityTest;
@@ -22,6 +21,7 @@ use Drupal\file\Entity\File;
  *
  * Tested hooks are:
  * - hook_entity_insert() and hook_ENTITY_TYPE_insert()
+ * - hook_entity_preload()
  * - hook_entity_load() and hook_ENTITY_TYPE_load()
  * - hook_entity_update() and hook_ENTITY_TYPE_update()
  * - hook_entity_predelete() and hook_ENTITY_TYPE_predelete()
@@ -40,11 +40,19 @@ class EntityCrudHookTest extends EntityKernelTestBase {
    *
    * @var array
    */
-  public static $modules = ['block', 'block_test', 'entity_crud_hook_test', 'file', 'taxonomy', 'node', 'comment'];
+  protected static $modules = [
+    'block',
+    'block_test',
+    'entity_crud_hook_test',
+    'file',
+    'taxonomy',
+    'node',
+    'comment',
+  ];
 
   protected $ids = [];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installSchema('user', ['users_data']);
@@ -57,26 +65,27 @@ class EntityCrudHookTest extends EntityKernelTestBase {
   /**
    * Checks the order of CRUD hook execution messages.
    *
-   * entity_crud_hook_test.module implements all core entity CRUD hooks and
+   * Module entity_crud_hook_test implements all core entity CRUD hooks and
    * stores a message for each in $GLOBALS['entity_crud_hook_test'].
    *
-   * @param $messages
+   * @param array $messages
    *   An array of plain-text messages in the order they should appear.
+   *
+   * @internal
    */
-  protected function assertHookMessageOrder($messages) {
+  protected function assertHookMessageOrder(array $messages): void {
     $positions = [];
     foreach ($messages as $message) {
       // Verify that each message is found and record its position.
       $position = array_search($message, $GLOBALS['entity_crud_hook_test']);
-      if ($this->assertTrue($position !== FALSE, $message)) {
-        $positions[] = $position;
-      }
+      $this->assertNotFalse($position, $message);
+      $positions[] = $position;
     }
 
     // Sort the positions and ensure they remain in the same order.
     $sorted = $positions;
     sort($sorted);
-    $this->assertTrue($sorted == $positions, 'The hook messages appear in the correct order.');
+    $this->assertSame($positions, $sorted, 'The hook messages appear in the correct order.');
   }
 
   /**
@@ -321,6 +330,7 @@ class EntityCrudHookTest extends EntityKernelTestBase {
     $node = Node::load($node->id());
 
     $this->assertHookMessageOrder([
+      'entity_crud_hook_test_entity_preload called for type node',
       'entity_crud_hook_test_entity_load called for type node',
       'entity_crud_hook_test_node_load called',
     ]);
@@ -522,7 +532,7 @@ class EntityCrudHookTest extends EntityKernelTestBase {
     ]);
 
     $GLOBALS['entity_crud_hook_test'] = [];
-    user_delete($account->id());
+    $account->delete();
 
     $this->assertHookMessageOrder([
       'entity_crud_hook_test_user_predelete called',
@@ -542,19 +552,15 @@ class EntityCrudHookTest extends EntityKernelTestBase {
       $this->fail('Expected exception has not been thrown.');
     }
     catch (\Exception $e) {
-      $this->pass('Expected exception has been thrown.');
+      // Expected exception; just continue testing.
     }
 
-    if (Database::getConnection()->supportsTransactions()) {
-      // Check that the block does not exist in the database.
-      $ids = \Drupal::entityQuery('entity_test')->condition('name', 'fail_insert')->execute();
-      $this->assertTrue(empty($ids), 'Transactions supported, and entity not found in database.');
-    }
-    else {
-      // Check that the block exists in the database.
-      $ids = \Drupal::entityQuery('entity_test')->condition('name', 'fail_insert')->execute();
-      $this->assertFalse(empty($ids), 'Transactions not supported, and entity found in database.');
-    }
+    // Check that the block does not exist in the database.
+    $ids = \Drupal::entityQuery('entity_test')
+      ->accessCheck(FALSE)
+      ->condition('name', 'fail_insert')
+      ->execute();
+    $this->assertEmpty($ids);
   }
 
 }

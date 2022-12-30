@@ -23,12 +23,19 @@ trait EntityChangesDetectionTrait {
     $entity_type = $entity->getEntityType();
 
     // A list of known revision metadata fields which should be skipped from
-    // the comparision.
+    // the comparison.
     $fields = [
       $entity_type->getKey('revision'),
       $entity_type->getKey('revision_translation_affected'),
     ];
     $fields = array_merge($fields, array_values($entity_type->getRevisionMetadataKeys()));
+
+    // Computed fields should be skipped by the check for translation changes.
+    foreach (array_diff_key($entity->getFieldDefinitions(), array_flip($fields)) as $field_name => $field_definition) {
+      if ($field_definition->isComputed()) {
+        $fields[] = $field_name;
+      }
+    }
 
     return $fields;
   }

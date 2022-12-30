@@ -2,6 +2,8 @@
 
 namespace Drupal\entity_module_test\Entity;
 
+use Drupal\Core\Entity\EntityPublishedInterface;
+use Drupal\Core\Entity\EntityPublishedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\entity\Revision\RevisionableContentEntityBase;
@@ -21,11 +23,13 @@ use Drupal\entity\Revision\RevisionableContentEntityBase;
  *   ),
  *   handlers = {
  *     "storage" = "\Drupal\Core\Entity\Sql\SqlContentEntityStorage",
- *     "access" = "\Drupal\Core\Entity\EntityAccessControlHandler",
+ *     "access" = "\Drupal\entity\EntityAccessControlHandler",
+ *     "query_access" = "\Drupal\entity\QueryAccess\QueryAccessHandler",
  *     "permission_provider" = "\Drupal\entity\EntityPermissionProvider",
  *     "form" = {
- *       "add" = "\Drupal\entity\Form\RevisionableContentEntityForm",
- *       "edit" = "\Drupal\entity\Form\RevisionableContentEntityForm",
+ *       "add" = "\Drupal\entity_module_test\Form\EnhancedEntityForm",
+ *       "edit" = "\Drupal\entity_module_test\Form\EnhancedEntityForm",
+ *       "duplicate" = "\Drupal\entity_module_test\Form\EnhancedEntityForm",
  *       "delete" = "\Drupal\Core\Entity\EntityDeleteForm",
  *     },
  *     "route_provider" = {
@@ -36,7 +40,11 @@ use Drupal\entity\Revision\RevisionableContentEntityBase;
  *     "local_action_provider" = {
  *       "collection" = "\Drupal\entity\Menu\EntityCollectionLocalActionProvider",
  *     },
+ *     "local_task_provider" = {
+ *       "default" = "\Drupal\entity\Menu\DefaultEntityLocalTaskProvider",
+ *     },
  *     "list_builder" = "\Drupal\Core\Entity\EntityListBuilder",
+ *     "views_data" = "\Drupal\entity\EntityViewsData",
  *   },
  *   base_table = "entity_test_enhanced",
  *   data_table = "entity_test_enhanced_field_data",
@@ -51,32 +59,47 @@ use Drupal\entity\Revision\RevisionableContentEntityBase;
  *     "bundle" = "type",
  *     "revision" = "vid",
  *     "langcode" = "langcode",
+ *     "label" = "name",
+ *     "published" = "status",
+ *   },
+ *   revision_metadata_keys = {
+ *     "revision_user" = "revision_user",
+ *     "revision_created" = "revision_created",
+ *     "revision_log_message" = "revision_log_message"
  *   },
  *   links = {
  *     "add-page" = "/entity_test_enhanced/add",
  *     "add-form" = "/entity_test_enhanced/add/{type}",
  *     "edit-form" = "/entity_test_enhanced/{entity_test_enhanced}/edit",
+ *     "duplicate-form" = "/entity_test_enhanced/{entity_test_enhanced}/duplicate",
  *     "canonical" = "/entity_test_enhanced/{entity_test_enhanced}",
  *     "collection" = "/entity_test_enhanced",
+ *     "delete-form" = "/entity_test_enhanced/{entity_test_enhanced}/delete",
  *     "delete-multiple-form" = "/entity_test_enhanced/delete",
  *     "revision" = "/entity_test_enhanced/{entity_test_enhanced}/revisions/{entity_test_enhanced_revision}/view",
  *     "revision-revert-form" = "/entity_test_enhanced/{entity_test_enhanced}/revisions/{entity_test_enhanced_revision}/revert",
  *     "version-history" = "/entity_test_enhanced/{entity_test_enhanced}/revisions",
  *   },
- *   bundle_entity_type = "entity_test_enhanced_bundle",
  * )
  */
-class EnhancedEntity extends RevisionableContentEntityBase {
+class EnhancedEntity extends RevisionableContentEntityBase implements EntityPublishedInterface {
+
+  use EntityPublishedTrait;
 
   /**
    * {@inheritdoc}
    */
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
+    $fields += static::publishedBaseFieldDefinitions($entity_type);
 
     $fields['name'] = BaseFieldDefinition::create('string')
       ->setLabel('Name')
       ->setRevisionable(TRUE)
+      ->setDisplayOptions('form', [
+        'type' => 'string_textfield',
+        'weight' => 0,
+      ])
       ->setDisplayOptions('view', [
         'label' => 'hidden',
         'type' => 'string',

@@ -2,9 +2,9 @@
 <!-- @defgroup -->
 # Contributing
 
-Please read the @link faq FAQ @endlink and
-@link getting_started Getting Started @endlink topics first before creating
-an issue in this project's issue queue.
+Please read the [Getting Started](<!-- @url getting_started -->) topic and the
+other various topics on this site first before creating an issue in this
+project's issue queue.
 
 Anything that falls within the scope of existing documentation or answered
 questions will be marked as "Closed (works as designed)" or
@@ -55,14 +55,15 @@ first. **DO NOT** duplicate existing issues.
   mind. It is actually a rare event when it is a legitimate issue with the
   [Drupal Bootstrap] project.
 
-## IRC
-The [Drupal Bootstrap] project and its maintainers use the `#drupal-bootstrap`
-channel on the freenode.net IRC network to communicate in real time. Please read
+## Slack
+
+The [Drupal Bootstrap] project and its maintainers use the `#bootstrap` channel
+in the `drupal.slack.com` workspace to communicate in real time. Please read
 the following for more information on how to the community uses this technology:
-[Chat with the Drupal Community on IRC](https://www.drupal.org/irc).
+[Chat with the Drupal community using Slack](https://www.drupal.org/slack).
 
 Please keep in mind though, this **IS NOT** a "support" channel. It's primary
 use is to discuss issues and to help fix bugs with the base theme itself.
 
 [Drupal Bootstrap]: https://www.drupal.org/project/bootstrap
-[Bootstrap Framework]: https://getbootstrap.com/docs/3.3/
+[Bootstrap Framework]: https://getbootstrap.com/docs/3.4/

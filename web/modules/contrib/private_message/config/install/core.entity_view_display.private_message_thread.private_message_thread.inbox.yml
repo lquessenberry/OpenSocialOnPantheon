@@ -26,5 +26,6 @@ content:
     third_party_settings: {  }
 hidden:
   delete_link: true
+  no_active_users: true
   private_message_form: true
   private_messages: true

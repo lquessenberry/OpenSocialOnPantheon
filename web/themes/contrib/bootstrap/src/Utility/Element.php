@@ -71,7 +71,7 @@ class Element extends DrupalAttributes {
     if (CoreElement::property($key)) {
       throw new \InvalidArgumentException('Cannot dynamically retrieve element property. Please use \Drupal\bootstrap\Utility\Element::getProperty instead.');
     }
-    $instance = new self($this->offsetGet($key, []));
+    $instance = new self($this->offsetGet($key, []), $this->formState);
     return $instance;
   }
 
@@ -92,7 +92,7 @@ class Element extends DrupalAttributes {
     if (CoreElement::property($key)) {
       throw new \InvalidArgumentException('Cannot dynamically retrieve element property. Use \Drupal\bootstrap\Utility\Element::setProperty instead.');
     }
-    $this->offsetSet($key, ($value instanceof Element ? $value->getArray() : $value));
+    $this->offsetSet($key, $value instanceof Element ? $value->getArray() : $value);
   }
 
   /**
@@ -135,6 +135,18 @@ class Element extends DrupalAttributes {
   }
 
   /**
+   * Sets the #access property on an element.
+   *
+   * @param bool|\Drupal\Core\Access\AccessResultInterface $access
+   *   The value to assign to #access.
+   *
+   * @return static
+   */
+  public function access($access = NULL) {
+    return $this->setProperty('access', $access);
+  }
+
+  /**
    * Appends a property with a value.
    *
    * @param string $name
@@ -142,7 +154,7 @@ class Element extends DrupalAttributes {
    * @param mixed $value
    *   The value of the property to set.
    *
-   * @return $this
+   * @return static
    */
   public function appendProperty($name, $value) {
     $property = &$this->getProperty($name);
@@ -206,7 +218,7 @@ class Element extends DrupalAttributes {
    * @param bool $override
    *   Flag determining whether or not to override any existing set class.
    *
-   * @return $this
+   * @return static
    */
   public function colorize($override = TRUE) {
     $button = $this->isButton();
@@ -504,7 +516,7 @@ class Element extends DrupalAttributes {
    *   are identical except for the leading '#', then an attribute name value is
    *   sufficient and no property name needs to be specified.
    *
-   * @return $this
+   * @return static
    */
   public function map(array $map) {
     CoreElement::setAttributes($this->array, $map);
@@ -519,7 +531,7 @@ class Element extends DrupalAttributes {
    * @param mixed $value
    *   The value of the property to set.
    *
-   * @return $this
+   * @return static
    */
   public function prependProperty($name, $value) {
     $property = &$this->getProperty($name);
@@ -599,7 +611,7 @@ class Element extends DrupalAttributes {
    *   Flag indicating if the passed $class should be forcibly set. Setting
    *   this to FALSE allows any existing set class to persist.
    *
-   * @return $this
+   * @return static
    */
   public function setButtonSize($class = NULL, $override = TRUE) {
     // Immediately return if element is not a button.
@@ -647,18 +659,44 @@ class Element extends DrupalAttributes {
    *
    * @param string $message
    *   (optional) The error message to present to the user.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   Optional. The current state of the form. If not provided, it will attempt
+   *   to use the form state passed when constructing the element.
    *
-   * @return $this
+   * @return static
    *
    * @throws \BadMethodCallException
    *   When the element instance was not constructed with a valid form state
    *   object.
    */
-  public function setError($message = '') {
-    if (!$this->formState) {
-      throw new \BadMethodCallException('The element instance must be constructed with a valid form state object to use this method.');
+  public function setError($message = '', FormStateInterface $form_state = NULL) {
+    if (!isset($form_state)) {
+      if (!$this->formState) {
+        throw new \BadMethodCallException('The element instance must be constructed with a valid form state object to use this method.');
+      }
+      $form_state = $this->formState;
     }
-    $this->formState->setError($this->array, $message);
+
+    // Form errors cannot be set after validation has already completed.
+    if (!$form_state->isValidationComplete() && isset($this->array['#parents'])) {
+      $form_state->setError($this->array, $message);
+    }
+    else {
+      \Drupal::messenger()->addMessage($message, 'error');
+    }
+    return $this;
+  }
+
+  /**
+   * Sets the current form state for the element.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   Optional. The current state of the form.
+   *
+   * @return static
+   */
+  public function setFormState(FormStateInterface $form_state = NULL) {
+    $this->formState = $form_state;
     return $this;
   }
 
@@ -668,7 +706,7 @@ class Element extends DrupalAttributes {
    * @param array $icon
    *   An icon render array.
    *
-   * @return $this
+   * @return static
    *
    * @see \Drupal\bootstrap\Bootstrap::glyphicon()
    */
@@ -693,7 +731,7 @@ class Element extends DrupalAttributes {
    * @param bool $recurse
    *   Flag indicating wither to set the same property on child elements.
    *
-   * @return $this
+   * @return static
    */
   public function setProperty($name, $value, $recurse = FALSE) {
     $this->array["#$name"] = $value instanceof Element ? $value->getArray() : $value;
@@ -717,7 +755,7 @@ class Element extends DrupalAttributes {
    * @param int $length
    *   The length of characters to determine if description is "simple".
    *
-   * @return $this
+   * @return static
    */
   public function smartDescription(&$target_element = NULL, $input_only = TRUE, $length = NULL) {
     static $theme;
@@ -793,7 +831,7 @@ class Element extends DrupalAttributes {
       || $target->hasAttribute('data-toggle')
 
       // Ignore if the target element is #disabled.
-      || $target->hasProperty('disabled')
+      || ($target->hasProperty('disabled') && $target->getProperty('disabled') === TRUE)
 
       // Ignore if either the actual element or target element has an explicit
       // #smart_description property set to FALSE.
@@ -844,7 +882,7 @@ class Element extends DrupalAttributes {
    * @param string $name
    *   The name of the property to unset.
    *
-   * @return $this
+   * @return static
    */
   public function unsetProperty($name) {
     unset($this->array["#$name"]);

@@ -59,6 +59,13 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
   protected $classResolver;
 
   /**
+   * The entity last installed schema repository.
+   *
+   * @var \Drupal\Core\Entity\EntityLastInstalledSchemaRepositoryInterface
+   */
+  protected $entityLastInstalledSchemaRepository;
+
+  /**
    * Constructs a new Entity plugin manager.
    *
    * @param \Traversable $namespaces
@@ -72,8 +79,10 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
    *   The string translation.
    * @param \Drupal\Core\DependencyInjection\ClassResolverInterface $class_resolver
    *   The class resolver.
+   * @param \Drupal\Core\Entity\EntityLastInstalledSchemaRepositoryInterface $entity_last_installed_schema_repository
+   *   The entity last installed schema repository.
    */
-  public function __construct(\Traversable $namespaces, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache, TranslationInterface $string_translation, ClassResolverInterface $class_resolver) {
+  public function __construct(\Traversable $namespaces, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache, TranslationInterface $string_translation, ClassResolverInterface $class_resolver, EntityLastInstalledSchemaRepositoryInterface $entity_last_installed_schema_repository) {
     parent::__construct('Entity', $namespaces, $module_handler, 'Drupal\Core\Entity\EntityInterface');
 
     $this->setCacheBackend($cache, 'entity_type', ['entity_types']);
@@ -82,6 +91,7 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
     $this->discovery = new AnnotatedClassDiscovery('Entity', $namespaces, 'Drupal\Core\Entity\Annotation\EntityType');
     $this->stringTranslation = $string_translation;
     $this->classResolver = $class_resolver;
+    $this->entityLastInstalledSchemaRepository = $entity_last_installed_schema_repository;
   }
 
   /**
@@ -104,13 +114,9 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
    */
   protected function findDefinitions() {
     $definitions = $this->getDiscovery()->getDefinitions();
-
-    // Directly call the hook implementations to pass the definitions to them
-    // by reference, so new entity types can be added.
-    foreach ($this->moduleHandler->getImplementations('entity_type_build') as $module) {
-      $function = $module . '_' . 'entity_type_build';
-      $function($definitions);
-    }
+    $this->moduleHandler->invokeAllWith('entity_type_build', function (callable $hook, string $module) use (&$definitions) {
+      $hook($definitions);
+    });
     foreach ($definitions as $plugin_id => $definition) {
       $this->processDefinition($definition, $plugin_id);
     }
@@ -134,6 +140,22 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
   }
 
   /**
+   * Gets the active definition for a content entity type.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID.
+   *
+   * @return \Drupal\Core\Entity\EntityTypeInterface
+   *   The active entity type definition.
+   *
+   * @internal
+   */
+  public function getActiveDefinition($entity_type_id) {
+    $definition = $this->entityLastInstalledSchemaRepository->getLastInstalledDefinition($entity_type_id);
+    return $definition ?: $this->getDefinition($entity_type_id);
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function clearCachedDefinitions() {
@@ -148,14 +170,15 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
     parent::useCaches($use_caches);
     if (!$use_caches) {
       $this->handlers = [];
+      $this->container->get('entity.memory_cache')->reset();
     }
   }
 
   /**
    * {@inheritdoc}
    */
-  public function hasHandler($entity_type, $handler_type) {
-    if ($definition = $this->getDefinition($entity_type, FALSE)) {
+  public function hasHandler($entity_type_id, $handler_type) {
+    if ($definition = $this->getDefinition($entity_type_id, FALSE)) {
       return $definition->hasHandlerClass($handler_type);
     }
 
@@ -165,23 +188,23 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
   /**
    * {@inheritdoc}
    */
-  public function getStorage($entity_type) {
-    return $this->getHandler($entity_type, 'storage');
+  public function getStorage($entity_type_id) {
+    return $this->getHandler($entity_type_id, 'storage');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getListBuilder($entity_type) {
-    return $this->getHandler($entity_type, 'list_builder');
+  public function getListBuilder($entity_type_id) {
+    return $this->getHandler($entity_type_id, 'list_builder');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getFormObject($entity_type, $operation) {
-    if (!$class = $this->getDefinition($entity_type, TRUE)->getFormClass($operation)) {
-      throw new InvalidPluginDefinitionException($entity_type, sprintf('The "%s" entity type did not specify a "%s" form class.', $entity_type, $operation));
+  public function getFormObject($entity_type_id, $operation) {
+    if (!$class = $this->getDefinition($entity_type_id, TRUE)->getFormClass($operation)) {
+      throw new InvalidPluginDefinitionException($entity_type_id, sprintf('The "%s" entity type did not specify a "%s" form class.', $entity_type_id, $operation));
     }
 
     $form_object = $this->classResolver->getInstanceFromDefinition($class);
@@ -190,55 +213,52 @@ class EntityTypeManager extends DefaultPluginManager implements EntityTypeManage
       ->setStringTranslation($this->stringTranslation)
       ->setModuleHandler($this->moduleHandler)
       ->setEntityTypeManager($this)
-      ->setOperation($operation)
-      // The entity manager cannot be injected due to a circular dependency.
-      // @todo Remove this set call in https://www.drupal.org/node/2603542.
-      ->setEntityManager(\Drupal::entityManager());
+      ->setOperation($operation);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getRouteProviders($entity_type) {
-    if (!isset($this->handlers['route_provider'][$entity_type])) {
-      $route_provider_classes = $this->getDefinition($entity_type, TRUE)->getRouteProviderClasses();
+  public function getRouteProviders($entity_type_id) {
+    if (!isset($this->handlers['route_provider'][$entity_type_id])) {
+      $route_provider_classes = $this->getDefinition($entity_type_id, TRUE)->getRouteProviderClasses();
 
       foreach ($route_provider_classes as $type => $class) {
-        $this->handlers['route_provider'][$entity_type][$type] = $this->createHandlerInstance($class, $this->getDefinition($entity_type));
+        $this->handlers['route_provider'][$entity_type_id][$type] = $this->createHandlerInstance($class, $this->getDefinition($entity_type_id));
       }
     }
 
-    return isset($this->handlers['route_provider'][$entity_type]) ? $this->handlers['route_provider'][$entity_type] : [];
+    return $this->handlers['route_provider'][$entity_type_id] ?? [];
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getViewBuilder($entity_type) {
-    return $this->getHandler($entity_type, 'view_builder');
+  public function getViewBuilder($entity_type_id) {
+    return $this->getHandler($entity_type_id, 'view_builder');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getAccessControlHandler($entity_type) {
-    return $this->getHandler($entity_type, 'access');
+  public function getAccessControlHandler($entity_type_id) {
+    return $this->getHandler($entity_type_id, 'access');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getHandler($entity_type, $handler_type) {
-    if (!isset($this->handlers[$handler_type][$entity_type])) {
-      $definition = $this->getDefinition($entity_type);
+  public function getHandler($entity_type_id, $handler_type) {
+    if (!isset($this->handlers[$handler_type][$entity_type_id])) {
+      $definition = $this->getDefinition($entity_type_id);
       $class = $definition->getHandlerClass($handler_type);
       if (!$class) {
-        throw new InvalidPluginDefinitionException($entity_type, sprintf('The "%s" entity type did not specify a %s handler.', $entity_type, $handler_type));
+        throw new InvalidPluginDefinitionException($entity_type_id, sprintf('The "%s" entity type did not specify a %s handler.', $entity_type_id, $handler_type));
       }
-      $this->handlers[$handler_type][$entity_type] = $this->createHandlerInstance($class, $definition);
+      $this->handlers[$handler_type][$entity_type_id] = $this->createHandlerInstance($class, $definition);
     }
 
-    return $this->handlers[$handler_type][$entity_type];
+    return $this->handlers[$handler_type][$entity_type_id];
   }
 
   /**

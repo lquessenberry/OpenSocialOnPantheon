@@ -54,12 +54,12 @@ class ContentTranslationSyncUnitTest extends KernelTestBase {
    */
   protected $unchangedFieldValues;
 
-  public static $modules = ['language', 'content_translation'];
+  protected static $modules = ['language', 'content_translation'];
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $this->synchronizer = new FieldTranslationSynchronizer($this->container->get('entity.manager'), $this->container->get('plugin.manager.field.field_type'));
+    $this->synchronizer = new FieldTranslationSynchronizer($this->container->get('entity_type.manager'), $this->container->get('plugin.manager.field.field_type'));
     $this->synchronized = ['sync1', 'sync2'];
     $this->columns = array_merge($this->synchronized, ['var1', 'var2']);
     $this->langcodes = ['en', 'it', 'fr', 'de', 'es'];
@@ -222,7 +222,7 @@ class ContentTranslationSyncUnitTest extends KernelTestBase {
             // depending on the logic implemented by the delta callback and
             // whether it is a sync column or not.
             $value = $delta > 0 && $delta_callback($delta) && in_array($column, $this->synchronized) ? $changed_items[0][$column] : $unchanged_items[$delta][$column];
-            $this->assertEqual($field_values[$langcode][$delta][$column], $value, "Item $delta column $column for langcode $langcode synced correctly");
+            $this->assertEquals($field_values[$langcode][$delta][$column], $value, "Item $delta column $column for langcode $langcode synced correctly");
           }
         }
       }
@@ -249,9 +249,9 @@ class ContentTranslationSyncUnitTest extends KernelTestBase {
       for ($delta = 0; $delta < $this->cardinality; $delta++) {
         foreach ($this->columns as $column) {
           // If the column is synchronized, the value should have been synced,
-          // for unsychronized columns, the value must not change.
+          // for unsynchronized columns, the value must not change.
           $expected_value = in_array($column, $this->synchronized) ? $changed_items[$delta][$column] : $this->unchangedFieldValues[$langcode][$delta][$column];
-          $this->assertEqual($field_values[$langcode][$delta][$column], $expected_value, "Differing Item $delta column $column for langcode $langcode synced correctly");
+          $this->assertEquals($expected_value, $field_values[$langcode][$delta][$column], "Differing Item {$delta} column {$column} for langcode {$langcode} synced correctly");
         }
       }
     }

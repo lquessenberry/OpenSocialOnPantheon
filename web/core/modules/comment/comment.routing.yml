@@ -59,8 +59,18 @@ comment.multiple_delete_confirm:
   defaults:
     _title: 'Delete'
     _form: '\Drupal\comment\Form\ConfirmDeleteMultiple'
+    entity_type_id: 'comment'
   requirements:
-    _permission: 'administer comments'
+    _entity_delete_multiple_access: 'comment'
+
+entity.comment.delete_multiple_form:
+  path: '/admin/content/comment/delete'
+  defaults:
+    _title: 'Delete'
+    _form: '\Drupal\comment\Form\ConfirmDeleteMultiple'
+    entity_type_id: 'comment'
+  requirements:
+    _entity_delete_multiple_access: 'comment'
 
 comment.reply:
   path: '/comment/reply/{entity_type}/{entity}/{field_name}/{pid}'
@@ -85,7 +95,7 @@ comment.new_comments_node_links:
 comment.node_redirect:
   path: '/comment/{node}/reply'
   defaults:
-    _controller: 'Drupal\comment\Controller\CommentController::redirectNode'
+    _controller: '\Drupal\comment\Controller\CommentController::redirectNode'
   requirements:
     _entity_access: 'node.view'
     _module_dependencies: 'node'

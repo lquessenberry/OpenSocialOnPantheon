@@ -1,0 +1,127 @@
+lazy.settings:
+  type: config_object
+  mapping:
+    skipClass:
+      type: string
+      label: skipClass
+    disable_admin:
+      type: boolean
+      label: Disable administrative pages
+    visibility:
+      type: mapping
+      mapping:
+        id:
+          type: string
+          label: Plugin ID
+        pages:
+          type: string
+          label: Pages
+        negate:
+          type: integer
+          label: Negate
+    placeholderSrc:
+      type: string
+      label: placeholderSrc
+    preferNative:
+      type: boolean
+      label: preferNative
+    cssEffect:
+      type: boolean
+      label: cssEffect
+    minified:
+      type: boolean
+      label: minified
+    libraryPath:
+      type: string
+      label: libraryPath
+    lazysizes:
+      type: mapping
+      mapping:
+        lazyClass:
+          type: string
+          label: lazyClass
+        loadedClass:
+          type: string
+          label: loadedClass
+        loadingClass:
+          type: string
+          label: loadingClass
+        preloadClass:
+          type: string
+          label: preloadClass
+        errorClass:
+          type: string
+          label: errorClass
+        autosizesClass:
+          type: string
+          label: autosizesClass
+        srcAttr:
+          type: string
+          label: srcAttr
+        srcsetAttr:
+          type: string
+          label: srcsetAttr
+        sizesAttr:
+          type: string
+          label: sizesAttr
+        minSize:
+          type: integer
+          label: minSize
+        customMedia:
+          type: sequence
+          label: customMedia
+          sequence:
+            type: string
+            label: 'Custom Media'
+        init:
+          type: boolean
+          label: init
+        expFactor:
+          type: float
+          label: expFactor
+        hFac:
+          type: float
+          label: hFac
+        loadMode:
+          type: integer
+          label: loadMode
+        loadHidden:
+          type: boolean
+          label: loadHidden
+        ricTimeout:
+          type: integer
+          label: ricTimeout
+        throttleDelay:
+          type: integer
+          label: throttleDelay
+        plugins:
+          type: sequence
+          label: plugins
+          sequence:
+            type: string
+            label: Plugin
+
+field.formatter.third_party.lazy:
+  type: mapping
+  label: 'Per field lazy-loading setting'
+  mapping:
+    lazy_image:
+      type: string
+      label: 'Lazy-loading'
+    placeholder_style:
+      type: string
+      label: 'Placeholder image style'
+    data_uri:
+      type: boolean
+      label: 'Use data URIs for the placeholder image'
+
+filter_settings.lazy_filter:
+  type: filter
+  label: 'Inline elements to be lazy-loaded via filter'
+  mapping:
+    image:
+      type: boolean
+      label: 'Image tags'
+    iframe:
+      type: boolean
+      label: 'Iframe tags'

@@ -20,7 +20,7 @@ use Drupal\bootstrap\Plugin\Setting\SettingBase;
  *     "container" = @Translation("Container"),
  *   },
  *   see = {
- *     "https://getbootstrap.com/docs/3.3/css/#grid-example-fluid" = @Translation("Fluid container"),
+ *     "https://getbootstrap.com/docs/3.4/css/#grid-example-fluid" = @Translation("Fluid container"),
  *   },
  * )
  */

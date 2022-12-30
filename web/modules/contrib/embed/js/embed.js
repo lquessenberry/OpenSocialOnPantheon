@@ -68,5 +68,4 @@
 
   };
 
-
 })(jQuery, Drupal);

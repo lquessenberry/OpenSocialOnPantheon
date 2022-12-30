@@ -4,19 +4,21 @@ namespace CommerceGuys\Addressing\Tests\Zone;
 
 use CommerceGuys\Addressing\Address;
 use CommerceGuys\Addressing\Zone\Zone;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \CommerceGuys\Addressing\Zone\Zone
  */
-class ZoneTest extends \PHPUnit_Framework_TestCase
+final class ZoneTest extends TestCase
 {
     /**
      * @covers ::__construct
      *
-     * @expectedException \InvalidArgumentException
+     *
      */
     public function testMissingProperty()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $definition = [
             'id' => 'test',
         ];
@@ -26,10 +28,11 @@ class ZoneTest extends \PHPUnit_Framework_TestCase
     /**
      * @covers ::__construct
      *
-     * @expectedException \InvalidArgumentException
+     *
      */
     public function testInvalidTerritories()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $definition = [
             'id' => 'test',
             'label' => 'Test',
