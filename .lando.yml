@@ -1,0 +1,43 @@
+name: opensocialonpantheon
+recipe: drupal9
+config:
+  webroot: web
+services:
+  appserver:
+    type: php
+    php: '8.1'
+    composer_version: "2.4.4"
+    database: mysql
+    build_as_root:
+      # Note that you will want to use the script for the major version of node you want to install
+      # See: https://github.com/nodesource/distributions/blob/master/README.md#installation-instructions
+      - curl -sL https://deb.nodesource.com/setup_16.x | bash -
+      - apt-get install -y nodejs
+      - npm install --global yarn
+      - yarn add -g node-sass
+      - yarn add -g grunt
+    globals:
+      grunt-cli: latest
+  phpmyadmin:
+    type: phpmyadmin
+tooling:
+  npm:
+    service: appserver
+  node:
+    service: appserver
+  grunt:
+    service: appserver
+  yarn:
+    service: appserver
+
+# Uncomment the exclude lines to improve Pattern Lab performance.
+#
+# If Composer or NPM complain about write permissions
+# while installing modules or plugins, comment out
+# the below excludes and rebuild lando to continue with your build.
+excludes:
+  # - docroot/core
+  # - docroot/libraries
+  # - docroot/themes/custom/protiviti/components/node_modules
+  # - docroot/themes/custom/protiviti/components/public
+  # - docroot/themes/custom/protiviti/node_modules
