@@ -7,6 +7,9 @@ vendor
 # Ignore Web Folder
 web
 
+# Ignore Drush
+drush
+
 # Pantheon commits a settings.php for environment-specific settings.
 # Place local settings in settings.local.php
 web/sites/*/settings.local.php
